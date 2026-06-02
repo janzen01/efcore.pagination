@@ -1,0 +1,56 @@
+<Project>
+  
+  <!-- Compilation -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  
+  <!-- Code quality -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Public library: missing XML doc comments must not fail the build (yet) -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  
+  <!-- Package identity (PackageId and Description are set per project) -->
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <Product>Janzen.Pagination</Product>
+    <Authors>Lubos Jansky</Authors>
+    <Copyright>Copyright © Lubos Jansky</Copyright>
+  </PropertyGroup>
+  
+  <!-- Source control / Source Link (defines RepositoryUrl used below) -->
+  <PropertyGroup>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/janzen01/efcore.pagination</RepositoryUrl>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  
+  <!-- Package metadata (NuGet listing) -->
+  <PropertyGroup>
+    <PackageProjectUrl>https://github.com/janzen01/efcore.pagination</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
+    <PackageTags>pagination;filtering;sorting;efcore;entity-framework-core;linq;query</PackageTags>
+  </PropertyGroup>
+  
+  <!-- Package output (symbols) -->
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+  
+  <!-- Packaging: each packable project ships its own README.md as the NuGet readme -->
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildProjectDirectory)\README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+  
+</Project>

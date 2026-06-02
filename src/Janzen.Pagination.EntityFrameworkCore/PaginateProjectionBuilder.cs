@@ -1,0 +1,183 @@
+using NodaTime;
+
+using System.Diagnostics.CodeAnalysis;
+using System.Linq.Expressions;
+using System.Reflection;
+
+namespace Janzen.Pagination.EntityFrameworkCore;
+
+internal static class PaginateProjectionBuilder {
+
+	public static Expression<Func<TEntity, TResult>> Build<TEntity, TResult>() { return Cache<TEntity, TResult>.Projection; }
+
+	private static Expression<Func<TEntity, TResult>> Create<TEntity, TResult>() {
+		var source = Expression.Parameter(typeof(TEntity), "item");
+		var body = BuildObject(source, typeof(TResult), typeof(TEntity).Name);
+		return Expression.Lambda<Func<TEntity, TResult>>(body, source);
+	}
+
+	private static NewExpression BuildObject(Expression source, Type targetType, string path) {
+
+		var constructor = targetType
+			                  .GetConstructors()
+			                  .OrderByDescending(item => item.GetParameters().Length)
+			                  .FirstOrDefault() ??
+		                  throw new PaginateQueryException($"Type '{targetType.Name}' does not expose a public constructor for automatic projection.");
+
+		var parameters = constructor.GetParameters();
+		var arguments = new Expression[parameters.Length];
+
+		for (int i = 0; i < parameters.Length; i++) {
+			var parameter = parameters[i];
+			var sourceMember = FindSourceMember(source.Type, parameter.Name!, path);
+			Expression sourceValue = Expression.MakeMemberAccess(source, sourceMember);
+			arguments[i] = BuildArgument(sourceValue, sourceMember, parameter, $"{path}.{sourceMember.Name}");
+		}
+
+		return Expression.New(constructor, arguments);
+
+	}
+
+	private static Expression BuildArgument(Expression sourceValue, MemberInfo sourceMember, ParameterInfo parameter, string path) {
+
+		var targetType = parameter.ParameterType;
+
+		if (CanAssign(sourceValue.Type, targetType)) return ConvertIfNeeded(sourceValue, targetType);
+
+		if (TryBuildInstantConversion(sourceValue, targetType, out var instantConversion)) return instantConversion;
+
+		if (IsSimpleType(targetType)) {
+			throw new PaginateQueryException($"Cannot automatically project '{path}' from '{sourceValue.Type.Name}' to '{targetType.Name}'.");
+		}
+
+		var nestedTargetType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+		var nestedValue = BuildObject(sourceValue, nestedTargetType, path);
+		var convertedNestedValue = ConvertIfNeeded(nestedValue, targetType);
+
+		if (!CanBeNull(sourceValue.Type, sourceMember)) return convertedNestedValue;
+
+		if (!CanBeNull(targetType, parameter)) {
+			throw new PaginateQueryException($"Cannot automatically project nullable source '{path}' into non-nullable target parameter '{parameter.Name}'.");
+		}
+
+		return Expression.Condition(
+			Expression.Equal(sourceValue, Expression.Constant(null, sourceValue.Type)),
+			Expression.Constant(null, targetType),
+			convertedNestedValue
+		);
+
+	}
+
+	private static MemberInfo FindSourceMember(Type sourceType, string name, string path) {
+
+		var properties = sourceType.GetProperties(BindingFlags.Instance | BindingFlags.Public)
+			.Where(property => string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
+			.Cast<MemberInfo>();
+
+		var fields = sourceType.GetFields(BindingFlags.Instance | BindingFlags.Public)
+			.Where(field => string.Equals(field.Name, name, StringComparison.OrdinalIgnoreCase))
+			.Cast<MemberInfo>();
+
+		return properties
+			       .Concat(fields)
+			       .FirstOrDefault() ??
+		       throw new PaginateQueryException($"Cannot automatically project '{path}' because source type '{sourceType.Name}' has no public member named '{name}'.");
+
+	}
+
+	private static bool CanAssign(Type sourceType, Type targetType) {
+
+		if (targetType.IsAssignableFrom(sourceType)) return true;
+
+		var targetUnderlyingType = Nullable.GetUnderlyingType(targetType);
+		return targetUnderlyingType is not null && targetUnderlyingType == sourceType;
+
+	}
+
+	private static Expression ConvertIfNeeded(Expression expression, Type targetType) { return expression.Type == targetType ? expression : Expression.Convert(expression, targetType); }
+
+	/// <summary>
+	///     Builds an <see cref="Instant" /> → <see cref="DateTimeOffset" /> projection, preserving nullability where both
+	///     sides are nullable.
+	/// </summary>
+	private static bool TryBuildInstantConversion(Expression sourceValue, Type targetType, [NotNullWhen(true)] out Expression? result) {
+
+		result = null;
+
+		var sourceUnderlying = Nullable.GetUnderlyingType(sourceValue.Type) ?? sourceValue.Type;
+		var targetUnderlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+		if (sourceUnderlying != typeof(Instant) || targetUnderlying != typeof(DateTimeOffset)) return false;
+
+		bool sourceNullable = Nullable.GetUnderlyingType(sourceValue.Type) is not null;
+		bool targetNullable = Nullable.GetUnderlyingType(targetType) is not null;
+
+		if (!sourceNullable) {
+			var converted = Expression.Call(sourceValue, nameof(Instant.ToDateTimeOffset), Type.EmptyTypes);
+			result = targetNullable ? Expression.Convert(converted, targetType) : converted;
+			return true;
+		}
+
+		// A nullable Instant can only be projected onto a nullable DateTimeOffset; otherwise let the caller raise a clear error.
+		if (!targetNullable) return false;
+
+		var value = Expression.Call(Expression.Property(sourceValue, "Value"), nameof(Instant.ToDateTimeOffset), Type.EmptyTypes);
+		result = Expression.Condition(
+			Expression.Property(sourceValue, "HasValue"),
+			Expression.Convert(value, targetType),
+			Expression.Constant(null, targetType)
+		);
+		return true;
+
+	}
+
+	private static bool CanBeNull(Type type, MemberInfo member) {
+
+		if (Nullable.GetUnderlyingType(type) is not null) return true;
+		if (type.IsValueType) return false;
+
+		var context = new NullabilityInfoContext();
+
+		return member switch {
+			PropertyInfo property => context.Create(property).ReadState != NullabilityState.NotNull,
+			FieldInfo field => context.Create(field).ReadState != NullabilityState.NotNull,
+			_ => true
+		};
+
+	}
+
+	private static bool CanBeNull(Type type, ParameterInfo parameter) {
+
+		if (Nullable.GetUnderlyingType(type) is not null) return true;
+		if (type.IsValueType) return false;
+
+		var context = new NullabilityInfoContext();
+		return context.Create(parameter).ReadState != NullabilityState.NotNull;
+
+	}
+
+	private static bool IsSimpleType(Type type) {
+
+		var effectiveType = Nullable.GetUnderlyingType(type) ?? type;
+
+		return effectiveType.IsPrimitive ||
+		       effectiveType.IsEnum ||
+		       effectiveType == typeof(string) ||
+		       effectiveType == typeof(Guid) ||
+		       effectiveType == typeof(decimal) ||
+		       effectiveType == typeof(DateTime) ||
+		       effectiveType == typeof(DateTimeOffset) ||
+		       effectiveType == typeof(Instant) ||
+		       effectiveType == typeof(LocalDate) ||
+		       effectiveType == typeof(LocalDateTime);
+
+	}
+
+	// The projection only depends on the (TEntity, TResult) pair, so it is built once per closed generic and reused.
+	private static class Cache<TEntity, TResult> {
+
+		public readonly static Expression<Func<TEntity, TResult>> Projection = Create<TEntity, TResult>();
+
+	}
+
+}
