@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="README.md" />
+    <File Path="LICENSE" />
+    <File Path=".gitignore" />
+  </Folder>
+  <Project Path="src/Janzen.Pagination.AspNetCore/Janzen.Pagination.AspNetCore.csproj" />
+  <Project Path="src/Janzen.Pagination.EntityFrameworkCore/Janzen.Pagination.EntityFrameworkCore.csproj" />
+  <Project Path="src/Janzen.Pagination.PostgreSql/Janzen.Pagination.PostgreSql.csproj" />
+</Solution>

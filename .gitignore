@@ -1,0 +1,54 @@
+## Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+*.DotSettings.user
+
+## ASP.NET Core / .NET local files
+.dotnet/
+appsettings.Local.json
+appsettings.*.Local.json
+secrets.json
+*.db
+*.db-shm
+*.db-wal
+
+## Test results and coverage
+TestResults/
+coverage/
+coverage.xml
+coverage.opencover.xml
+*.coverage
+*.coveragexml
+
+## NuGet
+*.nupkg
+*.snupkg
+packages/
+project.lock.json
+project.assets.json
+artifacts/
+
+## Publish output
+publish/
+*.pubxml.user
+
+## OS files
+.DS_Store
+Thumbs.db
+
+## Temporary files
+*.tmp
+*.temp
+*.swp
+~$*
