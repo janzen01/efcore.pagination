@@ -38,12 +38,12 @@ PaginatedResponse<JudgeDto> response = await dbContext.Judges
 
 ## Query-string contract
 
-| Parameter | Example | Meaning |
-| --- | --- | --- |
-| `page` | `?page=2` | 1-based page number |
-| `limit` | `?limit=50` | page size (capped by `MaxLimit`) |
-| `sortBy` | `?sortBy=name:DESC` | sort field and direction |
-| `search` | `?search=smith` | free-text search over searchable fields |
+| Parameter        | Example                     | Meaning                                        |
+|------------------|-----------------------------|------------------------------------------------|
+| `page`           | `?page=2`                   | 1-based page number                            |
+| `limit`          | `?limit=50`                 | page size (capped by `MaxLimit`)               |
+| `sortBy`         | `?sortBy=name:DESC`         | sort field and direction                       |
+| `search`         | `?search=smith`             | free-text search over searchable fields        |
 | `filter.<field>` | `?filter.status=$eq:active` | `$operator:value` filter on a filterable field |
 
 ## License

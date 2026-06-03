@@ -9,11 +9,11 @@ metadata and links.
 
 ## Packages
 
-| Package | Docs | Purpose |
-| --- | --- | --- |
+| Package                                   | Docs                                                          | Purpose                                                                                                                 |
+|-------------------------------------------|---------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------|
 | **Janzen.Pagination.EntityFrameworkCore** | [README](src/Janzen.Pagination.EntityFrameworkCore/README.md) | Provider-agnostic query engine — fluent `PaginateConfig<T>`, filtering / sorting / search, projection, `PaginateAsync`. |
-| **Janzen.Pagination.PostgreSql** | [README](src/Janzen.Pagination.PostgreSql/README.md) | PostgreSQL provider — case-insensitive search via native `ILIKE`. |
-| **Janzen.Pagination.AspNetCore** | [README](src/Janzen.Pagination.AspNetCore/README.md) | ASP.NET Core integration — query-string model binding, `ProblemDetails`, links, OpenAPI metadata. |
+| **Janzen.Pagination.PostgreSql**          | [README](src/Janzen.Pagination.PostgreSql/README.md)          | PostgreSQL provider — case-insensitive search via native `ILIKE`.                                                       |
+| **Janzen.Pagination.AspNetCore**          | [README](src/Janzen.Pagination.AspNetCore/README.md)          | ASP.NET Core integration — query-string model binding, `ProblemDetails`, links, OpenAPI metadata.                       |
 
 ## Architecture
 
