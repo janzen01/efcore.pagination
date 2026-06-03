@@ -1,0 +1,254 @@
+using Janzen.Pagination.EntityFrameworkCore.Configuration;
+using Janzen.Pagination.EntityFrameworkCore.Engine;
+using Janzen.Pagination.EntityFrameworkCore.Model;
+
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.OpenApi;
+
+using System.Collections.Frozen;
+using System.Globalization;
+using System.Text.Json.Nodes;
+
+namespace Janzen.Pagination.AspNetCore.OpenApi;
+
+public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransformer {
+
+	private readonly static FrozenSet<string> GeneratedParameterNames = new[] {
+		"Page", "Limit", "SortBy", "Search", "SearchBy", "Filters", "page", "limit", "sortBy", "search", "searchBy"
+	}.ToFrozenSet(StringComparer.Ordinal);
+
+	public Task TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken) {
+
+		var attribute = context.Description.ActionDescriptor.EndpointMetadata
+			.OfType<PaginatedQueryAttribute>()
+			.FirstOrDefault();
+
+		if (attribute is null) return Task.CompletedTask;
+
+		var provider = (IPaginateConfigProvider)ActivatorUtilities.CreateInstance(context.ApplicationServices, attribute.ConfigProviderType);
+		var config = provider.GetConfig();
+
+		operation.Parameters ??= [];
+		RemoveGeneratedPaginateParameters(operation.Parameters);
+
+		operation.Parameters.Add(CreatePageParameter());
+		operation.Parameters.Add(CreateLimitParameter(config));
+		operation.Parameters.Add(CreateSortByParameter(config));
+		operation.Parameters.Add(CreateSearchParameter());
+
+		// searchBy is ignored at runtime when the resource opts out, so it must not be advertised.
+		if (!config.IgnoreSearchByInQueryParam) {
+			operation.Parameters.Add(CreateSearchByParameter(config));
+		}
+
+		foreach (var field in config.FilterableFields.OrderBy(field => field.Name, StringComparer.Ordinal)) {
+			operation.Parameters.Add(CreateFilterParameter(field));
+		}
+
+		return Task.CompletedTask;
+
+	}
+
+	private static void RemoveGeneratedPaginateParameters(IList<IOpenApiParameter> parameters) {
+		for (int i = parameters.Count - 1; i >= 0; i--) {
+			var parameter = parameters[i];
+			if (parameter.In != ParameterLocation.Query) continue;
+			if (parameter.Name is null) continue;
+
+			if (GeneratedParameterNames.Contains(parameter.Name) || parameter.Name.StartsWith("filter.", StringComparison.OrdinalIgnoreCase)) {
+				parameters.RemoveAt(i);
+			}
+		}
+	}
+
+	private static OpenApiParameter CreatePageParameter() {
+		return new OpenApiParameter {
+			Name = "page",
+			In = ParameterLocation.Query,
+			Description = "Page number to retrieve (1-based). Must be a positive integer; invalid values return 400. Pages past the last page return an empty result set.",
+			Required = false,
+			Schema = new OpenApiSchema {
+				Type = JsonSchemaType.Integer,
+				Format = "int32",
+				Minimum = "1",
+				Default = JsonValue.Create(1)
+			}
+		};
+	}
+
+	private static OpenApiParameter CreateLimitParameter(IPaginateConfig config) {
+		return new OpenApiParameter {
+			Name = "limit",
+			In = ParameterLocation.Query,
+			Description = $"Number of records per page. Must be between 1 and {config.MaxLimit}; out-of-range values return 400. Defaults to {config.DefaultLimit} when omitted.",
+			Required = false,
+			Schema = new OpenApiSchema {
+				Type = JsonSchemaType.Integer,
+				Format = "int32",
+				Minimum = "1",
+				Maximum = config.MaxLimit.ToString(CultureInfo.InvariantCulture),
+				Default = JsonValue.Create(config.DefaultLimit)
+			}
+		};
+	}
+
+	private static OpenApiParameter CreateSortByParameter(IPaginateConfig config) {
+		return new OpenApiParameter {
+			Name = "sortBy",
+			In = ParameterLocation.Query,
+			Description = $"""
+			               Parameter to sort by. Repeat this parameter to sort by multiple fields. The URL order defines sort priority.
+
+			               Sortable fields:
+
+			               {BuildFieldDescription(config.SortableFields)}
+			               """,
+			Required = false,
+			Style = ParameterStyle.Form,
+			Explode = true,
+			Schema = new OpenApiSchema {
+				Type = JsonSchemaType.Array,
+				Items = new OpenApiSchema {
+					Type = JsonSchemaType.String,
+					Enum = BuildSortEnum(config)
+				},
+				Default = BuildDefaultSort(config)
+			}
+		};
+	}
+
+	private static OpenApiParameter CreateSearchParameter() {
+		return new OpenApiParameter {
+			Name = "search",
+			In = ParameterLocation.Query,
+			Description = "Search term to filter result values.",
+			Required = false,
+			Schema = new OpenApiSchema {
+				Type = JsonSchemaType.String
+			}
+		};
+	}
+
+	private static OpenApiParameter CreateSearchByParameter(IPaginateConfig config) {
+		return new OpenApiParameter {
+			Name = "searchBy",
+			In = ParameterLocation.Query,
+			Description = $"""
+			               List of configured fields to search by term. If omitted, all searchable fields are used.
+
+			               Searchable fields:
+
+			               {BuildFieldDescription(config.SearchableFields)}
+			               """,
+			Required = false,
+			Style = ParameterStyle.Form,
+			Explode = true,
+			Schema = new OpenApiSchema {
+				Type = JsonSchemaType.Array,
+				Items = new OpenApiSchema {
+					Type = JsonSchemaType.String,
+					Enum = config.SearchableFields.Select(field => JsonValue.Create(field.Name)).OfType<JsonNode>().ToArray()
+				}
+			}
+		};
+	}
+
+	private static OpenApiParameter CreateFilterParameter(PaginateFilterFieldMetadata field) {
+		string operators = string.Join(Environment.NewLine, BuildOperatorTokens(field).Select(token => $"- `{token}`"));
+		string exampleOperator = field.Operators.Contains(PaginateFilterOperator.ILike)
+			? "$ilike"
+			: PaginateFilterParser.GetOperatorToken(field.Operators.First());
+
+		return new OpenApiParameter {
+			Name = $"filter.{field.Name}",
+			In = ParameterLocation.Query,
+			Description = $$"""
+			                Filter by `{{field.Name}}`.
+
+			                Value type: `{{GetValueTypeName(field.Type)}}`
+
+			                Format: `filter.{{field.Name}}={$not:}OPERATION:VALUE`
+
+			                Available operations:
+
+			                {{operators}}
+			                """,
+			Required = false,
+			Style = ParameterStyle.Form,
+			Explode = true,
+			Schema = new OpenApiSchema {
+				Type = JsonSchemaType.Array,
+				Items = new OpenApiSchema {
+					Type = JsonSchemaType.String,
+					Example = JsonValue.Create($"{exampleOperator}:value")
+				}
+			}
+		};
+	}
+
+	private static JsonNode[] BuildSortEnum(IPaginateConfig config) {
+		return config.SortableFields
+			.SelectMany(field => new[] {
+				JsonValue.Create($"{field.Name}:ASC"), JsonValue.Create($"{field.Name}:DESC")
+			})
+			.OfType<JsonNode>()
+			.ToArray();
+	}
+
+	private static JsonArray? BuildDefaultSort(IPaginateConfig config) {
+
+		if (config.DefaultSortBy.Count == 0) return null;
+
+		var array = new JsonArray();
+
+		foreach (var sort in config.DefaultSortBy) {
+			array.Add($"{sort.Field}:{PaginateExpressionUtils.FormatDirection(sort.Direction)}");
+		}
+
+		return array;
+
+	}
+
+	private static string BuildFieldDescription(IEnumerable<PaginateFieldMetadata> fields) {
+		return string.Join(Environment.NewLine, fields
+			.OrderBy(field => field.Name, StringComparer.Ordinal)
+			.Select(field => $"- `{field.Name}` (`{GetValueTypeName(field.Type)}`)"));
+	}
+
+	private static IEnumerable<string> BuildOperatorTokens(PaginateFilterFieldMetadata field) {
+
+		foreach (var filterOperator in field.Operators) {
+			yield return PaginateFilterParser.GetOperatorToken(filterOperator);
+		}
+
+		yield return "$not";
+		yield return "$and";
+		yield return "$or";
+
+	}
+
+	private static string GetValueTypeName(Type type) {
+
+		var valueType = Nullable.GetUnderlyingType(type) ?? type;
+
+		if (valueType == typeof(string)) return "string";
+		if (valueType == typeof(Guid)) return "uuid";
+		if (valueType == typeof(bool)) return "boolean";
+		if (valueType == typeof(short)) return "integer";
+		if (valueType == typeof(int)) return "integer";
+		if (valueType == typeof(long)) return "integer";
+		if (valueType == typeof(float)) return "number";
+		if (valueType == typeof(double)) return "number";
+		if (valueType == typeof(decimal)) return "number";
+		if (valueType == typeof(DateTimeOffset)) return "date-time";
+		if (valueType == typeof(DateTime)) return "date-time";
+		if (valueType.FullName == "NodaTime.Instant") return "date-time (UTC)";
+		if (valueType.FullName == "NodaTime.LocalDate") return "date";
+		if (valueType.IsEnum) return string.Join(" | ", Enum.GetNames(valueType));
+
+		return valueType.Name;
+
+	}
+
+}

@@ -1,3 +1,9 @@
+using Janzen.Pagination.EntityFrameworkCore.Configuration;
+using Janzen.Pagination.EntityFrameworkCore.Engine;
+using Janzen.Pagination.EntityFrameworkCore.Like;
+using Janzen.Pagination.EntityFrameworkCore.Links;
+using Janzen.Pagination.EntityFrameworkCore.Model;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 
@@ -61,7 +67,7 @@ public static class PaginateQueryableExtensions {
 		PaginateExpressionContext context
 	) {
 
-		if (request.Search.IsNullOrWhiteSpace()) return query;
+		if (string.IsNullOrWhiteSpace(request.Search)) return query;
 
 		string search = request.Search;
 

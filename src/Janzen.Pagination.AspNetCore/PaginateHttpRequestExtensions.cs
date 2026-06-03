@@ -1,4 +1,7 @@
 using Janzen.Pagination.EntityFrameworkCore;
+using Janzen.Pagination.EntityFrameworkCore.Configuration;
+using Janzen.Pagination.EntityFrameworkCore.Links;
+using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.AspNetCore.Http;
 
