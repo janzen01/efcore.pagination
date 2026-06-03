@@ -1,4 +1,3 @@
-
 using System.Collections.Frozen;
 
 namespace Janzen.Pagination.EntityFrameworkCore;

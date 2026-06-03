@@ -1,16 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <Description>PostgreSQL provider for Janzen.Pagination — case-insensitive search via native ILIKE.</Description>
-    <PackageTags>$(PackageTags);postgresql;postgres;npgsql;ilike</PackageTags>
-  </PropertyGroup>
+    <PropertyGroup>
+        <Description>PostgreSQL provider for Janzen.Pagination — case-insensitive search via native ILIKE.</Description>
+        <PackageTags>$(PackageTags);postgresql;postgres;npgsql;ilike</PackageTags>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Janzen.Pagination.EntityFrameworkCore\Janzen.Pagination.EntityFrameworkCore.csproj" />
-  </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\Janzen.Pagination.EntityFrameworkCore\Janzen.Pagination.EntityFrameworkCore.csproj"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"/>
+    </ItemGroup>
 
 </Project>

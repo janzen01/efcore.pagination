@@ -1,10 +1,10 @@
+using Janzen.Pagination.EntityFrameworkCore;
+
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
-
-using Janzen.Pagination.EntityFrameworkCore;
 
 namespace Janzen.Pagination.AspNetCore;
 

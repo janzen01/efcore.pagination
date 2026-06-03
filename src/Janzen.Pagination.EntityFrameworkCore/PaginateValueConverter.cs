@@ -1,7 +1,6 @@
 using NodaTime;
 using NodaTime.Text;
 
-
 using System.Globalization;
 
 namespace Janzen.Pagination.EntityFrameworkCore;

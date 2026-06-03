@@ -1,3 +1,5 @@
+using Janzen.Pagination.EntityFrameworkCore;
+
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
@@ -5,8 +7,6 @@ using Microsoft.OpenApi;
 using System.Collections.Frozen;
 using System.Globalization;
 using System.Text.Json.Nodes;
-
-using Janzen.Pagination.EntityFrameworkCore;
 
 namespace Janzen.Pagination.AspNetCore;
 
