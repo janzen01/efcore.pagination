@@ -27,7 +27,7 @@ services.AddPagination(pagination => pagination.AddAspNetCore());
 
 // Controller — PaginateQuery is bound from the query string.
 [HttpGet]
-[PaginatedQuery(typeof(JudgeConfigProvider))]
+[PaginatedQuery<JudgeConfigProvider>]
 public Task<PaginatedResponse<JudgeDto>> Get([FromQuery] PaginateQuery request) =>
     _dbContext.Judges.PaginateAsync<JudgeDto>(request, _config, HttpContext.Request);
 ```

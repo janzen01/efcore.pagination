@@ -6,11 +6,9 @@ namespace Janzen.Pagination.EntityFrameworkCore.Like;
 /// </summary>
 public static class PaginateLike {
 
-	private static IPaginateLikeStrategy _strategy = new PortableLikeStrategy();
-
 	public static IPaginateLikeStrategy Strategy {
-		get => _strategy;
-		set => _strategy = value ?? throw new ArgumentNullException(nameof(value));
-	}
+		get;
+		set => field = value ?? throw new ArgumentNullException(nameof(value));
+	} = new PortableLikeStrategy();
 
 }

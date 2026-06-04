@@ -17,7 +17,7 @@ internal abstract class PaginateFilterField(
 	IReadOnlySet<PaginateFilterOperator> operators
 ) {
 
-	protected readonly static MethodInfo EnumerableContainsMethod = typeof(Enumerable)
+	private readonly static MethodInfo EnumerableContainsMethod = typeof(Enumerable)
 		.GetMethods()
 		.Single(method => method.Name == nameof(Enumerable.Contains) && method.GetParameters().Length == 2);
 
@@ -167,13 +167,11 @@ internal abstract class PaginateFilterField(
 	}
 
 	private string[] SplitValueList(string value, int maxFilterValues) {
+
 		string[] values = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
-		if (values.Length > maxFilterValues) {
-			throw new PaginateQueryException($"Filter '{Name}' accepts at most {maxFilterValues} values.");
-		}
+		return values.Length > maxFilterValues ? throw new PaginateQueryException($"Filter '{Name}' accepts at most {maxFilterValues} values.") : values;
 
-		return values;
 	}
 
 	private static Type? GetEnumerableElementType(Type type) {

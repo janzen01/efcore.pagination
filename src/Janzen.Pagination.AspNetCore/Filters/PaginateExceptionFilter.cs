@@ -28,10 +28,8 @@ public sealed class PaginateExceptionFilter : IExceptionFilter {
 			Title,
 			detail: exception.Message);
 
-		problemDetails.Extensions.Remove("traceId");
-
 		context.Result = new ObjectResult(problemDetails) {
-			StatusCode = StatusCodes.Status400BadRequest
+			StatusCode = problemDetails.Status
 		};
 
 		context.ExceptionHandled = true;
