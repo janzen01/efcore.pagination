@@ -256,9 +256,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	}
 
 	private static HashSet<PaginateFilterOperator> BuildOperatorSet(PaginateFilterOperator[] operators) {
-		if (operators.Length == 0) throw new ArgumentException("At least one filter operator must be configured.", nameof(operators));
-
-		return operators.ToHashSet();
+		return operators.Length > 0 ? operators.ToHashSet() : throw new ArgumentException("At least one filter operator must be configured.", nameof(operators));
 	}
 
 }

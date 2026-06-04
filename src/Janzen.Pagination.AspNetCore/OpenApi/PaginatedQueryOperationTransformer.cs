@@ -1,6 +1,6 @@
 using Janzen.Pagination.EntityFrameworkCore.Configuration;
 using Janzen.Pagination.EntityFrameworkCore.Engine;
-using Janzen.Pagination.EntityFrameworkCore.Model;
+using Janzen.Pagination.EntityFrameworkCore.Like;
 
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
@@ -156,8 +156,9 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private static OpenApiParameter CreateFilterParameter(PaginateFilterFieldMetadata field) {
 		string operators = string.Join(Environment.NewLine, BuildOperatorTokens(field).Select(token => $"- `{token}`"));
-		string exampleOperator = field.Operators.Contains(PaginateFilterOperator.ILike)
-			? "$ilike"
+		var preferred = PaginateLike.Strategy.PreferredExampleOperator;
+		string exampleOperator = preferred.HasValue && field.Operators.Contains(preferred.Value)
+			? PaginateFilterParser.GetOperatorToken(preferred.Value)
 			: PaginateFilterParser.GetOperatorToken(field.Operators.First());
 
 		return new OpenApiParameter {
@@ -229,26 +230,19 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	}
 
 	private static string GetValueTypeName(Type type) {
-
-		var valueType = Nullable.GetUnderlyingType(type) ?? type;
-
-		if (valueType == typeof(string)) return "string";
-		if (valueType == typeof(Guid)) return "uuid";
-		if (valueType == typeof(bool)) return "boolean";
-		if (valueType == typeof(short)) return "integer";
-		if (valueType == typeof(int)) return "integer";
-		if (valueType == typeof(long)) return "integer";
-		if (valueType == typeof(float)) return "number";
-		if (valueType == typeof(double)) return "number";
-		if (valueType == typeof(decimal)) return "number";
-		if (valueType == typeof(DateTimeOffset)) return "date-time";
-		if (valueType == typeof(DateTime)) return "date-time";
-		if (valueType.FullName == "NodaTime.Instant") return "date-time (UTC)";
-		if (valueType.FullName == "NodaTime.LocalDate") return "date";
-		if (valueType.IsEnum) return string.Join(" | ", Enum.GetNames(valueType));
-
-		return valueType.Name;
-
+		var t = Nullable.GetUnderlyingType(type) ?? type;
+		return t switch {
+			_ when t == typeof(string) => "string",
+			_ when t == typeof(Guid) => "uuid",
+			_ when t == typeof(bool) => "boolean",
+			_ when t == typeof(short) || t == typeof(int) || t == typeof(long) => "integer",
+			_ when t == typeof(float) || t == typeof(double) || t == typeof(decimal) => "number",
+			_ when t == typeof(DateTimeOffset) || t == typeof(DateTime) => "date-time",
+			_ when t.FullName == "NodaTime.Instant" => "date-time (UTC)",
+			_ when t.FullName == "NodaTime.LocalDate" => "date",
+			_ when t.IsEnum => string.Join(" | ", Enum.GetNames(t)),
+			_ => t.Name
+		};
 	}
 
 }

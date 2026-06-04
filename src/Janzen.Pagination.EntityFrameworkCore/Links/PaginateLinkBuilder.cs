@@ -7,6 +7,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.Links;
 internal static class PaginateLinkBuilder {
 
 	public static PaginatedLinks Build(PaginateLinkContext? context, int currentPage, int totalPages) {
+
 		if (context is null) return new PaginatedLinks(string.Empty, string.Empty, string.Empty, string.Empty);
 
 		int lastPage = Math.Max(totalPages, 1);
@@ -17,22 +18,21 @@ internal static class PaginateLinkBuilder {
 			totalPages > 0 && currentPage < totalPages ? BuildLink(context, currentPage + 1) : string.Empty,
 			BuildLink(context, lastPage)
 		);
+
 	}
 
 	private static string BuildLink(PaginateLinkContext context, int page) {
+
 		var values = new List<KeyValuePair<string, string>>(context.QueryParameters.Count + 1);
 
-		foreach (var pair in context.QueryParameters) {
-			if (string.Equals(pair.Key, "page", StringComparison.OrdinalIgnoreCase)) continue;
-
-			values.Add(pair);
-		}
+		values.AddRange(context.QueryParameters.Where(pair => !string.Equals(pair.Key, "page", StringComparison.OrdinalIgnoreCase)));
 
 		values.Add(new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)));
 
 		string query = string.Join("&", values.Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"));
 
 		return query.Length == 0 ? context.Path : $"{context.Path}?{query}";
+
 	}
 
 }

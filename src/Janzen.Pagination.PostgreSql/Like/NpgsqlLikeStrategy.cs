@@ -1,4 +1,5 @@
 using Janzen.Pagination.EntityFrameworkCore.Like;
+using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -17,6 +18,8 @@ internal sealed class NpgsqlLikeStrategy : IPaginateLikeStrategy {
 		.Single(method =>
 			method.Name == nameof(NpgsqlDbFunctionsExtensions.ILike) &&
 			method.GetParameters().Length == 4);
+
+	public PaginateFilterOperator? PreferredExampleOperator => PaginateFilterOperator.ILike;
 
 	public Expression BuildLike(Expression value, Expression pattern) {
 		var functions = Expression.Property(null, typeof(EF), nameof(EF.Functions));

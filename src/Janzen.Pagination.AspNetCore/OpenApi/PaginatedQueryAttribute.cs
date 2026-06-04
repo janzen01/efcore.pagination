@@ -3,10 +3,18 @@ using Janzen.Pagination.EntityFrameworkCore.Configuration;
 namespace Janzen.Pagination.AspNetCore.OpenApi;
 
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class PaginatedQueryAttribute(Type configProviderType) : Attribute {
+public abstract class PaginatedQueryAttribute : Attribute {
 
-	public Type ConfigProviderType { get; } = typeof(IPaginateConfigProvider).IsAssignableFrom(configProviderType)
-		? configProviderType
-		: throw new ArgumentException("Paginated query config provider must implement IPaginateConfigProvider.", nameof(configProviderType));
+	public Type ConfigProviderType { get; }
+
+	private protected PaginatedQueryAttribute(Type configProviderType) => ConfigProviderType = configProviderType;
+
+}
+
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class PaginatedQueryAttribute<TConfigProvider> : PaginatedQueryAttribute
+	where TConfigProvider : IPaginateConfigProvider {
+
+	public PaginatedQueryAttribute() : base(typeof(TConfigProvider)) { }
 
 }

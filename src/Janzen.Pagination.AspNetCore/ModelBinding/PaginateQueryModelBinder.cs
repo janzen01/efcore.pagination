@@ -12,6 +12,7 @@ namespace Janzen.Pagination.AspNetCore.ModelBinding;
 internal static class PaginateQueryParser {
 
 	public static PaginateQuery FromQuery(IQueryCollection query) {
+
 		Dictionary<string, IReadOnlyList<string>>? filters = null;
 
 		foreach ((string key, var values) in query) {
@@ -37,24 +38,29 @@ internal static class PaginateQueryParser {
 				: new ReadOnlyDictionary<string, IReadOnlyList<string>>(filters),
 			ValidationError = error
 		};
+
 	}
 
 	private static int ParseRequiredPositiveInt(StringValues values, string name, int fallback, ref string? error) {
+
 		string? value = values.FirstOrDefault();
 		if (string.IsNullOrWhiteSpace(value)) return fallback;
 		if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int parsed) && parsed > 0) return parsed;
 
 		error ??= $"Query parameter '{name}' must be a positive integer.";
 		return fallback;
+
 	}
 
 	private static int? ParseOptionalPositiveInt(StringValues values, string name, ref string? error) {
+
 		string? value = values.FirstOrDefault();
 		if (string.IsNullOrWhiteSpace(value)) return null;
 		if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int parsed) && parsed > 0) return parsed;
 
 		error ??= $"Query parameter '{name}' must be a positive integer.";
 		return null;
+
 	}
 
 	private static string[] ReadValues(StringValues values) { return values.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value!).ToArray(); }
