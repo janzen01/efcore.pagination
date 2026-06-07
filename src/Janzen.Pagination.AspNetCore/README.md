@@ -38,6 +38,18 @@ public Task<PaginatedResponse<JudgeDto>> Get([FromQuery] PaginateQuery request) 
     _dbContext.Judges.PaginateAsync<JudgeDto>(request, _config, HttpContext.Request);
 ```
 
+### Minimal API
+
+```csharp
+app.MapGet("/judges", async (HttpContext http, AppDbContext db) =>
+        await db.Judges.PaginateAsync<JudgeDto>(http.Request.ToPaginateQuery(), config, http.Request))
+   .WithPagination<JudgeConfigProvider>();
+```
+
+`WithPagination<TConfigProvider>()` attaches the OpenAPI pagination parameters and the documented `400`
+response, and maps `PaginateQueryException` to a `400` Problem Details via an endpoint filter.
+`Request.ToPaginateQuery()` builds the `PaginateQuery` from the query string.
+
 ## License
 
 [MIT](https://github.com/janzen01/efcore.pagination/blob/main/LICENSE) © Lubos Jansky
