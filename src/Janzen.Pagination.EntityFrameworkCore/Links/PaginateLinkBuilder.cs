@@ -8,14 +8,14 @@ internal static class PaginateLinkBuilder {
 
 	public static PaginatedLinks Build(PaginateLinkContext? context, int currentPage, int totalPages) {
 
-		if (context is null) return new PaginatedLinks(string.Empty, string.Empty, string.Empty, string.Empty);
+		if (context is null) return new PaginatedLinks(null, null, null, null);
 
 		int lastPage = Math.Max(totalPages, 1);
 
 		return new PaginatedLinks(
 			BuildLink(context, 1),
-			currentPage > 1 ? BuildLink(context, currentPage - 1) : string.Empty,
-			totalPages > 0 && currentPage < totalPages ? BuildLink(context, currentPage + 1) : string.Empty,
+			currentPage > 1 ? BuildLink(context, currentPage - 1) : null,
+			totalPages > 0 && currentPage < totalPages ? BuildLink(context, currentPage + 1) : null,
 			BuildLink(context, lastPage)
 		);
 

@@ -33,9 +33,12 @@ public sealed class JudgeConfigProvider : IPaginateConfigProvider<Judge>
             .Filterable("status", j => j.Status, PaginateFilterOperator.Eq));
 }
 
-// 2. Execute against an IQueryable, projecting to a DTO.
+// 2. Build a request (bound from the query string in ASP.NET, or directly for non-web callers)…
+var request = new PaginateQuery { Page = 1, Limit = 25, SortBy = ["name:DESC"] };
+
+// 3. …and execute against an IQueryable, projecting to a DTO.
 PaginatedResponse<JudgeDto> response = await dbContext.Judges
-    .PaginateAsync<JudgeDto>(request, config);
+    .PaginateAsync<Judge, JudgeDto>(request, config);
 ```
 
 ## Query-string contract
