@@ -57,6 +57,7 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 
 	private readonly FrozenDictionary<string, PaginateFilterField> _filterableFields;
 	private readonly FrozenDictionary<string, PaginateSearchField<TEntity>> _searchableFields;
+	private readonly IReadOnlyList<PaginateSearchField<TEntity>> _defaultSearchFields;
 
 	private readonly FrozenDictionary<string, PaginateSortField> _sortableFields;
 
@@ -86,6 +87,7 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 		DefaultSortBy = defaultSortBy;
 		_sortableFields = sortableFields;
 		_searchableFields = searchableFields;
+		_defaultSearchFields = searchableFields.Values.ToArray();
 		_filterableFields = filterableFields;
 		IgnoreSearchByInQueryParam = ignoreSearchByInQueryParam;
 		TieBreakerSelector = tieBreakerSelector;
@@ -142,7 +144,7 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 
 	internal bool TryGetFilterableField(string name, out PaginateFilterField field) { return _filterableFields.TryGetValue(name, out field!); }
 
-	internal IReadOnlyList<PaginateSearchField<TEntity>> GetDefaultSearchFields() { return _searchableFields.Values.ToArray(); }
+	internal IReadOnlyList<PaginateSearchField<TEntity>> GetDefaultSearchFields() { return _defaultSearchFields; }
 
 	public static PaginateConfig<TEntity> Create(Action<PaginateConfigBuilder<TEntity>> configure) {
 		ArgumentNullException.ThrowIfNull(configure);

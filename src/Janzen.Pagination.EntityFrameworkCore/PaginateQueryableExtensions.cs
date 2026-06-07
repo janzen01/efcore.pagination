@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Janzen.Pagination.EntityFrameworkCore;
 
@@ -152,6 +153,19 @@ public static class PaginateQueryableExtensions {
 
 	}
 
+	// AsNoTracking has a `where TEntity : class` constraint that the engine's unconstrained TEntity cannot satisfy,
+	// so it is applied reflectively (only on real EF providers) — the map path already does a round-trip, so the
+	// one-time reflection cost is negligible.
+	private readonly static MethodInfo AsNoTrackingMethod = typeof(EntityFrameworkQueryableExtensions)
+		.GetMethods()
+		.Single(method => method is { Name: nameof(EntityFrameworkQueryableExtensions.AsNoTracking), IsGenericMethodDefinition: true } && method.GetParameters().Length == 1);
+
+	private static IQueryable<T> AsNoTrackingIfSupported<T>(IQueryable<T> query) {
+		return query.Provider is IAsyncQueryProvider
+			? (IQueryable<T>)AsNoTrackingMethod.MakeGenericMethod(typeof(T)).Invoke(null, [query])!
+			: query;
+	}
+
 	private static Task<int> CountAsync<T>(IQueryable<T> query, CancellationToken ct) {
 		if (query.Provider is IAsyncQueryProvider) return query.CountAsync(ct);
 		ct.ThrowIfCancellationRequested();
@@ -207,7 +221,8 @@ public static class PaginateQueryableExtensions {
 		) {
 			ArgumentNullException.ThrowIfNull(projector);
 			return source.PaginateCoreAsync(request, config, async (query, token) => {
-				var entities = await ToArrayAsync(query, token).ConfigureAwait(false);
+				// Read-only list path: do not track the materialized entities (avoids change-tracker pollution + snapshots).
+				var entities = await ToArrayAsync(AsNoTrackingIfSupported(query), token).ConfigureAwait(false);
 				return entities.Select(projector).ToArray();
 			}, linkContext, ct);
 		}
