@@ -1,6 +1,5 @@
 using Janzen.Pagination.EntityFrameworkCore.Configuration;
 using Janzen.Pagination.EntityFrameworkCore.Engine;
-using Janzen.Pagination.EntityFrameworkCore.Like;
 using Janzen.Pagination.EntityFrameworkCore.Links;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
@@ -8,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace Janzen.Pagination.EntityFrameworkCore;
 
@@ -71,6 +71,10 @@ public static class PaginateQueryableExtensions {
 
 		string search = request.Search;
 
+		if (search.Length > config.MaxSearchLength) {
+			throw new PaginateQueryException($"Search term must not exceed {config.MaxSearchLength} characters.");
+		}
+
 		var fields = ResolveSearchFields(request, config);
 		if (fields.Count == 0) throw new PaginateQueryException("Search is not configured for this resource.");
 
@@ -124,8 +128,6 @@ public static class PaginateQueryableExtensions {
 			sorts = request.SortBy.Select(PaginateExpressionUtils.ParseSort).ToArray();
 		}
 
-		if (sorts.Count == 0) return query;
-
 		bool first = true;
 
 		foreach (var sort in sorts) {
@@ -135,13 +137,46 @@ public static class PaginateQueryableExtensions {
 			first = false;
 		}
 
+		// Append the configured tie-breaker as the final ordering key so offset paging is deterministic even when the
+		// primary sort is absent or non-unique (Skip/Take over an unordered or ambiguous set is non-deterministic).
+		if (config.TieBreakerSelector is not null) {
+			query = PaginateExpressionUtils.ApplyOrder(query, config.TieBreakerSelector, config.TieBreakerDirection == PaginateSortDirection.Desc, first);
+			first = false;
+		}
+
+		if (first) {
+			throw new PaginateQueryException(
+				"Pagination requires a deterministic sort order. Pass 'sortBy', configure DefaultSortBy(...), or add WithTieBreaker(...) to the pagination configuration.");
+		}
+
 		return query;
 
 	}
 
-	private static Task<int> CountAsync<T>(IQueryable<T> query, CancellationToken ct) { return query.Provider is IAsyncQueryProvider ? query.CountAsync(ct) : Task.FromResult(query.Count()); }
+	// AsNoTracking has a `where TEntity : class` constraint that the engine's unconstrained TEntity cannot satisfy,
+	// so it is applied reflectively (only on real EF providers) — the map path already does a round-trip, so the
+	// one-time reflection cost is negligible.
+	private readonly static MethodInfo AsNoTrackingMethod = typeof(EntityFrameworkQueryableExtensions)
+		.GetMethods()
+		.Single(method => method is { Name: nameof(EntityFrameworkQueryableExtensions.AsNoTracking), IsGenericMethodDefinition: true } && method.GetParameters().Length == 1);
 
-	private static Task<T[]> ToArrayAsync<T>(IQueryable<T> query, CancellationToken ct) { return query.Provider is IAsyncQueryProvider ? query.ToArrayAsync(ct) : Task.FromResult(query.ToArray()); }
+	private static IQueryable<T> AsNoTrackingIfSupported<T>(IQueryable<T> query) {
+		return query.Provider is IAsyncQueryProvider
+			? (IQueryable<T>)AsNoTrackingMethod.MakeGenericMethod(typeof(T)).Invoke(null, [query])!
+			: query;
+	}
+
+	private static Task<int> CountAsync<T>(IQueryable<T> query, CancellationToken ct) {
+		if (query.Provider is IAsyncQueryProvider) return query.CountAsync(ct);
+		ct.ThrowIfCancellationRequested();
+		return Task.FromResult(query.Count());
+	}
+
+	private static Task<T[]> ToArrayAsync<T>(IQueryable<T> query, CancellationToken ct) {
+		if (query.Provider is IAsyncQueryProvider) return query.ToArrayAsync(ct);
+		ct.ThrowIfCancellationRequested();
+		return Task.FromResult(query.ToArray());
+	}
 
 	extension<TEntity>(IQueryable<TEntity> source) {
 
@@ -186,7 +221,8 @@ public static class PaginateQueryableExtensions {
 		) {
 			ArgumentNullException.ThrowIfNull(projector);
 			return source.PaginateCoreAsync(request, config, async (query, token) => {
-				var entities = await ToArrayAsync(query, token).ConfigureAwait(false);
+				// Read-only list path: do not track the materialized entities (avoids change-tracker pollution + snapshots).
+				var entities = await ToArrayAsync(AsNoTrackingIfSupported(query), token).ConfigureAwait(false);
 				return entities.Select(projector).ToArray();
 			}, linkContext, ct);
 		}
@@ -207,7 +243,7 @@ public static class PaginateQueryableExtensions {
 			int page = Math.Max(request.Page, PaginateQuery.DefaultPage);
 			int limit = PaginateExpressionUtils.ParseLimit(request, config);
 			bool useDatabaseFunctions = source.Provider is IAsyncQueryProvider;
-			var context = new PaginateExpressionContext(useDatabaseFunctions, PaginateLike.Strategy);
+			var context = new PaginateExpressionContext(useDatabaseFunctions, config.LikeStrategy);
 
 			var query = ApplyFilters(source, request, config, context);
 			query = ApplySearch(query, request, config, context);

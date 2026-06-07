@@ -43,10 +43,39 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		}
 
 		foreach (var field in config.FilterableFields.OrderBy(field => field.Name, StringComparer.Ordinal)) {
-			operation.Parameters.Add(CreateFilterParameter(field));
+			operation.Parameters.Add(CreateFilterParameter(field, config.LikeStrategy));
 		}
 
+		AddValidationErrorResponse(operation);
+
 		return Task.CompletedTask;
+
+	}
+
+	// Invalid pagination input is translated to a 400 ProblemDetails by PaginateExceptionFilter, so advertise it.
+	private static void AddValidationErrorResponse(OpenApiOperation operation) {
+
+		operation.Responses ??= new OpenApiResponses();
+
+		if (operation.Responses.ContainsKey("400")) return;
+
+		operation.Responses["400"] = new OpenApiResponse {
+			Description = "The pagination query parameters were invalid.",
+			Content = new Dictionary<string, OpenApiMediaType> {
+				["application/problem+json"] = new OpenApiMediaType {
+					Schema = new OpenApiSchema {
+						Type = JsonSchemaType.Object,
+						Properties = new Dictionary<string, IOpenApiSchema> {
+							["type"] = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uri" },
+							["title"] = new OpenApiSchema { Type = JsonSchemaType.String },
+							["status"] = new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
+							["detail"] = new OpenApiSchema { Type = JsonSchemaType.String },
+							["instance"] = new OpenApiSchema { Type = JsonSchemaType.String }
+						}
+					}
+				}
+			}
+		};
 
 	}
 
@@ -154,9 +183,9 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		};
 	}
 
-	private static OpenApiParameter CreateFilterParameter(PaginateFilterFieldMetadata field) {
+	private static OpenApiParameter CreateFilterParameter(PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
 		string operators = string.Join(Environment.NewLine, BuildOperatorTokens(field).Select(token => $"- `{token}`"));
-		var preferred = PaginateLike.Strategy.PreferredExampleOperator;
+		var preferred = likeStrategy.PreferredExampleOperator;
 		string exampleOperator = preferred.HasValue && field.Operators.Contains(preferred.Value)
 			? PaginateFilterParser.GetOperatorToken(preferred.Value)
 			: PaginateFilterParser.GetOperatorToken(field.Operators.First());
@@ -182,7 +211,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				Type = JsonSchemaType.Array,
 				Items = new OpenApiSchema {
 					Type = JsonSchemaType.String,
-					Example = JsonValue.Create($"{exampleOperator}:value")
+					Example = JsonValue.Create($"{exampleOperator}:{GetExampleValue(field.Type)}")
 				}
 			}
 		};
@@ -242,6 +271,22 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			_ when t.FullName == "NodaTime.LocalDate" => "date",
 			_ when t.IsEnum => string.Join(" | ", Enum.GetNames(t)),
 			_ => t.Name
+		};
+	}
+
+	private static string GetExampleValue(Type type) {
+		var t = Nullable.GetUnderlyingType(type) ?? type;
+		return t switch {
+			_ when t == typeof(string) => "text",
+			_ when t == typeof(Guid) => "00000000-0000-0000-0000-000000000000",
+			_ when t == typeof(bool) => "true",
+			_ when t == typeof(short) || t == typeof(int) || t == typeof(long) => "42",
+			_ when t == typeof(float) || t == typeof(double) || t == typeof(decimal) => "9.99",
+			_ when t == typeof(DateTimeOffset) || t == typeof(DateTime) => "2025-01-01T00:00:00Z",
+			_ when t.FullName == "NodaTime.Instant" => "2025-01-01T00:00:00Z",
+			_ when t.FullName == "NodaTime.LocalDate" => "2025-01-01",
+			_ when t.IsEnum => Enum.GetNames(t).FirstOrDefault() ?? "value",
+			_ => "value"
 		};
 	}
 

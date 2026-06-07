@@ -8,30 +8,30 @@ internal static class PaginateLinkBuilder {
 
 	public static PaginatedLinks Build(PaginateLinkContext? context, int currentPage, int totalPages) {
 
-		if (context is null) return new PaginatedLinks(string.Empty, string.Empty, string.Empty, string.Empty);
+		if (context is null) return new PaginatedLinks(null, null, null, null);
 
 		int lastPage = Math.Max(totalPages, 1);
 
+		// Build the escaped non-page query prefix once and reuse it across all four links.
+		string prefix = string.Join("&", context.QueryParameters
+			.Where(pair => !string.Equals(pair.Key, "page", StringComparison.OrdinalIgnoreCase))
+			.Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"));
+
 		return new PaginatedLinks(
-			BuildLink(context, 1),
-			currentPage > 1 ? BuildLink(context, currentPage - 1) : string.Empty,
-			totalPages > 0 && currentPage < totalPages ? BuildLink(context, currentPage + 1) : string.Empty,
-			BuildLink(context, lastPage)
+			BuildLink(context.Path, prefix, 1),
+			currentPage > 1 ? BuildLink(context.Path, prefix, currentPage - 1) : null,
+			totalPages > 0 && currentPage < totalPages ? BuildLink(context.Path, prefix, currentPage + 1) : null,
+			BuildLink(context.Path, prefix, lastPage)
 		);
 
 	}
 
-	private static string BuildLink(PaginateLinkContext context, int page) {
+	private static string BuildLink(string path, string prefix, int page) {
 
-		var values = new List<KeyValuePair<string, string>>(context.QueryParameters.Count + 1);
+		string pageParam = $"page={page.ToString(CultureInfo.InvariantCulture)}";
+		string query = prefix.Length == 0 ? pageParam : $"{prefix}&{pageParam}";
 
-		values.AddRange(context.QueryParameters.Where(pair => !string.Equals(pair.Key, "page", StringComparison.OrdinalIgnoreCase)));
-
-		values.Add(new KeyValuePair<string, string>("page", page.ToString(CultureInfo.InvariantCulture)));
-
-		string query = string.Join("&", values.Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"));
-
-		return query.Length == 0 ? context.Path : $"{context.Path}?{query}";
+		return $"{path}?{query}";
 
 	}
 

@@ -36,12 +36,18 @@ internal static class PaginateValueConverter {
 			if (type == typeof(DateTime)) return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
 
 			if (type.IsEnum) {
+				// Enums are addressed by name only — numeric forms are rejected so the filter contract is stable
+				// and well-defined (Enum.Parse otherwise accepts arbitrary numbers, including undefined [Flags] combinations).
+				if (char.IsAsciiDigit(value[0]) || value[0] is '-' or '+') {
+					throw new PaginateQueryException($"Value '{value}' is not valid for type '{type.Name}'.");
+				}
+
 				object parsed = Enum.Parse(type, value, true);
 				return Enum.IsDefined(type, parsed) ? parsed : throw new PaginateQueryException($"Value '{value}' is not valid for type '{type.Name}'.");
 			}
 
 		} catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException) {
-			throw new PaginateQueryException($"Value '{value}' is not valid for type '{type.Name}'.");
+			throw new PaginateQueryException($"Value '{value}' is not valid for type '{type.Name}'.", ex);
 		}
 
 		throw new PaginateQueryException($"Filtering values of type '{type.Name}' is not supported.");

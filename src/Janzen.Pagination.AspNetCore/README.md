@@ -22,8 +22,14 @@ Requires [`Janzen.Pagination.EntityFrameworkCore`](https://www.nuget.org/package
 ## Usage
 
 ```csharp
-// Program.cs — register binder, error filter and OpenAPI metadata.
+// Program.cs — register the query-string model binder and the 400 ProblemDetails filter.
 services.AddPagination(pagination => pagination.AddAspNetCore());
+
+// Register the OpenAPI operation transformer on your document so the pagination query
+// parameters are documented on endpoints annotated with [PaginatedQuery<TConfigProvider>].
+// (The transformer is a normal IOpenApiOperationTransformer — your app owns the document name.)
+using Janzen.Pagination.AspNetCore.OpenApi;
+services.AddOpenApi(options => options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
 
 // Controller — PaginateQuery is bound from the query string.
 [HttpGet]
@@ -31,6 +37,18 @@ services.AddPagination(pagination => pagination.AddAspNetCore());
 public Task<PaginatedResponse<JudgeDto>> Get([FromQuery] PaginateQuery request) =>
     _dbContext.Judges.PaginateAsync<JudgeDto>(request, _config, HttpContext.Request);
 ```
+
+### Minimal API
+
+```csharp
+app.MapGet("/judges", async (HttpContext http, AppDbContext db) =>
+        await db.Judges.PaginateAsync<JudgeDto>(http.Request.ToPaginateQuery(), config, http.Request))
+   .WithPagination<JudgeConfigProvider>();
+```
+
+`WithPagination<TConfigProvider>()` attaches the OpenAPI pagination parameters and the documented `400`
+response, and maps `PaginateQueryException` to a `400` Problem Details via an endpoint filter.
+`Request.ToPaginateQuery()` builds the `PaginateQuery` from the query string.
 
 ## License
 

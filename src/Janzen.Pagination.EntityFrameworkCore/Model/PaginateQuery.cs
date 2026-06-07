@@ -2,6 +2,12 @@ using System.Collections.ObjectModel;
 
 namespace Janzen.Pagination.EntityFrameworkCore.Model;
 
+/// <summary>
+///     An immutable pagination request. Bind it from a query string (ASP.NET integration) or construct it directly
+///     with an object initializer for non-web callers (gRPC, console, tests), e.g.
+///     <c>new PaginateQuery { Page = 2, Limit = 25, SortBy = ["name:DESC"] }</c>. Out-of-range values are
+///     clamped/validated by the engine when the query is executed.
+/// </summary>
 public sealed class PaginateQuery {
 
 	public const int DefaultPage = 1;
@@ -10,17 +16,17 @@ public sealed class PaginateQuery {
 		new ReadOnlyDictionary<string, IReadOnlyList<string>>(
 			new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal));
 
-	public int Page { get; internal init; } = DefaultPage;
+	public int Page { get; init; } = DefaultPage;
 
-	public int? Limit { get; internal init; }
+	public int? Limit { get; init; }
 
-	public IReadOnlyList<string> SortBy { get; internal init; } = [];
+	public IReadOnlyList<string> SortBy { get; init; } = [];
 
-	public string? Search { get; internal init; }
+	public string? Search { get; init; }
 
-	public IReadOnlyList<string> SearchBy { get; internal init; } = [];
+	public IReadOnlyList<string> SearchBy { get; init; } = [];
 
-	public IReadOnlyDictionary<string, IReadOnlyList<string>> Filters { get; internal init; } = EmptyFilters;
+	public IReadOnlyDictionary<string, IReadOnlyList<string>> Filters { get; init; } = EmptyFilters;
 
 	/// <summary>Parse-time validation error captured during model binding; surfaced as a 400 on execution.</summary>
 	internal string? ValidationError { get; init; }
