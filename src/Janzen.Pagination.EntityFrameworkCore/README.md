@@ -27,6 +27,8 @@ public sealed class JudgeConfigProvider : IPaginateConfigProvider<Judge>
         PaginateConfig<Judge>.Create(b => b
             .WithLimits(defaultLimit: 25, maxLimit: 100)
             .Sortable("name", j => j.Name)
+            .DefaultSortBy("name")
+            .WithTieBreaker(j => j.Id) // unique key appended as the final order → deterministic paging
             .Searchable("name", j => j.Name)
             .Filterable("status", j => j.Status, PaginateFilterOperator.Eq));
 }

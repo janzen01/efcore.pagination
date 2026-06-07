@@ -21,7 +21,9 @@ internal static class PaginateQueryParser {
 			string field = key["filter.".Length..];
 			if (string.IsNullOrWhiteSpace(field)) continue;
 
-			filters ??= new Dictionary<string, IReadOnlyList<string>>(query.Count, StringComparer.Ordinal);
+			// Match config field lookup (OrdinalIgnoreCase) so case variants of the same field collapse to one
+			// entry instead of each counting toward MaxFilterConditions and emitting a duplicate clause.
+			filters ??= new Dictionary<string, IReadOnlyList<string>>(query.Count, StringComparer.OrdinalIgnoreCase);
 			filters[field] = values.Select(value => value ?? string.Empty).ToArray();
 		}
 

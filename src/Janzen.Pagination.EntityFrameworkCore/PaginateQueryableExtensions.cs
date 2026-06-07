@@ -1,6 +1,5 @@
 using Janzen.Pagination.EntityFrameworkCore.Configuration;
 using Janzen.Pagination.EntityFrameworkCore.Engine;
-using Janzen.Pagination.EntityFrameworkCore.Like;
 using Janzen.Pagination.EntityFrameworkCore.Links;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
@@ -71,6 +70,10 @@ public static class PaginateQueryableExtensions {
 
 		string search = request.Search;
 
+		if (search.Length > config.MaxSearchLength) {
+			throw new PaginateQueryException($"Search term must not exceed {config.MaxSearchLength} characters.");
+		}
+
 		var fields = ResolveSearchFields(request, config);
 		if (fields.Count == 0) throw new PaginateQueryException("Search is not configured for this resource.");
 
@@ -124,8 +127,6 @@ public static class PaginateQueryableExtensions {
 			sorts = request.SortBy.Select(PaginateExpressionUtils.ParseSort).ToArray();
 		}
 
-		if (sorts.Count == 0) return query;
-
 		bool first = true;
 
 		foreach (var sort in sorts) {
@@ -135,13 +136,33 @@ public static class PaginateQueryableExtensions {
 			first = false;
 		}
 
+		// Append the configured tie-breaker as the final ordering key so offset paging is deterministic even when the
+		// primary sort is absent or non-unique (Skip/Take over an unordered or ambiguous set is non-deterministic).
+		if (config.TieBreakerSelector is not null) {
+			query = PaginateExpressionUtils.ApplyOrder(query, config.TieBreakerSelector, config.TieBreakerDirection == PaginateSortDirection.Desc, first);
+			first = false;
+		}
+
+		if (first) {
+			throw new PaginateQueryException(
+				"Pagination requires a deterministic sort order. Pass 'sortBy', configure DefaultSortBy(...), or add WithTieBreaker(...) to the pagination configuration.");
+		}
+
 		return query;
 
 	}
 
-	private static Task<int> CountAsync<T>(IQueryable<T> query, CancellationToken ct) { return query.Provider is IAsyncQueryProvider ? query.CountAsync(ct) : Task.FromResult(query.Count()); }
+	private static Task<int> CountAsync<T>(IQueryable<T> query, CancellationToken ct) {
+		if (query.Provider is IAsyncQueryProvider) return query.CountAsync(ct);
+		ct.ThrowIfCancellationRequested();
+		return Task.FromResult(query.Count());
+	}
 
-	private static Task<T[]> ToArrayAsync<T>(IQueryable<T> query, CancellationToken ct) { return query.Provider is IAsyncQueryProvider ? query.ToArrayAsync(ct) : Task.FromResult(query.ToArray()); }
+	private static Task<T[]> ToArrayAsync<T>(IQueryable<T> query, CancellationToken ct) {
+		if (query.Provider is IAsyncQueryProvider) return query.ToArrayAsync(ct);
+		ct.ThrowIfCancellationRequested();
+		return Task.FromResult(query.ToArray());
+	}
 
 	extension<TEntity>(IQueryable<TEntity> source) {
 
@@ -207,7 +228,7 @@ public static class PaginateQueryableExtensions {
 			int page = Math.Max(request.Page, PaginateQuery.DefaultPage);
 			int limit = PaginateExpressionUtils.ParseLimit(request, config);
 			bool useDatabaseFunctions = source.Provider is IAsyncQueryProvider;
-			var context = new PaginateExpressionContext(useDatabaseFunctions, PaginateLike.Strategy);
+			var context = new PaginateExpressionContext(useDatabaseFunctions, config.LikeStrategy);
 
 			var query = ApplyFilters(source, request, config, context);
 			query = ApplySearch(query, request, config, context);

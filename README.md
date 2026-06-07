@@ -33,8 +33,8 @@ ASP.NET Core package wires pagination into the request/response pipeline.
 
 ## Status
 
-> **Pre-release (0.1.0).** Published internally via GitHub Packages while the public API
-> stabilises. A public NuGet.org release is planned.
+> **Pre-release (0.3.0).** Published to a private GitHub Packages feed while the public API
+> stabilises. A public NuGet.org release is planned. See [CHANGELOG](CHANGELOG.md).
 
 See each package's README (linked above) for installation and usage.
 

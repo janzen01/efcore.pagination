@@ -1,4 +1,5 @@
 using Janzen.Pagination.EntityFrameworkCore.Engine;
+using Janzen.Pagination.EntityFrameworkCore.Like;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using System.Collections.Frozen;
@@ -18,6 +19,8 @@ public interface IPaginateConfig {
 
 	int MaxSortFields { get; }
 
+	int MaxSearchLength { get; }
+
 	IReadOnlyList<PaginateSort> DefaultSortBy { get; }
 
 	IReadOnlyList<PaginateFieldMetadata> SortableFields { get; }
@@ -27,6 +30,8 @@ public interface IPaginateConfig {
 	IReadOnlyList<PaginateFilterFieldMetadata> FilterableFields { get; }
 
 	bool IgnoreSearchByInQueryParam { get; }
+
+	IPaginateLikeStrategy LikeStrategy { get; }
 
 }
 
@@ -61,11 +66,15 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 		int maxFilterValues,
 		int maxFilterConditions,
 		int maxSortFields,
+		int maxSearchLength,
 		IReadOnlyList<PaginateSort> defaultSortBy,
 		FrozenDictionary<string, PaginateSortField> sortableFields,
 		FrozenDictionary<string, PaginateSearchField<TEntity>> searchableFields,
 		FrozenDictionary<string, PaginateFilterField> filterableFields,
-		bool ignoreSearchByInQueryParam
+		bool ignoreSearchByInQueryParam,
+		LambdaExpression? tieBreakerSelector,
+		PaginateSortDirection tieBreakerDirection,
+		IPaginateLikeStrategy likeStrategy
 	) {
 
 		DefaultLimit = defaultLimit;
@@ -73,11 +82,15 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 		MaxFilterValues = maxFilterValues;
 		MaxFilterConditions = maxFilterConditions;
 		MaxSortFields = maxSortFields;
+		MaxSearchLength = maxSearchLength;
 		DefaultSortBy = defaultSortBy;
 		_sortableFields = sortableFields;
 		_searchableFields = searchableFields;
 		_filterableFields = filterableFields;
 		IgnoreSearchByInQueryParam = ignoreSearchByInQueryParam;
+		TieBreakerSelector = tieBreakerSelector;
+		TieBreakerDirection = tieBreakerDirection;
+		LikeStrategy = likeStrategy;
 
 		SortableFields = sortableFields.Values
 			.Select(field => new PaginateFieldMetadata(field.Name, field.Type))
@@ -103,6 +116,8 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 
 	public int MaxSortFields { get; }
 
+	public int MaxSearchLength { get; }
+
 	public IReadOnlyList<PaginateSort> DefaultSortBy { get; }
 
 	public IReadOnlyList<PaginateFieldMetadata> SortableFields { get; }
@@ -112,6 +127,14 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 	public IReadOnlyList<PaginateFilterFieldMetadata> FilterableFields { get; }
 
 	public bool IgnoreSearchByInQueryParam { get; }
+
+	/// <summary>Per-configuration pattern-match strategy (portable LIKE by default; PostgreSQL adds native ILIKE).</summary>
+	public IPaginateLikeStrategy LikeStrategy { get; }
+
+	/// <summary>Optional unique key appended as the final ordering so offset paging is deterministic.</summary>
+	internal LambdaExpression? TieBreakerSelector { get; }
+
+	internal PaginateSortDirection TieBreakerDirection { get; }
 
 	internal bool TryGetSortableField(string name, out PaginateSortField field) { return _sortableFields.TryGetValue(name, out field!); }
 
@@ -136,6 +159,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	private const int DefaultMaxFilterValues = 100;
 	private const int DefaultMaxFilterConditions = 20;
 	private const int DefaultMaxSortFields = 5;
+	private const int DefaultMaxSearchLength = 256;
 	private readonly List<PaginateSort> _defaultSortBy = [];
 	private readonly Dictionary<string, PaginateFilterField> _filterableFields = new(StringComparer.OrdinalIgnoreCase);
 	private readonly Dictionary<string, PaginateSearchField<TEntity>> _searchableFields = new(StringComparer.OrdinalIgnoreCase);
@@ -148,6 +172,10 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	private int _maxFilterValues = DefaultMaxFilterValues;
 	private int? _maxLimit;
 	private int _maxSortFields = DefaultMaxSortFields;
+	private int _maxSearchLength = DefaultMaxSearchLength;
+	private IPaginateLikeStrategy _likeStrategy = new PortableLikeStrategy();
+	private LambdaExpression? _tieBreakerSelector;
+	private PaginateSortDirection _tieBreakerDirection = PaginateSortDirection.Asc;
 
 	public PaginateConfigBuilder<TEntity> WithLimits(int defaultLimit, int maxLimit) {
 		if (defaultLimit <= 0) throw new ArgumentOutOfRangeException(nameof(defaultLimit), "Default limit must be greater than zero.");
@@ -162,15 +190,18 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	public PaginateConfigBuilder<TEntity> WithGuards(
 		int maxFilterValues = DefaultMaxFilterValues,
 		int maxFilterConditions = DefaultMaxFilterConditions,
-		int maxSortFields = DefaultMaxSortFields
+		int maxSortFields = DefaultMaxSortFields,
+		int maxSearchLength = DefaultMaxSearchLength
 	) {
 		if (maxFilterValues <= 0) throw new ArgumentOutOfRangeException(nameof(maxFilterValues), "Max filter values must be greater than zero.");
 		if (maxFilterConditions <= 0) throw new ArgumentOutOfRangeException(nameof(maxFilterConditions), "Max filter conditions must be greater than zero.");
 		if (maxSortFields <= 0) throw new ArgumentOutOfRangeException(nameof(maxSortFields), "Max sort fields must be greater than zero.");
+		if (maxSearchLength <= 0) throw new ArgumentOutOfRangeException(nameof(maxSearchLength), "Max search length must be greater than zero.");
 
 		_maxFilterValues = maxFilterValues;
 		_maxFilterConditions = maxFilterConditions;
 		_maxSortFields = maxSortFields;
+		_maxSearchLength = maxSearchLength;
 		return this;
 	}
 
@@ -189,8 +220,32 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
+	/// <summary>
+	///     Configures a unique key (typically the primary key) appended as the final ordering on every query, so
+	///     offset paging stays deterministic even when the primary sort is absent or non-unique. Strongly recommended:
+	///     paging an unordered or ambiguously ordered set yields non-deterministic page boundaries.
+	/// </summary>
+	public PaginateConfigBuilder<TEntity> WithTieBreaker<TValue>(Expression<Func<TEntity, TValue>> selector, PaginateSortDirection direction = PaginateSortDirection.Asc) {
+		ArgumentNullException.ThrowIfNull(selector);
+
+		_tieBreakerSelector = selector;
+		_tieBreakerDirection = direction;
+		return this;
+	}
+
 	public PaginateConfigBuilder<TEntity> IgnoreSearchByInQueryParam(bool ignore = true) {
 		_ignoreSearchByInQueryParam = ignore;
+		return this;
+	}
+
+	/// <summary>
+	///     Sets the pattern-match strategy for this configuration. Defaults to a portable <c>LIKE</c>; the
+	///     <c>Janzen.Pagination.PostgreSql</c> package adds a <c>UsePostgreSql()</c> shortcut for native <c>ILIKE</c>.
+	/// </summary>
+	public PaginateConfigBuilder<TEntity> UseLikeStrategy(IPaginateLikeStrategy strategy) {
+		ArgumentNullException.ThrowIfNull(strategy);
+
+		_likeStrategy = strategy;
 		return this;
 	}
 
@@ -246,11 +301,15 @@ public sealed class PaginateConfigBuilder<TEntity> {
 			_maxFilterValues,
 			_maxFilterConditions,
 			_maxSortFields,
+			_maxSearchLength,
 			defaultSortBy,
 			_sortableFields.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
 			_searchableFields.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
 			_filterableFields.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
-			_ignoreSearchByInQueryParam
+			_ignoreSearchByInQueryParam,
+			_tieBreakerSelector,
+			_tieBreakerDirection,
+			_likeStrategy
 		);
 
 	}

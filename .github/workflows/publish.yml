@@ -20,8 +20,15 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Restore
+        run: dotnet restore Janzen.Pagination.slnx
+
+      - name: Build
+        run: dotnet build Janzen.Pagination.slnx -c Release --no-restore -warnaserror
+
+
       - name: Pack
-        run: dotnet pack Janzen.Pagination.slnx -c Release -o ./artifacts
+        run: dotnet pack Janzen.Pagination.slnx -c Release --no-build -o ./artifacts
 
       - name: Push to GitHub Packages
         run: >

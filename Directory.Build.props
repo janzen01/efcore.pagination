@@ -17,7 +17,7 @@
 
     <!-- Package identity (PackageId and Description are set per project) -->
     <PropertyGroup>
-        <Version>0.2.1</Version>
+        <Version>0.3.0</Version>
         <Product>Janzen.Pagination</Product>
         <Authors>Lubos Jansky</Authors>
         <Copyright>Copyright © Lubos Jansky</Copyright>
@@ -30,6 +30,8 @@
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <EmbedUntrackedSources>true</EmbedUntrackedSources>
         <Deterministic>true</Deterministic>
+        <!-- Deterministic source-path normalization for CI builds (.NET SDK has built-in SourceLink for GitHub). -->
+        <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     </PropertyGroup>
 
     <!-- Package metadata (NuGet listing) -->

@@ -43,7 +43,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		}
 
 		foreach (var field in config.FilterableFields.OrderBy(field => field.Name, StringComparer.Ordinal)) {
-			operation.Parameters.Add(CreateFilterParameter(field));
+			operation.Parameters.Add(CreateFilterParameter(field, config.LikeStrategy));
 		}
 
 		return Task.CompletedTask;
@@ -154,9 +154,9 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		};
 	}
 
-	private static OpenApiParameter CreateFilterParameter(PaginateFilterFieldMetadata field) {
+	private static OpenApiParameter CreateFilterParameter(PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
 		string operators = string.Join(Environment.NewLine, BuildOperatorTokens(field).Select(token => $"- `{token}`"));
-		var preferred = PaginateLike.Strategy.PreferredExampleOperator;
+		var preferred = likeStrategy.PreferredExampleOperator;
 		string exampleOperator = preferred.HasValue && field.Operators.Contains(preferred.Value)
 			? PaginateFilterParser.GetOperatorToken(preferred.Value)
 			: PaginateFilterParser.GetOperatorToken(field.Operators.First());

@@ -22,8 +22,14 @@ Requires [`Janzen.Pagination.EntityFrameworkCore`](https://www.nuget.org/package
 ## Usage
 
 ```csharp
-// Program.cs — register binder, error filter and OpenAPI metadata.
+// Program.cs — register the query-string model binder and the 400 ProblemDetails filter.
 services.AddPagination(pagination => pagination.AddAspNetCore());
+
+// Register the OpenAPI operation transformer on your document so the pagination query
+// parameters are documented on endpoints annotated with [PaginatedQuery<TConfigProvider>].
+// (The transformer is a normal IOpenApiOperationTransformer — your app owns the document name.)
+using Janzen.Pagination.AspNetCore.OpenApi;
+services.AddOpenApi(options => options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
 
 // Controller — PaginateQuery is bound from the query string.
 [HttpGet]
