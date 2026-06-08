@@ -14,6 +14,7 @@ metadata and links.
 | **Janzen.Pagination.EntityFrameworkCore** | [README](src/Janzen.Pagination.EntityFrameworkCore/README.md) | Provider-agnostic query engine — fluent `PaginateConfig<T>`, filtering / sorting / search, projection, `PaginateAsync`. |
 | **Janzen.Pagination.PostgreSql**          | [README](src/Janzen.Pagination.PostgreSql/README.md)          | PostgreSQL provider — case-insensitive search via native `ILIKE`.                                                       |
 | **Janzen.Pagination.AspNetCore**          | [README](src/Janzen.Pagination.AspNetCore/README.md)          | ASP.NET Core integration — query-string model binding, `ProblemDetails`, links, OpenAPI metadata.                       |
+| **Janzen.Pagination.NodaTime**            | [README](src/Janzen.Pagination.NodaTime/README.md)            | NodaTime support — filter / sort / project `Instant` and `LocalDate` (incl. `Instant` → `DateTimeOffset`).              |
 
 ## Architecture
 
@@ -33,7 +34,7 @@ ASP.NET Core package wires pagination into the request/response pipeline.
 
 ## Status
 
-> **Pre-release (0.3.0).** Published to a private GitHub Packages feed while the public API
+> **Pre-release (0.4.0).** Published to a private GitHub Packages feed while the public API
 > stabilises. A public NuGet.org release is planned. Release notes:
 > [Releases](https://github.com/janzen01/efcore.pagination/releases).
 

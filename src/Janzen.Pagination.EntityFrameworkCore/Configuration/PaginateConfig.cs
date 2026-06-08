@@ -146,6 +146,7 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 
 	internal IReadOnlyList<PaginateSearchField<TEntity>> GetDefaultSearchFields() { return _defaultSearchFields; }
 
+	/// <summary>Builds an immutable <see cref="PaginateConfig{TEntity}" /> for an entity using the fluent builder.</summary>
 	public static PaginateConfig<TEntity> Create(Action<PaginateConfigBuilder<TEntity>> configure) {
 		ArgumentNullException.ThrowIfNull(configure);
 
@@ -179,6 +180,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	private LambdaExpression? _tieBreakerSelector;
 	private PaginateSortDirection _tieBreakerDirection = PaginateSortDirection.Asc;
 
+	/// <summary>Sets the default and maximum page size. Required — <c>Build()</c> throws if limits are not configured.</summary>
 	public PaginateConfigBuilder<TEntity> WithLimits(int defaultLimit, int maxLimit) {
 		if (defaultLimit <= 0) throw new ArgumentOutOfRangeException(nameof(defaultLimit), "Default limit must be greater than zero.");
 		if (maxLimit <= 0) throw new ArgumentOutOfRangeException(nameof(maxLimit), "Max limit must be greater than zero.");
@@ -189,6 +191,10 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
+	/// <summary>
+	///     Sets DoS guard limits: maximum values per filter, maximum total filter conditions, maximum sort fields,
+	///     and maximum search-term length. Sensible defaults apply when not configured.
+	/// </summary>
 	public PaginateConfigBuilder<TEntity> WithGuards(
 		int maxFilterValues = DefaultMaxFilterValues,
 		int maxFilterConditions = DefaultMaxFilterConditions,
@@ -207,6 +213,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
+	/// <summary>Declares <paramref name="name" /> as sortable via <c>sortBy=name:ASC|DESC</c>.</summary>
 	public PaginateConfigBuilder<TEntity> Sortable<TValue>(string name, Expression<Func<TEntity, TValue>> selector) {
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		ArgumentNullException.ThrowIfNull(selector);
@@ -215,6 +222,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
+	/// <summary>Adds a default sort applied when the request supplies no <c>sortBy</c>. The field must also be <c>Sortable</c>.</summary>
 	public PaginateConfigBuilder<TEntity> DefaultSortBy(string field, PaginateSortDirection direction = PaginateSortDirection.Asc) {
 		ArgumentException.ThrowIfNullOrWhiteSpace(field);
 
@@ -235,6 +243,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
+	/// <summary>When enabled, the <c>searchBy</c> query parameter is ignored and search always spans all searchable fields.</summary>
 	public PaginateConfigBuilder<TEntity> IgnoreSearchByInQueryParam(bool ignore = true) {
 		_ignoreSearchByInQueryParam = ignore;
 		return this;
@@ -251,6 +260,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
+	/// <summary>Declares a string field included in free-text <c>search</c> (and addressable via <c>searchBy</c>).</summary>
 	public PaginateConfigBuilder<TEntity> Searchable(string name, Expression<Func<TEntity, string?>> selector) {
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		ArgumentNullException.ThrowIfNull(selector);
@@ -259,6 +269,10 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
+	/// <summary>
+	///     Declares a scalar field as filterable via <c>filter.&lt;name&gt;=$op:value</c>, restricted to the supplied
+	///     <paramref name="operators" /> (at least one is required).
+	/// </summary>
 	public PaginateConfigBuilder<TEntity> Filterable<TValue>(
 		string name,
 		Expression<Func<TEntity, TValue>> selector,
@@ -271,6 +285,10 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
+	/// <summary>
+	///     Declares a collection/navigation field as filterable: the operator is matched against the value selected
+	///     from any element (translated to an <c>Any(...)</c> predicate), e.g. filter orders by any line's product id.
+	/// </summary>
 	public PaginateConfigBuilder<TEntity> FilterableMany<TElement, TValue>(
 		string name,
 		Expression<Func<TEntity, IEnumerable<TElement>>> collectionSelector,
