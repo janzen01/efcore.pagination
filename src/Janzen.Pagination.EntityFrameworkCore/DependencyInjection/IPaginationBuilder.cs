@@ -4,8 +4,8 @@ namespace Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
 
 /// <summary>
 ///     Configuration surface handed to the <c>AddPagination</c> callback. Integration packages extend this with
-///     methods such as <c>AddAspNetCore()</c>. (Provider pattern-match strategies like <c>UsePostgreSql()</c> are
-///     configured per resource on the <c>PaginateConfig</c> builder instead.)
+///     methods such as <c>AddAspNetCore()</c>, <c>UseLikeStrategy(...)</c>, and — from the PostgreSql package —
+///     <c>UsePostgreSql()</c>, which sets the global pattern-match strategy for all configurations.
 /// </summary>
 public interface IPaginationBuilder {
 

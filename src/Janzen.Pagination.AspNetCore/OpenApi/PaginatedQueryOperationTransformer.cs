@@ -43,7 +43,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		}
 
 		foreach (var field in config.FilterableFields.OrderBy(field => field.Name, StringComparer.Ordinal)) {
-			operation.Parameters.Add(CreateFilterParameter(field, config.LikeStrategy));
+			operation.Parameters.Add(CreateFilterParameter(field, PaginateLikeDefaults.Strategy));
 		}
 
 		AddValidationErrorResponse(operation);

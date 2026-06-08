@@ -6,8 +6,8 @@ public static class PaginateServiceCollectionExtensions {
 
 	/// <summary>
 	///     Registers pagination integration packages through the builder callback, e.g.
-	///     <c>services.AddPagination(p => p.AddAspNetCore())</c>. The provider pattern-match strategy is configured
-	///     per resource on the <c>PaginateConfig</c> builder (e.g. <c>b.UsePostgreSql()</c>), not here.
+	///     <c>services.AddPagination(p =&gt; p.AddAspNetCore().UsePostgreSql())</c>. The global pattern-match strategy
+	///     is set here too via <c>UseLikeStrategy(...)</c> / <c>UsePostgreSql()</c>.
 	/// </summary>
 	public static IServiceCollection AddPagination(this IServiceCollection services, Action<IPaginationBuilder> configure) {
 

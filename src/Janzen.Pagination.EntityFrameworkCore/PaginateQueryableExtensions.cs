@@ -1,5 +1,6 @@
 using Janzen.Pagination.EntityFrameworkCore.Configuration;
 using Janzen.Pagination.EntityFrameworkCore.Engine;
+using Janzen.Pagination.EntityFrameworkCore.Like;
 using Janzen.Pagination.EntityFrameworkCore.Links;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
@@ -253,7 +254,7 @@ public static class PaginateQueryableExtensions {
 			int page = Math.Max(request.Page, PaginateQuery.DefaultPage);
 			int limit = PaginateExpressionUtils.ParseLimit(request, config);
 			bool useDatabaseFunctions = source.Provider is IAsyncQueryProvider;
-			var context = new PaginateExpressionContext(useDatabaseFunctions, config.LikeStrategy);
+			var context = new PaginateExpressionContext(useDatabaseFunctions, PaginateLikeDefaults.Strategy);
 
 			var query = ApplyFilters(source, request, config, context);
 			query = ApplySearch(query, request, config, context);

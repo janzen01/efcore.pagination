@@ -34,8 +34,8 @@ ASP.NET Core package wires pagination into the request/response pipeline.
 
 ## Status
 
-> **Pre-release (0.4.0).** Published to a private GitHub Packages feed while the public API
-> stabilises. A public NuGet.org release is planned. Release notes:
+> **Pre-1.0 — the public API is stabilizing.** Published to a private GitHub Packages feed; a public NuGet.org
+> release is planned. Release notes:
 > [Releases](https://github.com/janzen01/efcore.pagination/releases).
 
 See each package's README (linked above) for installation and usage.
