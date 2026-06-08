@@ -6,6 +6,7 @@ using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.AspNetCore.Http;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 
 namespace Janzen.Pagination.AspNetCore;
@@ -41,6 +42,8 @@ public static class PaginateHttpRequestExtensions {
 	// query.PaginateAsync<TResult>(request, config, httpRequest) — TEntity is inferred from the receiver.
 	extension<TEntity>(IQueryable<TEntity> source) {
 
+		[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+		[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 		public Task<PaginatedResponse<TResult>> PaginateAsync<TResult>(
 			PaginateQuery request,
 			PaginateConfig<TEntity> config,
@@ -50,6 +53,8 @@ public static class PaginateHttpRequestExtensions {
 			return source.PaginateAsync<TEntity, TResult>(request, config, httpRequest.ToPaginateLinkContext(), ct);
 		}
 
+		[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+		[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 		public Task<PaginatedResponse<TResult>> PaginateAsync<TResult>(
 			PaginateQuery request,
 			PaginateConfig<TEntity> config,
@@ -60,6 +65,8 @@ public static class PaginateHttpRequestExtensions {
 			return source.PaginateAsync(request, config, selector, httpRequest.ToPaginateLinkContext(), ct);
 		}
 
+		[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+		[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 		public Task<PaginatedResponse<TResult>> PaginateMapAsync<TResult>(
 			PaginateQuery request,
 			PaginateConfig<TEntity> config,

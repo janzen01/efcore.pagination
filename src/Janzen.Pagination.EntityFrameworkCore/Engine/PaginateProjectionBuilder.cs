@@ -1,8 +1,5 @@
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
-using NodaTime;
-
-using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -46,7 +43,9 @@ internal static class PaginateProjectionBuilder {
 
 		if (CanAssign(sourceValue.Type, targetType)) return ConvertIfNeeded(sourceValue, targetType);
 
-		if (TryBuildInstantConversion(sourceValue, targetType, out var instantConversion)) return instantConversion;
+		// Conversions contributed by add-on packages (e.g. NodaTime's Instant -> DateTimeOffset via PaginateTypeSupport).
+		var conversion = PaginateTypeSupport.TryBuildProjectionConversion(sourceValue, targetType);
+		if (conversion is not null) return conversion;
 
 		if (IsSimpleType(targetType)) {
 			throw new PaginateQueryException($"Cannot automatically project '{path}' from '{sourceValue.Type.Name}' to '{targetType.Name}'.");
@@ -98,41 +97,6 @@ internal static class PaginateProjectionBuilder {
 
 	private static Expression ConvertIfNeeded(Expression expression, Type targetType) { return expression.Type == targetType ? expression : Expression.Convert(expression, targetType); }
 
-	/// <summary>
-	///     Builds an <see cref="Instant" /> → <see cref="DateTimeOffset" /> projection, preserving nullability where both
-	///     sides are nullable.
-	/// </summary>
-	private static bool TryBuildInstantConversion(Expression sourceValue, Type targetType, [NotNullWhen(true)] out Expression? result) {
-
-		result = null;
-
-		var sourceUnderlying = Nullable.GetUnderlyingType(sourceValue.Type) ?? sourceValue.Type;
-		var targetUnderlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
-
-		if (sourceUnderlying != typeof(Instant) || targetUnderlying != typeof(DateTimeOffset)) return false;
-
-		bool sourceNullable = Nullable.GetUnderlyingType(sourceValue.Type) is not null;
-		bool targetNullable = Nullable.GetUnderlyingType(targetType) is not null;
-
-		if (!sourceNullable) {
-			var converted = Expression.Call(sourceValue, nameof(Instant.ToDateTimeOffset), Type.EmptyTypes);
-			result = targetNullable ? Expression.Convert(converted, targetType) : converted;
-			return true;
-		}
-
-		// A nullable Instant can only be projected onto a nullable DateTimeOffset; otherwise let the caller raise a clear error.
-		if (!targetNullable) return false;
-
-		var value = Expression.Call(Expression.Property(sourceValue, "Value"), nameof(Instant.ToDateTimeOffset), Type.EmptyTypes);
-		result = Expression.Condition(
-			Expression.Property(sourceValue, "HasValue"),
-			Expression.Convert(value, targetType),
-			Expression.Constant(null, targetType)
-		);
-		return true;
-
-	}
-
 	private static bool CanBeNull(Type type, MemberInfo member) {
 
 		if (Nullable.GetUnderlyingType(type) is not null) return true;
@@ -169,9 +133,7 @@ internal static class PaginateProjectionBuilder {
 		       effectiveType == typeof(decimal) ||
 		       effectiveType == typeof(DateTime) ||
 		       effectiveType == typeof(DateTimeOffset) ||
-		       effectiveType == typeof(Instant) ||
-		       effectiveType == typeof(LocalDate) ||
-		       effectiveType == typeof(LocalDateTime);
+		       PaginateTypeSupport.IsRegisteredSimpleType(effectiveType);
 
 	}
 

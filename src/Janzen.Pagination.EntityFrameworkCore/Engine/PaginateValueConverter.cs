@@ -1,8 +1,5 @@
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
-using NodaTime;
-using NodaTime.Text;
-
 using System.Globalization;
 
 namespace Janzen.Pagination.EntityFrameworkCore.Engine;
@@ -21,8 +18,6 @@ internal static class PaginateValueConverter {
 
 		if (type == typeof(Guid)) return Parse<Guid>(value, Guid.TryParse, "GUID");
 		if (type == typeof(bool)) return Parse<bool>(value, bool.TryParse, "boolean");
-		if (type == typeof(Instant)) return ParseNodaTime(value, InstantPattern.ExtendedIso, "instant");
-		if (type == typeof(LocalDate)) return ParseNodaTime(value, LocalDatePattern.Iso, "local date");
 
 		try {
 
@@ -50,6 +45,9 @@ internal static class PaginateValueConverter {
 			throw new PaginateQueryException($"Value '{value}' is not valid for type '{type.Name}'.", ex);
 		}
 
+		// Types contributed by add-on packages (e.g. NodaTime's Instant/LocalDate via PaginateTypeSupport).
+		if (PaginateTypeSupport.TryParseValue(type, value, out var custom)) return custom;
+
 		throw new PaginateQueryException($"Filtering values of type '{type.Name}' is not supported.");
 
 	}
@@ -58,11 +56,6 @@ internal static class PaginateValueConverter {
 		return parser(value, out var parsed)
 			? parsed
 			: throw new PaginateQueryException($"Value '{value}' is not a valid {displayName}.");
-	}
-
-	private static T ParseNodaTime<T>(string value, IPattern<T> pattern, string displayName) {
-		var result = pattern.Parse(value);
-		return result.Success ? result.Value : throw new PaginateQueryException($"Value '{value}' is not a valid {displayName}.");
 	}
 
 	private delegate bool TryParse<T>(string value, out T result);

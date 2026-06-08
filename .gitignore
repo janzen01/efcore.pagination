@@ -52,3 +52,8 @@ Thumbs.db
 *.temp
 *.swp
 ~$*
+
+# Sample runtime database
+samples/**/*.db
+samples/**/*.db-shm
+samples/**/*.db-wal
