@@ -51,6 +51,13 @@ PaginatedResponse<JudgeDto> response = await dbContext.Judges
 | `search`         | `?search=smith`             | free-text search over searchable fields        |
 | `filter.<field>` | `?filter.status=$eq:active` | `$operator:value` filter on a filterable field |
 
+## Trimming & Native AOT
+
+The engine builds LINQ expression trees and uses reflection (DTO projection mapping, `MakeGenericMethod`),
+so it is **not compatible with trimming or Native AOT**. The public `PaginateAsync` / `PaginateMapAsync`
+entry points are annotated with `[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`, so consumers
+building trimmed or AOT applications get accurate analyzer warnings rather than silent runtime failures.
+
 ## License
 
 [MIT](https://github.com/janzen01/efcore.pagination/blob/main/LICENSE) © Lubos Jansky

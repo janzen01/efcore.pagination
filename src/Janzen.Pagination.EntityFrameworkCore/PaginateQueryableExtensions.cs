@@ -6,6 +6,7 @@ using Janzen.Pagination.EntityFrameworkCore.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -153,6 +154,9 @@ public static class PaginateQueryableExtensions {
 
 	}
 
+	internal const string AotIncompatibleMessage =
+		"Janzen.Pagination builds LINQ expression trees and uses reflection (projection mapping, MakeGenericMethod); it is not compatible with trimming or Native AOT.";
+
 	// AsNoTracking has a `where TEntity : class` constraint that the engine's unconstrained TEntity cannot satisfy,
 	// so it is applied reflectively (only on real EF providers) — the map path already does a round-trip, so the
 	// one-time reflection cost is negligible.
@@ -185,6 +189,8 @@ public static class PaginateQueryableExtensions {
 		///     projection (entity → DTO). Use when the response is directly buildable: scalars, single nested objects,
 		///     Instant→DateTimeOffset.
 		/// </summary>
+		[RequiresUnreferencedCode(AotIncompatibleMessage)]
+		[RequiresDynamicCode(AotIncompatibleMessage)]
 		public Task<PaginatedResponse<TResult>> PaginateAsync<TResult>(PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			PaginateLinkContext? linkContext = null,
@@ -199,6 +205,8 @@ public static class PaginateQueryableExtensions {
 		///     <paramref name="selector" />. Use for SQL-translatable projections the automatic builder cannot generate
 		///     (aggregates like Count, sub-collection projections) when no in-memory mapping is required.
 		/// </summary>
+		[RequiresUnreferencedCode(AotIncompatibleMessage)]
+		[RequiresDynamicCode(AotIncompatibleMessage)]
 		public Task<PaginatedResponse<TResult>> PaginateAsync<TResult>(PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Expression<Func<TEntity, TResult>> selector,
@@ -213,6 +221,8 @@ public static class PaginateQueryableExtensions {
 		///     Paginates, then maps the materialized page in memory using <paramref name="projector" />. Use only when the
 		///     response cannot be produced by a SQL projection (computed fields or collections needing in-memory logic).
 		/// </summary>
+		[RequiresUnreferencedCode(AotIncompatibleMessage)]
+		[RequiresDynamicCode(AotIncompatibleMessage)]
 		public Task<PaginatedResponse<TResult>> PaginateMapAsync<TResult>(PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Func<TEntity, TResult> projector,
