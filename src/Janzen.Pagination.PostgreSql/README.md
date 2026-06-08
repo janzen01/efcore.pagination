@@ -18,12 +18,21 @@ Requires [`Janzen.Pagination.EntityFrameworkCore`](https://www.nuget.org/package
 
 ## Usage
 
-Apply per resource on the `PaginateConfig` builder — it swaps the portable `LIKE` for native `ILIKE`:
+Register once at startup. It makes **every** `PaginateConfig` emit native `ILIKE` in place of the portable
+`LIKE` — there is no per-resource configuration:
+
+```csharp
+// Program.cs
+builder.Services.AddPagination(pagination => pagination
+    .AddAspNetCore()   // optional: ASP.NET Core integration
+    .UsePostgreSql()); // emit native ILIKE for case-insensitive search / pattern filtering
+```
+
+Your `PaginateConfig<T>` definitions stay provider-agnostic:
 
 ```csharp
 PaginateConfig<Judge>.Create(b => b
     .WithLimits(25, 100)
-    .UsePostgreSql() // emit native ILIKE for case-insensitive search / pattern filtering
     .Sortable("name", j => j.Name)
     .Searchable("name", j => j.Name)
     .WithTieBreaker(j => j.Id));
