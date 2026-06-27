@@ -26,7 +26,6 @@ jobs:
       - name: Build
         run: dotnet build Janzen.Pagination.slnx -c Release --no-restore -warnaserror
 
-
       - name: Pack
         run: dotnet pack Janzen.Pagination.slnx -c Release --no-build -o ./artifacts
 
