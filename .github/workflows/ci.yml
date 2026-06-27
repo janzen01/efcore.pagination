@@ -26,4 +26,3 @@ jobs:
 
       - name: Build
         run: dotnet build Janzen.Pagination.slnx -c Release --no-restore -warnaserror
-

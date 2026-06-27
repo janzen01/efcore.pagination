@@ -1,10 +1,37 @@
-## Build results
+# Docs
+docs/
+
+# JetBrains IDEs
+**/.idea/**/workspace.xml
+**/.idea/**/shelf/
+**/.idea/**/httpRequests/
+**/.idea/**/dataSources/
+**/.idea/**/dataSources.local.xml
+**/.idea/**/contentModel.xml
+**/.idea/**/projectSettingsUpdater.xml
+**/.idea/**/copilot*
+**/.idea/**/git_toolbox*.xml
+
+# Local settings / secrets
+**/local.settings.json
+**/appsettings.local.json
+**/appsettings.*.local.json
+**/settings.local.json
+secrets.json
+
+# Codex hooks
+**/.codex/hooks.json
+
+# Graphify output
+**/graphify-out/
+
+# Build results
 [Bb]in/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
 
-## Visual Studio / Rider / VS Code
+# Visual Studio / Rider / VS Code
 .vs/
 .vscode/
 *.suo
@@ -14,24 +41,7 @@
 *.rsuser
 *.DotSettings.user
 
-## ASP.NET Core / .NET local files
-.dotnet/
-appsettings.Local.json
-appsettings.*.Local.json
-secrets.json
-*.db
-*.db-shm
-*.db-wal
-
-## Test results and coverage
-TestResults/
-coverage/
-coverage.xml
-coverage.opencover.xml
-*.coverage
-*.coveragexml
-
-## NuGet
+# NuGet
 *.nupkg
 *.snupkg
 packages/
@@ -39,21 +49,35 @@ project.lock.json
 project.assets.json
 artifacts/
 
-## Publish output
+# Publish output
 publish/
 *.pubxml.user
 
-## OS files
+# ASP.NET Core / .NET
+.dotnet/
+*.db
+*.db-shm
+*.db-wal
+
+# Test results and coverage
+TestResults/
+coverage/
+coverage.xml
+coverage.opencover.xml
+*.coverage
+*.coveragexml
+
+# OS files
 .DS_Store
 Thumbs.db
 
-## Temporary files
+# Temporary files
 *.tmp
 *.temp
 *.swp
 ~$*
 
-# Sample runtime database
+# Sample runtime databases
 samples/**/*.db
 samples/**/*.db-shm
 samples/**/*.db-wal
