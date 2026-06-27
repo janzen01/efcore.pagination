@@ -16,6 +16,33 @@ metadata and links.
 | **Janzen.Pagination.AspNetCore**          | [README](src/Janzen.Pagination.AspNetCore/README.md)          | ASP.NET Core integration — query-string model binding, `ProblemDetails`, links, OpenAPI metadata.                       |
 | **Janzen.Pagination.NodaTime**            | [README](src/Janzen.Pagination.NodaTime/README.md)            | NodaTime support — filter / sort / project `Instant` and `LocalDate` (incl. `Instant` → `DateTimeOffset`).              |
 
+## Quick start
+
+```bash
+dotnet add package Janzen.Pagination.EntityFrameworkCore
+```
+
+```csharp
+// 1. Describe what is sortable / searchable / filterable for an entity.
+var config = PaginateConfig<Judge>.Create(b => b
+    .WithLimits(defaultLimit: 25, maxLimit: 100)
+    .Sortable("name", j => j.Name)
+    .DefaultSortBy("name")
+    .WithTieBreaker(j => j.Id)          // unique key appended → deterministic paging
+    .Searchable("name", j => j.Name)
+    .Filterable("status", j => j.Status, PaginateFilterOperator.Eq));
+
+// 2. Build a request (bound from the query string in ASP.NET Core, or directly).
+var request = new PaginateQuery { Page = 1, Limit = 25, SortBy = ["name:DESC"] };
+
+// 3. Execute against an IQueryable, projecting to a DTO.
+PaginatedResponse<JudgeDto> response = await dbContext.Judges
+    .PaginateAsync<Judge, JudgeDto>(request, config);
+```
+
+For the full query-string contract, ASP.NET Core model binding and PostgreSQL `ILIKE`, see the per-package READMEs
+linked above.
+
 ## Architecture
 
 `EntityFrameworkCore` is the core engine. `PostgreSql` and `AspNetCore` build **on top of it** and
@@ -38,7 +65,12 @@ ASP.NET Core package wires pagination into the request/response pipeline.
 > release is planned. Release notes:
 > [Releases](https://github.com/janzen01/efcore.pagination/releases).
 
-See each package's README (linked above) for installation and usage.
+## Documentation
+
+- **[SETUP.md](SETUP.md)** — development environment setup (restore, build, graphify) for working on the library.
+- **[CLAUDE.md](CLAUDE.md)** — architecture, public API surface, conventions, and intentional decisions (guide for humans and AI agents).
+- **[AGENTS.md](AGENTS.md)** — entry point for AI coding agents.
+- **Per-package usage** — each package's README, linked in [Packages](#packages) above.
 
 ## License
 
