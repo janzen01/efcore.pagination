@@ -202,10 +202,20 @@ public static class PaginateQueryableExtensions {
 		}
 
 		/// <summary>
-		///     Paginates and projects each row to <typeparamref name="TResult" /> in SQL using the supplied
-		///     <paramref name="selector" />. Use for SQL-translatable projections the automatic builder cannot generate
-		///     (aggregates like Count, sub-collection projections) when no in-memory mapping is required.
+		///     Paginates and projects each row to <typeparamref name="TResult" /> using the supplied
+		///     <paramref name="selector" /> as the query's <b>terminal</b> projection. Use for shapes the automatic
+		///     builder cannot generate — aggregates (e.g. <c>Count</c>) and one-to-many <b>sub-collection</b>
+		///     projections.
 		/// </summary>
+		/// <remarks>
+		///     The selector is the outermost <c>Select</c>, so EF Core may evaluate non-translatable leaves of it in
+		///     the shaper (client-side, over the page rows only) while everything else runs in SQL. In practice this
+		///     means a single selector can freely mix sub-collections with cheap CLR reinterprets such as NodaTime
+		///     <c>Instant.ToDateTimeOffset()</c> (and the nullable path) — <b>including inside sub-collection items</b> —
+		///     and still execute as <b>one</b> query whose <c>SELECT</c> contains only the referenced columns (unused
+		///     columns, e.g. a large <c>jsonb</c>, stay out). Prefer this over <c>PaginateMapAsync</c> for such
+		///     shapes: it avoids materializing the full entity.
+		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
 		public Task<PaginatedResponse<TResult>> PaginateAsync<TResult>(PaginateQuery request,
@@ -219,9 +229,16 @@ public static class PaginateQueryableExtensions {
 		}
 
 		/// <summary>
-		///     Paginates, then maps the materialized page in memory using <paramref name="projector" />. Use only when the
-		///     response cannot be produced by a SQL projection (computed fields or collections needing in-memory logic).
+		///     Paginates, then maps the <b>fully materialized</b> page entities in memory using
+		///     <paramref name="projector" />. Use only when the response genuinely needs the loaded entity — computed
+		///     fields or logic that cannot be expressed in a query at all.
 		/// </summary>
+		/// <remarks>
+		///     This materializes every column of each entity (it over-fetches by design). A projection that merely
+		///     combines sub-collections with NodaTime conversions does <b>not</b> need this — use the
+		///     <c>selector</c> overload of <c>PaginateAsync</c>, which keeps the <c>SELECT</c>
+		///     narrow and applies such conversions in the shaper.
+		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
 		public Task<PaginatedResponse<TResult>> PaginateMapAsync<TResult>(PaginateQuery request,

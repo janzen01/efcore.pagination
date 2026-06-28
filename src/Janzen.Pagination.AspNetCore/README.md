@@ -33,17 +33,17 @@ services.AddOpenApi(options => options.AddOperationTransformer<PaginatedQueryOpe
 
 // Controller — PaginateQuery is bound from the query string.
 [HttpGet]
-[PaginatedQuery<JudgeConfigProvider>]
-public Task<PaginatedResponse<JudgeDto>> Get([FromQuery] PaginateQuery request) =>
-    _dbContext.Judges.PaginateAsync<JudgeDto>(request, _config, HttpContext.Request);
+[PaginatedQuery<ProductConfigProvider>]
+public Task<PaginatedResponse<ProductDto>> Get([FromQuery] PaginateQuery request) =>
+    _dbContext.Products.PaginateAsync<ProductDto>(request, _config, HttpContext.Request);
 ```
 
 ### Minimal API
 
 ```csharp
-app.MapGet("/judges", async (HttpContext http, AppDbContext db) =>
-        await db.Judges.PaginateAsync<JudgeDto>(http.Request.ToPaginateQuery(), config, http.Request))
-   .WithPagination<JudgeConfigProvider>();
+app.MapGet("/products", async (HttpContext http, AppDbContext db) =>
+        await db.Products.PaginateAsync<ProductDto>(http.Request.ToPaginateQuery(), config, http.Request))
+   .WithPagination<ProductConfigProvider>();
 ```
 
 `WithPagination<TConfigProvider>()` attaches the OpenAPI pagination parameters and the documented `400`
