@@ -31,11 +31,11 @@ builder.Services.AddPagination(pagination => pagination
 Your `PaginateConfig<T>` definitions stay provider-agnostic:
 
 ```csharp
-PaginateConfig<Judge>.Create(b => b
+PaginateConfig<Product>.Create(b => b
     .WithLimits(25, 100)
-    .Sortable("name", j => j.Name)
-    .Searchable("name", j => j.Name)
-    .WithTieBreaker(j => j.Id));
+    .Sortable("name", p => p.Name)
+    .Searchable("name", p => p.Name)
+    .WithTieBreaker(p => p.Id));
 ```
 
 ## License

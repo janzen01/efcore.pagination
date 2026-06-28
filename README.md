@@ -24,20 +24,20 @@ dotnet add package Janzen.Pagination.EntityFrameworkCore
 
 ```csharp
 // 1. Describe what is sortable / searchable / filterable for an entity.
-var config = PaginateConfig<Judge>.Create(b => b
+var config = PaginateConfig<Product>.Create(b => b
     .WithLimits(defaultLimit: 25, maxLimit: 100)
-    .Sortable("name", j => j.Name)
+    .Sortable("name", p => p.Name)
     .DefaultSortBy("name")
-    .WithTieBreaker(j => j.Id)          // unique key appended → deterministic paging
-    .Searchable("name", j => j.Name)
-    .Filterable("status", j => j.Status, PaginateFilterOperator.Eq));
+    .WithTieBreaker(p => p.Id)          // unique key appended → deterministic paging
+    .Searchable("name", p => p.Name)
+    .Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
 
 // 2. Build a request (bound from the query string in ASP.NET Core, or directly).
 var request = new PaginateQuery { Page = 1, Limit = 25, SortBy = ["name:DESC"] };
 
 // 3. Execute against an IQueryable, projecting to a DTO.
-PaginatedResponse<JudgeDto> response = await dbContext.Judges
-    .PaginateAsync<Judge, JudgeDto>(request, config);
+PaginatedResponse<ProductDto> response = await dbContext.Products
+    .PaginateAsync<ProductDto>(request, config);
 ```
 
 For the full query-string contract, ASP.NET Core model binding and PostgreSQL `ILIKE`, see the per-package READMEs
