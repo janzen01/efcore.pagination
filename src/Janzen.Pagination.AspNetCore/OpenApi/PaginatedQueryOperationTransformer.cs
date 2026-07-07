@@ -8,6 +8,7 @@ using Microsoft.OpenApi;
 
 using System.Collections.Frozen;
 using System.Globalization;
+using System.Net;
 using System.Text.Json.Nodes;
 
 namespace Janzen.Pagination.AspNetCore.OpenApi;
@@ -194,7 +195,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			Name = $"filter.{field.Name}",
 			In = ParameterLocation.Query,
 			Description = $$"""
-			                Filter by `{{field.Name}}`.
+			                Filter by `{{field.Name}}`.{{RenderBadge(field.Badge)}}
 
 			                Value type: `{{GetValueTypeName(field.Type)}}`
 
@@ -243,7 +244,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	private static string BuildFieldDescription(IEnumerable<PaginateFieldMetadata> fields) {
 		return string.Join(Environment.NewLine, fields
 			.OrderBy(field => field.Name, StringComparer.Ordinal)
-			.Select(field => $"- `{field.Name}` (`{GetValueTypeName(field.Type)}`)"));
+			.Select(field => $"- `{field.Name}` (`{GetValueTypeName(field.Type)}`){RenderBadge(field.Badge)}"));
 	}
 
 	private static IEnumerable<string> BuildOperatorTokens(PaginateFilterFieldMetadata field) {
@@ -288,6 +289,21 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			_ when t.IsEnum => Enum.GetNames(t).FirstOrDefault() ?? "value",
 			_ => "value"
 		};
+	}
+
+	// Renders an optional field badge as a <code> chip appended to the parameter description. The API reference
+	// sanitizer (Scalar uses GitHub-flavored markdown / rehype-sanitize) strips inline style and every class except
+	// one matching /^language-/ on <code> — so a badge is a <code> chip carrying that class, and the consumer colors
+	// it through the reference UI's custom CSS. ShowBadge guarantees the class starts with "language-". Without a
+	// class it's a neutral code chip. Name and class are HTML-encoded so a stray character can't break the markup.
+	private static string RenderBadge(PaginateBadge? badge) {
+		if (badge is null) return string.Empty;
+
+		string name = WebUtility.HtmlEncode(badge.Name);
+
+		return string.IsNullOrEmpty(badge.CssClass)
+			? $" <code>{name}</code>"
+			: $" <code class=\"{WebUtility.HtmlEncode(badge.CssClass)}\">{name}</code>";
 	}
 
 }
