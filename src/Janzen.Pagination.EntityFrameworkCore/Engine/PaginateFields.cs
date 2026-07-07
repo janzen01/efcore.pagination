@@ -1,3 +1,4 @@
+using Janzen.Pagination.EntityFrameworkCore.Configuration;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.EntityFrameworkCore;
@@ -7,15 +8,28 @@ using System.Reflection;
 
 namespace Janzen.Pagination.EntityFrameworkCore.Engine;
 
-internal sealed record PaginateSortField(string Name, LambdaExpression Selector, Type Type);
+/// <summary>Internal marker for field types that can carry an optional presentation <see cref="PaginateBadge" />.</summary>
+internal interface IPaginateBadgeTarget {
+	PaginateBadge? Badge { get; set; }
+}
 
-internal sealed record PaginateSearchField<TEntity>(string Name, Expression<Func<TEntity, string?>> Selector);
+internal sealed record PaginateSortField(string Name, LambdaExpression Selector, Type Type) : IPaginateBadgeTarget {
+	// ponytail: this settable auto-prop joins the record's synthesized equality, but these field records are only ever
+	// stored as FrozenDictionary values and never compared — harmless. Not worth converting to a class.
+	public PaginateBadge? Badge { get; set; }
+}
+
+internal sealed record PaginateSearchField<TEntity>(string Name, Expression<Func<TEntity, string?>> Selector) : IPaginateBadgeTarget {
+	public PaginateBadge? Badge { get; set; }
+}
 
 internal abstract class PaginateFilterField(
 	string name,
 	Type type,
 	IReadOnlySet<PaginateFilterOperator> operators
-) {
+) : IPaginateBadgeTarget {
+
+	public PaginateBadge? Badge { get; set; }
 
 	private readonly static MethodInfo EnumerableContainsMethod = typeof(Enumerable)
 		.GetMethods()

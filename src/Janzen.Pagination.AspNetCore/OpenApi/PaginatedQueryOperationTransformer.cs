@@ -8,6 +8,7 @@ using Microsoft.OpenApi;
 
 using System.Collections.Frozen;
 using System.Globalization;
+using System.Net;
 using System.Text.Json.Nodes;
 
 namespace Janzen.Pagination.AspNetCore.OpenApi;
@@ -194,7 +195,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			Name = $"filter.{field.Name}",
 			In = ParameterLocation.Query,
 			Description = $$"""
-			                Filter by `{{field.Name}}`.
+			                Filter by `{{field.Name}}`.{{RenderBadge(field.Badge)}}
 
 			                Value type: `{{GetValueTypeName(field.Type)}}`
 
@@ -243,7 +244,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	private static string BuildFieldDescription(IEnumerable<PaginateFieldMetadata> fields) {
 		return string.Join(Environment.NewLine, fields
 			.OrderBy(field => field.Name, StringComparer.Ordinal)
-			.Select(field => $"- `{field.Name}` (`{GetValueTypeName(field.Type)}`)"));
+			.Select(field => $"- `{field.Name}` (`{GetValueTypeName(field.Type)}`){RenderBadge(field.Badge)}"));
 	}
 
 	private static IEnumerable<string> BuildOperatorTokens(PaginateFilterFieldMetadata field) {
@@ -288,6 +289,20 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			_ when t.IsEnum => Enum.GetNames(t).FirstOrDefault() ?? "value",
 			_ => "value"
 		};
+	}
+
+	// Renders an optional field badge as an inline-styled <span> chip appended to the parameter description. Scalar
+	// renders inline style attributes in Markdown; other renderers strip the span to plain text, so nothing breaks.
+	// The consumer's color is used verbatim — any valid CSS color works (hex, rgb()/hsl()/oklch(), var(--…), keyword);
+	// the library imposes no palette. Name and color are HTML-encoded only so a stray quote can't break the markup —
+	// that never alters a valid CSS color (those contain no <, >, & or ") and the color source is trusted config, not input.
+	private static string RenderBadge(PaginateBadge? badge) {
+		if (badge is null) return string.Empty;
+
+		string name = WebUtility.HtmlEncode(badge.Name);
+		string background = string.IsNullOrEmpty(badge.Color) ? "#6B7280" : WebUtility.HtmlEncode(badge.Color);
+
+		return $" <span style=\"background:{background};color:#fff;padding:1px 6px;border-radius:4px;font-size:0.85em\">{name}</span>";
 	}
 
 }

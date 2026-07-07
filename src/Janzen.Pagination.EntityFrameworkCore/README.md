@@ -26,7 +26,7 @@ public sealed class ProductConfigProvider : IPaginateConfigProvider<Product>
     public PaginateConfig<Product> GetConfig() =>
         PaginateConfig<Product>.Create(b => b
             .WithLimits(defaultLimit: 25, maxLimit: 100)
-            .Sortable("name", p => p.Name)
+            .Sortable("name", p => p.Name).AddBadge("Public", "#277A2C") // optional badge shown in the API reference UI
             .DefaultSortBy("name")
             .WithTieBreaker(p => p.Id) // unique key appended as the final ordering → deterministic paging
             .Searchable("name", p => p.Name)
@@ -40,6 +40,21 @@ var request = new PaginateQuery { Page = 1, Limit = 25, SortBy = ["name:DESC"] }
 PaginatedResponse<ProductDto> response = await dbContext.Products
     .PaginateAsync<ProductDto>(request, config);
 ```
+
+## Badges
+
+Attach an optional presentation **badge** (a label and CSS color) to any sortable, searchable or filterable field
+with `.AddBadge(name, color?)` immediately after declaring it. Badges surface in the generated OpenAPI metadata and
+render as colored chips in the API reference UI (e.g. Scalar):
+
+```csharp
+.Sortable("slug", p => p.Slug).AddBadge("Public", "#C83636")
+.Searchable("title", p => p.Title).AddBadge("Beta")          // color is optional → neutral chip
+.Filterable("id", p => p.Id, PaginateFilterOperator.Eq).AddBadge("Stable", "#277A2C")
+```
+
+`AddBadge` targets the field declared immediately before it. The library imposes no palette: `color` accepts any CSS
+color (hex, `rgb()`, `hsl()`, `oklch()`, `var(--…)`, keyword) and is used verbatim — omit it for a neutral chip.
 
 ## Projection strategies
 

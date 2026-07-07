@@ -42,13 +42,26 @@ public interface IPaginateConfigProvider<TEntity> : IPaginateConfigProvider {
 
 	new PaginateConfig<TEntity> GetConfig();
 
+	/// <summary>
+	///     Fulfils the non-generic <see cref="IPaginateConfigProvider.GetConfig" /> by delegating to the typed overload,
+	///     so implementers only write the typed <c>GetConfig()</c> — the base member is provided for free. The <c>new</c>
+	///     typed member hides the base one in this scope, so this delegates to the implementer's method, not itself.
+	/// </summary>
+	IPaginateConfig IPaginateConfigProvider.GetConfig() => GetConfig();
+
 }
 
 public sealed record PaginateSort(string Field, PaginateSortDirection Direction);
 
-public sealed record PaginateFieldMetadata(string Name, Type Type);
+/// <summary>
+///     An optional presentation badge attached to a field: a <paramref name="Name" /> label and an optional CSS
+///     <paramref name="Color" />. Surfaced in the OpenAPI metadata and rendered as a colored chip by the API reference UI.
+/// </summary>
+public sealed record PaginateBadge(string Name, string? Color);
 
-public sealed record PaginateFilterFieldMetadata(string Name, Type Type, IReadOnlySet<PaginateFilterOperator> Operators);
+public sealed record PaginateFieldMetadata(string Name, Type Type, PaginateBadge? Badge = null);
+
+public sealed record PaginateFilterFieldMetadata(string Name, Type Type, IReadOnlySet<PaginateFilterOperator> Operators, PaginateBadge? Badge = null);
 
 public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 
@@ -90,15 +103,15 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 		TieBreakerDirection = tieBreakerDirection;
 
 		SortableFields = sortableFields.Values
-			.Select(field => new PaginateFieldMetadata(field.Name, field.Type))
+			.Select(field => new PaginateFieldMetadata(field.Name, field.Type, field.Badge))
 			.ToArray();
 
 		SearchableFields = searchableFields.Values
-			.Select(field => new PaginateFieldMetadata(field.Name, typeof(string)))
+			.Select(field => new PaginateFieldMetadata(field.Name, typeof(string), field.Badge))
 			.ToArray();
 
 		FilterableFields = filterableFields.Values
-			.Select(field => new PaginateFilterFieldMetadata(field.Name, field.Type, field.Operators))
+			.Select(field => new PaginateFilterFieldMetadata(field.Name, field.Type, field.Operators, field.Badge))
 			.ToArray();
 
 	}
@@ -170,6 +183,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	private int _maxSearchLength = DefaultMaxSearchLength;
 	private LambdaExpression? _tieBreakerSelector;
 	private PaginateSortDirection _tieBreakerDirection = PaginateSortDirection.Asc;
+	private IPaginateBadgeTarget? _lastField;
 
 	/// <summary>Sets the default and maximum page size. Required — <c>Build()</c> throws if limits are not configured.</summary>
 	public PaginateConfigBuilder<TEntity> WithLimits(int defaultLimit, int maxLimit) {
@@ -209,7 +223,9 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		ArgumentNullException.ThrowIfNull(selector);
 
-		_sortableFields[name] = new PaginateSortField(name, selector, typeof(TValue));
+		var field = new PaginateSortField(name, selector, typeof(TValue));
+		_sortableFields[name] = field;
+		_lastField = field;
 		return this;
 	}
 
@@ -245,7 +261,9 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		ArgumentNullException.ThrowIfNull(selector);
 
-		_searchableFields[name] = new PaginateSearchField<TEntity>(name, selector);
+		var field = new PaginateSearchField<TEntity>(name, selector);
+		_searchableFields[name] = field;
+		_lastField = field;
 		return this;
 	}
 
@@ -261,7 +279,9 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		ArgumentNullException.ThrowIfNull(selector);
 
-		_filterableFields[name] = new PaginateScalarFilterField<TEntity, TValue>(name, selector, typeof(TValue), BuildOperatorSet(operators));
+		var field = new PaginateScalarFilterField<TEntity, TValue>(name, selector, typeof(TValue), BuildOperatorSet(operators));
+		_filterableFields[name] = field;
+		_lastField = field;
 		return this;
 	}
 
@@ -279,7 +299,25 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		ArgumentNullException.ThrowIfNull(collectionSelector);
 		ArgumentNullException.ThrowIfNull(valueSelector);
 
-		_filterableFields[name] = new PaginateCollectionFilterField<TEntity, TElement>(name, collectionSelector, valueSelector, typeof(TValue), BuildOperatorSet(operators));
+		var field = new PaginateCollectionFilterField<TEntity, TElement>(name, collectionSelector, valueSelector, typeof(TValue), BuildOperatorSet(operators));
+		_filterableFields[name] = field;
+		_lastField = field;
+		return this;
+	}
+
+	/// <summary>
+	///     Attaches a <see cref="PaginateBadge" /> to the field declared immediately before this call — e.g.
+	///     <c>.Sortable("slug", a =&gt; a.Slug).AddBadge("Public", "#C83636")</c>. The badge is surfaced in the generated
+	///     OpenAPI metadata and rendered as a colored chip by the API reference UI. <paramref name="color" /> is an
+	///     optional CSS color (hex or keyword); when omitted a neutral default is used. Throws if called before any field.
+	/// </summary>
+	public PaginateConfigBuilder<TEntity> AddBadge(string name, string? color = null) {
+		ArgumentException.ThrowIfNullOrWhiteSpace(name);
+		if (_lastField is null) {
+			throw new InvalidOperationException("AddBadge must be called immediately after a Sortable, Searchable, or Filterable field.");
+		}
+
+		_lastField.Badge = new PaginateBadge(name, color);
 		return this;
 	}
 
