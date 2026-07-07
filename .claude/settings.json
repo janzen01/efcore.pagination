@@ -16,6 +16,7 @@
     "dotnet@dotnet-agent-skills": true,
     "microsoft-docs@claude-plugins-official": true,
     "security-guidance@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true
+    "superpowers@claude-plugins-official": true,
+    "ponytail@ponytail": true
   }
 }
