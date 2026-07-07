@@ -15,6 +15,16 @@ namespace Janzen.Pagination.EntityFrameworkCore;
 
 public static class PaginateQueryableExtensions {
 
+	internal const string AotIncompatibleMessage =
+		"Janzen.Pagination builds LINQ expression trees and uses reflection (projection mapping, MakeGenericMethod); it is not compatible with trimming or Native AOT.";
+
+	// AsNoTracking has a `where TEntity : class` constraint that the engine's unconstrained TEntity cannot satisfy,
+	// so it is applied reflectively (only on real EF providers) — the map path already does a round-trip, so the
+	// one-time reflection cost is negligible.
+	private readonly static MethodInfo AsNoTrackingMethod = typeof(EntityFrameworkQueryableExtensions)
+		.GetMethods()
+		.Single(method => method is { Name: nameof(EntityFrameworkQueryableExtensions.AsNoTracking), IsGenericMethodDefinition: true } && method.GetParameters().Length == 1);
+
 	private static IQueryable<TEntity> ApplyFilters<TEntity>(
 		IQueryable<TEntity> query,
 		PaginateQuery request,
@@ -31,7 +41,7 @@ public static class PaginateQueryableExtensions {
 
 		foreach ((string fieldName, var values) in request.Filters) {
 
-			if (!config.TryGetFilterableField(fieldName, out var field)) throw new PaginateQueryException($"Filter '{fieldName}' is not configured.");
+			if (!config.TryGetFilterableField(fieldName, out var field)) throw new PaginateQueryException($"Filter for field '{fieldName}' is not configured.");
 
 			Expression? fieldExpression = null;
 
@@ -107,7 +117,7 @@ public static class PaginateQueryableExtensions {
 		var fields = new List<PaginateSearchField<TEntity>>();
 
 		foreach (string fieldName in request.SearchBy) {
-			if (!config.TryGetSearchableField(fieldName, out var field)) throw new PaginateQueryException($"Search field '{fieldName}' is not configured.");
+			if (!config.TryGetSearchableField(fieldName, out var field)) throw new PaginateQueryException($"Search for field '{fieldName}' is not configured.");
 
 			fields.Add(field);
 		}
@@ -134,13 +144,13 @@ public static class PaginateQueryableExtensions {
 		bool first = true;
 
 		foreach (var sort in sorts) {
-			if (!config.TryGetSortableField(sort.Field, out var field)) throw new PaginateQueryException($"Sort field '{sort.Field}' is not configured.");
+			if (!config.TryGetSortableField(sort.Field, out var field)) throw new PaginateQueryException($"Sort for field '{sort.Field}' is not configured.");
 
 			query = PaginateExpressionUtils.ApplyOrder(query, field.Selector, sort.Direction == PaginateSortDirection.Desc, first);
 			first = false;
 		}
 
-		// Append the configured tie-breaker as the final ordering key so offset paging is deterministic even when the
+		// Append the configured tie-breaker as the final ordering key, so offset paging is deterministic even when the
 		// primary sort is absent or non-unique (Skip/Take over an unordered or ambiguous set is non-deterministic).
 		if (config.TieBreakerSelector is not null) {
 			query = PaginateExpressionUtils.ApplyOrder(query, config.TieBreakerSelector, config.TieBreakerDirection == PaginateSortDirection.Desc, first);
@@ -156,16 +166,6 @@ public static class PaginateQueryableExtensions {
 
 	}
 
-	internal const string AotIncompatibleMessage =
-		"Janzen.Pagination builds LINQ expression trees and uses reflection (projection mapping, MakeGenericMethod); it is not compatible with trimming or Native AOT.";
-
-	// AsNoTracking has a `where TEntity : class` constraint that the engine's unconstrained TEntity cannot satisfy,
-	// so it is applied reflectively (only on real EF providers) — the map path already does a round-trip, so the
-	// one-time reflection cost is negligible.
-	private readonly static MethodInfo AsNoTrackingMethod = typeof(EntityFrameworkQueryableExtensions)
-		.GetMethods()
-		.Single(method => method is { Name: nameof(EntityFrameworkQueryableExtensions.AsNoTracking), IsGenericMethodDefinition: true } && method.GetParameters().Length == 1);
-
 	private static IQueryable<T> AsNoTrackingIfSupported<T>(IQueryable<T> query) {
 		return query.Provider is IAsyncQueryProvider
 			? (IQueryable<T>)AsNoTrackingMethod.MakeGenericMethod(typeof(T)).Invoke(null, [query])!
@@ -174,12 +174,14 @@ public static class PaginateQueryableExtensions {
 
 	private static Task<int> CountAsync<T>(IQueryable<T> query, CancellationToken ct) {
 		if (query.Provider is IAsyncQueryProvider) return query.CountAsync(ct);
+
 		ct.ThrowIfCancellationRequested();
 		return Task.FromResult(query.Count());
 	}
 
 	private static Task<T[]> ToArrayAsync<T>(IQueryable<T> query, CancellationToken ct) {
 		if (query.Provider is IAsyncQueryProvider) return query.ToArrayAsync(ct);
+
 		ct.ThrowIfCancellationRequested();
 		return Task.FromResult(query.ToArray());
 	}
@@ -211,10 +213,10 @@ public static class PaginateQueryableExtensions {
 		/// <remarks>
 		///     The selector is the outermost <c>Select</c>, so EF Core may evaluate non-translatable leaves of it in
 		///     the shaper (client-side, over the page rows only) while everything else runs in SQL. In practice this
-		///     means a single selector can freely mix sub-collections with cheap CLR reinterprets such as NodaTime
+		///     means a single selector can freely mix sub-collections with inexpensive CLR reinterpreting such as NodaTime
 		///     <c>Instant.ToDateTimeOffset()</c> (and the nullable path) — <b>including inside sub-collection items</b> —
 		///     and still execute as <b>one</b> query whose <c>SELECT</c> contains only the referenced columns (unused
-		///     columns, e.g. a large <c>jsonb</c>, stay out). Prefer this over <c>PaginateMapAsync</c> for such
+		///     columns, e.g., a large <c>jsonb</c>, stay out). Prefer this over <c>PaginateMapAsync</c> for such
 		///     shapes: it avoids materializing the full entity.
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
