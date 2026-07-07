@@ -54,10 +54,12 @@ public interface IPaginateConfigProvider<TEntity> : IPaginateConfigProvider {
 public sealed record PaginateSort(string Field, PaginateSortDirection Direction);
 
 /// <summary>
-///     An optional presentation badge attached to a field: a <paramref name="Name" /> label and an optional CSS
-///     <paramref name="Color" />. Surfaced in the OpenAPI metadata and rendered as a colored chip by the API reference UI.
+///     An optional presentation badge attached to a field: a <paramref name="Name" /> label and an optional
+///     <paramref name="CssClass" />. Surfaced in the OpenAPI metadata and rendered as a chip by the API reference UI;
+///     the class is how you color it, via the renderer's custom CSS. When set it must start with <c>language-</c>
+///     (see <see cref="PaginateConfigBuilder{TEntity}.ShowBadge" />).
 /// </summary>
-public sealed record PaginateBadge(string Name, string? Color);
+public sealed record PaginateBadge(string Name, string? CssClass);
 
 public sealed record PaginateFieldMetadata(string Name, Type Type, PaginateBadge? Badge = null);
 
@@ -311,24 +313,30 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 	/// <summary>
 	///     Attaches a <see cref="PaginateBadge" /> to the field declared immediately before this call — e.g.
-	///     <c>.Sortable("slug", a =&gt; a.Slug).AddBadge("Public", "#C83636")</c>. The badge is surfaced in the generated
-	///     OpenAPI metadata and rendered as a colored chip by the API reference UI. <paramref name="color" /> is an
-	///     optional CSS color (hex or keyword); when omitted a neutral default is used. Throws if called before any field.
+	///     <c>.Sortable("slug", a =&gt; a.Slug).ShowBadge("Public", "language-public")</c>. The badge is surfaced in the
+	///     generated OpenAPI metadata and rendered as a chip by the API reference UI. <paramref name="cssClass" /> is an
+	///     optional CSS class you then color via the renderer's custom CSS; when set it <b>must</b> start with
+	///     <c>language-</c> — the only class prefix the API reference sanitizer keeps in a description — otherwise this
+	///     throws. Omit it for a neutral chip. Throws if called before any field.
 	/// </summary>
-	public PaginateConfigBuilder<TEntity> AddBadge(string name, string? color = null) {
+	public PaginateConfigBuilder<TEntity> ShowBadge(string name, string? cssClass = null) {
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		if (_lastField is null) {
-			throw new InvalidOperationException("AddBadge must be called immediately after a Sortable, Searchable, or Filterable field.");
+			throw new InvalidOperationException("ShowBadge must be called immediately after a Sortable, Searchable, or Filterable field.");
 		}
 
-		_lastField.Badge = new PaginateBadge(name, color);
+		if (cssClass is not null && !cssClass.StartsWith("language-", StringComparison.Ordinal)) {
+			throw new ArgumentException("Badge cssClass must start with \"language-\" — other classes are stripped by the API reference sanitizer.", nameof(cssClass));
+		}
+
+		_lastField.Badge = new PaginateBadge(name, cssClass);
 		return this;
 	}
 
 	/// <summary>
 	///     Marks the field declared immediately before this call as conditional: it stays documented in OpenAPI (the
 	///     widest surface) but at query time is treated as not configured whenever <paramref name="condition" /> is
-	///     <c>false</c>, so a request targeting it gets a 400. Must be paired with <see cref="AddBadge" /> so the
+	///     <c>false</c>, so a request targeting it gets a 400. Must be paired with <see cref="ShowBadge" /> so the
 	///     condition is visible in the docs — <c>Build()</c> throws otherwise. The consumer evaluates the boolean itself
 	///     (e.g. from the current user's role), keeping the library auth-agnostic.
 	/// </summary>
@@ -353,7 +361,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 		foreach (var field in _sortableFields.Values.Cast<IPaginateFieldTarget>().Concat(_searchableFields.Values).Concat(_filterableFields.Values)) {
 			if (field.Condition.HasValue && field.Badge is null) {
-				throw new InvalidOperationException("A field configured with .When(...) must also declare .AddBadge(...) so the condition is documented in the OpenAPI output.");
+				throw new InvalidOperationException("A field configured with .When(...) must also declare .ShowBadge(...) so the condition is documented in the OpenAPI output.");
 			}
 		}
 

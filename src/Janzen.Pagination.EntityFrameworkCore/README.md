@@ -26,7 +26,7 @@ public sealed class ProductConfigProvider : IPaginateConfigProvider<Product>
     public PaginateConfig<Product> GetConfig() =>
         PaginateConfig<Product>.Create(b => b
             .WithLimits(defaultLimit: 25, maxLimit: 100)
-            .Sortable("name", p => p.Name).AddBadge("Public", "#277A2C") // optional badge shown in the API reference UI
+            .Sortable("name", p => p.Name).ShowBadge("Public", "language-public") // optional badge shown in the API reference UI
             .DefaultSortBy("name")
             .WithTieBreaker(p => p.Id) // unique key appended as the final ordering → deterministic paging
             .Searchable("name", p => p.Name)
@@ -43,24 +43,26 @@ PaginatedResponse<ProductDto> response = await dbContext.Products
 
 ## Badges
 
-Attach an optional presentation **badge** (a label and CSS color) to any sortable, searchable or filterable field
-with `.AddBadge(name, color?)` immediately after declaring it. Badges surface in the generated OpenAPI metadata and
-render as colored chips in the API reference UI (e.g. Scalar):
+Attach an optional presentation **badge** (a label and optional CSS class) to any sortable, searchable or filterable
+field with `.ShowBadge(name, cssClass?)` immediately after declaring it. Badges surface in the generated OpenAPI
+metadata and render as chips in the API reference UI (e.g. Scalar):
 
 ```csharp
-.Sortable("slug", p => p.Slug).AddBadge("Public", "#C83636")
-.Searchable("title", p => p.Title).AddBadge("Beta")          // color is optional → neutral chip
-.Filterable("id", p => p.Id, PaginateFilterOperator.Eq).AddBadge("Stable", "#277A2C")
+.Sortable("slug", p => p.Slug).ShowBadge("Public", "language-public")
+.Searchable("title", p => p.Title).ShowBadge("Beta")                    // no class → neutral chip
+.Filterable("id", p => p.Id, PaginateFilterOperator.Eq).ShowBadge("Stable", "language-stable")
 ```
 
-`AddBadge` targets the field declared immediately before it. The library imposes no palette: `color` accepts any CSS
-color (hex, `rgb()`, `hsl()`, `oklch()`, `var(--…)`, keyword) and is used verbatim — omit it for a neutral chip.
+`ShowBadge` targets the field declared immediately before it. The library imposes no palette — you color the chip via
+your API reference's **custom CSS**. The class **must start with `language-`**: it is the only class prefix Scalar's
+markdown sanitizer keeps in a parameter description (inline styles and other classes are stripped), so `ShowBadge`
+throws otherwise. Then register e.g. `.language-public { background:#277A2C; color:#fff; border-radius:4px; padding:1px 6px }`.
 
 ## Conditional fields (RBAC)
 
 Mark a field with `.When(bool)` to make it **conditional**: it stays in the OpenAPI docs (the widest surface) but at
 query time is treated as not configured whenever the condition is `false` — a request targeting it gets a `400`, worded
-exactly like an unknown field so the field's existence isn't disclosed. `.When` **must** be paired with `.AddBadge(...)`
+exactly like an unknown field so the field's existence isn't disclosed. `.When` **must** be paired with `.ShowBadge(...)`
 so the restriction is documented, otherwise `Build()` throws:
 
 ```csharp
@@ -68,7 +70,7 @@ PaginateConfig<Article>.Create(b => b
     .WithLimits(25, 100)
     .Sortable("title", a => a.Title)
     .Filterable("isDeleted", a => a.IsDeleted, PaginateFilterOperator.Eq)
-        .When(currentUser.IsAdmin).AddBadge("Admin only", "#C83636"));
+        .When(currentUser.IsAdmin).ShowBadge("Admin only", "language-admin"));
 ```
 
 `.When` takes a plain boolean — you evaluate it from your own context (role, claims, tenant, feature flag); the library

@@ -291,18 +291,19 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		};
 	}
 
-	// Renders an optional field badge as an inline-styled <span> chip appended to the parameter description. Scalar
-	// renders inline style attributes in Markdown; other renderers strip the span to plain text, so nothing breaks.
-	// The consumer's color is used verbatim — any valid CSS color works (hex, rgb()/hsl()/oklch(), var(--…), keyword);
-	// the library imposes no palette. Name and color are HTML-encoded only so a stray quote can't break the markup —
-	// that never alters a valid CSS color (those contain no <, >, & or ") and the color source is trusted config, not input.
+	// Renders an optional field badge as a <code> chip appended to the parameter description. The API reference
+	// sanitizer (Scalar uses GitHub-flavored markdown / rehype-sanitize) strips inline style and every class except
+	// one matching /^language-/ on <code> — so a badge is a <code> chip carrying that class, and the consumer colors
+	// it through the reference UI's custom CSS. ShowBadge guarantees the class starts with "language-". Without a
+	// class it's a neutral code chip. Name and class are HTML-encoded so a stray character can't break the markup.
 	private static string RenderBadge(PaginateBadge? badge) {
 		if (badge is null) return string.Empty;
 
 		string name = WebUtility.HtmlEncode(badge.Name);
-		string background = string.IsNullOrEmpty(badge.Color) ? "#6B7280" : WebUtility.HtmlEncode(badge.Color);
 
-		return $" <span style=\"background:{background};color:#fff;padding:1px 6px;border-radius:4px;font-size:0.85em\">{name}</span>";
+		return string.IsNullOrEmpty(badge.CssClass)
+			? $" <code>{name}</code>"
+			: $" <code class=\"{WebUtility.HtmlEncode(badge.CssClass)}\">{name}</code>";
 	}
 
 }
