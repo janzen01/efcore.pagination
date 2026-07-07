@@ -96,7 +96,7 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 		DefaultSortBy = defaultSortBy;
 		_sortableFields = sortableFields;
 		_searchableFields = searchableFields;
-		_defaultSearchFields = searchableFields.Values.ToArray();
+		_defaultSearchFields = searchableFields.Values.Where(field => field.Condition != false).ToArray();
 		_filterableFields = filterableFields;
 		IgnoreSearchByInQueryParam = ignoreSearchByInQueryParam;
 		TieBreakerSelector = tieBreakerSelector;
@@ -143,11 +143,15 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 
 	internal PaginateSortDirection TieBreakerDirection { get; }
 
-	internal bool TryGetSortableField(string name, out PaginateSortField field) { return _sortableFields.TryGetValue(name, out field!); }
+	// A field disabled by When(false) is treated as if it were not configured, so a request targeting it is rejected
+	// exactly like an unknown field — no information disclosure about the existence of admin-only fields.
+	internal bool TryGetSortableField(string name, out PaginateSortField field) { return _sortableFields.TryGetValue(name, out field!) && field.Condition != false; }
 
-	internal bool TryGetSearchableField(string name, out PaginateSearchField<TEntity> field) { return _searchableFields.TryGetValue(name, out field!); }
+	internal bool TryGetSearchableField(string name, out PaginateSearchField<TEntity> field) { return _searchableFields.TryGetValue(name, out field!) && field.Condition != false; }
 
-	internal bool TryGetFilterableField(string name, out PaginateFilterField field) { return _filterableFields.TryGetValue(name, out field!); }
+	internal bool TryGetFilterableField(string name, out PaginateFilterField field) { return _filterableFields.TryGetValue(name, out field!) && field.Condition != false; }
+
+	internal bool IsSortEnabled(string name) { return _sortableFields.TryGetValue(name, out var field) && field.Condition != false; }
 
 	internal IReadOnlyList<PaginateSearchField<TEntity>> GetDefaultSearchFields() { return _defaultSearchFields; }
 
@@ -183,7 +187,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	private int _maxSearchLength = DefaultMaxSearchLength;
 	private LambdaExpression? _tieBreakerSelector;
 	private PaginateSortDirection _tieBreakerDirection = PaginateSortDirection.Asc;
-	private IPaginateBadgeTarget? _lastField;
+	private IPaginateFieldTarget? _lastField;
 
 	/// <summary>Sets the default and maximum page size. Required — <c>Build()</c> throws if limits are not configured.</summary>
 	public PaginateConfigBuilder<TEntity> WithLimits(int defaultLimit, int maxLimit) {
@@ -321,6 +325,22 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
+	/// <summary>
+	///     Marks the field declared immediately before this call as conditional: it stays documented in OpenAPI (the
+	///     widest surface) but at query time is treated as not configured whenever <paramref name="condition" /> is
+	///     <c>false</c>, so a request targeting it gets a 400. Must be paired with <see cref="AddBadge" /> so the
+	///     condition is visible in the docs — <c>Build()</c> throws otherwise. The consumer evaluates the boolean itself
+	///     (e.g. from the current user's role), keeping the library auth-agnostic.
+	/// </summary>
+	public PaginateConfigBuilder<TEntity> When(bool condition) {
+		if (_lastField is null) {
+			throw new InvalidOperationException("When must be called immediately after a Sortable, Searchable, or Filterable field.");
+		}
+
+		_lastField.Condition = condition;
+		return this;
+	}
+
 	internal PaginateConfig<TEntity> Build() {
 
 		if (_defaultLimit is not { } defaultLimit || _maxLimit is not { } maxLimit) {
@@ -329,6 +349,12 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 		foreach (var sort in _defaultSortBy.Where(sort => !_sortableFields.ContainsKey(sort.Field))) {
 			throw new InvalidOperationException($"Default sort field '{sort.Field}' is not sortable.");
+		}
+
+		foreach (var field in _sortableFields.Values.Cast<IPaginateFieldTarget>().Concat(_searchableFields.Values).Concat(_filterableFields.Values)) {
+			if (field.Condition.HasValue && field.Badge is null) {
+				throw new InvalidOperationException("A field configured with .When(...) must also declare .AddBadge(...) so the condition is documented in the OpenAPI output.");
+			}
 		}
 
 		var defaultSortBy = _defaultSortBy.Count == 0 ? [] : _defaultSortBy.ToArray();

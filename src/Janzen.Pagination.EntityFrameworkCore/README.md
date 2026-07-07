@@ -56,6 +56,26 @@ render as colored chips in the API reference UI (e.g. Scalar):
 `AddBadge` targets the field declared immediately before it. The library imposes no palette: `color` accepts any CSS
 color (hex, `rgb()`, `hsl()`, `oklch()`, `var(--…)`, keyword) and is used verbatim — omit it for a neutral chip.
 
+## Conditional fields (RBAC)
+
+Mark a field with `.When(bool)` to make it **conditional**: it stays in the OpenAPI docs (the widest surface) but at
+query time is treated as not configured whenever the condition is `false` — a request targeting it gets a `400`, worded
+exactly like an unknown field so the field's existence isn't disclosed. `.When` **must** be paired with `.AddBadge(...)`
+so the restriction is documented, otherwise `Build()` throws:
+
+```csharp
+PaginateConfig<Article>.Create(b => b
+    .WithLimits(25, 100)
+    .Sortable("title", a => a.Title)
+    .Filterable("isDeleted", a => a.IsDeleted, PaginateFilterOperator.Eq)
+        .When(currentUser.IsAdmin).AddBadge("Admin only", "#C83636"));
+```
+
+`.When` takes a plain boolean — you evaluate it from your own context (role, claims, tenant, feature flag); the library
+stays auth-agnostic. The condition is captured when the config is built, so per-user RBAC means building the config
+**per request** (e.g. an `IPaginateConfigProvider<T>` resolved from DI with the current user) rather than a static
+singleton.
+
 ## Projection strategies
 
 Three ways to shape each page row into a DTO — pick the cheapest that fits:

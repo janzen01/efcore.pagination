@@ -9,7 +9,8 @@ Wires the pagination engine into the web pipeline:
 - **`ProblemDetails` error handling** — invalid queries surface as consistent `400` responses.
 - **Pagination links** — `first` / `previous` / `next` / `last` built from the current request.
 - **OpenAPI metadata** — documents the pagination query parameters on annotated endpoints; per-field badges
-  (configured via `.AddBadge(...)`) render as colored chips in the API reference UI.
+  (configured via `.AddBadge(...)`) render as colored chips in the API reference UI. Fields gated with `.When(...)`
+  stay documented (widest surface) and are enforced at runtime.
 
 ## Install
 

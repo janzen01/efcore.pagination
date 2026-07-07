@@ -8,28 +8,32 @@ using System.Reflection;
 
 namespace Janzen.Pagination.EntityFrameworkCore.Engine;
 
-/// <summary>Internal marker for field types that can carry an optional presentation <see cref="PaginateBadge" />.</summary>
-internal interface IPaginateBadgeTarget {
+/// <summary>Internal marker for field types carrying optional per-field metadata: a <see cref="PaginateBadge" /> and a <c>When</c> condition (<c>null</c> = unconditional; the field is enabled unless the condition is <c>false</c>).</summary>
+internal interface IPaginateFieldTarget {
 	PaginateBadge? Badge { get; set; }
+	bool? Condition { get; set; }
 }
 
-internal sealed record PaginateSortField(string Name, LambdaExpression Selector, Type Type) : IPaginateBadgeTarget {
-	// ponytail: this settable auto-prop joins the record's synthesized equality, but these field records are only ever
+internal sealed record PaginateSortField(string Name, LambdaExpression Selector, Type Type) : IPaginateFieldTarget {
+	// ponytail: these settable auto-props join the record's synthesized equality, but these field records are only ever
 	// stored as FrozenDictionary values and never compared — harmless. Not worth converting to a class.
 	public PaginateBadge? Badge { get; set; }
+	public bool? Condition { get; set; }
 }
 
-internal sealed record PaginateSearchField<TEntity>(string Name, Expression<Func<TEntity, string?>> Selector) : IPaginateBadgeTarget {
+internal sealed record PaginateSearchField<TEntity>(string Name, Expression<Func<TEntity, string?>> Selector) : IPaginateFieldTarget {
 	public PaginateBadge? Badge { get; set; }
+	public bool? Condition { get; set; }
 }
 
 internal abstract class PaginateFilterField(
 	string name,
 	Type type,
 	IReadOnlySet<PaginateFilterOperator> operators
-) : IPaginateBadgeTarget {
+) : IPaginateFieldTarget {
 
 	public PaginateBadge? Badge { get; set; }
+	public bool? Condition { get; set; }
 
 	private readonly static MethodInfo EnumerableContainsMethod = typeof(Enumerable)
 		.GetMethods()
