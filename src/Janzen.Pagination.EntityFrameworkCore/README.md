@@ -86,6 +86,7 @@ Three ways to shape each page row into a DTO — pick the cheapest that fits:
 |--------------|----------------------------------------------------|----------------|---------|
 | **Auto**     | `PaginateAsync<TResult>(request, config)`           | SQL            | DTOs buildable by convention: scalars, single nested objects, `Instant → DateTimeOffset`. |
 | **Selector** | `PaginateAsync<TResult>(request, config, selector)` | SQL (+ shaper) | Anything expressible as a `Select`: aggregates, **sub-collections**, conversions — in one narrow query. |
+| **Selector + finalize** | `PaginateAsync<TProjection, TResult>(request, config, selector, postMap)` | SQL + in-memory | Most of the row translates, but a field or two needs a CLR computation EF can't translate (weighted aggregate over a sub-collection with a guard/rounding). Narrow `SELECT`; `postMap` finalizes the page only (O(page size)). |
 | **Map**      | `PaginateMapAsync<TResult>(request, config, map)`   | in memory      | Only when the response needs the **fully loaded entity**. Over-fetches by design. |
 
 ### Sub-collections + NodaTime conversions in a single query
