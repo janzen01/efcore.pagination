@@ -232,6 +232,35 @@ public static class PaginateQueryableExtensions {
 		}
 
 		/// <summary>
+		///     Paginates, SQL-projects each row to an intermediate <typeparamref name="TProjection" /> via
+		///     <paramref name="selector" />, then applies <paramref name="postMap" /> in memory over the page to
+		///     produce <typeparamref name="TResult" />. Use when most of the row is SQL-translatable but a field or two
+		///     needs a computation EF cannot translate (e.g. a weighted aggregate over a sub-collection with a guard or
+		///     rounding): project the flat fields plus the raw ingredients, then finish them in <paramref name="postMap" />.
+		/// </summary>
+		/// <remarks>
+		///     The <c>SELECT</c> stays as narrow as the <paramref name="selector" /> (no full-entity materialization);
+		///     <paramref name="postMap" /> runs only over the current page (O(page size)). Prefer the plain
+		///     <c>selector</c> overload when the whole row translates, and <c>PaginateMapAsync</c> only when the response
+		///     genuinely needs the loaded entity.
+		/// </remarks>
+		[RequiresUnreferencedCode(AotIncompatibleMessage)]
+		[RequiresDynamicCode(AotIncompatibleMessage)]
+		public Task<PaginatedResponse<TResult>> PaginateAsync<TProjection, TResult>(PaginateQuery request,
+			PaginateConfig<TEntity> config,
+			Expression<Func<TEntity, TProjection>> selector,
+			Func<TProjection, TResult> postMap,
+			PaginateLinkContext? linkContext = null,
+			CancellationToken ct = default
+		) {
+			ArgumentNullException.ThrowIfNull(selector);
+			ArgumentNullException.ThrowIfNull(postMap);
+			return source.PaginateCoreAsync(request, config,
+				async (query, token) => (await ToArrayAsync(query.Select(selector), token).ConfigureAwait(false)).Select(postMap).ToArray(),
+				linkContext, ct);
+		}
+
+		/// <summary>
 		///     Paginates, then maps the <b>fully materialized</b> page entities in memory using
 		///     <paramref name="projector" />. Use only when the response genuinely needs the loaded entity — computed
 		///     fields or logic that cannot be expressed in a query at all.

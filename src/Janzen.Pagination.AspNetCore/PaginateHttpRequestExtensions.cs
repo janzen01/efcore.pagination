@@ -67,6 +67,19 @@ public static class PaginateHttpRequestExtensions {
 
 		[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 		[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+		public Task<PaginatedResponse<TResult>> PaginateAsync<TProjection, TResult>(
+			PaginateQuery request,
+			PaginateConfig<TEntity> config,
+			Expression<Func<TEntity, TProjection>> selector,
+			Func<TProjection, TResult> postMap,
+			HttpRequest httpRequest,
+			CancellationToken ct = default
+		) {
+			return source.PaginateAsync(request, config, selector, postMap, httpRequest.ToPaginateLinkContext(), ct);
+		}
+
+		[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+		[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 		public Task<PaginatedResponse<TResult>> PaginateMapAsync<TResult>(
 			PaginateQuery request,
 			PaginateConfig<TEntity> config,
