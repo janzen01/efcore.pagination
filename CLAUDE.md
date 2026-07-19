@@ -62,7 +62,7 @@ independent of each other — consumers pick the extensions they need:
     translatable `selector` (supports aggregates, sub-collection projections).
   - `PaginateMapAsync<TEntity, TResult>(request, config, projector, …)` — paginate, then map **in memory** (computed
     fields / collections needing client-side logic).
-- **`PaginateFilterOperator`** — `Eq`, `In`, `StartsWith`, `EndsWith`, `Contains`, `ILike`, `GreaterThan(OrEqual)`,
+- **`PaginateFilterOperator`** — `Eq`, `In`, `Null`, `StartsWith`, `Contains`, `ILike`, `GreaterThan(OrEqual)`,
   `LessThan(OrEqual)`, `Between`. Each field whitelists its allowed operators.
 - **DI:** `services.AddPagination(b => { b.AddAspNetCore(); b.UsePostgreSql(); b.AddNodaTime(); });` — add only the
   extensions in play. `AddAspNetCore()` wires query-string binding, the `ProblemDetails` exception filter, and OpenAPI
