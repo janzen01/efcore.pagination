@@ -2,12 +2,20 @@ using System.Text.Json.Serialization;
 
 namespace Janzen.Pagination.EntityFrameworkCore.Model;
 
+/// <summary>
+///     The pagination envelope: one page of <see cref="Items" /> plus paging <see cref="Meta" /> and
+///     hypermedia <see cref="Links" />.
+/// </summary>
 public sealed record PaginatedResponse<T>(
 	IReadOnlyList<T> Items,
 	PaginatedMeta Meta,
 	PaginatedLinks Links
 );
 
+/// <summary>
+///     Paging metadata: <see cref="TotalItems" /> across all pages, <see cref="ItemCount" /> on this page,
+///     <see cref="ItemsPerPage" />, <see cref="TotalPages" /> and the 1-based <see cref="CurrentPage" />.
+/// </summary>
 public sealed record PaginatedMeta(
 	int TotalItems,
 	int ItemCount,

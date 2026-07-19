@@ -10,22 +10,29 @@ namespace Janzen.Pagination.EntityFrameworkCore.Model;
 /// </summary>
 public sealed class PaginateQuery {
 
+	/// <summary>Page used when the request does not specify one.</summary>
 	public const int DefaultPage = 1;
 
 	internal readonly static IReadOnlyDictionary<string, IReadOnlyList<string>> EmptyFilters =
 		new ReadOnlyDictionary<string, IReadOnlyList<string>>(
 			new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal));
 
+	/// <summary>1-based page number; defaults to <see cref="DefaultPage" />. Non-positive values are rejected on execution.</summary>
 	public int Page { get; init; } = DefaultPage;
 
+	/// <summary>Requested page size; <see langword="null" /> uses the configured default. Values outside 1..MaxLimit are rejected on execution.</summary>
 	public int? Limit { get; init; }
 
+	/// <summary>Sort instructions in <c>"field:ASC"</c> / <c>"field:DESC"</c> form, applied in order; fields must be configured as sortable.</summary>
 	public IReadOnlyList<string> SortBy { get; init; } = [];
 
+	/// <summary>Search term matched against the configured searchable fields.</summary>
 	public string? Search { get; init; }
 
+	/// <summary>Subset of searchable fields to search; empty uses the configured defaults. Ignored when the config sets <c>IgnoreSearchBy()</c>.</summary>
 	public IReadOnlyList<string> SearchBy { get; init; } = [];
 
+	/// <summary>Filter criteria per field; each value uses the <c>"$op:value"</c> form (e.g. <c>"$eq:42"</c>).</summary>
 	public IReadOnlyDictionary<string, IReadOnlyList<string>> Filters { get; init; } = EmptyFilters;
 
 	/// <summary>Parse-time validation error captured during model binding; surfaced as a 400 on execution.</summary>
