@@ -1,11 +1,12 @@
 using Janzen.Pagination.AspNetCore.Filters;
 using Janzen.Pagination.AspNetCore.ModelBinding;
-using Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Janzen.Pagination.AspNetCore.DependencyInjection;
+// Declared in the core DI namespace so `p.AddAspNetCore()` is discoverable wherever AddPagination is in scope,
+// without an extra using directive — the same placement the PostgreSql and NodaTime builder extensions use.
+namespace Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
 
 public static class PaginationBuilderAspNetCoreExtensions {
 
