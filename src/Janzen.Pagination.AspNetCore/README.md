@@ -37,14 +37,14 @@ services.AddOpenApi(options => options.AddOperationTransformer<PaginatedQueryOpe
 [HttpGet]
 [PaginatedQuery<ProductConfigProvider>]
 public Task<PaginatedResponse<ProductDto>> Get([FromQuery] PaginateQuery request) =>
-    _dbContext.Products.PaginateAsync<ProductDto>(request, _config, HttpContext.Request);
+    _dbContext.Products.PaginateAsync<Product, ProductDto>(request, _config, HttpContext.Request);
 ```
 
 ### Minimal API
 
 ```csharp
 app.MapGet("/products", async (HttpContext http, AppDbContext db) =>
-        await db.Products.PaginateAsync<ProductDto>(http.Request.ToPaginateQuery(), config, http.Request))
+        await db.Products.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), config, http.Request))
    .WithPagination<ProductConfigProvider>();
 ```
 

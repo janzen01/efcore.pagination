@@ -55,8 +55,8 @@ independent of each other — consumers pick the extensions they need:
   exposed via an `IPaginateConfigProvider<T>`.
 - **`PaginateQuery`** — immutable request: `Page`, `Limit`, `SortBy` (`["field:DESC"]`), `Search`, `SearchBy`, `Filters`
   (`field → ["$op:value"]`). In ASP.NET Core it binds from `?page=&limit=&sortBy=&search=&filter.<field>=$op:value`.
-- **`PaginatedResponse<T>`** — envelope: `Data`, `Meta` (totalItems / pageSize / limit / totalPages / currentPage),
-  `Links?` (first / prev / next / last / self).
+- **`PaginatedResponse<T>`** — envelope: `Items`, `Meta` (totalItems / itemCount / itemsPerPage / totalPages /
+  currentPage), `Links` (first / prev / next / last / self — individual links are nullable, the record is not).
 - **Entry points** (extension methods on `IQueryable<TEntity>`):
   - `PaginateAsync<TEntity, TResult>(request, config, …)` — SQL-side projection; auto (reflection-built) or a custom
     translatable `selector` (supports aggregates, sub-collection projections).
@@ -100,6 +100,10 @@ independent of each other — consumers pick the extensions they need:
   Packages feed is a publish target, not a build dependency.
 - **`.slnx` + lock files** — enabling `RestorePackagesWithLockFile` on the `.slnx` restore fails with
   `Invalid framework identifier ''`; lock files are intentionally not enabled at the solution level.
+- **Unknown query parameters are ignored.** The binder reads exactly six inputs (`page`, `limit`, `sortBy`, `search`,
+  `searchBy`, `filter.<field>`); anything else (`offset`, `utm_*`, …) is dropped and the request pages normally.
+  API-audit tools report this as "invalid value silently accepted" — it is a false positive. Strict binding would
+  reject consumers' own tracking parameters, so don't add it. `page` and `limit` themselves are validated → `400`.
 
 ## Verifying a change
 1. Build clean (warnings = errors): `dotnet build Janzen.Pagination.slnx -c Release -warnaserror`.

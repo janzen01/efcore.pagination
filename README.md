@@ -37,7 +37,7 @@ var request = new PaginateQuery { Page = 1, Limit = 25, SortBy = ["name:DESC"] }
 
 // 3. Execute against an IQueryable, projecting to a DTO.
 PaginatedResponse<ProductDto> response = await dbContext.Products
-    .PaginateAsync<ProductDto>(request, config);
+    .PaginateAsync<Product, ProductDto>(request, config);
 ```
 
 For the full query-string contract, ASP.NET Core model binding and PostgreSQL `ILIKE`, see the per-package READMEs

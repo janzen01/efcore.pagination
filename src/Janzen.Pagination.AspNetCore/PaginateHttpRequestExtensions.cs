@@ -38,8 +38,9 @@ public static class PaginateHttpRequestExtensions {
 
 	}
 
-	// Mirrors the engine's `extension<TEntity>` block so callers keep the single-type-arg ergonomics:
-	// query.PaginateAsync<TResult>(request, config, httpRequest) — TEntity is inferred from the receiver.
+	// Mirrors the engine's `extension<TEntity>` block so these read exactly like the core entry points:
+	// query.PaginateAsync<TEntity, TResult>(request, config, httpRequest). Explicit type arguments must name the
+	// entity first (it is the extension block's type parameter); passing a selector/projector makes them inferable.
 	extension<TEntity>(IQueryable<TEntity> source) {
 
 		[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
