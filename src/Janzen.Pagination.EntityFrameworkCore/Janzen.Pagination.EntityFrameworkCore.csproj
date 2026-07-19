@@ -12,6 +12,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="Janzen.Pagination.AspNetCore"/>
+        <InternalsVisibleTo Include="Janzen.Pagination.PostgreSql"/>
     </ItemGroup>
 
 </Project>

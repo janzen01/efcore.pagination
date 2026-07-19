@@ -35,9 +35,8 @@ internal abstract class PaginateFilterField(
 	public PaginateBadge? Badge { get; set; }
 	public bool? Condition { get; set; }
 
-	private readonly static MethodInfo EnumerableContainsMethod = typeof(Enumerable)
-		.GetMethods()
-		.Single(method => method.Name == nameof(Enumerable.Contains) && method.GetParameters().Length == 2);
+	private readonly static MethodInfo EnumerableContainsMethod =
+		PaginateExpressionUtils.GetMethodByParameterCount(typeof(Enumerable), nameof(Enumerable.Contains), 2);
 
 	public string Name { get; } = name;
 
@@ -219,7 +218,7 @@ internal sealed class PaginateScalarFilterField<TEntity, TValue>(
 
 	public override Expression BuildExpression(ParameterExpression entity, PaginateFilterCriterion criterion, PaginateExpressionContext context, int maxFilterValues) {
 		var valueExpression = ParameterReplaceVisitor.Replace(selector.Body, selector.Parameters[0], entity);
-		return this.BuildOperatorExpression(valueExpression, criterion, context, maxFilterValues);
+		return BuildOperatorExpression(valueExpression, criterion, context, maxFilterValues);
 	}
 
 }
@@ -232,9 +231,8 @@ internal sealed class PaginateCollectionFilterField<TEntity, TElement>(
 	IReadOnlySet<PaginateFilterOperator> operators
 ) : PaginateFilterField(name, type, operators) {
 
-	private readonly static MethodInfo EnumerableAnyMethod = typeof(Enumerable)
-		.GetMethods()
-		.Single(method => method.Name == nameof(Enumerable.Any) && method.GetParameters().Length == 2)
+	private readonly static MethodInfo EnumerableAnyMethod = PaginateExpressionUtils
+		.GetMethodByParameterCount(typeof(Enumerable), nameof(Enumerable.Any), 2)
 		.MakeGenericMethod(typeof(TElement));
 
 	public override Expression BuildExpression(ParameterExpression entity, PaginateFilterCriterion criterion, PaginateExpressionContext context, int maxFilterValues) {
@@ -242,7 +240,7 @@ internal sealed class PaginateCollectionFilterField<TEntity, TElement>(
 		var collectionExpression = ParameterReplaceVisitor.Replace(collectionSelector.Body, collectionSelector.Parameters[0], entity);
 		var element = Expression.Parameter(typeof(TElement), "item");
 		var valueExpression = ParameterReplaceVisitor.Replace(valueSelector.Body, valueSelector.Parameters[0], element);
-		var predicateBody = this.BuildOperatorExpression(valueExpression, criterion, context, maxFilterValues);
+		var predicateBody = BuildOperatorExpression(valueExpression, criterion, context, maxFilterValues);
 		var predicate = Expression.Lambda<Func<TElement, bool>>(predicateBody, element);
 
 		return Expression.Call(EnumerableAnyMethod, collectionExpression, predicate);

@@ -1,29 +1,21 @@
+using Janzen.Pagination.EntityFrameworkCore.Engine;
 using Janzen.Pagination.EntityFrameworkCore.Like;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.EntityFrameworkCore;
 
-using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Janzen.Pagination.PostgreSql.Like;
 
 // Emits PostgreSQL's native ILIKE for true case-insensitive search.
-internal sealed class NpgsqlLikeStrategy : IPaginateLikeStrategy {
+internal sealed class NpgsqlLikeStrategy() : PaginateLikeStrategyBase(ILikeMethod) {
 
-	private const string EscapeCharacter = "\\";
+	private readonly static MethodInfo ILikeMethod = PaginateExpressionUtils.GetMethodByParameterCount(
+		typeof(NpgsqlDbFunctionsExtensions),
+		nameof(NpgsqlDbFunctionsExtensions.ILike),
+		4);
 
-	private readonly static MethodInfo ILikeMethod = typeof(NpgsqlDbFunctionsExtensions)
-		.GetMethods()
-		.Single(method =>
-			method.Name == nameof(NpgsqlDbFunctionsExtensions.ILike) &&
-			method.GetParameters().Length == 4);
-
-	public PaginateFilterOperator? PreferredExampleOperator => PaginateFilterOperator.ILike;
-
-	public Expression BuildLike(Expression value, Expression pattern) {
-		var functions = Expression.Property(null, typeof(EF), nameof(EF.Functions));
-		return Expression.Call(ILikeMethod, functions, value, pattern, Expression.Constant(EscapeCharacter));
-	}
+	public override PaginateFilterOperator? PreferredExampleOperator => PaginateFilterOperator.ILike;
 
 }

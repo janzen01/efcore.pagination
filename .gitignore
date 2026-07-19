@@ -18,6 +18,11 @@ docs/
 **/appsettings.*.local.json
 **/settings.local.json
 secrets.json
+.env
+*.snk
+*.pfx
+*.pem
+*.key
 
 # Codex hooks
 **/.codex/hooks.json

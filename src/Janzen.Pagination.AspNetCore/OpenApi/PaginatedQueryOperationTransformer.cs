@@ -1,6 +1,8 @@
+using Janzen.Pagination.EntityFrameworkCore;
 using Janzen.Pagination.EntityFrameworkCore.Configuration;
 using Janzen.Pagination.EntityFrameworkCore.Engine;
 using Janzen.Pagination.EntityFrameworkCore.Like;
+using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,8 +17,13 @@ namespace Janzen.Pagination.AspNetCore.OpenApi;
 
 public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransformer {
 
+	// PascalCase entries are the PaginateQuery property names ASP.NET generates by default; camelCase entries are
+	// the wire names this package advertises instead.
 	private readonly static FrozenSet<string> GeneratedParameterNames = new[] {
-		"Page", "Limit", "SortBy", "Search", "SearchBy", "Filters", "page", "limit", "sortBy", "search", "searchBy"
+		nameof(PaginateQuery.Page), nameof(PaginateQuery.Limit), nameof(PaginateQuery.SortBy),
+		nameof(PaginateQuery.Search), nameof(PaginateQuery.SearchBy), nameof(PaginateQuery.Filters),
+		PaginateQueryParams.Page, PaginateQueryParams.Limit, PaginateQueryParams.SortBy,
+		PaginateQueryParams.Search, PaginateQueryParams.SearchBy
 	}.ToFrozenSet(StringComparer.Ordinal);
 
 	public Task TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken) {
@@ -86,7 +93,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			if (parameter.In != ParameterLocation.Query) continue;
 			if (parameter.Name is null) continue;
 
-			if (GeneratedParameterNames.Contains(parameter.Name) || parameter.Name.StartsWith("filter.", StringComparison.OrdinalIgnoreCase)) {
+			if (GeneratedParameterNames.Contains(parameter.Name) || parameter.Name.StartsWith(PaginateQueryParams.FilterPrefix, StringComparison.OrdinalIgnoreCase)) {
 				parameters.RemoveAt(i);
 			}
 		}
@@ -94,7 +101,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private static OpenApiParameter CreatePageParameter() {
 		return new OpenApiParameter {
-			Name = "page",
+			Name = PaginateQueryParams.Page,
 			In = ParameterLocation.Query,
 			Description = "Page number to retrieve (1-based). Must be a positive integer; invalid values return 400. Pages past the last page return an empty result set.",
 			Required = false,
@@ -109,7 +116,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private static OpenApiParameter CreateLimitParameter(IPaginateConfig config) {
 		return new OpenApiParameter {
-			Name = "limit",
+			Name = PaginateQueryParams.Limit,
 			In = ParameterLocation.Query,
 			Description = $"Number of records per page. Must be between 1 and {config.MaxLimit}; out-of-range values return 400. Defaults to {config.DefaultLimit} when omitted.",
 			Required = false,
@@ -125,7 +132,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private static OpenApiParameter CreateSortByParameter(IPaginateConfig config) {
 		return new OpenApiParameter {
-			Name = "sortBy",
+			Name = PaginateQueryParams.SortBy,
 			In = ParameterLocation.Query,
 			Description = $"""
 			               Parameter to sort by. Repeat this parameter to sort by multiple fields. The URL order defines sort priority.
@@ -150,7 +157,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private static OpenApiParameter CreateSearchParameter() {
 		return new OpenApiParameter {
-			Name = "search",
+			Name = PaginateQueryParams.Search,
 			In = ParameterLocation.Query,
 			Description = "Search term to filter result values.",
 			Required = false,
@@ -162,7 +169,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private static OpenApiParameter CreateSearchByParameter(IPaginateConfig config) {
 		return new OpenApiParameter {
-			Name = "searchBy",
+			Name = PaginateQueryParams.SearchBy,
 			In = ParameterLocation.Query,
 			Description = $"""
 			               List of configured fields to search by term. If omitted, all searchable fields are used.
@@ -192,14 +199,14 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			: PaginateFilterParser.GetOperatorToken(field.Operators.First());
 
 		return new OpenApiParameter {
-			Name = $"filter.{field.Name}",
+			Name = $"{PaginateQueryParams.FilterPrefix}{field.Name}",
 			In = ParameterLocation.Query,
 			Description = $$"""
 			                Filter by `{{field.Name}}`.{{RenderBadge(field.Badge)}}
 
 			                Value type: `{{GetValueTypeName(field.Type)}}`
 
-			                Format: `filter.{{field.Name}}={$not:}OPERATION:VALUE`
+			                Format: `{{PaginateQueryParams.FilterPrefix}}{{field.Name}}={$not:}OPERATION:VALUE`
 
 			                Available operations:
 

@@ -114,7 +114,7 @@ public static class PaginateQueryableExtensions {
 
 		if (config.IgnoreSearchByInQueryParam || request.SearchBy.Count == 0) return config.GetDefaultSearchFields();
 
-		var fields = new List<PaginateSearchField<TEntity>>();
+		List<PaginateSearchField<TEntity>> fields = [];
 
 		foreach (string fieldName in request.SearchBy) {
 			if (!config.TryGetSearchableField(fieldName, out var field)) throw new PaginateQueryException($"Search for field '{fieldName}' is not configured.");
