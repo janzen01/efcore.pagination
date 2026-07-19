@@ -1,3 +1,4 @@
+using Janzen.Pagination.EntityFrameworkCore;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.AspNetCore.Http;
@@ -16,9 +17,9 @@ internal static class PaginateQueryParser {
 		Dictionary<string, IReadOnlyList<string>>? filters = null;
 
 		foreach ((string key, var values) in query) {
-			if (!key.StartsWith("filter.", StringComparison.OrdinalIgnoreCase)) continue;
+			if (!key.StartsWith(PaginateQueryParams.FilterPrefix, StringComparison.OrdinalIgnoreCase)) continue;
 
-			string field = key["filter.".Length..];
+			string field = key[PaginateQueryParams.FilterPrefix.Length..];
 			if (string.IsNullOrWhiteSpace(field)) continue;
 
 			// Match config field lookup (OrdinalIgnoreCase) so case variants of the same field collapse to one
@@ -30,11 +31,11 @@ internal static class PaginateQueryParser {
 		string? error = null;
 
 		return new PaginateQuery {
-			Page = ParseRequiredPositiveInt(query["page"], "page", PaginateQuery.DefaultPage, ref error),
-			Limit = ParseOptionalPositiveInt(query["limit"], "limit", ref error),
-			SortBy = ReadValues(query["sortBy"]),
-			Search = ReadSingle(query["search"]),
-			SearchBy = ReadValues(query["searchBy"]),
+			Page = ParsePositiveInt(query[PaginateQueryParams.Page], PaginateQueryParams.Page, PaginateQuery.DefaultPage, ref error) ?? PaginateQuery.DefaultPage,
+			Limit = ParsePositiveInt(query[PaginateQueryParams.Limit], PaginateQueryParams.Limit, null, ref error),
+			SortBy = ReadValues(query[PaginateQueryParams.SortBy]),
+			Search = ReadSingle(query[PaginateQueryParams.Search]),
+			SearchBy = ReadValues(query[PaginateQueryParams.SearchBy]),
 			Filters = filters is null
 				? PaginateQuery.EmptyFilters
 				: new ReadOnlyDictionary<string, IReadOnlyList<string>>(filters),
@@ -43,7 +44,7 @@ internal static class PaginateQueryParser {
 
 	}
 
-	private static int ParseRequiredPositiveInt(StringValues values, string name, int fallback, ref string? error) {
+	private static int? ParsePositiveInt(StringValues values, string name, int? fallback, ref string? error) {
 
 		string? value = values.FirstOrDefault();
 		if (string.IsNullOrWhiteSpace(value)) return fallback;
@@ -51,17 +52,6 @@ internal static class PaginateQueryParser {
 
 		error ??= $"Query parameter '{name}' must be a positive integer.";
 		return fallback;
-
-	}
-
-	private static int? ParseOptionalPositiveInt(StringValues values, string name, ref string? error) {
-
-		string? value = values.FirstOrDefault();
-		if (string.IsNullOrWhiteSpace(value)) return null;
-		if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int parsed) && parsed > 0) return parsed;
-
-		error ??= $"Query parameter '{name}' must be a positive integer.";
-		return null;
 
 	}
 

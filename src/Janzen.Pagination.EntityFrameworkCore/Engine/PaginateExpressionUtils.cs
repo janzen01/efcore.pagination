@@ -95,10 +95,13 @@ internal static class PaginateExpressionUtils {
 
 	}
 
-	private static MethodInfo GetQueryableOrderMethod(string name) {
-		return typeof(Queryable)
+	/// <summary>Resolves a method overload by name and parameter count; <c>Single</c> guards against ambiguous matches.</summary>
+	public static MethodInfo GetMethodByParameterCount(Type type, string name, int parameterCount) {
+		return type
 			.GetMethods()
-			.Single(method => method.Name == name && method.GetParameters().Length == 2);
+			.Single(method => method.Name == name && method.GetParameters().Length == parameterCount);
 	}
+
+	private static MethodInfo GetQueryableOrderMethod(string name) { return GetMethodByParameterCount(typeof(Queryable), name, 2); }
 
 }

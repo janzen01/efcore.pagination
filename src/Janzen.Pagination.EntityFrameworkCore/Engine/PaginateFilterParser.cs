@@ -34,6 +34,12 @@ internal static class PaginateFilterParser {
 		["$btw"] = PaginateFilterOperator.Between
 	}.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
 
+	// Inverted from Operators at startup so the two directions cannot drift; two tokens accidentally mapped to the
+	// same operator make ToFrozenDictionary throw at type initialization. (The reverse mistake — one token listed
+	// twice in Operators — silently last-wins in the indexer initializer, so keep the token keys unique.)
+	private readonly static FrozenDictionary<PaginateFilterOperator, string> OperatorTokens =
+		Operators.ToFrozenDictionary(pair => pair.Value, pair => pair.Key);
+
 	public static PaginateFilterCriterion Parse(string field, string raw) {
 
 		if (string.IsNullOrWhiteSpace(raw)) throw new PaginateQueryException($"Filter '{field}' must not be empty.");
@@ -81,20 +87,9 @@ internal static class PaginateFilterParser {
 	}
 
 	public static string GetOperatorToken(PaginateFilterOperator filterOperator) {
-		return filterOperator switch {
-			PaginateFilterOperator.Eq => "$eq",
-			PaginateFilterOperator.In => "$in",
-			PaginateFilterOperator.Null => "$null",
-			PaginateFilterOperator.ILike => "$ilike",
-			PaginateFilterOperator.StartsWith => "$sw",
-			PaginateFilterOperator.Contains => "$contains",
-			PaginateFilterOperator.LessThan => "$lt",
-			PaginateFilterOperator.LessThanOrEqual => "$lte",
-			PaginateFilterOperator.GreaterThan => "$gt",
-			PaginateFilterOperator.GreaterThanOrEqual => "$gte",
-			PaginateFilterOperator.Between => "$btw",
-			_ => throw new ArgumentOutOfRangeException(nameof(filterOperator), filterOperator, null)
-		};
+		return OperatorTokens.TryGetValue(filterOperator, out string? token)
+			? token
+			: throw new ArgumentOutOfRangeException(nameof(filterOperator), filterOperator, null);
 	}
 
 	private static bool TryReadToken(string value, out string token, out string remaining) {

@@ -11,8 +11,6 @@ namespace Janzen.Pagination.AspNetCore.Filters;
 /// </summary>
 public sealed class PaginateExceptionEndpointFilter : IEndpointFilter {
 
-	private const string Title = "Invalid query";
-
 	public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next) {
 		ArgumentNullException.ThrowIfNull(context);
 		ArgumentNullException.ThrowIfNull(next);
@@ -20,7 +18,7 @@ public sealed class PaginateExceptionEndpointFilter : IEndpointFilter {
 		try {
 			return await next(context);
 		} catch (PaginateQueryException exception) {
-			return Results.Problem(detail: exception.Message, statusCode: StatusCodes.Status400BadRequest, title: Title);
+			return Results.Problem(detail: exception.Message, statusCode: StatusCodes.Status400BadRequest, title: PaginateExceptionFilter.Title);
 		}
 	}
 

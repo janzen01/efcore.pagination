@@ -14,7 +14,8 @@ namespace Janzen.Pagination.AspNetCore.Filters;
 /// </summary>
 public sealed class PaginateExceptionFilter : IExceptionFilter {
 
-	private const string Title = "Invalid query";
+	// Shared with PaginateExceptionEndpointFilter so both pipelines report the identical title.
+	internal const string Title = "Invalid query";
 
 	public void OnException(ExceptionContext context) {
 

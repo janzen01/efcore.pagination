@@ -1,5 +1,3 @@
-using Janzen.Pagination.EntityFrameworkCore.Model;
-
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -21,7 +19,7 @@ internal static class PaginateProjectionBuilder {
 			                  .GetConstructors()
 			                  .OrderByDescending(item => item.GetParameters().Length)
 			                  .FirstOrDefault() ??
-		                  throw new PaginateQueryException($"Type '{targetType.Name}' does not expose a public constructor for automatic projection.");
+		                  throw new InvalidOperationException($"Type '{targetType.Name}' does not expose a public constructor for automatic projection.");
 
 		var parameters = constructor.GetParameters();
 		var arguments = new Expression[parameters.Length];
@@ -48,7 +46,7 @@ internal static class PaginateProjectionBuilder {
 		if (conversion is not null) return conversion;
 
 		if (IsSimpleType(targetType)) {
-			throw new PaginateQueryException($"Cannot automatically project '{path}' from '{sourceValue.Type.Name}' to '{targetType.Name}'.");
+			throw new InvalidOperationException($"Cannot automatically project '{path}' from '{sourceValue.Type.Name}' to '{targetType.Name}'.");
 		}
 
 		var nestedTargetType = Nullable.GetUnderlyingType(targetType) ?? targetType;
@@ -58,7 +56,7 @@ internal static class PaginateProjectionBuilder {
 		if (!CanBeNull(sourceValue.Type, sourceMember)) return convertedNestedValue;
 
 		if (!CanBeNull(targetType, parameter)) {
-			throw new PaginateQueryException($"Cannot automatically project nullable source '{path}' into non-nullable target parameter '{parameter.Name}'.");
+			throw new InvalidOperationException($"Cannot automatically project nullable source '{path}' into non-nullable target parameter '{parameter.Name}'.");
 		}
 
 		return Expression.Condition(
@@ -82,7 +80,7 @@ internal static class PaginateProjectionBuilder {
 		return properties
 			       .Concat(fields)
 			       .FirstOrDefault() ??
-		       throw new PaginateQueryException($"Cannot automatically project '{path}' because source type '{sourceType.Name}' has no public member named '{name}'.");
+		       throw new InvalidOperationException($"Cannot automatically project '{path}' because source type '{sourceType.Name}' has no public member named '{name}'.");
 
 	}
 

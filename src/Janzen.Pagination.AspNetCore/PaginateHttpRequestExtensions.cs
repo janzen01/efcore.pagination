@@ -28,7 +28,7 @@ public static class PaginateHttpRequestExtensions {
 
 		ArgumentNullException.ThrowIfNull(request);
 
-		var query = new List<KeyValuePair<string, string>>();
+		List<KeyValuePair<string, string>> query = [];
 
 		foreach ((string key, var values) in request.Query) {
 			query.AddRange(values.Select(value => new KeyValuePair<string, string>(key, value ?? string.Empty)));
