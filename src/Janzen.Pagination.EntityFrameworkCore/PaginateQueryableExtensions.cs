@@ -300,7 +300,10 @@ public static class PaginateQueryableExtensions {
 
 			request.EnsureValid();
 
-			int page = Math.Max(request.Page, PaginateQuery.DefaultPage);
+			// Mirrors the 'limit' guard: an out-of-range page is a caller bug, so surface it instead of clamping it away.
+			if (request.Page < PaginateQuery.DefaultPage) throw new PaginateQueryException("Query parameter 'page' must be a positive integer.");
+
+			int page = request.Page;
 			int limit = PaginateExpressionUtils.ParseLimit(request, config);
 			bool useDatabaseFunctions = source.Provider is IAsyncQueryProvider;
 			var context = new PaginateExpressionContext(useDatabaseFunctions, PaginateLikeDefaults.Strategy);

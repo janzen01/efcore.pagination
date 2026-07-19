@@ -38,7 +38,7 @@ var request = new PaginateQuery { Page = 1, Limit = 25, SortBy = ["name:DESC"] }
 
 // 3. …and execute against an IQueryable, projecting to a DTO.
 PaginatedResponse<ProductDto> response = await dbContext.Products
-    .PaginateAsync<ProductDto>(request, config);
+    .PaginateAsync<Product, ProductDto>(request, config);
 ```
 
 ## Badges
@@ -84,10 +84,14 @@ Three ways to shape each page row into a DTO — pick the cheapest that fits:
 
 | Strategy     | Entry point                                        | Runs where     | Use for |
 |--------------|----------------------------------------------------|----------------|---------|
-| **Auto**     | `PaginateAsync<TResult>(request, config)`           | SQL            | DTOs buildable by convention: scalars, single nested objects, `Instant → DateTimeOffset`. |
-| **Selector** | `PaginateAsync<TResult>(request, config, selector)` | SQL (+ shaper) | Anything expressible as a `Select`: aggregates, **sub-collections**, conversions — in one narrow query. |
-| **Selector + finalize** | `PaginateAsync<TProjection, TResult>(request, config, selector, postMap)` | SQL + in-memory | Most of the row translates, but a field or two needs a CLR computation EF can't translate (weighted aggregate over a sub-collection with a guard/rounding). Narrow `SELECT`; `postMap` finalizes the page only (O(page size)). |
-| **Map**      | `PaginateMapAsync<TResult>(request, config, map)`   | in memory      | Only when the response needs the **fully loaded entity**. Over-fetches by design. |
+| **Auto**     | `PaginateAsync<TEntity, TResult>(request, config)`           | SQL            | DTOs buildable by convention: scalars, single nested objects, `Instant → DateTimeOffset`. |
+| **Selector** | `PaginateAsync<TEntity, TResult>(request, config, selector)` | SQL (+ shaper) | Anything expressible as a `Select`: aggregates, **sub-collections**, conversions — in one narrow query. |
+| **Selector + finalize** | `PaginateAsync<TEntity, TProjection, TResult>(request, config, selector, postMap)` | SQL + in-memory | Most of the row translates, but a field or two needs a CLR computation EF can't translate (weighted aggregate over a sub-collection with a guard/rounding). Narrow `SELECT`; `postMap` finalizes the page only (O(page size)). |
+| **Map**      | `PaginateMapAsync<TEntity, TResult>(request, config, map)`   | in memory      | Only when the response needs the **fully loaded entity**. Over-fetches by design. |
+
+`TEntity` comes first in every entry point: these are C# extension-block members, so explicit type arguments
+must name the entity type before the result type. Where a `selector`, `postMap` or `map` lambda is passed,
+all type arguments are inferable — `db.Products.PaginateAsync(request, config, selector)` also compiles.
 
 ### Sub-collections + NodaTime conversions in a single query
 
@@ -97,7 +101,7 @@ query's terminal projection, EF Core runs the column reads and sub-collection ma
 applies the (free) `Instant → DateTimeOffset` reinterpret in the shaper, over the page rows only:
 
 ```csharp
-PaginatedResponse<ProductSummary> page = await db.Products.PaginateAsync<ProductSummary>(request, config,
+PaginatedResponse<ProductSummary> page = await db.Products.PaginateAsync<Product, ProductSummary>(request, config,
     p => new ProductSummary(
         p.Id,
         p.Name,

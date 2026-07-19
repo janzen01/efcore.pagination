@@ -6,7 +6,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.Model;
 ///     An immutable pagination request. Bind it from a query string (ASP.NET integration) or construct it directly
 ///     with an object initializer for non-web callers (gRPC, console, tests), e.g.
 ///     <c>new PaginateQuery { Page = 2, Limit = 25, SortBy = ["name:DESC"] }</c>. Out-of-range values are
-///     clamped/validated by the engine when the query is executed.
+///     validated by the engine when the query is executed.
 /// </summary>
 public sealed class PaginateQuery {
 
