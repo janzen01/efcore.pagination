@@ -95,8 +95,9 @@ independent of each other — consumers pick the extensions they need:
   consumers accurate analyzer warnings instead of silent runtime failures; keep them.
 - **Auto-projection maps constructor parameters** (records / positional ctors), **not** settable properties — projection
   DTOs should be records. This is by design, not a bug.
-- **`nuget.config` lists nuget.org only** and clears machine sources — deliberate, for reproducible restores. The GitHub
-  Packages feed is a publish target, not a build dependency.
+- **`nuget.config` lists nuget.org only** and clears machine sources — deliberate, for reproducible restores. nuget.org
+  is both the restore source and the publish target; publishing authenticates via Trusted Publishing (OIDC), so there is
+  no API-key secret in the repo.
 - **`.slnx` + lock files** — enabling `RestorePackagesWithLockFile` on the `.slnx` restore fails with
   `Invalid framework identifier ''`; lock files are intentionally not enabled at the solution level.
 - **Unknown query parameters are ignored.** The binder reads exactly six inputs (`page`, `limit`, `sortBy`, `search`,

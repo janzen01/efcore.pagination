@@ -9,14 +9,16 @@
     "commit-commands@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
     "csharp-lsp@claude-plugins-official": true,
+    "microsoft-docs@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": true,
+
+    "dotnet@dotnet-agent-skills": true,
     "dotnet-aspnetcore@dotnet-agent-skills": true,
     "dotnet-data@dotnet-agent-skills": true,
     "dotnet-diag@dotnet-agent-skills": true,
     "dotnet-nuget@dotnet-agent-skills": true,
-    "dotnet@dotnet-agent-skills": true,
-    "microsoft-docs@claude-plugins-official": true,
-    "security-guidance@claude-plugins-official": true,
-    "superpowers@claude-plugins-official": true,
+
     "ponytail@ponytail": true
   }
 }

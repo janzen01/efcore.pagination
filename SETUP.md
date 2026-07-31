@@ -20,7 +20,7 @@ dotnet restore Janzen.Pagination.slnx
 ```
 
 Restore pulls from **nuget.org only** ([nuget.config](nuget.config) clears machine-level sources for reproducible
-builds), so **no GitHub Packages PAT is needed to build the repo** — the GitHub feed is only a publish target.
+builds), so **no credentials are needed to build the repo**.
 
 ## 2. Build
 
@@ -77,8 +77,10 @@ gh release create v1.2.3 --generate-notes
 ```
 
 Publishing a GitHub Release runs [.github/workflows/publish.yml](.github/workflows/publish.yml), which builds, packs,
-and pushes the four `Janzen.Pagination.*` packages (+ `snupkg` symbols) to the **GitHub Packages** feed. Release notes
-live on the tag/release — there is no `CHANGELOG` file in the repo.
+and pushes the four `Janzen.Pagination.*` packages (+ `snupkg` symbols) to **nuget.org**. Authentication uses
+[Trusted Publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing): the workflow exchanges a GitHub
+OIDC token for a short-lived API key, so there is no long-lived secret to store or rotate. Release notes live on the
+tag/release — there is no `CHANGELOG` file in the repo.
 
 ## Troubleshooting
 

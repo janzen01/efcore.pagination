@@ -1,0 +1,33 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+  schedule:
+    # Weekly, so new queries also run against code that has not changed.
+    - cron: '0 5 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze C#
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: csharp
+          # ponytail: buildless analysis — no .NET SDK to pin here, no build to keep green.
+          # Switch to `build-mode: manual` + a `dotnet build` step if CodeQL starts
+          # missing dataflow through the expression-tree builders.
+          build-mode: none
+          queries: security-and-quality
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4

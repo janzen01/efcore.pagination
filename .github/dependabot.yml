@@ -6,6 +6,9 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build"
+      include: "scope"
     ignore:
       # Microsoft.AspNetCore.OpenApi 10.x builds on Microsoft.OpenApi 2.x; the 3.x major is incompatible
       # with ASP.NET Core 10. Revisit when the framework itself moves to 3.x.
@@ -21,3 +24,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    ignore:
+      # Every action is referenced by its major tag (@v6, @v4, @v1), so minor and patch releases
+      # already arrive through the tag. A PR for them only pins the tag to a point release and
+      # turns off exactly the updates it was tracking. Majors still need a decision, so they open.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
