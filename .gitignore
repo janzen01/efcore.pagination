@@ -11,6 +11,8 @@ docs/
 **/.idea/**/projectSettingsUpdater.xml
 **/.idea/**/copilot*
 **/.idea/**/git_toolbox*.xml
+# Per-developer run configurations (the shared .idea project settings above stay tracked)
+.run/
 
 # Local settings / secrets
 **/local.settings.json

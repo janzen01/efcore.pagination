@@ -14,7 +14,8 @@ internal sealed class NpgsqlLikeStrategy() : PaginateLikeStrategyBase(ILikeMetho
 	private readonly static MethodInfo ILikeMethod = PaginateExpressionUtils.GetMethodByParameterCount(
 		typeof(NpgsqlDbFunctionsExtensions),
 		nameof(NpgsqlDbFunctionsExtensions.ILike),
-		4);
+		4
+	);
 
 	public override PaginateFilterOperator? PreferredExampleOperator => PaginateFilterOperator.ILike;
 

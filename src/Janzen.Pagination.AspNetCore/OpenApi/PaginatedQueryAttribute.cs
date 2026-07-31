@@ -12,9 +12,4 @@ public abstract class PaginatedQueryAttribute : Attribute {
 }
 
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class PaginatedQueryAttribute<TConfigProvider> : PaginatedQueryAttribute
-	where TConfigProvider : IPaginateConfigProvider {
-
-	public PaginatedQueryAttribute() : base(typeof(TConfigProvider)) { }
-
-}
+public sealed class PaginatedQueryAttribute<TConfigProvider>() : PaginatedQueryAttribute(typeof(TConfigProvider)) where TConfigProvider : IPaginateConfigProvider;

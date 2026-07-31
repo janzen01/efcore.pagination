@@ -359,10 +359,9 @@ public sealed class PaginateConfigBuilder<TEntity> {
 			throw new InvalidOperationException($"Default sort field '{sort.Field}' is not sortable.");
 		}
 
-		foreach (var field in _sortableFields.Values.Cast<IPaginateFieldTarget>().Concat(_searchableFields.Values).Concat(_filterableFields.Values)) {
-			if (field.Condition.HasValue && field.Badge is null) {
-				throw new InvalidOperationException("A field configured with .When(...) must also declare .ShowBadge(...) so the condition is documented in the OpenAPI output.");
-			}
+		var allFields = _sortableFields.Values.Cast<IPaginateFieldTarget>().Concat(_searchableFields.Values).Concat(_filterableFields.Values);
+		if (allFields.Any(field => field.Condition.HasValue && field.Badge is null)) {
+			throw new InvalidOperationException("A field configured with .When(...) must also declare .ShowBadge(...) so the condition is documented in the OpenAPI output.");
 		}
 
 		var defaultSortBy = _defaultSortBy.Count == 0 ? [] : _defaultSortBy.ToArray();

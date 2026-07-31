@@ -266,6 +266,9 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	}
 
+	// NodaTime ships as a separate add-on package, so this assembly holds no reference to it and cannot use
+	// typeof(). Resolving the name against the candidate's *own* assembly keeps these type-identity checks: a
+	// same-named type from any other assembly can never match, and there is nothing to cache or preload.
 	private static string GetValueTypeName(Type type) {
 		var t = Nullable.GetUnderlyingType(type) ?? type;
 		return t switch {
@@ -275,8 +278,8 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			_ when t == typeof(short) || t == typeof(int) || t == typeof(long) => "integer",
 			_ when t == typeof(float) || t == typeof(double) || t == typeof(decimal) => "number",
 			_ when t == typeof(DateTimeOffset) || t == typeof(DateTime) => "date-time",
-			_ when t.FullName == "NodaTime.Instant" => "date-time (UTC)",
-			_ when t.FullName == "NodaTime.LocalDate" => "date",
+			_ when t == t.Assembly.GetType("NodaTime.Instant") => "date-time (UTC)",
+			_ when t == t.Assembly.GetType("NodaTime.LocalDate") => "date",
 			_ when t.IsEnum => string.Join(" | ", Enum.GetNames(t)),
 			_ => t.Name
 		};
@@ -291,15 +294,15 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			_ when t == typeof(short) || t == typeof(int) || t == typeof(long) => "42",
 			_ when t == typeof(float) || t == typeof(double) || t == typeof(decimal) => "9.99",
 			_ when t == typeof(DateTimeOffset) || t == typeof(DateTime) => "2025-01-01T00:00:00Z",
-			_ when t.FullName == "NodaTime.Instant" => "2025-01-01T00:00:00Z",
-			_ when t.FullName == "NodaTime.LocalDate" => "2025-01-01",
+			_ when t == t.Assembly.GetType("NodaTime.Instant") => "2025-01-01T00:00:00Z",
+			_ when t == t.Assembly.GetType("NodaTime.LocalDate") => "2025-01-01",
 			_ when t.IsEnum => Enum.GetNames(t).FirstOrDefault() ?? "value",
 			_ => "value"
 		};
 	}
 
 	// Renders an optional field badge as a <code> chip appended to the parameter description. The API reference
-	// sanitizer (Scalar uses GitHub-flavored markdown / rehype-sanitize) strips inline style and every class except
+	// sanitizer (Scalar uses GitHub-flavored Markdown / rehype-sanitize) strips inline style and every class except
 	// one matching /^language-/ on <code> — so a badge is a <code> chip carrying that class, and the consumer colors
 	// it through the reference UI's custom CSS. ShowBadge guarantees the class starts with "language-". Without a
 	// class it's a neutral code chip. Name and class are HTML-encoded so a stray character can't break the markup.

@@ -54,12 +54,7 @@ public static class PaginateTypeSupport {
 	internal static bool IsRegisteredSimpleType(Type type) { return SimpleTypes.ContainsKey(type); }
 
 	internal static Expression? TryBuildProjectionConversion(Expression sourceValue, Type targetType) {
-		foreach (var convert in _projectionConversions) {
-			var result = convert(sourceValue, targetType);
-			if (result is not null) return result;
-		}
-
-		return null;
+		return _projectionConversions.Select(convert => convert(sourceValue, targetType)).OfType<Expression>().FirstOrDefault();
 	}
 
 }
