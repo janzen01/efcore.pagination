@@ -79,8 +79,7 @@ independent of each other — consumers pick the extensions they need:
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
 - **XML docs** on the public API (the `CS1591` *warning* is suppressed for now — the docs themselves are not).
 - Build must stay clean under `-warnaserror` before any commit.
-- **Commits:** small and incremental (one logical change each); end the message with
-  `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
+- **Commits:** small and incremental (one logical change each).
 - Each packable project ships its **own `README.md`** as the NuGet package readme — keep it in sync with behavior.
 
 ## Testing
