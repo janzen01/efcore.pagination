@@ -85,13 +85,16 @@ Three ways to shape each page row into a DTO — pick the cheapest that fits:
 | Strategy     | Entry point                                        | Runs where     | Use for |
 |--------------|----------------------------------------------------|----------------|---------|
 | **Auto**     | `PaginateAsync<TEntity, TResult>(request, config)`           | SQL            | DTOs buildable by convention: scalars, single nested objects, `Instant → DateTimeOffset`. |
-| **Selector** | `PaginateAsync<TEntity, TResult>(request, config, selector)` | SQL (+ shaper) | Anything expressible as a `Select`: aggregates, **sub-collections**, conversions — in one narrow query. |
-| **Selector + finalize** | `PaginateAsync<TEntity, TProjection, TResult>(request, config, selector, postMap)` | SQL + in-memory | Most of the row translates, but a field or two needs a CLR computation EF can't translate (weighted aggregate over a sub-collection with a guard/rounding). Narrow `SELECT`; `postMap` finalizes the page only (O(page size)). |
+| **Selector** | `PaginateSelectAsync<TEntity, TResult>(request, config, selector)` | SQL (+ shaper) | Anything expressible as a `Select`: aggregates, **sub-collections**, conversions — in one narrow query. |
+| **Selector + finalize** | `PaginateSelectMapAsync<TEntity, TProjection, TResult>(request, config, selector, postMap)` | SQL + in-memory | Most of the row translates, but a field or two needs a CLR computation EF can't translate (weighted aggregate over a sub-collection with a guard/rounding). Narrow `SELECT`; `postMap` finalizes the page only (O(page size)). |
 | **Map**      | `PaginateMapAsync<TEntity, TResult>(request, config, map)`   | in memory      | Only when the response needs the **fully loaded entity**. Over-fetches by design. |
+
+Each strategy has its own name rather than being an overload of `PaginateAsync`, so the call site says which one it
+uses: `Select` means projected in SQL, `Map` means mapped in memory.
 
 `TEntity` comes first in every entry point: these are C# extension-block members, so explicit type arguments
 must name the entity type before the result type. Where a `selector`, `postMap` or `map` lambda is passed,
-all type arguments are inferable — `db.Products.PaginateAsync(request, config, selector)` also compiles.
+all type arguments are inferable — `db.Products.PaginateSelectAsync(request, config, selector)` also compiles.
 
 ### Sub-collections + NodaTime conversions in a single query
 
@@ -101,7 +104,7 @@ query's terminal projection, EF Core runs the column reads and sub-collection ma
 applies the (free) `Instant → DateTimeOffset` reinterpret in the shaper, over the page rows only:
 
 ```csharp
-PaginatedResponse<ProductSummary> page = await db.Products.PaginateAsync<Product, ProductSummary>(request, config,
+PaginatedResponse<ProductSummary> page = await db.Products.PaginateSelectAsync<Product, ProductSummary>(request, config,
     p => new ProductSummary(
         p.Id,
         p.Name,
@@ -129,8 +132,8 @@ column is never fetched. The `Instant → DateTimeOffset` casts come from
 ## Trimming & Native AOT
 
 The engine builds LINQ expression trees and uses reflection (DTO projection mapping, `MakeGenericMethod`),
-so it is **not compatible with trimming or Native AOT**. The public `PaginateAsync` / `PaginateMapAsync`
-entry points are annotated with `[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`, so consumers
+so it is **not compatible with trimming or Native AOT**. Every public `Paginate*Async`
+entry point is annotated with `[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`, so consumers
 building trimmed or AOT applications get accurate analyzer warnings rather than silent runtime failures.
 
 ## License

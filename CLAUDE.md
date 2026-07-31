@@ -57,11 +57,16 @@ independent of each other — consumers pick the extensions they need:
   (`field → ["$op:value"]`). In ASP.NET Core it binds from `?page=&limit=&sortBy=&search=&filter.<field>=$op:value`.
 - **`PaginatedResponse<T>`** — envelope: `Items`, `Meta` (totalItems / itemCount / itemsPerPage / totalPages /
   currentPage), `Links` (first / prev / next / last / self — individual links are nullable, the record is not).
-- **Entry points** (extension methods on `IQueryable<TEntity>`):
-  - `PaginateAsync<TEntity, TResult>(request, config, …)` — SQL-side projection; auto (reflection-built) or a custom
+- **Entry points** (extension methods on `IQueryable<TEntity>`). One name per projection strategy — deliberately *not*
+  overloads, so the choice is explicit at the call site and adding an optional parameter later stays non-breaking
+  (`Select` = projected in SQL, `Map` = mapped in memory):
+  - `PaginateAsync<TEntity, TResult>(request, config, …)` — SQL-side projection built automatically by reflection.
+  - `PaginateSelectAsync<TEntity, TResult>(request, config, selector, …)` — SQL-side projection from a caller-supplied
     translatable `selector` (supports aggregates, sub-collection projections).
+  - `PaginateSelectMapAsync<TEntity, TProjection, TResult>(request, config, selector, postMap, …)` — SQL-side
+    projection, then `postMap` over the page **in memory** for the fields EF cannot translate.
   - `PaginateMapAsync<TEntity, TResult>(request, config, projector, …)` — paginate, then map **in memory** (computed
-    fields / collections needing client-side logic).
+    fields / collections needing client-side logic); materializes the full entity.
 - **`PaginateFilterOperator`** — `Eq`, `In`, `Null`, `StartsWith`, `Contains`, `ILike`, `GreaterThan(OrEqual)`,
   `LessThan(OrEqual)`, `Between`. Each field whitelists its allowed operators.
 - **DI:** `services.AddPagination(b => { b.AddAspNetCore(); b.UsePostgreSql(); b.AddNodaTime(); });` — add only the
@@ -84,15 +89,15 @@ independent of each other — consumers pick the extensions they need:
 
 ## Testing
 - **No test project currently in the repo.** Verify changes by building clean under `-warnaserror` and exercising the
-  library from a consuming app — the public entry points (`PaginateAsync` / `PaginateMapAsync`) need a live EF Core
-  provider to execute.
+  library from a consuming app — the public entry points (the `Paginate*Async` family) need a live EF Core provider to
+  execute.
 
 ## Intentional decisions — do NOT "fix" these
 - **net10.0-only** — net9 is EOL and net8 lacks the EF Core 9+ surface the engine relies on (e.g. `EF.Parameter`).
   Don't re-introduce multi-targeting.
-- **`[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`** on the public `PaginateAsync` / `PaginateMapAsync` entry
-  points — the engine builds expression trees and uses reflection, so it is **not** trim/AOT-safe. The annotations give
-  consumers accurate analyzer warnings instead of silent runtime failures; keep them.
+- **`[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`** on every public `Paginate*Async` entry point — the engine
+  builds expression trees and uses reflection, so it is **not** trim/AOT-safe. The annotations give consumers accurate
+  analyzer warnings instead of silent runtime failures; keep them.
 - **Auto-projection maps constructor parameters** (records / positional ctors), **not** settable properties — projection
   DTOs should be records. This is by design, not a bug.
 - **`nuget.config` lists nuget.org only** and clears machine sources — deliberate, for reproducible restores. nuget.org

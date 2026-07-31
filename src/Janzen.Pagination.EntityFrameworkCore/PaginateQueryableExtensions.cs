@@ -229,7 +229,7 @@ public static class PaginateQueryableExtensions {
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateAsync<TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PaginateSelectAsync<TResult>(PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Expression<Func<TEntity, TResult>> selector,
 			PaginateLinkContext? linkContext = null,
@@ -248,13 +248,13 @@ public static class PaginateQueryableExtensions {
 		/// </summary>
 		/// <remarks>
 		///     The <c>SELECT</c> stays as narrow as the <paramref name="selector" /> (no full-entity materialization);
-		///     <paramref name="postMap" /> runs only over the current page (O(page size)). Prefer the plain
-		///     <c>selector</c> overload when the whole row translates, and <c>PaginateMapAsync</c> only when the response
-		///     genuinely needs the loaded entity.
+		///     <paramref name="postMap" /> runs only over the current page (O(page size)). Prefer
+		///     <c>PaginateSelectAsync</c> when the whole row translates, and <c>PaginateMapAsync</c> only when the
+		///     response genuinely needs the loaded entity.
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateAsync<TProjection, TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PaginateSelectMapAsync<TProjection, TResult>(PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Expression<Func<TEntity, TProjection>> selector,
 			Func<TProjection, TResult> postMap,
@@ -275,9 +275,9 @@ public static class PaginateQueryableExtensions {
 		/// </summary>
 		/// <remarks>
 		///     This materializes every column of each entity (it over-fetches by design). A projection that merely
-		///     combines sub-collections with NodaTime conversions does <b>not</b> need this — use the
-		///     <c>selector</c> overload of <c>PaginateAsync</c>, which keeps the <c>SELECT</c>
-		///     narrow and applies such conversions in the shaper.
+		///     combines sub-collections with NodaTime conversions does <b>not</b> need this — use
+		///     <c>PaginateSelectAsync</c>, which keeps the <c>SELECT</c> narrow and applies such conversions in the
+		///     shaper.
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]

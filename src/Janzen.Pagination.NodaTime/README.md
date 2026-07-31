@@ -38,7 +38,7 @@ sub-collections stay in SQL, so the `SELECT` stays narrow; only the trivial date
 shaper. Concretely, the conversion works:
 
 - in the **auto** builder (`PaginateAsync<TEntity, TResult>(request, config)`), for top-level and single nested objects;
-- in a caller **selector** (`PaginateAsync<TEntity, TResult>(request, config, selector)`), anywhere in the terminal
+- in a caller **selector** (`PaginateSelectAsync<TEntity, TResult>(request, config, selector)`), anywhere in the terminal
   projection — **including inside one-to-many sub-collection items** — so a single selector can combine
   sub-collections with `Instant → DateTimeOffset` (and the nullable `Instant?` path) and still execute as one
   query. See the *Projection strategies* section of the

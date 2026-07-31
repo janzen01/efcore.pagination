@@ -1,0 +1,5 @@
+#nullable enable
+Janzen.Pagination.EntityFrameworkCore.DependencyInjection.PaginationBuilderNodaTimeExtensions
+Janzen.Pagination.NodaTime.PaginateNodaTime
+static Janzen.Pagination.EntityFrameworkCore.DependencyInjection.PaginationBuilderNodaTimeExtensions.UseNodaTime(this Janzen.Pagination.EntityFrameworkCore.DependencyInjection.IPaginationBuilder! builder) -> Janzen.Pagination.EntityFrameworkCore.DependencyInjection.IPaginationBuilder!
+static Janzen.Pagination.NodaTime.PaginateNodaTime.Register() -> void

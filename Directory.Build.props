@@ -13,6 +13,8 @@
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <!-- Public library: missing XML doc comments must not fail the build (yet) -->
         <NoWarn>$(NoWarn);CS1591</NoWarn>
+        <!-- Audit transitive dependencies too, not just direct ones (the default). -->
+        <NuGetAuditMode>all</NuGetAuditMode>
     </PropertyGroup>
 
     <!-- Package identity (PackageId and Description are set per project) -->
@@ -53,6 +55,18 @@
     <!-- Packaging: each packable project ships its own README.md as the NuGet readme -->
     <ItemGroup Condition="'$(IsPackable)' != 'false'">
         <None Include="$(MSBuildProjectDirectory)\README.md" Pack="true" PackagePath="\" Visible="false"/>
+    </ItemGroup>
+
+    <!--
+      Public API tracking: the declared surface lives in PublicAPI.Shipped.txt (released) and
+      PublicAPI.Unshipped.txt (added since). Adding a public member fails the build until it is
+      listed, and removing one fails until its line is deleted — which is the point at which a
+      breaking change becomes a deliberate versioning decision rather than an accident.
+    -->
+    <ItemGroup Condition="'$(IsPackable)' != 'false'">
+        <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive"/>
+        <AdditionalFiles Include="$(MSBuildProjectDirectory)\PublicAPI.Shipped.txt"/>
+        <AdditionalFiles Include="$(MSBuildProjectDirectory)\PublicAPI.Unshipped.txt"/>
     </ItemGroup>
 
 </Project>

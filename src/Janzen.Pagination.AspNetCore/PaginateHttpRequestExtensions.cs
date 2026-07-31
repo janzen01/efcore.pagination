@@ -60,19 +60,19 @@ public static class PaginateHttpRequestExtensions {
 
 		[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 		[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateAsync<TResult>(
+		public Task<PaginatedResponse<TResult>> PaginateSelectAsync<TResult>(
 			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Expression<Func<TEntity, TResult>> selector,
 			HttpRequest httpRequest,
 			CancellationToken ct = default
 		) {
-			return source.PaginateAsync(request, config, selector, httpRequest.ToPaginateLinkContext(), ct);
+			return source.PaginateSelectAsync(request, config, selector, httpRequest.ToPaginateLinkContext(), ct);
 		}
 
 		[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 		[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateAsync<TProjection, TResult>(
+		public Task<PaginatedResponse<TResult>> PaginateSelectMapAsync<TProjection, TResult>(
 			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Expression<Func<TEntity, TProjection>> selector,
@@ -80,7 +80,7 @@ public static class PaginateHttpRequestExtensions {
 			HttpRequest httpRequest,
 			CancellationToken ct = default
 		) {
-			return source.PaginateAsync(request, config, selector, postMap, httpRequest.ToPaginateLinkContext(), ct);
+			return source.PaginateSelectMapAsync(request, config, selector, postMap, httpRequest.ToPaginateLinkContext(), ct);
 		}
 
 		[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
