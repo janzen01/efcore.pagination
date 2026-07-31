@@ -79,7 +79,13 @@ public static class PaginateQueryableExtensions {
 		PaginateExpressionContext context
 	) {
 
-		if (string.IsNullOrWhiteSpace(request.Search)) return query;
+		if (string.IsNullOrWhiteSpace(request.Search)) {
+			// No search runs, but a supplied searchBy is still validated: an unknown or repeated field is a client bug
+			// either way, and silently ignoring it here is what makes "search does nothing" hard to diagnose.
+			if (request.SearchBy.Count > 0) ResolveSearchFields(request, config);
+
+			return query;
+		}
 
 		string search = request.Search;
 
@@ -115,9 +121,11 @@ public static class PaginateQueryableExtensions {
 		if (config.IgnoreSearchByInQueryParam || request.SearchBy.Count == 0) return config.GetDefaultSearchFields();
 
 		List<PaginateSearchField<TEntity>> fields = [];
+		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 		foreach (string fieldName in request.SearchBy) {
 			if (!config.TryGetSearchableField(fieldName, out var field)) throw new PaginateQueryException($"Search for field '{fieldName}' is not configured.");
+			if (!seen.Add(fieldName)) throw new PaginateQueryException($"Search field '{fieldName}' is specified more than once.");
 
 			fields.Add(field);
 		}
