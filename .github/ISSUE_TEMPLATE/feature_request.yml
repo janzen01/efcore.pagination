@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a capability or a change to the public API
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the use case rather than the solution — it often changes what the right API turns out to be.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What do you do today instead?
+      description: The current workaround, and where it falls short. "Nothing works" is a valid answer.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed shape
+      description: Optional. How it would read at the call site, if you have something in mind.
+      render: csharp
+
+  - type: markdown
+    attributes:
+      value: |
+        **On timing:** a change to the public API is a versioning decision. Additions can ship in a minor
+        release, but anything that breaks existing callers normally waits for the next .NET / EF Core major,
+        because the package's first version component tracks the framework it targets.

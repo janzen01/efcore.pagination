@@ -1,6 +1,5 @@
 <Solution>
     <Folder Name="/Solution Items/">
-        <File Path="AGENTS.md" />
         <File Path="CLAUDE.md" />
         <File Path="Directory.Build.props" />
         <File Path="Directory.Packages.props" />
@@ -8,6 +7,7 @@
         <File Path="LICENSE" />
         <File Path=".gitignore" />
         <File Path="SETUP.md" />
+        <File Path="SECURITY.md" />
     </Folder>
     <Project Path="src/Janzen.Pagination.AspNetCore/Janzen.Pagination.AspNetCore.csproj" />
     <Project Path="src/Janzen.Pagination.EntityFrameworkCore/Janzen.Pagination.EntityFrameworkCore.csproj" />

@@ -2,7 +2,7 @@
 
 Dynamic, configuration-driven **pagination, filtering and sorting** for **Entity Framework Core** and **ASP.NET Core**,
 shipped as four composable NuGet packages (`Janzen.Pagination.*`). **net10.0-only**, C# `latest`, nullable-enabled.
-Pre-1.0 — the public API is stabilizing.
+Not released yet — the first public version will be **10.x** (see *Versioning* below).
 
 > **Machine setup** (prerequisites, restore, build, graphify) lives in **[SETUP.md](SETUP.md)** — not repeated here.
 > This file is for *working in the code*.
@@ -86,6 +86,23 @@ independent of each other — consumers pick the extensions they need:
 - Build must stay clean under `-warnaserror` before any commit.
 - **Commits:** small and incremental (one logical change each).
 - Each packable project ships its **own `README.md`** as the NuGet package readme — keep it in sync with behavior.
+
+## Versioning
+The package version's **first component tracks the .NET / EF Core major it targets** — a `10.x` package pairs with
+.NET 10 and EF Core 10. This is lockstep versioning, as used by `Npgsql.EntityFrameworkCore.PostgreSQL` and
+`Microsoft.Extensions.*`, so the pairing is visible without reading the dependency list.
+
+- **Own breaking changes ride the framework major** whenever possible. Mid-cycle ones go into **minor** and are called
+  out in the release notes — the major is not available for them.
+- **A new .NET major means a new package line** (`11.x`). The engine touches expression trees, `EF.Parameter` and
+  `EF.Functions`, so a rebuild against the new EF Core major is needed regardless of the version scheme: a `net10.0`
+  assembly loaded against EF Core 11 can fail at runtime. Dependabot opens the `Microsoft.EntityFrameworkCore` major
+  PR, which is the reminder; CI then says whether it is a plain retarget or a real port.
+- **Older lines are not maintained in parallel.** `10.x` stays available on nuget.org as published; backport only on
+  request.
+- **No four-part versions.** NuGet drops a zero fourth component (`10.1.0.0` *is* `10.1.0`) and treats `1`, `1.0`,
+  `1.0.0` and `1.0.0.0` as equal, so the component count would flicker per release. Three components only.
+- Version lives in `<Version>` in [Directory.Build.props](Directory.Build.props) — there is **no MinVer** here.
 
 ## Testing
 - **No test project currently in the repo.** Verify changes by building clean under `-warnaserror` and exercising the

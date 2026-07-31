@@ -61,15 +61,16 @@ ASP.NET Core package wires pagination into the request/response pipeline.
 
 ## Status
 
-> **Pre-1.0 — the public API is stabilizing.** The first public release to **NuGet.org** is not out yet.
-> Release notes will live on the
+> **Not released yet.** The first public release to **NuGet.org** is still to come.
+>
+> Versions track the framework: the first component is the **.NET / EF Core major** the package targets, so the first
+> release will be **10.x** (pairing with .NET 10 and EF Core 10) rather than 1.0.0. Release notes will live on the
 > [Releases](https://github.com/janzen01/efcore.pagination/releases) page.
 
 ## Documentation
 
 - **[SETUP.md](SETUP.md)** — development environment setup (restore, build, graphify) for working on the library.
-- **[CLAUDE.md](CLAUDE.md)** — architecture, public API surface, conventions, and intentional decisions (guide for humans and AI agents).
-- **[AGENTS.md](AGENTS.md)** — entry point for AI coding agents.
+- **[CLAUDE.md](CLAUDE.md)** — architecture, public API surface, versioning, conventions, and intentional decisions (guide for humans and AI agents).
 - **Per-package usage** — each package's README, linked in [Packages](#packages) above.
 
 ## License

@@ -1,0 +1,83 @@
+name: Bug report
+description: Pagination, filtering, sorting or the generated SQL behaves incorrectly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a **security vulnerability** do not open an issue — use the private report link on the
+        issue chooser instead.
+
+  - type: checkboxes
+    id: packages
+    attributes:
+      label: Packages involved
+      options:
+        - label: Janzen.Pagination.EntityFrameworkCore
+        - label: Janzen.Pagination.AspNetCore
+        - label: Janzen.Pagination.PostgreSql
+        - label: Janzen.Pagination.NodaTime
+
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      placeholder: 10.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: EF Core provider
+      description: >-
+        Case sensitivity of search, Contains and StartsWith depends on this. The default emits portable
+        LIKE and follows the column collation; UsePostgreSql() upgrades it to native ILIKE.
+      options:
+        - PostgreSQL (Npgsql)
+        - SQL Server
+        - SQLite
+        - Other / in-memory
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: PaginateConfig for the entity
+      description: The fluent configuration decides what is sortable, searchable and filterable, so the behaviour cannot be reproduced without it.
+      render: csharp
+      placeholder: |
+        PaginateConfig<Product>.Create(b => b
+            .WithLimits(defaultLimit: 25, maxLimit: 100)
+            .Sortable("name", p => p.Name)
+            .WithTieBreaker(p => p.Id)
+            .Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+    validations:
+      required: true
+
+  - type: textarea
+    id: request
+    attributes:
+      label: Request
+      description: The query string, or the PaginateQuery you built by hand.
+      placeholder: ?page=1&limit=25&sortBy=name:DESC&filter.status=$eq:active
+    validations:
+      required: true
+
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: Expected vs actual
+      description: What you expected to happen, and what happened instead. Include the exception and its message if one was thrown.
+    validations:
+      required: true
+
+  - type: textarea
+    id: sql
+    attributes:
+      label: Generated SQL
+      description: >-
+        Optional but usually decisive. `query.ToQueryString()` returns the SQL without needing a live
+        database, so it can be captured even from a unit test.
+      render: sql

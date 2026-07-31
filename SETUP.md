@@ -34,8 +34,7 @@ project**, so a clean build is the build-time gate.
 
 ## 3. Graphify — code knowledge graph (for AI agents)
 
-The repo uses a `graphify` knowledge graph; [CLAUDE.md](CLAUDE.md)/[AGENTS.md](AGENTS.md) route codebase questions
-through it first. The graph in [graphify-out/](graphify-out/) is **not committed** (reproducible from source, no API
+The repo uses a `graphify` knowledge graph; [CLAUDE.md](CLAUDE.md) routes codebase questions through it first. The graph in [graphify-out/](graphify-out/) is **not committed** (reproducible from source, no API
 cost) — generate it yourself after cloning.
 
 ### 3.1 Install the CLI
@@ -69,11 +68,17 @@ extraction and no token is required.
 
 ## Optional — publishing (maintainers)
 
-Releases are tag-driven. Bump `Version` in [Directory.Build.props](Directory.Build.props), commit, then:
+Releases are tag-driven. The version's first component tracks the **.NET / EF Core major** the package targets, so
+tags look like `v10.1.0` — see *Versioning* in [CLAUDE.md](CLAUDE.md) for the policy.
+
+1. Move the entries from each `src/*/PublicAPI.Unshipped.txt` into the matching `PublicAPI.Shipped.txt`. This is what
+   marks the surface as released; `RS0017` then fails the build if a member is later removed.
+2. Bump `Version` in [Directory.Build.props](Directory.Build.props) and commit.
+3. Tag and publish the release:
 
 ```powershell
-git tag v1.2.3
-gh release create v1.2.3 --generate-notes
+git tag v10.1.0
+gh release create v10.1.0 --generate-notes
 ```
 
 Publishing a GitHub Release runs [.github/workflows/publish.yml](.github/workflows/publish.yml), which builds, packs,
