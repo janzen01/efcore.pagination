@@ -16,9 +16,9 @@ cannot honour into a `400`, and returns a page with metadata and navigation link
 GET /products?page=2&limit=25&sortBy=price:DESC&search=widget&filter.status=$in:Active,Draft&filter.price=$btw:10,500
 ```
 
-> **Not released yet.** The first public release to NuGet.org is still to come. Versions track the framework:
-> the first component is the .NET / EF Core major the package targets, so the first release will be **10.x**,
-> pairing with .NET 10 and EF Core 10.
+> Versions track the framework: the first component is the .NET / EF Core major the package targets, so this is
+> the **10.x** line, pairing with .NET 10 and EF Core 10. Older lines are not maintained in parallel, and
+> release notes live on the [Releases](https://github.com/janzen01/efcore.pagination/releases) page.
 
 ## Packages
 
@@ -56,6 +56,8 @@ graph BT
 dotnet add package Janzen.Pagination.EntityFrameworkCore
 dotnet add package Janzen.Pagination.AspNetCore
 ```
+
+Prereleases carry an `-rc.N` suffix — add `--prerelease` to install one.
 
 ## Where to go next
 

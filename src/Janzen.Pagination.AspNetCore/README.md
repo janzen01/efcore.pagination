@@ -21,6 +21,8 @@ The contract it binds is borrowed from [nestjs-paginate](https://github.com/ppet
 dotnet add package Janzen.Pagination.AspNetCore
 ```
 
+Prereleases carry an `-rc.N` suffix — add `--prerelease` to install one.
+
 Requires [`Janzen.Pagination.EntityFrameworkCore`](https://www.nuget.org/packages/Janzen.Pagination.EntityFrameworkCore)
 (referenced transitively).
 

@@ -13,6 +13,8 @@ giving correct case-insensitive search on PostgreSQL.
 dotnet add package Janzen.Pagination.PostgreSql
 ```
 
+Prereleases carry an `-rc.N` suffix — add `--prerelease` to install one.
+
 Requires [`Janzen.Pagination.EntityFrameworkCore`](https://www.nuget.org/packages/Janzen.Pagination.EntityFrameworkCore)
 (referenced transitively).
 

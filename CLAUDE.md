@@ -2,7 +2,7 @@
 
 Dynamic, configuration-driven **pagination, filtering and sorting** for **Entity Framework Core** and **ASP.NET Core**,
 shipped as four composable NuGet packages (`Janzen.Pagination.*`). **net10.0-only**, C# `latest`, nullable-enabled.
-Not released yet — the first public version will be **10.x** (see *Versioning* below).
+Published on nuget.org as the **10.x** line; prereleases carry an `-rc.N` suffix (see *Versioning* below).
 
 > **Machine setup** (prerequisites, restore, build, graphify) lives in **[SETUP.md](SETUP.md)** — not repeated here.
 > **Consumer documentation** — the query-string contract, every builder method, the projection strategies and the
@@ -174,6 +174,27 @@ The package version's **first component tracks the .NET / EF Core major it targe
 - **No four-part versions.** NuGet drops a zero fourth component (`10.1.0.0` *is* `10.1.0`) and treats `1`, `1.0`,
   `1.0.0` and `1.0.0.0` as equal, so the component count would flicker per release. Three components only.
 - Version lives in `<Version>` in [Directory.Build.props](Directory.Build.props) — there is **no MinVer** here.
+- **Prereleases** use an `-rc.N` suffix (`10.0.0-rc.1`), dotted like .NET's own. `dotnet add package` skips
+  prereleases, so the install snippets in the six reader-facing surfaces carry a `--prerelease` note; it is
+  worded without a version number so no release has to touch it.
+
+## Releasing
+`publish.yml` does the publishing, triggered by **`release: published`** and nothing else. The steps a release
+needs, in order — most of them are guarded, and the guard fires *after* the tag exists, so get them right first:
+1. Bump `<Version>` in `Directory.Build.props` and commit. The tag must be exactly `v$(Version)`
+   (`v10.0.0-rc.1`); `publish.yml` compares them and refuses the publish otherwise, because nuget.org unlists
+   but never deletes.
+2. **At a stable release only**, move each `PublicAPI.Unshipped.txt` into its `PublicAPI.Shipped.txt`. That is
+   what makes a later removal an RS0017 build error. Do **not** do it for an `-rc.N`: an rc-only member promoted
+   to *shipped* cannot then be dropped before stable without fighting the analyzer.
+3. Release notes go **on the GitHub release** — there is no changelog file, and `PackageReleaseNotes` points at
+   the Releases page.
+4. Publishing authenticates by **Trusted Publishing (OIDC)**, so there is no API key anywhere. The policy lives
+   on nuget.org under the *owner* (not per package), keyed to repository owner + repo + `publish.yml`. A fresh
+   policy is "pending full activation" for 7 days and goes inactive if nothing is published in that window; the
+   first successful publish makes it permanent.
+5. A **draft** release publishes nothing. `gh release edit <tag> --draft=false` is what fires the workflow.
+   Pushing a tag on its own is inert here — no workflow watches tags.
 
 ## Testing
 `test/Janzen.Pagination.Tests` (xunit v3) — `dotnet test Janzen.Pagination.slnx -c Release`. Two legs, both in-process,

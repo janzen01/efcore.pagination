@@ -2,6 +2,10 @@
 
 # Janzen.Pagination
 
+[![NuGet](https://img.shields.io/nuget/vpre/Janzen.Pagination.EntityFrameworkCore?logo=nuget&label=NuGet)](https://www.nuget.org/packages/Janzen.Pagination.EntityFrameworkCore)
+[![CI](https://github.com/janzen01/efcore.pagination/actions/workflows/ci.yml/badge.svg)](https://github.com/janzen01/efcore.pagination/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-janzen01.github.io-512BD4)](https://janzen01.github.io/efcore.pagination/)
+
 Dynamic, configuration-driven pagination, filtering and sorting, built for **Entity Framework Core**
 and **ASP.NET Core**.
 
@@ -66,6 +70,8 @@ only the ones you need.
 dotnet add package Janzen.Pagination.EntityFrameworkCore
 dotnet add package Janzen.Pagination.AspNetCore
 ```
+
+Prereleases carry an `-rc.N` suffix — add `--prerelease` to install one.
 
 ```csharp
 // 1. Declare the contract for an entity. This is the whole allow-list.
@@ -142,11 +148,10 @@ for architecture, versioning and the decisions behind them (written for humans a
 
 ## Status
 
-> **Not released yet.** The first public release to **NuGet.org** is still to come.
->
-> Versions track the framework: the first component is the **.NET / EF Core major** the package targets, so the
-> first release will be **10.x** (pairing with .NET 10 and EF Core 10) rather than 1.0.0. Release notes will live on the
-> [Releases](https://github.com/janzen01/efcore.pagination/releases) page.
+> Versions track the framework: the first component is the **.NET / EF Core major** the package targets, so this
+> is the **10.x** line (pairing with .NET 10 and EF Core 10) rather than 1.x. Older lines are not maintained in
+> parallel. Release notes live on the [Releases](https://github.com/janzen01/efcore.pagination/releases) page —
+> there is no changelog file in the repository.
 
 Security reports go through [private vulnerability
 reporting](https://github.com/janzen01/efcore.pagination/security/advisories/new) — see [SECURITY.md](SECURITY.md).

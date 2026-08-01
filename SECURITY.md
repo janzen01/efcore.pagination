@@ -2,11 +2,11 @@
 
 ## Supported versions
 
-Nothing has been released yet; the first public version will be `10.x`.
+The supported line is `10.x` (.NET 10 / EF Core 10).
 
-Once released, security fixes go to the **newest version line only**. A version's first component tracks
-the .NET / EF Core major it targets, so when `11.x` ships, `10.x` stops receiving fixes unless a backport
-is agreed for a specific report.
+Security fixes go to the **newest version line only**. A version's first component tracks the .NET / EF Core
+major it targets, so when `11.x` ships, `10.x` stops receiving fixes unless a backport is agreed for a
+specific report. A prerelease (`-rc.N`) is superseded by its stable release rather than fixed separately.
 
 ## Reporting a vulnerability
 

@@ -29,6 +29,7 @@ back_to_top_text: Back to top
 
 aux_links:
   GitHub: https://github.com/janzen01/efcore.pagination
+  NuGet: https://www.nuget.org/packages/Janzen.Pagination.EntityFrameworkCore
 aux_links_new_tab: true
 
 # The theme loads mermaid from jsDelivr; the diagram styling lives in _includes/mermaid_config.js.

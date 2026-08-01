@@ -20,6 +20,8 @@ The query-string contract is borrowed from [nestjs-paginate](https://github.com/
 dotnet add package Janzen.Pagination.EntityFrameworkCore
 ```
 
+Prereleases carry an `-rc.N` suffix — add `--prerelease` to install one.
+
 ## Quick start
 
 ```csharp
