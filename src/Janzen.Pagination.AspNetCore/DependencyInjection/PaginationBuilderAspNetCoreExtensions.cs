@@ -8,6 +8,10 @@ using Microsoft.Extensions.DependencyInjection;
 // without an extra using directive — the same placement the PostgreSql and NodaTime builder extensions use.
 namespace Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
 
+/// <summary>
+///     Controller-side ASP.NET Core opt-in for the pagination builder: <c>AddAspNetCore()</c> on
+///     <see cref="IPaginationBuilder" />. A Minimal-API-only app can skip it.
+/// </summary>
 public static class PaginationBuilderAspNetCoreExtensions {
 
 	/// <summary>

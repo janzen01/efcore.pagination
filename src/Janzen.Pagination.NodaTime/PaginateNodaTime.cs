@@ -20,6 +20,11 @@ public static class PaginateNodaTime {
 	private readonly static Lock Gate = new();
 	private static bool _registered;
 
+	/// <summary>
+	///     Registers NodaTime support with the pagination engine, for hosts without dependency injection. Idempotent
+	///     and process-wide: the first call registers, later ones are no-ops. Call once at startup, before the first
+	///     query runs; in a DI host, <c>UseNodaTime()</c> inside <c>AddPagination(...)</c> calls this for you.
+	/// </summary>
 	public static void Register() {
 
 		if (_registered) return;

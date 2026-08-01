@@ -13,6 +13,15 @@ using System.Reflection;
 
 namespace Janzen.Pagination.EntityFrameworkCore;
 
+/// <summary>
+///     The four pagination entry points on <c>IQueryable&lt;TEntity&gt;</c>: <c>PaginateAsync</c>,
+///     <c>PaginateSelectAsync</c>, <c>PaginateSelectMapAsync</c> and <c>PaginateMapAsync</c>, each with an optional
+///     <see cref="PaginateLinkContext" /> — the ASP.NET Core package mirrors the same four names with an
+///     <c>HttpRequest</c> in its place. One per projection strategy, deliberately not overloads of one name, so the
+///     call site names the strategy it uses: <c>Select</c> produces the shape in SQL, <c>Map</c> in memory over the
+///     page rows. The engine builds expression trees and uses reflection, so all four carry
+///     <c>[RequiresUnreferencedCode]</c> / <c>[RequiresDynamicCode]</c> — not trim- or AOT-safe.
+/// </summary>
 public static class PaginateQueryableExtensions {
 
 	internal const string AotIncompatibleMessage =

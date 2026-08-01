@@ -64,8 +64,19 @@ internal static class PaginateQueryParser {
 
 }
 
+/// <summary>
+///     Model binder that fills a <see cref="PaginateQuery" /> from the request query string, so a controller action can
+///     take <c>[FromQuery] PaginateQuery request</c>. Supplied by
+///     <see cref="PaginateQueryModelBinderProvider" />, which <c>AddAspNetCore()</c> registers.
+/// </summary>
 public sealed class PaginateQueryModelBinder : IModelBinder {
 
+	/// <summary>
+	///     Reads <c>page</c>, <c>limit</c>, <c>sortBy</c>, <c>search</c>, <c>searchBy</c> and
+	///     <c>filter.&lt;field&gt;</c> off the request query string and never reports a binding failure — any other
+	///     parameter is ignored by design. A <c>page</c> or <c>limit</c> that is not a positive integer does not fail
+	///     binding either — the message is recorded on the bound request and surfaced as a 400 when the query executes.
+	/// </summary>
 	public Task BindModelAsync(ModelBindingContext bindingContext) {
 		ArgumentNullException.ThrowIfNull(bindingContext);
 		bindingContext.Result = ModelBindingResult.Success(PaginateQueryParser.FromQuery(bindingContext.HttpContext.Request.Query));
@@ -74,8 +85,17 @@ public sealed class PaginateQueryModelBinder : IModelBinder {
 
 }
 
+/// <summary>
+///     Model-binder provider for <see cref="PaginateQuery" />. <c>AddAspNetCore()</c> inserts it at index 0 of
+///     <c>MvcOptions.ModelBinderProviders</c>, so it is consulted before the built-in providers.
+/// </summary>
 public sealed class PaginateQueryModelBinderProvider : IModelBinderProvider {
 
+	/// <summary>
+	///     Resolves a <see cref="PaginateQueryModelBinder" /> when the requested model type is
+	///     <see cref="PaginateQuery" />, and <see langword="null" /> for every other type, leaving those to the
+	///     remaining providers.
+	/// </summary>
 	public IModelBinder? GetBinder(ModelBinderProviderContext context) {
 		ArgumentNullException.ThrowIfNull(context);
 		return context.Metadata.ModelType == typeof(PaginateQuery) ? new PaginateQueryModelBinder() : null;

@@ -5,7 +5,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.Engine;
 
 internal static class PaginateProjectionBuilder {
 
-	public static Expression<Func<TEntity, TResult>> Build<TEntity, TResult>() { return Cache<TEntity, TResult>.Projection; }
+	public static Expression<Func<TEntity, TResult>> Build<TEntity, TResult>() { return Cache<TEntity, TResult>.Projection.Value; }
 
 	private static Expression<Func<TEntity, TResult>> Create<TEntity, TResult>() {
 		var source = Expression.Parameter(typeof(TEntity), "item");
@@ -136,9 +136,12 @@ internal static class PaginateProjectionBuilder {
 	}
 
 	// The projection only depends on the (TEntity, TResult) pair, so it is built once per closed generic and reused.
+	// Lazy rather than a plain static field: building it can fail on an unprojectable DTO, and a throwing field
+	// initializer would reach the caller as TypeInitializationException with the real message one level down.
+	// Lazy's default mode keeps the same build-once guarantee and rethrows the original exception unwrapped.
 	private static class Cache<TEntity, TResult> {
 
-		public readonly static Expression<Func<TEntity, TResult>> Projection = Create<TEntity, TResult>();
+		public readonly static Lazy<Expression<Func<TEntity, TResult>>> Projection = new(Create<TEntity, TResult>);
 
 	}
 

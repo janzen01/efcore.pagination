@@ -1,6 +1,6 @@
 # Janzen.Pagination.EntityFrameworkCore
 
-Provider-agnostic, configuration-driven **pagination, filtering and sorting** engine for
+Provider-agnostic, configuration-driven **pagination, filtering and sorting** engine built for
 Entity Framework Core.
 
 The core of [Janzen.Pagination](https://github.com/janzen01/efcore.pagination): a fluent
@@ -10,6 +10,9 @@ ready-made paginated response. Usable on its own; pair it with
 for native `ILIKE` search and
 [`Janzen.Pagination.AspNetCore`](https://www.nuget.org/packages/Janzen.Pagination.AspNetCore)
 for web pipeline integration.
+
+The query-string contract is borrowed from [nestjs-paginate](https://github.com/ppetzold/nestjs-paginate)
+(MIT) — the same parameters, operator names and response envelope.
 
 ## Install
 
@@ -39,6 +42,47 @@ var request = new PaginateQuery { Page = 1, Limit = 25, SortBy = ["name:DESC"] }
 // 3. …and execute against an IQueryable, projecting to a DTO.
 PaginatedResponse<ProductDto> response = await dbContext.Products
     .PaginateAsync<Product, ProductDto>(request, config);
+```
+
+## Navigating pages
+
+`response.Links` holds `first`/`previous`/`next`/`last` as URLs, but only when a `PaginateLinkContext` (path +
+query parameters) was supplied — the ASP.NET Core package builds one from `HttpRequest`. Without a context
+`Links` is `null`, because a URL is meaningless with no request to be relative to. Inside it, an absent link
+(`previous` on the first page, `next` on the last) is `null` and stays in the payload as `null`.
+
+Off the web, navigate by `Meta` and `WithPage` instead; the result goes straight back into the engine:
+
+```csharp
+var next = response.Meta.CurrentPage < response.Meta.TotalPages
+    ? request.WithPage(response.Meta.CurrentPage + 1)
+    : null; // last page
+
+// WithPage carries limit, sort, search and filters over — only the page changes.
+```
+
+## Declaring fields
+
+| Builder call | Enables | Notes |
+|--------------|---------|-------|
+| `.WithLimits(default, max)` | `page`, `limit` | **Required** — there is no implicit page size. |
+| `.Sortable(name, expr)` | `sortBy=name:ASC\|DESC` | Any expression the provider can put in `ORDER BY`. |
+| `.DefaultSortBy(name, dir)` | — | Used when the request sends no `sortBy`; the field must be sortable. |
+| `.WithTieBreaker(expr)` | — | Unique key appended as the final ordering key on every query. |
+| `.Searchable(name, expr)` | `search`, `searchBy=name` | Selector must return `string?`. |
+| `.Filterable(name, expr, ops…)` | `filter.name=$op:value` | At least one operator; the list is that field's allow-list. |
+| `.FilterableMany(name, coll, expr, ops…)` | `filter.name=$op:value` | Matches any element of a child collection (`Any(...)`). |
+| `.WithGuards(…)` | — | Ceilings on filter values / conditions / sort fields / search length. |
+| `.ShowBadge(name, cssClass?)` | — | Labels the preceding field in the OpenAPI output. |
+| `.When(bool)` | — | Gates the preceding field at query time; must be paired with `.ShowBadge`. |
+
+```csharp
+// Filter articles by any of their tags: ?filter.tag=$in:dotnet,efcore
+.FilterableMany("tag", a => a.Tags, t => t.Slug,
+    PaginateFilterOperator.Eq, PaginateFilterOperator.In)
+
+// Tighter guards than the defaults (100 / 20 / 5 / 256)
+.WithGuards(maxFilterValues: 25, maxSortFields: 3)
 ```
 
 ## Badges
@@ -80,7 +124,7 @@ singleton.
 
 ## Projection strategies
 
-Three ways to shape each page row into a DTO — pick the cheapest that fits:
+Four ways to shape each page row into a DTO — pick the cheapest that fits:
 
 | Strategy     | Entry point                                        | Runs where     | Use for |
 |--------------|----------------------------------------------------|----------------|---------|
@@ -121,13 +165,59 @@ column is never fetched. The `Instant → DateTimeOffset` casts come from
 
 ## Query-string contract
 
-| Parameter        | Example                     | Meaning                                        |
-|------------------|-----------------------------|------------------------------------------------|
-| `page`           | `?page=2`                   | 1-based page number                            |
-| `limit`          | `?limit=50`                 | page size (capped by `MaxLimit`)               |
-| `sortBy`         | `?sortBy=name:DESC`         | sort field and direction                       |
-| `search`         | `?search=smith`             | free-text search over searchable fields        |
-| `filter.<field>` | `?filter.status=$eq:active` | `$operator:value` filter on a filterable field |
+| Parameter        | Repeatable | Example                              | Meaning |
+|------------------|:----------:|--------------------------------------|---------|
+| `page`           | no         | `?page=2`                            | 1-based page number; defaults to 1. |
+| `limit`          | no         | `?limit=50`                          | Page size; defaults to `DefaultLimit`, rejected above `MaxLimit`. |
+| `sortBy`         | yes        | `?sortBy=price:DESC&sortBy=name:ASC` | Applied in the order given. |
+| `search`         | no         | `?search=smith`                      | Free text over the searchable fields. |
+| `searchBy`       | yes        | `?searchBy=name`                     | Narrows `search` to a subset of them. |
+| `filter.<field>` | yes        | `?filter.status=$eq:Active`          | One or more criteria per field. |
+
+Anything else in the query string is ignored, so clients keep their own tracking parameters. `page` and
+`limit` are validated and return `400`.
+
+### Filter operators
+
+```
+filter.<field> = [$not:] [$and: | $or:] $<operator>[:<value>[,<value>…]]
+```
+
+| Token | Applies to | Meaning |
+|-------|------------|---------|
+| `$eq` | any | `= value` |
+| `$in` | any | `IN (a, b, c)` — comma-separated |
+| `$null` | any | `IS NULL` |
+| `$sw` | string | `LIKE 'value%'` |
+| `$ilike` | string | `LIKE '%value%'` — native `ILIKE` with the PostgreSql package |
+| `$contains` | string or collection | on a string: same as `$ilike`; on a collection: contains **all** listed values |
+| `$lt` `$lte` `$gt` `$gte` | comparable | `<` `<=` `>` `>=` |
+| `$btw` | comparable | inclusive range — exactly two comma-separated values |
+
+Each field whitelists its own operators; one that is not granted for that field is a `400`.
+
+```http
+?filter.status=$in:Active,Draft
+?filter.price=$btw:10,99.90
+?filter.deletedAt=$not:$null
+?filter.price=$gte:100&filter.price=$lte:500       # criteria on one field default to AND
+?filter.status=$eq:Active&filter.status=$or:$eq:Draft
+```
+
+Criteria on different fields are always ANDed; there is no cross-field `OR` or grouping. Enums are addressed
+**by name** (`Active`), numbers and dates use the invariant culture, and values are emitted as SQL parameters
+rather than inlined literals.
+
+Full contract, value formats and the complete list of `400` messages:
+[Query-string contract](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/query-string.md).
+
+## Documentation
+
+- [Getting started](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/getting-started.md)
+- [Query-string contract](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/query-string.md)
+- [Configuration reference](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/configuration.md)
+- [Projections](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/projections.md)
+- [Recipes](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/recipes.md)
 
 ## Trimming & Native AOT
 
@@ -138,4 +228,4 @@ building trimmed or AOT applications get accurate analyzer warnings rather than 
 
 ## License
 
-[MIT](https://github.com/janzen01/efcore.pagination/blob/main/LICENSE) © Lubos Jansky
+[MIT](https://github.com/janzen01/efcore.pagination/blob/master/LICENSE) © Lubos Jansky

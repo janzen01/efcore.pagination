@@ -38,6 +38,21 @@ PaginateConfig<Product>.Create(b => b
     .WithTieBreaker(p => p.Id));
 ```
 
+## What it changes
+
+Three things emit a pattern match: free-text `search`, the `$ilike` and `$sw` filter operators, and
+`$contains` on a string field. This package makes all of them use `ILIKE` instead of `LIKE`. Both forms pass an
+explicit `ESCAPE '\'`, and the engine escapes `\`, `%` and `_` in the user's value, so a search for `100%`
+matches that literal text.
+
+It also nudges the generated OpenAPI examples: a filterable string field that allows `ILike` gets `$ilike:…`
+as its example operator.
+
+## Documentation
+
+- [Providers & custom types](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/providers-and-types.md)
+- [Full guide](https://github.com/janzen01/efcore.pagination/tree/master/docs/guide)
+
 ## License
 
-[MIT](https://github.com/janzen01/efcore.pagination/blob/main/LICENSE) © Lubos Jansky
+[MIT](https://github.com/janzen01/efcore.pagination/blob/master/LICENSE) © Lubos Jansky

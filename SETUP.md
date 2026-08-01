@@ -29,7 +29,8 @@ dotnet build Janzen.Pagination.slnx -c Release -warnaserror
 ```
 
 `TreatWarningsAsErrors=true` ([Directory.Build.props](Directory.Build.props)) — warnings fail the build. Keep the tree
-warning-clean. Missing XML doc comments (`CS1591`) are the one intentionally-allowed exception.
+warning-clean. There is no exemption for the packable projects: a public member without an XML doc comment is
+`CS1591`, and therefore a build error. Only `test/Janzen.Pagination.Tests` suppresses it, scoped in its own `.csproj`.
 
 ## 3. Test
 
@@ -101,5 +102,5 @@ tag/release — there is no `CHANGELOG` file in the repo.
 | Symptom                                                      | Cause                                               | Fix                                                                                    |
 |--------------------------------------------------------------|-----------------------------------------------------|----------------------------------------------------------------------------------------|
 | `error NETSDK1045: ... does not support targeting .NET 10.0` | .NET 10 SDK not installed (older SDK on PATH)       | install the .NET 10 SDK; confirm with `dotnet --list-sdks`                             |
-| build fails with `warning ... treated as error`              | `TreatWarningsAsErrors=true`                        | fix the warning; only missing XML docs (`CS1591`) are exempt                           |
+| build fails with `warning ... treated as error`              | `TreatWarningsAsErrors=true`                        | fix the warning — nothing is exempt in `src/` (`CS1591` included: document the member)  |
 | `restore` → `Invalid framework identifier ''`                | `.slnx` + `RestorePackagesWithLockFile` interaction | don't enable lock files at the `.slnx` level (see CLAUDE.md → *Intentional decisions*) |

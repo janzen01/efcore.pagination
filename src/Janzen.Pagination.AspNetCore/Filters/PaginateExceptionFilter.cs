@@ -17,6 +17,10 @@ public sealed class PaginateExceptionFilter : IExceptionFilter {
 	// Shared with PaginateExceptionEndpointFilter so both pipelines report the identical title.
 	internal const string Title = "Invalid query";
 
+	/// <summary>
+	///     Translates a <see cref="PaginateQueryException" /> into a 400 Problem Details result built by the app's
+	///     registered <see cref="ProblemDetailsFactory" />, and marks it handled. Any other exception is left unhandled.
+	/// </summary>
 	public void OnException(ExceptionContext context) {
 
 		if (context.Exception is not PaginateQueryException exception) return;

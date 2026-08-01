@@ -8,6 +8,10 @@ using Microsoft.AspNetCore.Http;
 // without an extra using directive.
 namespace Microsoft.AspNetCore.Builder;
 
+/// <summary>
+///     Pagination for Minimal API endpoints: adds <c>WithPagination&lt;TConfigProvider&gt;()</c> to the
+///     <see cref="RouteHandlerBuilder" /> returned by <c>MapGet</c>/<c>MapPost</c>.
+/// </summary>
 public static class PaginationRouteHandlerBuilderExtensions {
 
 	/// <summary>

@@ -2,6 +2,11 @@ using Janzen.Pagination.EntityFrameworkCore.Like;
 
 namespace Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
 
+/// <summary>
+///     Pattern-match strategy selection on <see cref="IPaginationBuilder" />: <c>UseLikeStrategy</c> assigns
+///     <see cref="PaginateLikeDefaults.Strategy" />, a process-wide static, so the choice is not container-scoped —
+///     the last call at startup wins for every configuration, and <c>UsePostgreSql()</c> routes through it.
+/// </summary>
 public static class PaginationBuilderLikeExtensions {
 
 	/// <summary>

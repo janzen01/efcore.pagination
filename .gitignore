@@ -1,5 +1,6 @@
 # Docs
-docs/
+docs/*
+!docs/guide/
 
 # JetBrains IDEs
 **/.idea/**/workspace.xml

@@ -35,6 +35,24 @@ public sealed class PaginateQuery {
 	/// <summary>Filter criteria per field; each value uses the <c>"$op:value"</c> form (e.g. <c>"$eq:42"</c>).</summary>
 	public IReadOnlyDictionary<string, IReadOnlyList<string>> Filters { get; init; } = EmptyFilters;
 
+	/// <summary>
+	///     The same request pointed at a different page. Everything else — limit, sort, search and filters — is
+	///     carried over, so a caller with no <see cref="Links.PaginateLinkContext" /> (and therefore a
+	///     <see langword="null" /> <see cref="PaginatedResponse{T}.Links" />) can derive the next page from
+	///     <see cref="PaginatedMeta.CurrentPage" /> and <see cref="PaginatedMeta.TotalPages" /> and hand the
+	///     result straight back to the engine.
+	/// </summary>
+	/// <param name="page">1-based page number. Non-positive values are rejected on execution, not here.</param>
+	public PaginateQuery WithPage(int page) => new() {
+		Page            = page,
+		Limit           = this.Limit,
+		SortBy          = this.SortBy,
+		Search          = this.Search,
+		SearchBy        = this.SearchBy,
+		Filters         = this.Filters,
+		ValidationError = this.ValidationError,
+	};
+
 	/// <summary>Parse-time validation error captured during model binding; surfaced as a 400 on execution.</summary>
 	internal string? ValidationError { get; init; }
 

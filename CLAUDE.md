@@ -5,6 +5,9 @@ shipped as four composable NuGet packages (`Janzen.Pagination.*`). **net10.0-onl
 Not released yet — the first public version will be **10.x** (see *Versioning* below).
 
 > **Machine setup** (prerequisites, restore, build, graphify) lives in **[SETUP.md](SETUP.md)** — not repeated here.
+> **Consumer documentation** — the query-string contract, every builder method, the projection strategies and the
+> `400` catalogue — lives in **[docs/guide/](docs/guide/)**. Behaviour described there is the published contract:
+> change the behaviour, change the guide in the same commit.
 > This file is for *working in the code*.
 
 ## graphify — read the graph before the source
@@ -30,7 +33,9 @@ once after cloning; the git hooks then keep it current. Hooks enforce graphify-f
 - The build entry point is the **`.slnx`** solution (`Janzen.Pagination.slnx`) — four packable library projects plus
   `test/Janzen.Pagination.Tests` (`IsPackable=false`, so it is excluded from packing *and* from the public-API
   analyzers).
-- `TreatWarningsAsErrors=true` — warnings fail the build. Missing XML docs (`CS1591`) are the one allowed exception.
+- `TreatWarningsAsErrors=true` — warnings fail the build, with **no exceptions** for the packable projects. Missing XML
+  docs (`CS1591`) included: a new public member without a doc comment is a build error. Only
+  `test/Janzen.Pagination.Tests` suppresses `CS1591`, scoped in its own `.csproj` — that assembly has no consumers.
 
 ## Architecture
 ```
@@ -52,13 +57,21 @@ independent of each other — consumers pick the extensions they need:
 
 ## Public API surface
 - **`PaginateConfig<T>`** — fluent, per-entity contract (`PaginateConfig<T>.Create(b => …)`): `.WithLimits(default, max)`,
-  `.Sortable(name, expr)`, `.Searchable(name, expr)`, `.Filterable(name, expr, ops…)`, `.DefaultSortBy(…)`,
-  `.WithTieBreaker(expr)` (unique key appended as the final order → deterministic paging), `.IgnoreSearchBy()`. Often
-  exposed via an `IPaginateConfigProvider<T>`.
+  `.WithGuards(…)`, `.Sortable(name, expr)`, `.DefaultSortBy(…)`, `.WithTieBreaker(expr)` (unique key appended as the
+  final order → deterministic paging), `.Searchable(name, expr)`, `.IgnoreSearchByInQueryParam()`,
+  `.Filterable(name, expr, ops…)`, `.FilterableMany(name, coll, expr, ops…)` (matches any element → `Any(...)`), plus
+  `.ShowBadge(name, cssClass?)` / `.When(bool)` on the field declared immediately before. Often exposed via an
+  `IPaginateConfigProvider<T>`.
 - **`PaginateQuery`** — immutable request: `Page`, `Limit`, `SortBy` (`["field:DESC"]`), `Search`, `SearchBy`, `Filters`
-  (`field → ["$op:value"]`). In ASP.NET Core it binds from `?page=&limit=&sortBy=&search=&filter.<field>=$op:value`.
+  (`field → ["$op:value"]`), plus `.WithPage(n)` — the same request on another page, which is how a caller with no
+  `PaginateLinkContext` (so a `null` `Links`) navigates off `Meta`. It is a `class`, not a `record`: value equality over
+  the collection properties would compare by reference and lie, so there is no `with`. In ASP.NET Core it binds from
+  `?page=&limit=&sortBy=&search=&filter.<field>=$op:value`.
 - **`PaginatedResponse<T>`** — envelope: `Items`, `Meta` (totalItems / itemCount / itemsPerPage / totalPages /
-  currentPage), `Links` (first / prev / next / last / self — individual links are nullable, the record is not).
+  currentPage), `Links` (first / previous / next / last), which is `null` as a whole unless a
+  `PaginateLinkContext` was supplied; within it, `previous` / `next` are `null` at the edges. **Nulls are
+  serialized, never dropped** — `"next": null` is the client's answer to "is there a next page", so no
+  `JsonIgnore` on these; the payload shape is identical on every page.
 - **Entry points** (extension methods on `IQueryable<TEntity>`). One name per projection strategy — deliberately *not*
   overloads, so the choice is explicit at the call site and adding an optional parameter later stays non-breaking
   (`Select` = projected in SQL, `Map` = mapped in memory):
@@ -84,7 +97,34 @@ independent of each other — consumers pick the extensions they need:
 ## Conventions
 - **net10.0-only**, `Nullable=enable`, `ImplicitUsings=enable`, C# `latest` ([Directory.Build.props](Directory.Build.props)).
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
-- **XML docs** on the public API (the `CS1591` *warning* is suppressed for now — the docs themselves are not).
+- **XML docs on every public member** — enforced by the build (`CS1591` is *not* suppressed for the packable
+  projects). `GenerateDocumentationFile=true`, so the generated `.xml` ships inside the package and drives consumer
+  IntelliSense: a wrong summary is worse than a missing one, because it cannot be recalled for that version.
+  House style, sampled from the existing members: tabs + CRLF; single-line `<summary>` up to ~139 rendered columns,
+  otherwise `///` + **five** spaces on the body lines. Tags in use: `<summary>`, `<remarks>`, `<param>`,
+  `<typeparam>`, `<c>`, `<see cref>`, `<see langword>`, `<paramref>`, `<typeparamref>`, `<b>`, `<inheritdoc />`.
+  **Do not** introduce `<returns>`, `<exception>`, `<example>` or `<seealso>`.
+- **`<param>` is all-or-nothing per member** — document *every* parameter or none, because partial coverage raises
+  CS1573 (and partial type-parameter coverage CS1712), which is an error here. **An optional parameter is not
+  exempt** (verified: omitting `Badge = null` fails the build). Ordinary methods therefore name their parameters
+  with `<paramref>` inside the summary and carry no `<param>` at all; positional records are the exception below.
+- **`<inheritdoc />` is for one thing only:** the eleven `PaginateConfig<TEntity>` members implementing
+  `IPaginateConfig`, whose prose lives once on the interface — `docs/guide/configuration.md` teaches the metadata
+  read-back path as `IPaginateConfig meta = provider.GetConfig()`, so the interface is the type a consumer holds for
+  them. Don't spread the tag elsewhere, and don't "fix" those eleven into duplicated prose. Note the compiler copies
+  the tag into the `.xml` verbatim rather than expanding it (Roslyn resolves it in quick info), so it only works while
+  both declarations stay in the same assembly.
+- A **positional record** takes a `<summary>` on the declaration **plus a `<param>` for every positional
+  parameter**. The summary alone silences `CS1591` for the record, its constructor and all its properties at
+  once — but it emits **no `<member name="P:…">` entry**, so a consumer hovering `meta.TotalPages` sees nothing.
+  `<param>` is what fixes that: Roslyn re-emits each one as the synthesized property's own `<summary>`
+  (`DocumentationCommentCompiler`, an LDM decision shipped in VS 17.2), and the same edit serves both the packed
+  `.xml` and IDE hover. Nested `<c>`, `<see cref>`, `<see langword>` and `<paramref>` survive the copy verbatim.
+  Keep the summary's cross-member prose where it is — only `<param>` content reaches a property tooltip, and
+  `<remarks>` stays on the type. Two consequences worth knowing: a `cref` to a positional property only resolves
+  in the shipped `.xml` once that property has a `<param>`, and once a record carries `<param>` tags, `CS1573`
+  turns a later undocumented positional parameter into a build error. **Do not** re-declare a positional property
+  in the record body to document it — that suppresses the copy and doubles the declaration.
 - Build must stay clean under `-warnaserror` before any commit.
 - **Commits:** small and incremental (one logical change each).
 - Each packable project ships its **own `README.md`** as the NuGet package readme — keep it in sync with behavior.
@@ -146,6 +186,11 @@ Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs
   `searchBy`, `filter.<field>`); anything else (`offset`, `utm_*`, …) is dropped and the request pages normally.
   API-audit tools report this as "invalid value silently accepted" — it is a false positive. Strict binding would
   reject consumers' own tracking parameters, so don't add it. `page` and `limit` themselves are validated → `400`.
+- **`null` links are serialized, not omitted.** No `JsonIgnore` on `PaginatedResponse<T>.Links` or on the four
+  `PaginatedLinks` members. `"next": null` is a value the client needs — it is how it learns this is the last page —
+  and keeping the keys means `links` has the same shape on every page, so a client never has to distinguish "no next
+  page" from "this API does not send a next link". Payload-size linters suggest dropping nulls; don't. Nothing here is
+  sensitive enough to justify stripping it from a response.
 - **Actions are SHA-pinned and `dependabot.yml` ignores nothing for them.** A tag is a moving pointer the upstream
   owner can repoint; `publish.yml` exchanges an OIDC token for a live nuget.org push key, so anything running in that
   job can publish under the maintainer's name. All three workflows are pinned so the convention has no exceptions to

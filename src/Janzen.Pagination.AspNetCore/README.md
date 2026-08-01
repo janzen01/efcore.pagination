@@ -12,6 +12,9 @@ Wires the pagination engine into the web pipeline:
   (configured via `.ShowBadge(...)`) render as chips in the API reference UI, colorable via your custom CSS. Fields
   gated with `.When(...)` stay documented (widest surface) and are enforced at runtime.
 
+The contract it binds is borrowed from [nestjs-paginate](https://github.com/ppetzold/nestjs-paginate)
+(MIT) — the same parameters, operator names and response envelope.
+
 ## Install
 
 ```bash
@@ -52,6 +55,36 @@ app.MapGet("/products", async (HttpContext http, AppDbContext db) =>
 response, and maps `PaginateQueryException` to a `400` Problem Details via an endpoint filter.
 `Request.ToPaginateQuery()` builds the `PaginateQuery` from the query string.
 
+### Links and the `Link` header
+
+Passing the `HttpRequest` to a `Paginate*Async` call is what fills `response.Links` with
+`first`/`prev`/`next`/`last`, built from the current request: path-relative, with every other query parameter
+preserved. An absent link (`prev` on page 1, `next` on the last page) is serialized as `null` rather than
+dropped, so the shape does not change per page. Omit the `HttpRequest` and `Links` is `null` as a whole. For
+the RFC 8288 header as well (a `null` `Links` writes no header):
+
+```csharp
+var page = await db.Products.PaginateAsync<Product, ProductDto>(request, config, this.Request, ct);
+this.Response.AddPaginationLinkHeader(page.Links);
+```
+
+### Errors
+
+Any invalid query becomes `400 Bad Request` with `title: "Invalid query"` and the specific message as
+`detail` — via `PaginateExceptionFilter` for controllers (registered by `AddAspNetCore()`) or
+`PaginateExceptionEndpointFilter` for Minimal APIs (registered by `WithPagination<T>()`). No per-action
+`try`/`catch` needed.
+
+Unknown query parameters are ignored, so clients keep their own tracking parameters; `page` and `limit` are
+validated.
+
+## Documentation
+
+- [ASP.NET Core integration](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/aspnetcore.md)
+- [Getting started](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/getting-started.md)
+- [Query-string contract](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/query-string.md)
+- [Full guide](https://github.com/janzen01/efcore.pagination/tree/master/docs/guide)
+
 ## License
 
-[MIT](https://github.com/janzen01/efcore.pagination/blob/main/LICENSE) © Lubos Jansky
+[MIT](https://github.com/janzen01/efcore.pagination/blob/master/LICENSE) © Lubos Jansky

@@ -11,6 +11,10 @@ namespace Janzen.Pagination.AspNetCore.Filters;
 /// </summary>
 public sealed class PaginateExceptionEndpointFilter : IEndpointFilter {
 
+	/// <summary>
+	///     Runs the rest of the endpoint pipeline; a <see cref="PaginateQueryException" /> becomes a 400 titled
+	///     <c>Invalid query</c>, every other exception passes through untouched.
+	/// </summary>
 	public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next) {
 		ArgumentNullException.ThrowIfNull(context);
 		ArgumentNullException.ThrowIfNull(next);

@@ -15,6 +15,12 @@ using System.Text.Json.Nodes;
 
 namespace Janzen.Pagination.AspNetCore.OpenApi;
 
+/// <summary>
+///     Documents the pagination query string on every operation marked with <c>[PaginatedQuery&lt;TProvider&gt;]</c> or
+///     <c>WithPagination&lt;TProvider&gt;()</c>, generated from that resource's own config so the published parameters
+///     cannot drift from what the engine enforces. Register it once with
+///     <c>AddOpenApi(options =&gt; options.AddOperationTransformer&lt;PaginatedQueryOperationTransformer&gt;())</c>.
+/// </summary>
 public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransformer {
 
 	// PascalCase entries are the PaginateQuery property names ASP.NET generates by default; camelCase entries are
@@ -26,6 +32,13 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		PaginateQueryParams.Search, PaginateQueryParams.SearchBy
 	}.ToFrozenSet(StringComparer.Ordinal);
 
+	/// <summary>
+	///     Rewrites one operation: a no-op unless the endpoint carries <see cref="PaginatedQueryAttribute" />, otherwise
+	///     it drops the generated <see cref="PaginateQuery" /> parameters and adds documented <c>page</c>, <c>limit</c>,
+	///     <c>sortBy</c>, <c>search</c>, one <c>filter.&lt;field&gt;</c> per filterable field, and a <c>400</c> Problem
+	///     Details response. <c>searchBy</c> is added only when <see cref="IPaginateConfig.IgnoreSearchByInQueryParam" />
+	///     is not set — the engine ignores it otherwise.
+	/// </summary>
 	public Task TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken) {
 
 		var attribute = context.Description.ActionDescriptor.EndpointMetadata

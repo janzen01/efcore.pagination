@@ -4,6 +4,7 @@ using Janzen.Pagination.PostgreSql.Like;
 // are in scope, without an extra using directive.
 namespace Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
 
+/// <summary>PostgreSQL opt-in for the <c>AddPagination</c> builder: <see cref="UsePostgreSql" />.</summary>
 public static class PaginationBuilderPostgreSqlExtensions {
 
 	/// <summary>

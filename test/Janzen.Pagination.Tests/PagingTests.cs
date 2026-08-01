@@ -82,4 +82,50 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 		Assert.Equal(8, (await this.Page(new PaginateQuery { Limit = 50 })).Meta.ItemCount);
 	}
 
+	[Fact]
+	public void WithPage_changes_the_page_and_carries_everything_else_over() {
+
+		var request = new PaginateQuery {
+			Limit    = 25,
+			SortBy   = ["rank:DESC"],
+			Search   = "widget",
+			SearchBy = ["name"],
+			Filters  = new Dictionary<string, IReadOnlyList<string>> { ["status"] = ["$eq:Active"] }
+		};
+
+		var moved = request.WithPage(7);
+
+		Assert.Equal(7, moved.Page);
+		Assert.Equal(PaginateQuery.DefaultPage, request.Page); // the original is untouched
+
+		// Reflected rather than asserted field by field, so a property added to PaginateQuery but forgotten in
+		// WithPage fails here instead of silently dropping out of every page derived from a request.
+		foreach (var property in typeof(PaginateQuery).GetProperties().Where(p => p.Name != nameof(PaginateQuery.Page))) {
+			Assert.Equal(property.GetValue(request), property.GetValue(moved));
+		}
+
+	}
+
+	[Fact]
+	public async Task WithPage_derives_the_next_page_from_the_metadata() {
+
+		// What a caller with no PaginateLinkContext does instead of following a link: page off Meta.
+		var request = new PaginateQuery {
+			Limit   = 2,
+			SortBy  = ["id:DESC"],
+			Filters = new Dictionary<string, IReadOnlyList<string>> { ["status"] = ["$eq:Active"] }
+		};
+
+		var first = await this.Page(request);
+
+		Assert.Null(first.Links);
+		Assertions.HasIds(first, 8, 7);
+		Assert.Equal(3, first.Meta.TotalPages); // five Active products, two per page
+
+		// Every carried-over value is load-bearing here: dropping the filter, the sort or the limit each
+		// produces a different second page.
+		Assertions.HasIds(await this.Page(request.WithPage(first.Meta.CurrentPage + 1)), 4, 2);
+
+	}
+
 }

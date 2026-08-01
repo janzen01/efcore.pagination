@@ -47,6 +47,26 @@ shaper. Concretely, the conversion works:
 Reach for `PaginateMapAsync` only when the response needs the fully loaded entity — not merely because a
 projection mixes sub-collections with these date conversions.
 
+## Filtering by `Instant` and `LocalDate`
+
+Registration adds value parsers, so both types work in `.Filterable(...)` and accept ISO-8601 from the query
+string:
+
+```http
+?filter.publishedAt=$btw:2026-01-01T00:00:00Z,2026-01-31T23:59:59Z
+?filter.birthDate=$lte:2008-01-31
+```
+
+An unparseable value is a `400 Value 'x' is not a valid instant.` `Instant`, `LocalDate` and `LocalDateTime`
+are also registered as projection leaf types, so the automatic projection copies them across instead of trying
+to recurse into them.
+
+## Documentation
+
+- [Providers & custom types](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/providers-and-types.md)
+- [Projections](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/projections.md)
+- [Full guide](https://github.com/janzen01/efcore.pagination/tree/master/docs/guide)
+
 ## License
 
-[MIT](https://github.com/janzen01/efcore.pagination/blob/main/LICENSE) © Lubos Jansky
+[MIT](https://github.com/janzen01/efcore.pagination/blob/master/LICENSE) © Lubos Jansky

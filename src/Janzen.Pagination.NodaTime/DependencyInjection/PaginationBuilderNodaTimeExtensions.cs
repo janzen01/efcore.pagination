@@ -2,6 +2,7 @@ using Janzen.Pagination.NodaTime;
 
 namespace Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
 
+/// <summary>NodaTime opt-in for the <c>AddPagination</c> builder: <see cref="UseNodaTime" />.</summary>
 public static class PaginationBuilderNodaTimeExtensions {
 
 	/// <summary>

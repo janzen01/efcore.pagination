@@ -11,8 +11,10 @@
     <!-- Code quality -->
     <PropertyGroup>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <!-- Public library: missing XML doc comments must not fail the build (yet) -->
-        <NoWarn>$(NoWarn);CS1591</NoWarn>
+        <!-- CS1591 (missing XML doc comment) is deliberately NOT suppressed: GenerateDocumentationFile ships the
+             .xml inside every package, so an undocumented public member is a shipped defect and fails the build.
+             The non-packable test project scopes the suppression in its own csproj — a PropertyGroup here cannot
+             be conditioned on IsPackable, since MSBuild evaluates all properties before the project body. -->
         <!-- Audit transitive dependencies too, not just direct ones (the default). -->
         <NuGetAuditMode>all</NuGetAuditMode>
         <!-- Warnings are errors here, and the publish workflow builds again, so an advisory

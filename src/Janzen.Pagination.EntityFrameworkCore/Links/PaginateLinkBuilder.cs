@@ -6,9 +6,10 @@ namespace Janzen.Pagination.EntityFrameworkCore.Links;
 
 internal static class PaginateLinkBuilder {
 
-	public static PaginatedLinks Build(PaginateLinkContext? context, int currentPage, int totalPages) {
+	public static PaginatedLinks? Build(PaginateLinkContext? context, int currentPage, int totalPages) {
 
-		if (context is null) return new PaginatedLinks(null, null, null, null);
+		// No context, no links: an envelope with four null strings tells the caller nothing a null does not.
+		if (context is null) return null;
 
 		int lastPage = Math.Max(totalPages, 1);
 

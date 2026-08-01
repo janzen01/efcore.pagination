@@ -9,6 +9,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
 /// </summary>
 public interface IPaginationBuilder {
 
+	/// <summary>The service collection <c>AddPagination</c> was called on; <c>AddAspNetCore()</c> registers into it.</summary>
 	IServiceCollection Services { get; }
 
 }

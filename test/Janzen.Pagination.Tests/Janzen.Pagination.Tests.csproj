@@ -4,6 +4,10 @@
         <!-- Also opts the project out of PublicApiAnalyzers and out of packing the README/icon:
              both ItemGroups in Directory.Build.props are conditioned on IsPackable != false. -->
         <IsPackable>false</IsPackable>
+        <!-- Missing XML doc comments. Enforced for the packable projects (their .xml ships to consumers), but this
+             assembly has no consumers, so documenting test members would be noise. Scoped here rather than in
+             Directory.Build.props so a new undocumented public member in src/ still fails the build. -->
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
         <!-- AddOpenApi's XML-comment source generator emits interceptors, which the compiler refuses to
              accept until their namespace is opted in. Only this project hosts an app, so only it needs it. -->
         <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.AspNetCore.OpenApi.Generated</InterceptorsNamespaces>
