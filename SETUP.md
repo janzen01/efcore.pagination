@@ -29,15 +29,24 @@ dotnet build Janzen.Pagination.slnx -c Release -warnaserror
 ```
 
 `TreatWarningsAsErrors=true` ([Directory.Build.props](Directory.Build.props)) — warnings fail the build. Keep the tree
-warning-clean. Missing XML doc comments (`CS1591`) are the one intentionally-allowed exception. The repo has **no test
-project**, so a clean build is the build-time gate.
+warning-clean. Missing XML doc comments (`CS1591`) are the one intentionally-allowed exception.
 
-## 3. Graphify — code knowledge graph (for AI agents)
+## 3. Test
+
+```powershell
+dotnet test Janzen.Pagination.slnx -c Release
+```
+
+`test/Janzen.Pagination.Tests` runs entirely in-process — a SQLite in-memory database for real SQL translation and a
+plain `IQueryable` for the engine's non-EF path. **No database server and no Docker are needed.** See *Testing* in
+[CLAUDE.md](CLAUDE.md) for what each leg covers and which assertions SQLite cannot support.
+
+## 4. Graphify — code knowledge graph (for AI agents)
 
 The repo uses a `graphify` knowledge graph; [CLAUDE.md](CLAUDE.md) routes codebase questions through it first. The graph in [graphify-out/](graphify-out/) is **not committed** (reproducible from source, no API
 cost) — generate it yourself after cloning.
 
-### 3.1 Install the CLI
+### 4.1 Install the CLI
 
 ```powershell
 winget install astral-sh.uv      # uv (skip if already installed)
@@ -47,7 +56,7 @@ graphify install                 # finish setup — deps, skill, etc.
 
 Install reference: <https://github.com/safishamsi/graphify#install>. Verify with `graphify --version`.
 
-### 3.2 Wire up the agent hooks
+### 4.2 Wire up the agent hooks
 
 The hooks make the agent run `graphify query` before grepping/reading raw source:
 
@@ -55,7 +64,7 @@ The hooks make the agent run `graphify query` before grepping/reading raw source
 graphify claude install   # Claude Code hooks → .claude/settings.json
 ```
 
-### 3.3 Keeping the graph current
+### 4.3 Keeping the graph current
 
 After modifying code, refresh the graph (AST-only, **no LLM/API cost**):
 

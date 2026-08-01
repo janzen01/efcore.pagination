@@ -83,8 +83,3 @@ Thumbs.db
 *.temp
 *.swp
 ~$*
-
-# Sample runtime databases
-samples/**/*.db
-samples/**/*.db-shm
-samples/**/*.db-wal

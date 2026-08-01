@@ -13,4 +13,5 @@
     <Project Path="src/Janzen.Pagination.EntityFrameworkCore/Janzen.Pagination.EntityFrameworkCore.csproj" />
     <Project Path="src/Janzen.Pagination.NodaTime/Janzen.Pagination.NodaTime.csproj" />
     <Project Path="src/Janzen.Pagination.PostgreSql/Janzen.Pagination.PostgreSql.csproj" />
+    <Project Path="test/Janzen.Pagination.Tests/Janzen.Pagination.Tests.csproj" />
 </Solution>

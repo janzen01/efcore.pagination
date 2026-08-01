@@ -23,12 +23,14 @@ once after cloning; the git hooks then keep it current. Hooks enforce graphify-f
 |--------------------|---------------------------------------------------------------|
 | Restore            | `dotnet restore Janzen.Pagination.slnx`                       |
 | Build              | `dotnet build Janzen.Pagination.slnx -c Release -warnaserror` |
+| Test               | `dotnet test Janzen.Pagination.slnx -c Release`               |
 | Pack               | `dotnet pack Janzen.Pagination.slnx -c Release -o ./artifacts` |
 | Refresh code graph | `graphify update .`                                           |
 
-- The build entry point is the **`.slnx`** solution (`Janzen.Pagination.slnx`) — four library projects, all packable.
+- The build entry point is the **`.slnx`** solution (`Janzen.Pagination.slnx`) — four packable library projects plus
+  `test/Janzen.Pagination.Tests` (`IsPackable=false`, so it is excluded from packing *and* from the public-API
+  analyzers).
 - `TreatWarningsAsErrors=true` — warnings fail the build. Missing XML docs (`CS1591`) are the one allowed exception.
-- There is **no test project** in the repo — see *Testing* below.
 
 ## Architecture
 ```
@@ -108,9 +110,24 @@ The package version's **first component tracks the .NET / EF Core major it targe
 - Version lives in `<Version>` in [Directory.Build.props](Directory.Build.props) — there is **no MinVer** here.
 
 ## Testing
-- **No test project currently in the repo.** Verify changes by building clean under `-warnaserror` and exercising the
-  library from a consuming app — the public entry points (the `Paginate*Async` family) need a live EF Core provider to
-  execute.
+`test/Janzen.Pagination.Tests` (xunit v3) — `dotnet test Janzen.Pagination.slnx -c Release`. Two legs, both in-process,
+neither needing Docker:
+- **SQLite in-memory** — most tests. Real SQL translation, so it is what catches "the expression cannot be translated",
+  and it exercises the engine's `UseDatabaseFunctions` path (`EF.Functions.Like`, `EF.Parameter`).
+- **Plain `IQueryable`** (`List<T>.AsQueryable()`) — the engine's other branch (`string.IndexOf`, synchronous terminal
+  operators). Also the only place date filters can be asserted, see below.
+
+Two SQLite limits shape what may be asserted there, and **neither is the library's doing** — both reproduce with a
+plain `Where` and no engine involved:
+- `DateTimeOffset` comparisons do not translate at all, so every date filter lives in `InMemoryTests`.
+- Decimals are stored as TEXT and the collation parses them with the **current culture**, so ordering a decimal throws
+  outright on a machine whose decimal separator is not a dot. Order and range over `Rank` (an `int`) instead; `Price`
+  is only ever tested for equality.
+
+`PaginateLikeDefaults.Strategy` is a process-wide mutable static, so tests that swap it sit in the
+`[Collection("LikeDefaults")]` non-parallel collection and restore it in `Dispose`.
+
+Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs a real PostgreSQL server.
 
 ## Intentional decisions — do NOT "fix" these
 - **net10.0-only** — net9 is EOL and net8 lacks the EF Core 9+ surface the engine relies on (e.g. `EF.Parameter`).
@@ -140,6 +157,8 @@ The package version's **first component tracks the .NET / EF Core major it targe
 
 ## Verifying a change
 1. Build clean (warnings = errors): `dotnet build Janzen.Pagination.slnx -c Release -warnaserror`.
-2. Touched the public API? Update the affected package `README.md` and the XML docs — a public-API change is a
-   versioning decision.
-3. `graphify update .` to refresh the graph.
+2. `dotnet test Janzen.Pagination.slnx -c Release` — green, and **add a case for what you changed**. Behaviour with no
+   test is behaviour nothing will notice losing.
+3. Touched the public API? Update the affected package `README.md`, the XML docs and `docs/guide/` — a public-API
+   change is a versioning decision.
+4. `graphify update .` to refresh the graph.

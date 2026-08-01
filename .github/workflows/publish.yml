@@ -40,6 +40,10 @@ jobs:
       - name: Build
         run: dotnet build Janzen.Pagination.slnx -c Release --no-restore -warnaserror
 
+      # Publishing cannot be undone, so a red suite stops it here rather than after the push.
+      - name: Test
+        run: dotnet test Janzen.Pagination.slnx -c Release --no-build
+
       # Each package ships its own README, and nuget.org renders it against that one version
       # forever. Links to `master` would drift away from what the version documents, so pin
       # them to the release tag. Only this checkout is rewritten -- the repo keeps `master`
