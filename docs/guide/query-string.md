@@ -1,3 +1,8 @@
+---
+title: Query-string contract
+nav_order: 3
+---
+
 # Query-string contract
 
 The complete wire format. Six inputs, nothing else:

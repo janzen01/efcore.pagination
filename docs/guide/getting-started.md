@@ -1,3 +1,8 @@
+---
+title: Getting started
+nav_order: 2
+---
+
 # Getting started
 
 From nothing to a paginated, filterable, sortable JSON endpoint. The example is an ASP.NET Core Web API on

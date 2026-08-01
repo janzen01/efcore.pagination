@@ -209,15 +209,15 @@ Criteria on different fields are always ANDed; there is no cross-field `OR` or g
 rather than inlined literals.
 
 Full contract, value formats and the complete list of `400` messages:
-[Query-string contract](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/query-string.md).
+[Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/).
 
 ## Documentation
 
-- [Getting started](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/getting-started.md)
-- [Query-string contract](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/query-string.md)
-- [Configuration reference](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/configuration.md)
-- [Projections](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/projections.md)
-- [Recipes](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/recipes.md)
+- [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/)
+- [Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/)
+- [Configuration reference](https://janzen01.github.io/efcore.pagination/guide/configuration/)
+- [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/)
+- [Recipes](https://janzen01.github.io/efcore.pagination/guide/recipes/)
 
 ## Trimming & Native AOT
 

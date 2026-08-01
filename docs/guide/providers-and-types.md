@@ -1,3 +1,8 @@
+---
+title: "Providers & custom types"
+nav_order: 7
+---
+
 # Providers & custom types
 
 The engine is provider-agnostic and knows only the BCL's value types. Two extension points widen that: a

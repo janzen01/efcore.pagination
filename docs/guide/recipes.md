@@ -1,3 +1,8 @@
+---
+title: Recipes
+nav_order: 8
+---
+
 # Recipes
 
 Task-shaped answers. Each one is self-contained.

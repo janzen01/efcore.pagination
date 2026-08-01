@@ -1,3 +1,9 @@
+---
+title: Guide
+nav_exclude: true
+permalink: /guide/
+---
+
 # Janzen.Pagination — guide
 
 Everything a consumer needs, in reading order. Each page stands on its own, so jumping straight to the one

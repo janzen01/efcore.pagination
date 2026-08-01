@@ -50,8 +50,8 @@ as its example operator.
 
 ## Documentation
 
-- [Providers & custom types](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/providers-and-types.md)
-- [Full guide](https://github.com/janzen01/efcore.pagination/tree/master/docs/guide)
+- [Providers & custom types](https://janzen01.github.io/efcore.pagination/guide/providers-and-types/)
+- [Full guide](https://janzen01.github.io/efcore.pagination/)
 
 ## License
 

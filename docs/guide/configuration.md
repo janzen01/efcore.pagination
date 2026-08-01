@@ -1,3 +1,8 @@
+---
+title: Configuration
+nav_order: 4
+---
+
 # Configuration
 
 `PaginateConfig<TEntity>` is the contract between your entity and the query string. It is built once with a

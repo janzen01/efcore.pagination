@@ -1,3 +1,8 @@
+---
+title: Projections
+nav_order: 5
+---
+
 # Projections
 
 Four entry points, one per projection strategy. They are deliberately **not overloads of one name**: the call

@@ -63,9 +63,9 @@ to recurse into them.
 
 ## Documentation
 
-- [Providers & custom types](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/providers-and-types.md)
-- [Projections](https://github.com/janzen01/efcore.pagination/blob/master/docs/guide/projections.md)
-- [Full guide](https://github.com/janzen01/efcore.pagination/tree/master/docs/guide)
+- [Providers & custom types](https://janzen01.github.io/efcore.pagination/guide/providers-and-types/)
+- [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/)
+- [Full guide](https://janzen01.github.io/efcore.pagination/)
 
 ## License
 

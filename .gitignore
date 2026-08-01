@@ -1,6 +1,12 @@
 # Docs
+# docs/ is local planning; only the published guide and the GitHub Pages site are tracked.
+# The site is built by GitHub Pages' own Jekyll from master /docs — a file that is not
+# re-included here is invisible to the build, and the deploy silently ignores it.
 docs/*
 !docs/guide/
+!docs/_config.yml
+!docs/_includes/
+!docs/index.md
 
 # JetBrains IDEs
 **/.idea/**/workspace.xml

@@ -44,7 +44,10 @@
 
     <!-- Package metadata (NuGet listing) -->
     <PropertyGroup>
-        <PackageProjectUrl>https://github.com/janzen01/efcore.pagination</PackageProjectUrl>
+        <!-- The documentation site (GitHub Pages, built from master /docs), not the repository: this is the
+             "Project website" link on nuget.org. The repository stays reachable there as "Source repository",
+             which comes from RepositoryUrl above. -->
+        <PackageProjectUrl>https://janzen01.github.io/efcore.pagination/</PackageProjectUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <!-- Shared by all four packages. The value is the path inside the package, not in the repo:

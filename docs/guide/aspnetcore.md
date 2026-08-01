@@ -1,3 +1,8 @@
+---
+title: ASP.NET Core
+nav_order: 6
+---
+
 # ASP.NET Core
 
 What `Janzen.Pagination.AspNetCore` adds on top of the engine: query-string binding, `400 ProblemDetails`,
