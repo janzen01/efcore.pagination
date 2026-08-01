@@ -86,6 +86,9 @@ independent of each other — consumers pick the extensions they need:
 - Build must stay clean under `-warnaserror` before any commit.
 - **Commits:** small and incremental (one logical change each).
 - Each packable project ships its **own `README.md`** as the NuGet package readme — keep it in sync with behavior.
+- **GitHub Actions are pinned to a full commit SHA**, with the version in a trailing comment
+  (`uses: actions/checkout@3d3c42e… # v7.0.1`). Never replace a SHA with a tag — see *Intentional decisions*.
+  Dependabot bumps the SHA and the comment together; minor and patch flow through, a major is a decision.
 
 ## Versioning
 The package version's **first component tracks the .NET / EF Core major it targets** — a `10.x` package pairs with
@@ -126,6 +129,14 @@ The package version's **first component tracks the .NET / EF Core major it targe
   `searchBy`, `filter.<field>`); anything else (`offset`, `utm_*`, …) is dropped and the request pages normally.
   API-audit tools report this as "invalid value silently accepted" — it is a false positive. Strict binding would
   reject consumers' own tracking parameters, so don't add it. `page` and `limit` themselves are validated → `400`.
+- **Actions are SHA-pinned and `dependabot.yml` ignores nothing for them.** A tag is a moving pointer the upstream
+  owner can repoint; `publish.yml` exchanges an OIDC token for a live nuget.org push key, so anything running in that
+  job can publish under the maintainer's name. All three workflows are pinned so the convention has no exceptions to
+  remember. Don't "tidy" a SHA back into `@v7`, and don't re-add an `ignore` for minor/patch — a SHA doesn't follow
+  releases, so ignoring those updates freezes the pins permanently.
+- **`publish.yml` triggers on `release: published` only**, and `TAG` reads `github.event.release.tag_name` with **no**
+  `|| github.ref_name` fallback. Both are load-bearing: a run without a release would otherwise carry a branch name
+  into the tag-vs-version guard and push whatever version happened to be committed. nuget.org unlists, never deletes.
 
 ## Verifying a change
 1. Build clean (warnings = errors): `dotnet build Janzen.Pagination.slnx -c Release -warnaserror`.

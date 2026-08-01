@@ -3,7 +3,6 @@ name: Publish
 on:
   release:
     types: [published]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,11 +11,26 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      # A published release is the only trigger, so this is always the release tag. There is
+      # deliberately no fallback to github.ref_name -- that fallback is what would let a run
+      # without a release carry a branch name all the way to the push step.
+      TAG: ${{ github.event.release.tag_name }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The tag is what people see; Directory.Build.props is what actually gets packed.
+      # Publishing 0.9.0 under a v10.0.0 release cannot be undone -- nuget.org allows
+      # unlisting, never deletion -- so refuse before anything is built. An empty or
+      # prefix-less tag fails this comparison too, which is the point.
+      - name: Verify the tag matches the packed version
+        run: |
+          V=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props)
+          [ "v$V" = "$TAG" ] || { echo "refusing to publish: tag '$TAG' != version $V"; exit 1; }
+          echo "tag $TAG matches version $V"
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
 
@@ -26,6 +40,18 @@ jobs:
       - name: Build
         run: dotnet build Janzen.Pagination.slnx -c Release --no-restore -warnaserror
 
+      # Each package ships its own README, and nuget.org renders it against that one version
+      # forever. Links to `master` would drift away from what the version documents, so pin
+      # them to the release tag. Only this checkout is rewritten -- the repo keeps `master`
+      # links, which is what someone browsing on GitHub wants.
+      - name: Pin package README links to the release tag
+        run: |
+          sed -i "s|/blob/master/|/blob/$TAG/|g; s|/tree/master/|/tree/$TAG/|g" src/*/README.md
+          echo "Pinned to $TAG:"
+          grep -c "/$TAG/" src/*/README.md || true
+          # Fail the publish rather than ship a readme still pointing at a moving branch.
+          ! grep -rn "/blob/master/\|/tree/master/" src/*/README.md
+
       - name: Pack
         run: dotnet pack Janzen.Pagination.slnx -c Release --no-build -o ./artifacts
 
@@ -33,7 +59,7 @@ jobs:
       # long-lived secret is stored. Requires a Trusted Publishing policy on nuget.org.
       - name: NuGet login
         id: login
-        uses: NuGet/login@v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         with:
           user: janzen01
 

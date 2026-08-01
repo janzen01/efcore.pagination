@@ -20,6 +20,13 @@ updates:
           - "Microsoft.*"
           - "Npgsql.*"
 
+  # Every action is pinned to a full commit SHA with the version in a trailing comment, so a
+  # moved tag cannot change what runs. The publish job is why: it holds an OIDC-issued
+  # nuget.org push key, and anything in that job can read it.
+  #
+  # Nothing is ignored here. A SHA does not follow releases, so minor and patch updates only
+  # arrive as a Dependabot PR -- ignoring them would freeze the pins for good. Majors open the
+  # same way and are the ones that need an actual decision before merging.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -27,9 +34,10 @@ updates:
     commit-message:
       prefix: "build"
       include: "scope"
-    ignore:
-      # Every action is referenced by its major tag (@v6, @v4, @v1), so minor and patch releases
-      # already arrive through the tag. A PR for them only pins the tag to a point release and
-      # turns off exactly the updates it was tracking. Majors still need a decision, so they open.
-      - dependency-name: "*"
-        update-types: ["version-update:semver-minor", "version-update:semver-patch"]
+    groups:
+      # One PR a week for every action rather than one per action. github/codeql-action alone
+      # ships ~100 releases a year, so ungrouped this would be several PRs a week and the pins
+      # would end up ignored -- which is the same as not pinning.
+      actions:
+        patterns:
+          - "*"

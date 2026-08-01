@@ -15,6 +15,10 @@
         <NoWarn>$(NoWarn);CS1591</NoWarn>
         <!-- Audit transitive dependencies too, not just direct ones (the default). -->
         <NuGetAuditMode>all</NuGetAuditMode>
+        <!-- Warnings are errors here, and the publish workflow builds again, so an advisory
+             published at the wrong moment fails the release itself. Report from moderate up;
+             a low-severity advisory deep in the graph is not worth blocking a publish on. -->
+        <NuGetAuditLevel>moderate</NuGetAuditLevel>
     </PropertyGroup>
 
     <!-- Package identity (PackageId and Description are set per project) -->
@@ -41,6 +45,10 @@
         <PackageProjectUrl>https://github.com/janzen01/efcore.pagination</PackageProjectUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
+        <!-- Shared by all four packages. The value is the path inside the package, not in the repo:
+             assets/icon.png is packed to the package root. NuGet only accepts a raster icon
+             (NU5045), so assets/icon.svg is the master and the PNG is what ships. -->
+        <PackageIcon>icon.png</PackageIcon>
         <PackageReleaseNotes>$(RepositoryUrl)/releases</PackageReleaseNotes>
         <PackageTags>pagination;filtering;sorting;efcore;entity-framework-core;linq;query</PackageTags>
     </PropertyGroup>
@@ -52,9 +60,11 @@
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     </PropertyGroup>
 
-    <!-- Packaging: each packable project ships its own README.md as the NuGet readme -->
+    <!-- Packaging: each packable project ships its own README.md as the NuGet readme, and they all
+         share the single icon from the repo root ($(MSBuildThisFileDirectory)). -->
     <ItemGroup Condition="'$(IsPackable)' != 'false'">
         <None Include="$(MSBuildProjectDirectory)\README.md" Pack="true" PackagePath="\" Visible="false"/>
+        <None Include="$(MSBuildThisFileDirectory)assets\icon.png" Pack="true" PackagePath="\" Visible="false"/>
     </ItemGroup>
 
     <!--

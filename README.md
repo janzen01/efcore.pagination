@@ -1,3 +1,5 @@
+<img src="assets/icon.svg" width="96" alt="">
+
 # Janzen.Pagination
 
 Dynamic, configuration-driven pagination, filtering and sorting for **Entity Framework Core**
