@@ -57,8 +57,6 @@ dotnet add package Janzen.Pagination.EntityFrameworkCore
 dotnet add package Janzen.Pagination.AspNetCore
 ```
 
-Prereleases carry an `-rc.N` suffix — add `--prerelease` to install one.
-
 ## Where to go next
 
 The guide is meant to be read in order, but each page stands on its own.

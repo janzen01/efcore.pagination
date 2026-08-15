@@ -175,8 +175,11 @@ The package version's **first component tracks the .NET / EF Core major it targe
   `1.0.0` and `1.0.0.0` as equal, so the component count would flicker per release. Three components only.
 - Version lives in `<Version>` in [Directory.Build.props](Directory.Build.props) — there is **no MinVer** here.
 - **Prereleases** use an `-rc.N` suffix (`10.0.0-rc.1`), dotted like .NET's own. `dotnet add package` skips
-  prereleases, so the install snippets in the six reader-facing surfaces carry a `--prerelease` note; it is
-  worded without a version number so no release has to touch it.
+  prereleases, so **while an rc is the newest release** the install snippets in the six reader-facing
+  surfaces (root `README.md`, `docs/index.md`, the four package READMEs) carry a `--prerelease` note. It is
+  worded without a version number, so no release inside the rc series has to touch it — but the stable
+  release **removes** it from all six, where it would only send readers looking for a prerelease that is
+  now older than the default.
 
 ## Releasing
 `publish.yml` does the publishing, triggered by **`release: published`** and nothing else. The steps a release
@@ -235,6 +238,12 @@ Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs
   no API-key secret in the repo.
 - **`.slnx` + lock files** — enabling `RestorePackagesWithLockFile` on the `.slnx` restore fails with
   `Invalid framework identifier ''`; lock files are intentionally not enabled at the solution level.
+- **The assemblies are not strong-named**, and this was decided at `10.0.0` rather than left open. Adding a
+  strong name later changes assembly identity, which is a breaking change for every consumer, so it is a
+  one-way door that has to be walked through before the first stable release or not at all. Against it:
+  `net10.0`-only means no GAC and no binding redirects, and the .NET runtime does not verify strong-name
+  signatures. The only cost is `CS8002` on consumers who strong-name their own assemblies. Don't add
+  `SignAssembly` to a `10.x` build; a new framework major is the earliest place the question can reopen.
 - **Unknown query parameters are ignored.** The binder reads exactly six inputs (`page`, `limit`, `sortBy`, `search`,
   `searchBy`, `filter.<field>`); anything else (`offset`, `utm_*`, …) is dropped and the request pages normally.
   API-audit tools report this as "invalid value silently accepted" — it is a false positive. Strict binding would

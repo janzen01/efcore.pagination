@@ -1,3 +1,1 @@
 #nullable enable
-Janzen.Pagination.EntityFrameworkCore.DependencyInjection.PaginationBuilderPostgreSqlExtensions
-static Janzen.Pagination.EntityFrameworkCore.DependencyInjection.PaginationBuilderPostgreSqlExtensions.UsePostgreSql(this Janzen.Pagination.EntityFrameworkCore.DependencyInjection.IPaginationBuilder! builder) -> Janzen.Pagination.EntityFrameworkCore.DependencyInjection.IPaginationBuilder!

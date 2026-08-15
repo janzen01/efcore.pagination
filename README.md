@@ -71,8 +71,6 @@ dotnet add package Janzen.Pagination.EntityFrameworkCore
 dotnet add package Janzen.Pagination.AspNetCore
 ```
 
-Prereleases carry an `-rc.N` suffix — add `--prerelease` to install one.
-
 ```csharp
 // 1. Declare the contract for an entity. This is the whole allow-list.
 public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Product> {
