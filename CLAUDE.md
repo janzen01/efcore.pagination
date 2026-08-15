@@ -193,10 +193,18 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
 3. Release notes go **on the GitHub release** — there is no changelog file, and `PackageReleaseNotes` points at
    the Releases page.
 4. Publishing authenticates by **Trusted Publishing (OIDC)**, so there is no API key anywhere. The policy lives
-   on nuget.org under the *owner* (not per package), keyed to repository owner + repo + `publish.yml`. A fresh
-   policy is "pending full activation" for 7 days and goes inactive if nothing is published in that window; the
-   first successful publish makes it permanent.
-5. A **draft** release publishes nothing. `gh release edit <tag> --draft=false` is what fires the workflow.
+   on nuget.org under the *owner* (not per package), keyed to repository owner + repo + `publish.yml` + the
+   **`nuget` environment**. That last field is optional on nuget.org's side, but it is filled in here on purpose:
+   left empty, the policy would trust any run of that workflow, gated or not. A fresh policy is "pending full
+   activation" for 7 days and goes inactive if nothing is published in that window; the first successful publish
+   makes it permanent.
+5. The job declares `environment: nuget`, so the run **stops for a manual approval** (required reviewer, and only
+   a `v*` tag may deploy) before it reaches the OIDC exchange. Approve it under *Review deployments* in the run.
+   Nothing reaches nuget.org until then, which is also why a mismatched policy fails at `NuGet login` rather than
+   half-way through a push.
+6. The same job records a **build provenance attestation** for every packed file. A published package can be
+   checked with `gh attestation verify <file>.nupkg --repo janzen01/efcore.pagination`.
+7. A **draft** release publishes nothing. `gh release edit <tag> --draft=false` is what fires the workflow.
    Pushing a tag on its own is inert here — no workflow watches tags.
 
 ## Testing
