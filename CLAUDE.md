@@ -202,8 +202,11 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    a `v*` tag may deploy) before it reaches the OIDC exchange. Approve it under *Review deployments* in the run.
    Nothing reaches nuget.org until then, which is also why a mismatched policy fails at `NuGet login` rather than
    half-way through a push.
-6. The same job records a **build provenance attestation** for every packed file. A published package can be
-   checked with `gh attestation verify <file>.nupkg --repo janzen01/efcore.pagination`.
+6. The same job records a **build provenance attestation** for every packed file and then attaches those files
+   to the release. Both halves matter: `gh attestation verify <file>.nupkg --repo janzen01/efcore.pagination`
+   compares a digest, and **the copy nuget.org serves has a different one** — it adds its own repository
+   signature (`.signature.p7s`) to every package it accepts, which rewrites the archive. The release asset is
+   the only published copy that still matches what was attested, so don't point anyone at nuget.org for this.
 7. A **draft** release publishes nothing. `gh release edit <tag> --draft=false` is what fires the workflow.
    Pushing a tag on its own is inert here — no workflow watches tags.
 
