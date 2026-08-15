@@ -153,6 +153,12 @@ independent of each other — consumers pick the extensions they need:
   in the record body to document it — that suppresses the copy and doubles the declaration.
 - Build must stay clean under `-warnaserror` before any commit.
 - **Commits:** small and incremental (one logical change each).
+- **`master` takes no direct pushes.** A ruleset requires a pull request with `build-test` green, signed
+  commits and linear history, and forbids force-pushing or deleting the branch. So work lands as
+  branch → PR → **squash** merge (the only merge method the repo allows), and a mistake already on `master`
+  is fixed with a follow-up commit, never with a rewrite. No approving review is required — a solo
+  maintainer cannot approve their own PR, so demanding one would wedge the repo. Tags are a separate
+  ruleset: `v*` can be created but never moved or deleted.
 - Each packable project ships its **own `README.md`** as the NuGet package readme — keep it in sync with behavior.
 - **GitHub Actions are pinned to a full commit SHA**, with the version in a trailing comment
   (`uses: actions/checkout@3d3c42e… # v7.0.1`). Never replace a SHA with a tag — see *Intentional decisions*.
@@ -184,7 +190,8 @@ The package version's **first component tracks the .NET / EF Core major it targe
 ## Releasing
 `publish.yml` does the publishing, triggered by **`release: published`** and nothing else. The steps a release
 needs, in order — most of them are guarded, and the guard fires *after* the tag exists, so get them right first:
-1. Bump `<Version>` in `Directory.Build.props` and commit. The tag must be exactly `v$(Version)`
+1. Bump `<Version>` in `Directory.Build.props` and land it **through a PR** — `master` takes no direct
+   pushes, so the tag is cut from the squash-merge commit. The tag must be exactly `v$(Version)`
    (`v10.0.0-rc.1`); `publish.yml` compares them and refuses the publish otherwise, because nuget.org unlists
    but never deletes.
 2. **At a stable release only**, move each `PublicAPI.Unshipped.txt` into its `PublicAPI.Shipped.txt`. That is
