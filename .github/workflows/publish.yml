@@ -5,10 +5,7 @@ on:
     types: [published]
 
 permissions:
-  # Attaching the packed files to the release is what makes the attestation below checkable:
-  # nuget.org adds its own repository signature to every package it accepts, so the copy it
-  # serves is not byte-identical to the one that was built and attested.
-  contents: write
+  contents: read
   id-token: write
   # Lets the job record a signed provenance statement for the packages it just built.
   attestations: write
@@ -91,11 +88,3 @@ jobs:
           --source "https://api.nuget.org/v3/index.json"
           --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
           --skip-duplicate
-
-      # The attested bytes, published where anyone can check them: `gh attestation verify` compares
-      # a file's digest against the provenance statement, and only these files still have that digest.
-      # Runs after the push, so assets never appear for a version that failed to reach nuget.org.
-      - name: Attach the packages to the release
-        run: gh release upload "$TAG" ./artifacts/*.nupkg --clobber
-        env:
-          GH_TOKEN: ${{ github.token }}
