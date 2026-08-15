@@ -22,7 +22,7 @@ public sealed class GuardTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 
 	private async Task<string> Rejects(PaginateQuery request, PaginateConfig<Product> config) {
 		await using var context = fixture.CreateContext();
-		return await Assertions.RejectsAsync(() => fixture.Products(context).PageAsync<ProductDto>(request, config));
+		return await Assertions.RejectsAsync(() => SqliteFixture.Products(context).PageAsync<ProductDto>(request, config));
 	}
 
 	[Fact]

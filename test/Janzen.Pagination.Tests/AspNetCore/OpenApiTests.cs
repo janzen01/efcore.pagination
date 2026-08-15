@@ -134,7 +134,8 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		var parameter = this.Parameters("/products").EnumerateArray()
 			.Single(p => p.GetProperty("name").GetString() == "filter.status");
 
-		string example = parameter.GetProperty("schema").GetProperty("items").GetProperty("example").GetString()!;
+		string example = parameter.GetProperty("schema").GetProperty("items")
+			.GetProperty("examples").EnumerateArray().First().GetString()!;
 
 		// The operator comes from the field's own allow-list, so it is one a caller may actually send.
 		Assert.StartsWith("$eq:", example);

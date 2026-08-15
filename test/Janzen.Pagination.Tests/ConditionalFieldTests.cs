@@ -23,12 +23,12 @@ public sealed class ConditionalFieldTests(SqliteFixture fixture) : IClassFixture
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request, PaginateConfig<Product> config) {
 		await using var context = fixture.CreateContext();
-		return await fixture.Products(context).PageAsync<ProductDto>(request, config);
+		return await SqliteFixture.Products(context).PageAsync<ProductDto>(request, config);
 	}
 
 	private async Task<string> Rejects(PaginateQuery request, PaginateConfig<Product> config) {
 		await using var context = fixture.CreateContext();
-		return await Assertions.RejectsAsync(() => fixture.Products(context).PageAsync<ProductDto>(request, config));
+		return await Assertions.RejectsAsync(() => SqliteFixture.Products(context).PageAsync<ProductDto>(request, config));
 	}
 
 	[Fact]

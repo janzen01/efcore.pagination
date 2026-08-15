@@ -17,7 +17,7 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		await using var context = fixture.CreateContext();
 
-		var page = await fixture.Products(context).PageAsync<ProductDto>(Query.Filter("id", "$eq:1"));
+		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("id", "$eq:1"));
 
 		var dto = Assert.Single(page.Items);
 		Assert.Equal(1, dto.Id);
@@ -32,7 +32,7 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		await using var context = fixture.CreateContext();
 
-		var page = await fixture.Products(context).PageAsync<ProductWithCategoryDto>(Query.Filter("id", "$in:1,5"));
+		var page = await SqliteFixture.Products(context).PageAsync<ProductWithCategoryDto>(Query.Filter("id", "$in:1,5"));
 
 		Assert.Equal("Electronics", page.Items[0].Category?.Name);
 		Assert.Null(page.Items[1].Category);
@@ -44,7 +44,7 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		await using var context = fixture.CreateContext();
 
-		string message = await RejectionMessage(() => fixture.Products(context).PageAsync<UnprojectableDto>(new PaginateQuery()));
+		string message = await RejectionMessage(() => SqliteFixture.Products(context).PageAsync<UnprojectableDto>(new PaginateQuery()));
 
 		Assert.Equal("Cannot automatically project 'Product.Name' from 'String' to 'Int32'.", message);
 
@@ -55,7 +55,7 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		await using var context = fixture.CreateContext();
 
-		string message = await RejectionMessage(() => fixture.Products(context).PageAsync<MissingMemberDto>(new PaginateQuery()));
+		string message = await RejectionMessage(() => SqliteFixture.Products(context).PageAsync<MissingMemberDto>(new PaginateQuery()));
 
 		Assert.Equal("Cannot automatically project 'Product' because source type 'Product' has no public member named 'Nonexistent'.", message);
 
@@ -66,7 +66,7 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		await using var context = fixture.CreateContext();
 
-		string message = await RejectionMessage(() => fixture.Products(context).PageAsync<NonNullableCategoryDto>(new PaginateQuery()));
+		string message = await RejectionMessage(() => SqliteFixture.Products(context).PageAsync<NonNullableCategoryDto>(new PaginateQuery()));
 
 		Assert.Equal("Cannot automatically project nullable source 'Product.Category' into non-nullable target parameter 'Category'.", message);
 
@@ -77,7 +77,7 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		await using var context = fixture.CreateContext();
 
-		var page = await fixture.Products(context).PageSelectAsync(
+		var page = await SqliteFixture.Products(context).PageSelectAsync(
 			Query.Filter("id", "$eq:1"),
 			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count,
 				p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList()));
@@ -93,7 +93,7 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		await using var context = fixture.CreateContext();
 
-		var page = await fixture.Products(context).PageSelectMapAsync(
+		var page = await SqliteFixture.Products(context).PageSelectMapAsync(
 			Query.Filter("id", "$in:1,3"),
 			p => new { p.Id, Sum = p.Reviews.Sum(r => r.Rating), Count = p.Reviews.Count },
 			// The guard is why this cannot be a selector: EF has nothing to translate a divide-by-zero
@@ -110,7 +110,7 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		await using var context = fixture.CreateContext();
 
-		var page = await fixture.Products(context).PageMapAsync(
+		var page = await SqliteFixture.Products(context).PageMapAsync(
 			Query.Filter("id", "$eq:1"),
 			p => new { p.Name, ReviewCount = p.Reviews.Count });
 

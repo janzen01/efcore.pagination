@@ -11,41 +11,37 @@ namespace Janzen.Pagination.Tests.Support;
 /// </summary>
 public static class Paginate {
 
-	public static Task<PaginatedResponse<TResult>> PageAsync<TResult>(
-		this IQueryable<Product> source,
-		PaginateQuery request,
-		PaginateConfig<Product>? config = null,
-		PaginateLinkContext? linkContext = null
-	) {
-		return source.PaginateAsync<Product, TResult>(request, config ?? TestData.Config, linkContext, TestContext.Current.CancellationToken);
-	}
+	extension(IQueryable<Product> source) {
 
-	public static Task<PaginatedResponse<TResult>> PageSelectAsync<TResult>(
-		this IQueryable<Product> source,
-		PaginateQuery request,
-		Expression<Func<Product, TResult>> selector,
-		PaginateConfig<Product>? config = null
-	) {
-		return source.PaginateSelectAsync(request, config ?? TestData.Config, selector, null, TestContext.Current.CancellationToken);
-	}
+		public Task<PaginatedResponse<TResult>> PageAsync<TResult>(PaginateQuery request,
+			PaginateConfig<Product>? config = null,
+			PaginateLinkContext? linkContext = null
+		) {
+			return source.PaginateAsync<Product, TResult>(request, config ?? TestData.Config, linkContext, TestContext.Current.CancellationToken);
+		}
 
-	public static Task<PaginatedResponse<TResult>> PageSelectMapAsync<TProjection, TResult>(
-		this IQueryable<Product> source,
-		PaginateQuery request,
-		Expression<Func<Product, TProjection>> selector,
-		Func<TProjection, TResult> postMap,
-		PaginateConfig<Product>? config = null
-	) {
-		return source.PaginateSelectMapAsync(request, config ?? TestData.Config, selector, postMap, null, TestContext.Current.CancellationToken);
-	}
+		public Task<PaginatedResponse<TResult>> PageSelectAsync<TResult>(PaginateQuery request,
+			Expression<Func<Product, TResult>> selector,
+			PaginateConfig<Product>? config = null
+		) {
+			return source.PaginateSelectAsync(request, config ?? TestData.Config, selector, null, TestContext.Current.CancellationToken);
+		}
 
-	public static Task<PaginatedResponse<TResult>> PageMapAsync<TResult>(
-		this IQueryable<Product> source,
-		PaginateQuery request,
-		Func<Product, TResult> projector,
-		PaginateConfig<Product>? config = null
-	) {
-		return source.PaginateMapAsync(request, config ?? TestData.Config, projector, null, TestContext.Current.CancellationToken);
+		public Task<PaginatedResponse<TResult>> PageSelectMapAsync<TProjection, TResult>(PaginateQuery request,
+			Expression<Func<Product, TProjection>> selector,
+			Func<TProjection, TResult> postMap,
+			PaginateConfig<Product>? config = null
+		) {
+			return source.PaginateSelectMapAsync(request, config ?? TestData.Config, selector, postMap, null, TestContext.Current.CancellationToken);
+		}
+
+		public Task<PaginatedResponse<TResult>> PageMapAsync<TResult>(PaginateQuery request,
+			Func<Product, TResult> projector,
+			PaginateConfig<Product>? config = null
+		) {
+			return source.PaginateMapAsync(request, config ?? TestData.Config, projector, null, TestContext.Current.CancellationToken);
+		}
+
 	}
 
 }

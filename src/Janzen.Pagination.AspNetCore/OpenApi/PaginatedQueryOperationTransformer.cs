@@ -198,7 +198,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				Type = JsonSchemaType.Array,
 				Items = new OpenApiSchema {
 					Type = JsonSchemaType.String,
-					Enum = config.SearchableFields.Select(field => JsonValue.Create(field.Name)).OfType<JsonNode>().ToArray()
+					Enum = [.. config.SearchableFields.Select(field => JsonValue.Create(field.Name)!)]
 				}
 			}
 		};
@@ -232,19 +232,17 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				Type = JsonSchemaType.Array,
 				Items = new OpenApiSchema {
 					Type = JsonSchemaType.String,
-					Example = JsonValue.Create($"{exampleOperator}:{GetExampleValue(field.Type)}")
+					Examples = [JsonValue.Create($"{exampleOperator}:{GetExampleValue(field.Type)}")]
 				}
 			}
 		};
 	}
 
 	private static JsonNode[] BuildSortEnum(IPaginateConfig config) {
-		return config.SortableFields
-			.SelectMany(field => new[] {
-				JsonValue.Create($"{field.Name}:ASC"), JsonValue.Create($"{field.Name}:DESC")
-			})
-			.OfType<JsonNode>()
-			.ToArray();
+		return [.. config.SortableFields
+			.SelectMany(field => new JsonNode[] {
+				JsonValue.Create($"{field.Name}:ASC")!, JsonValue.Create($"{field.Name}:DESC")!
+			})];
 	}
 
 	private static JsonArray? BuildDefaultSort(IPaginateConfig config) {

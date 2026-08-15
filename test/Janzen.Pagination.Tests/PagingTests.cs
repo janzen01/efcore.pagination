@@ -5,12 +5,12 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request) {
 		await using var context = fixture.CreateContext();
-		return await fixture.Products(context).PageAsync<ProductDto>(request);
+		return await SqliteFixture.Products(context).PageAsync<ProductDto>(request);
 	}
 
 	private async Task<string> Rejects(PaginateQuery request) {
 		await using var context = fixture.CreateContext();
-		return await Assertions.RejectsAsync(() => fixture.Products(context).PageAsync<ProductDto>(request));
+		return await Assertions.RejectsAsync(() => SqliteFixture.Products(context).PageAsync<ProductDto>(request));
 	}
 
 	[Fact]

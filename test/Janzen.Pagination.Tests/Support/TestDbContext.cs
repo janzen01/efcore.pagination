@@ -57,7 +57,7 @@ public sealed class SqliteFixture : IAsyncLifetime {
 	public TestDbContext CreateContext() { return new TestDbContext(_options); }
 
 	/// <summary>A fresh, untracked query root — every test starts from the same eight rows.</summary>
-	public IQueryable<Product> Products(TestDbContext context) { return context.Products.AsNoTracking(); }
+	public static IQueryable<Product> Products(TestDbContext context) { return context.Products.AsNoTracking(); }
 
 	public async ValueTask DisposeAsync() { await _connection.DisposeAsync(); }
 

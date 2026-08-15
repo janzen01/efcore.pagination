@@ -199,6 +199,12 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
 ## Testing
 `test/Janzen.Pagination.Tests` (xunit v3) — `dotnet test Janzen.Pagination.slnx -c Release`. Two legs, both in-process,
 neither needing Docker:
+
+> **[global.json](global.json) is load-bearing**: it selects the **Microsoft.Testing.Platform** runner for `dotnet test`.
+> MTP v2 dropped the VSTest bridge on the .NET 10 SDK, so without that file *every* `dotnet test` here — yours, `ci.yml`
+> and the guard inside `publish.yml` — fails with `Testing with VSTest target is no longer supported`. It pins no SDK
+> version and is not meant to.
+
 - **SQLite in-memory** — most tests. Real SQL translation, so it is what catches "the expression cannot be translated",
   and it exercises the engine's `UseDatabaseFunctions` path (`EF.Functions.Like`, `EF.Parameter`).
 - **Plain `IQueryable`** (`List<T>.AsQueryable()`) — the engine's other branch (`string.IndexOf`, synchronous terminal

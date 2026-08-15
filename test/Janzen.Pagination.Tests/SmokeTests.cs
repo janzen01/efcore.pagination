@@ -12,7 +12,7 @@ public sealed class SmokeTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 
 		await using var context = fixture.CreateContext();
 
-		var page = await fixture.Products(context).PageAsync<ProductDto>(new PaginateQuery());
+		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(new PaginateQuery());
 
 		Assertions.HasIds(page, 1, 2, 3);
 		Assert.Equal(8, page.Meta.TotalItems);
@@ -27,7 +27,7 @@ public sealed class SmokeTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 
 		await using var context = fixture.CreateContext();
 
-		var page = await fixture.Products(context).PageAsync<ProductDto>(Query.Filter("status", "$eq:Draft"));
+		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("status", "$eq:Draft"));
 
 		Assertions.HasIds(page, 3, 5);
 
@@ -38,7 +38,7 @@ public sealed class SmokeTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 
 		await using var context = fixture.CreateContext();
 
-		var page = await fixture.Products(context).PageAsync<ProductDto>(Query.Search("gizmo"));
+		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Search("gizmo"));
 
 		Assertions.HasIds(page, 3);
 
@@ -49,7 +49,7 @@ public sealed class SmokeTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 
 		await using var context = fixture.CreateContext();
 
-		var page = await fixture.Products(context).PageAsync<ProductDto>(Query.Filter("tags", "$contains:red"));
+		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("tags", "$contains:red"));
 
 		Assertions.HasIds(page, 1, 2);
 
@@ -60,7 +60,7 @@ public sealed class SmokeTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 
 		await using var context = fixture.CreateContext();
 
-		var page = await fixture.Products(context).PageAsync<ProductDto>(Query.Filter("reviewer", "$eq:ann"));
+		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("reviewer", "$eq:ann"));
 
 		Assertions.HasIds(page, 1, 2);
 
@@ -71,7 +71,7 @@ public sealed class SmokeTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 
 		await using var context = fixture.CreateContext();
 
-		var page = await fixture.Products(context).PageSelectAsync(
+		var page = await SqliteFixture.Products(context).PageSelectAsync(
 			Query.Filter("id", "$eq:1"),
 			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count,
 				p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList()));

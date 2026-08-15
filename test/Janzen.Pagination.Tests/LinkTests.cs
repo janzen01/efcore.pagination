@@ -18,7 +18,7 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	private async Task<PaginatedResponse<ProductDto>> PageFor(int page, PaginateLinkContext? context) {
 		await using var dbContext = fixture.CreateContext();
-		return await fixture.Products(dbContext).PageAsync<ProductDto>(new PaginateQuery { Page = page }, linkContext: context);
+		return await SqliteFixture.Products(dbContext).PageAsync<ProductDto>(new PaginateQuery { Page = page }, linkContext: context);
 	}
 
 	private async Task<PaginatedLinks> LinksFor(int page, PaginateLinkContext context) {
