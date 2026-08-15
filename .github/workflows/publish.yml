@@ -7,10 +7,16 @@ on:
 permissions:
   contents: read
   id-token: write
+  # Lets the job record a signed provenance statement for the packages it just built.
+  attestations: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # The OIDC exchange below mints a live nuget.org push key, so the job waits for a manual
+    # approval on the `nuget` environment first. nuget.org unlists but never deletes -- one
+    # click is cheaper than a version that can only be withdrawn from search.
+    environment: nuget
     env:
       # A published release is the only trigger, so this is always the release tag. There is
       # deliberately no fallback to github.ref_name -- that fallback is what would let a run
@@ -58,6 +64,15 @@ jobs:
 
       - name: Pack
         run: dotnet pack Janzen.Pagination.slnx -c Release --no-build -o ./artifacts
+
+      # Records, in GitHub's transparency log, that these exact package files came out of this
+      # repository and this workflow. Anyone can then check a downloaded package against it with
+      # `gh attestation verify <file>.nupkg --repo janzen01/efcore.pagination`. nuget.org does not
+      # read attestations today; this is verifiable independently of it, which is the point.
+      - name: Attest the packages
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: './artifacts/*.nupkg'
 
       # Exchanges the job's OIDC token for a short-lived nuget.org API key, so no
       # long-lived secret is stored. Requires a Trusted Publishing policy on nuget.org.
