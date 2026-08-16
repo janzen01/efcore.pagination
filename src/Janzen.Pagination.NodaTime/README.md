@@ -63,7 +63,8 @@ to recurse into them.
 
 ## Documentation
 
-- [Providers & custom types](https://janzen01.github.io/efcore.pagination/guide/providers-and-types/)
+- [NodaTime integration](https://janzen01.github.io/efcore.pagination/integrations/nodatime/)
+- [Custom types](https://janzen01.github.io/efcore.pagination/integrations/custom-types/)
 - [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/)
 - [Full guide](https://janzen01.github.io/efcore.pagination/)
 

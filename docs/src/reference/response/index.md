@@ -26,9 +26,19 @@ client reads `meta` to decide whether to fetch again.
 }
 ```
 
-The C# shape is `PaginatedResponse<T>`, a record of three members — `Items`, `Meta`, `Links` — where `T` is
-the **projection's** result type, not the entity. Nothing here is serializer-specific: the JSON above is what
-ASP.NET Core's default camelCase settings produce.
+The C# shape is three records, where `T` is the **projection's** result type, not the entity:
+
+```csharp
+sealed record PaginatedResponse<T>(IReadOnlyList<T> Items, PaginatedMeta Meta, PaginatedLinks? Links);
+
+sealed record PaginatedMeta(int TotalItems, int ItemCount, int ItemsPerPage, int TotalPages, int CurrentPage);
+
+sealed record PaginatedLinks(string? First, string? Previous, string? Next, string? Last);
+```
+
+Nothing here is serializer-specific: the JSON above is what ASP.NET Core's default camelCase settings
+produce from those records. The tables below use the JSON names; the CLR members are the same names in
+PascalCase.
 
 ## `items`
 

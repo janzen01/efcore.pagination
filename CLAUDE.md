@@ -12,10 +12,23 @@ Published on nuget.org as the **10.x** line; prereleases carry an `-rc.N` suffix
 > This file is for *working in the code*.
 
 ## The documentation site
-`docs/` is a **VitePress** project published to GitHub Pages by [.github/workflows/docs.yml](.github/workflows/docs.yml)
-(Settings → Pages → Source → **GitHub Actions**, not "deploy from a branch"). Sources live in `docs/src`, the
-build lands in `docs/.dist`, config is [docs/.vitepress/config.mts](docs/.vitepress/config.mts), package manager
-is **pnpm** pinned through `packageManager` in [docs/package.json](docs/package.json).
+`docs/` is a **VitePress** project published to GitHub Pages by [.github/workflows/docs.yml](.github/workflows/docs.yml).
+Sources live in `docs/src`, the build lands in `docs/.dist`, config is
+[docs/.vitepress/config.mts](docs/.vitepress/config.mts), package manager is **pnpm** pinned through
+`packageManager` in [docs/package.json](docs/package.json).
+- **Settings → Pages → Source must be "GitHub Actions"**, not "deploy from a branch". That is repository
+  state no file here can set, `actions/configure-pages` will not flip it (its `enablement` input defaults to
+  `false`), and `actions/deploy-pages` fails while the source is still the legacy Jekyll one:
+  `gh api --method PUT repos/janzen01/efcore.pagination/pages -f build_type=workflow`. **Do it before merging
+  a change that removes the Jekyll tree from `master:/docs`,** not after — the wrong order rebuilds Jekyll
+  against a tree with no site root and takes the frozen URLs down with it.
+- **`docs.yml` also runs build-only on `pull_request`.** That gate is the whole reason the verifiers below
+  are worth having: `ci.yml` never touches `docs/` and `master` has no required checks, so without it a dead
+  link merges green. It is also the only way to test the workflow at all, since `workflow_dispatch` needs the
+  file to exist on the default branch.
+- **`pnpm/action-setup` is passed `package_json_file: docs/package.json`.** Its default is `package.json`
+  resolved against the *repository root*, which has none, and `defaults.run.working-directory` does not apply
+  to a `uses:` step's inputs. Remove that input and the job dies before it reaches the build.
 - **`pnpm docs:build` is the local build**, and it ends by running `scripts/verify-frozen-urls.mjs` and then
   `scripts/verify-anchors.mjs`. Keep all three chained: the first is the only thing standing between a rename
   and a dead link inside a released package, the second catches what `ignoreDeadLinks` structurally cannot —
@@ -32,7 +45,10 @@ is **pnpm** pinned through `packageManager` in [docs/package.json](docs/package.
   What the rule really guards against is the accident: pages are authored as **`<name>/index.md`** →
   `<name>/index.html`, and renaming one to `<name>.md` builds `<name>.html`, which GitHub Pages serves at
   `/guide/query-string` but **not** at `/guide/query-string/`. `docs/scripts/verify-frozen-urls.mjs` fails the
-  build when one of those paths has nothing behind it, stub or page.
+  build when one of those paths has nothing behind it, stub or page. Its hardcoded list is *history* — what
+  `10.0.0` published, never removable — and it additionally **reads the root and package READMEs** and requires
+  every site URL they advertise to exist too, because those are what the *next* release freezes. So repointing
+  a README is safe: forget to publish the target and the build says so, naming the README.
 - **A dead link fails the build** (`ignoreDeadLinks: false`). Links are **relative within a section**
   (`../configuration/`, `../query-string/#guards`) and **root-absolute across sections**
   (`/guide/projections/`), always ending in a slash. Both halves matter: a relative link that crosses a
@@ -51,8 +67,13 @@ is **pnpm** pinned through `packageManager` in [docs/package.json](docs/package.
   `!docs/.vitepress/`, `!docs/scripts/`, `!docs/package.json`, `!docs/pnpm-lock.yaml`). A new directory that is
   not re-included is invisible to git and therefore to the build, which then publishes a site missing that page
   without failing. Everything else under `docs/` is local planning and stays untracked.
-- **English is the root locale** (`/`), Czech is `/cs/` with `lang: cs-CZ`. English has to stay at the root:
-  the frozen URLs have no locale prefix.
+- **English is the root locale** (`/`) and has to stay there: the frozen URLs have no locale prefix.
+  **There is currently no second locale.** The Czech draft lives at `docs/src/cs/index.md`, is kept out of the
+  build by `srcExclude: ['cs/**']`, and its `locales.cs` block is commented out of `config.mts`. Registering a
+  locale advertises a translation, and VitePress rewrites the current path into it *unconditionally* — with one
+  Czech page against 25 English ones the language switcher pointed at `/cs/<path>/` on every page but the home,
+  48 dead links in the built output. Restore the locale and the `srcExclude` line together, once there is
+  Czech content to switch to.
 - **A new file under `.vitepress/theme/` needs the dev server restarted.** HMR picks up edits to a theme that
   already existed, but not the theme appearing for the first time, and the symptom is that the stylesheet
   simply has no effect while the build output has it. Cost an evening once: the mermaid CSS below looked

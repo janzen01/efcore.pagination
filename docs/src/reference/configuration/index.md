@@ -368,3 +368,17 @@ meta.IgnoreSearchByInQueryParam;
 
 Conditional fields appear in these lists **regardless of their condition** — the metadata is the documented
 surface, not the per-caller one.
+
+Four small records carry that metadata, and you will hold them if you build anything off a config:
+
+| Type | Members | What it is |
+|------|---------|------------|
+| `PaginateSort` | `Field`, `Direction` | One entry of `DefaultSortBy`. `Direction` is a `PaginateSortDirection` (`Asc` / `Desc`). |
+| `PaginateFieldMetadata` | `Name`, `Type`, `Badge?` | A sortable or searchable field. `Type` is the selector's CLR type, which is what decides the documented type name and the example value. |
+| `PaginateFilterFieldMetadata` | the same three, plus `Operators` | A filterable field. `Operators` is that field's allow-list, in declaration order. |
+| `PaginateBadge` | `Name`, `CssClass?` | What [`ShowBadge`](#showbadge) attached. `CssClass` is `null` for a badge declared without one. |
+
+`Type` is the raw CLR type, not a display name — a nullable field reports `Nullable<int>`, and it is up to
+you to unwrap it. The OpenAPI transformer does exactly that, and
+[its table](/integrations/aspnetcore/openapi/#types-and-examples) is a reasonable mapping to copy if you are
+rendering the same metadata somewhere else.

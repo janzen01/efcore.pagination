@@ -22,6 +22,35 @@ Rejections are quoted inline below where they help explain a rule. The complete 
 when a request is wrong in several ways at once, is in [Errors](../errors/); the ceilings that
 produce several of them are in [Configuration API → Guards](../configuration/#guards).
 
+## The object it binds to
+
+The six parameters bind to `PaginateQuery`, and off the web you construct it directly — the property values
+carry the **same strings** the query string does, so everything on this page still describes what they mean:
+
+| Parameter | Property | Type | Absent means |
+|-----------|----------|------|--------------|
+| `page` | `Page` | `int` | `PaginateQuery.DefaultPage`, which is `1` |
+| `limit` | `Limit` | `int?` | `null` → the config's `DefaultLimit` |
+| `sortBy` | `SortBy` | `IReadOnlyList<string>` | empty → the config's `DefaultSortBy` |
+| `search` | `Search` | `string?` | `null` → no search |
+| `searchBy` | `SearchBy` | `IReadOnlyList<string>` | empty → all searchable fields |
+| `filter.<field>` | `Filters` | `IReadOnlyDictionary<string, IReadOnlyList<string>>` | empty → no filters |
+
+```csharp
+var request = new PaginateQuery {
+    Page   = 2,
+    SortBy = ["price:DESC", "name:ASC"],           // one entry per sort, in priority order
+    Filters = new Dictionary<string, IReadOnlyList<string>> {
+        ["status"] = ["$eq:Active"],               // the $op: prefix stays
+    },
+};
+```
+
+It is a `class`, not a `record`, so there is no `with` — value equality over those collection properties
+would compare by reference and lie. Use [`WithPage(n)`](../response/#paging-without-links-withpage) to derive
+one request from another. Validation happens when the query executes, never here, so an out-of-range value
+produces the same `400` whichever way the request was built.
+
 For the pipeline these six parameters feed — bind, validate, filter, count, sort, page — see
 [Getting started](/guide/getting-started/#what-the-engine-does-with-that-request). This page is the parameters
 themselves.
@@ -166,6 +195,21 @@ Field names are matched case-insensitively, and case variants of the same field 
 Each field whitelists its own operators in the config; sending one that is not whitelisted for that field is a
 `400`, even though it exists. The SQL column shows the predicate the engine builds, with the surrounding
 `SELECT`/`ORDER BY` trimmed away.
+
+Tokens are what a caller sends; the config grants them by their `PaginateFilterOperator` member name, and the
+two are spelled differently often enough to be worth a table:
+
+| Token | Member | Token | Member |
+|-------|--------|-------|--------|
+| `$eq` | `Eq` | `$lt` | `LessThan` |
+| `$in` | `In` | `$lte` | `LessThanOrEqual` |
+| `$null` | `Null` | `$gt` | `GreaterThan` |
+| `$sw` | `StartsWith` | `$gte` | `GreaterThanOrEqual` |
+| `$ilike` | `ILike` | `$btw` | `Between` |
+| `$contains` | `Contains` | | |
+
+Tokens are matched case-insensitively. `$not`, `$and` and `$or` are **modifiers, not operators** — they have
+no enum member, are always available, and cannot be granted or withheld.
 
 #### `$eq` — equality
 

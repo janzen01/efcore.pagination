@@ -1,4 +1,7 @@
 ---
+# robots: noindex governs crawlers, not the local search index -- without this a reader
+# searching the site gets "This page has moved" alongside the page it moved to.
+search: false
 head:
   - - meta
     - http-equiv: refresh
@@ -13,5 +16,5 @@ head:
 It now lives under **Integrations**: [ASP.NET Core integration](/integrations/aspnetcore/).
 
 You should have been redirected already. This address stays published because it ships inside the `10.0.0`
-package READMEs on nuget.org, which are rendered against that version forever -- see
+package READMEs on nuget.org, which are rendered against that version forever — see
 `docs/scripts/verify-frozen-urls.mjs`.

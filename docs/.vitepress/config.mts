@@ -17,6 +17,16 @@ const guide = {
     projections: '/guide/projections/'
 }
 
+// The frozen paths that are now redirect stubs rather than pages. They must keep being published, but
+// they carry `robots: noindex` and must not be advertised in the sitemap -- submitting a URL and then
+// telling the crawler to ignore it is a contradiction search consoles report back as one.
+const redirectStubs = [
+    'guide/query-string/',
+    'guide/recipes/',
+    'guide/aspnetcore/',
+    'guide/providers-and-types/'
+]
+
 const integrations = {
     overview: '/integrations/',
     aspnetcore: '/integrations/aspnetcore/',
@@ -115,8 +125,21 @@ const config = withMermaid(defineConfig({
     srcDir: './src',
     outDir: './.dist',
 
+    // The Czech translation is a single landing page, so the `cs` locale is not registered (see below)
+    // and its draft must not build either -- it would otherwise be published as an English-locale page
+    // with English chrome and lang="en-US". Kept in the repository rather than deleted: phase 3 removes
+    // this line and restores the locale block.
+    srcExclude: ['cs/**'],
+
     // GitHub Pages serves /foo from foo.html without a redirect, so extension-less links are safe here.
     cleanUrls: true,
+
+    // VitePress only emits sitemap.xml when a hostname is set. The base belongs in it: these URLs are
+    // advertised in PackageProjectUrl and in all four package READMEs on nuget.org.
+    sitemap: {
+        hostname: 'https://janzen01.github.io/efcore.pagination/',
+        transformItems: (items) => items.filter((item) => !redirectStubs.includes(item.url))
+    },
 
     // A dead link fails the build. With cross-page links written by hand, that is the only thing standing
     // between a renamed heading and a guide that quietly points at nothing.
@@ -190,33 +213,14 @@ const config = withMermaid(defineConfig({
                 },
                 outline: { level: [2, 3], label: 'On this page' }
             }
-        },
-        cs: {
-            label: 'Čeština',
-            lang: 'cs-CZ',
-            link: '/cs/',
-            themeConfig: {
-                nav: [
-                    { text: 'Domů', link: '/cs/' },
-                    { text: 'Průvodce (anglicky)', link: guide.overview },
-                    {
-                        text: 'NuGet',
-                        items: [
-                            { text: 'EntityFrameworkCore', link: packages.core },
-                            { text: 'AspNetCore', link: packages.aspnetcore },
-                            { text: 'PostgreSql', link: packages.postgresql },
-                            { text: 'NodaTime', link: packages.nodatime }
-                        ]
-                    }
-                ],
-                sidebar: {},
-                outline: { level: [2, 3], label: 'Na této stránce' },
-                darkModeSwitchLabel: 'Vzhled',
-                returnToTopLabel: 'Nahoru',
-                sidebarMenuLabel: 'Menu',
-                langMenuLabel: 'Jazyk'
-            }
         }
+
+        // The `cs` locale is deliberately absent until there is Czech content to switch to. VitePress
+        // rewrites the current path into the other locale unconditionally, so with one Czech page and
+        // 25 English ones the language switcher pointed at /cs/<path>/ on every page but the home --
+        // 48 links in the built output, every one of them a 404. Registering a locale advertises a
+        // translation; one landing page is not one. The draft stays at docs/src/cs/index.md, excluded
+        // from the build by `srcExclude` above, and phase 3 restores this block alongside it.
     },
 
     themeConfig: {

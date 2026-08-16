@@ -19,7 +19,7 @@ GET /products?page=2&limit=25&sortBy=price:DESC&search=widget&filter.status=$in:
 
 That contract is borrowed from [nestjs-paginate](https://github.com/ppetzold/nestjs-paginate) (MIT) — the
 same query parameters, operator names and response envelope.
-[Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/) is the exact specification.
+[Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/) is the exact specification.
 
 ## What you get
 
@@ -123,23 +123,50 @@ The full walkthrough is in **[Getting started](https://janzen01.github.io/efcore
 | `searchBy`       | `?searchBy=name`                     | Narrows `search` to a subset of them. |
 | `filter.<field>` | `?filter.price=$btw:10,500`          | `[$not:][$and:\|$or:]$operator:value` — repeatable per field. |
 
-Every operator, every value format and the complete `400` catalogue: **[Query-string
-contract](https://janzen01.github.io/efcore.pagination/guide/query-string/)**.
+Every operator and every value format, with the SQL each one emits: **[Query-string
+contract](https://janzen01.github.io/efcore.pagination/reference/query-string/)**. Every `400` it can produce: **[Errors](https://janzen01.github.io/efcore.pagination/reference/errors/)**.
 
 ## Documentation
 
-**[→ Full guide](https://janzen01.github.io/efcore.pagination/guide/)** — getting started, the query-string contract, configuration, projections,
-ASP.NET Core, providers and custom types, recipes.
+**[→ Documentation site](https://janzen01.github.io/efcore.pagination/)**, split by how a page is read.
+
+**Guide** — prose you follow once:
 
 | | |
 |---|---|
 | [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/) | Install → register → a working paginated endpoint. |
-| [Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/) | Every parameter and operator, with the SQL each one emits. |
-| [Configuration](https://janzen01.github.io/efcore.pagination/guide/configuration/) | The contract between an entity and the query string, method by method. |
+| [Configuration](https://janzen01.github.io/efcore.pagination/guide/configuration/) | What an allow-list buys you, and the three decisions a config has to make. |
 | [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/) | The four entry points and how to pick between them. |
-| [ASP.NET Core](https://janzen01.github.io/efcore.pagination/guide/aspnetcore/) | Binding, `ProblemDetails`, links, OpenAPI, Minimal APIs. |
-| [Providers & custom types](https://janzen01.github.io/efcore.pagination/guide/providers-and-types/) | `LIKE` vs `ILIKE`, NodaTime, your own value types. |
-| [Recipes](https://janzen01.github.io/efcore.pagination/guide/recipes/) | RBAC, collection filters, aggregates, testing, performance. |
+
+**Reference** — looked up mid-task:
+
+| | |
+|---|---|
+| [Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/) | Every parameter and operator, with the SQL each one emits. |
+| [Response contract](https://janzen01.github.io/efcore.pagination/reference/response/) | The envelope, `meta` field by field, and how links behave. |
+| [Configuration API](https://janzen01.github.io/efcore.pagination/reference/configuration/) | Every builder method: what it declares and what it refuses. |
+| [Errors](https://janzen01.github.io/efcore.pagination/reference/errors/) | Every `400`, in the order the engine validates. |
+
+**Integrations** — what changes when you add a package:
+
+| | |
+|---|---|
+| [ASP.NET Core](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/) | Binding, `ProblemDetails`, links, Minimal APIs. |
+| [OpenAPI](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/openapi/) | What the transformer emits, and badges. |
+| [PostgreSQL](https://janzen01.github.io/efcore.pagination/integrations/postgresql/) | `LIKE` vs `ILIKE`, and the SQL each emits. |
+| [NodaTime](https://janzen01.github.io/efcore.pagination/integrations/nodatime/) | `Instant` and `LocalDate` as filter, sort and projection types. |
+| [Custom types](https://janzen01.github.io/efcore.pagination/integrations/custom-types/) | Teaching the engine a value type of your own. |
+
+**Cookbook** — task-shaped answers:
+
+| | |
+|---|---|
+| [Recipes](https://janzen01.github.io/efcore.pagination/recipes/) | RBAC, collection filters, aggregates, config metadata. |
+| [Without ASP.NET Core](https://janzen01.github.io/efcore.pagination/recipes/without-aspnetcore/) | gRPC, console tools, workers, batch walks. |
+| [Performance and indexing](https://janzen01.github.io/efcore.pagination/recipes/performance/) | What to index, what a page costs, where deep paging stops being cheap. |
+| [Testing](https://janzen01.github.io/efcore.pagination/recipes/testing/) | Asserting a config with no database. |
+| [Troubleshooting](https://janzen01.github.io/efcore.pagination/recipes/troubleshooting/) | Symptom → cause. |
+| [From nestjs-paginate](https://janzen01.github.io/efcore.pagination/recipes/migration/) | What carries over from the contract this one borrowed. |
 
 Also in the repository: **[SETUP.md](SETUP.md)** for building the library itself, and **[CLAUDE.md](CLAUDE.md)**
 for architecture, versioning and the decisions behind them (written for humans and AI agents alike).

@@ -1,4 +1,7 @@
 ---
+# robots: noindex governs crawlers, not the local search index -- without this a reader
+# searching the site gets "This page has moved" alongside the page it moved to.
+search: false
 head:
   - - meta
     - http-equiv: refresh

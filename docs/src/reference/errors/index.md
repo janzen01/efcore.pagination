@@ -77,7 +77,7 @@ Raised once the operator is known and is being applied to the field.
 | `Filter 'x' supports '$contains' only for string or collection fields.` | `$contains` against a number, date or enum field | use `$eq` or `$in` on a scalar |
 | `Filter 'x' supports string pattern operators only for string fields.` | `$sw` or `$ilike` against a non-string field | pattern matching needs a `string` selector |
 | `Filter 'x' accepts at most N values.` | one list longer than `MaxFilterValues` | the ceiling is **per criterion**, so splitting a huge `$in` across two criteria of the same field is a legitimate workaround; raising it is [`WithGuards`](../configuration/#withguards) |
-| `Filter operator 'Contains' is not supported.` | an operator the engine has no implementation for. Note this one names the **enum member**, not the `$token`, because no query string can reach it — it is an engine-internal guard | not reachable from a request; treat it as a bug report |
+| `Filter operator '<member>' is not supported.` | an operator with no implementation behind it. Every current member has one, so no query string can reach this — it is an engine-internal guard, and it names the **enum member** rather than a `$token` for exactly that reason | not reachable from a request; treat it as a bug report |
 
 ### Value conversion
 

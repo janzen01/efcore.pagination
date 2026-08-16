@@ -12,11 +12,13 @@
 //
 // Add a path here when a new one is published in a package README. Never remove one.
 
-import { existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const dist = join(dirname(fileURLToPath(import.meta.url)), '..', '.dist')
+const docs = join(dirname(fileURLToPath(import.meta.url)), '..')
+const root = join(docs, '..')
+const dist = join(docs, '.dist')
 
 const frozen = [
 	'index.html',
@@ -30,15 +32,42 @@ const frozen = [
 	'guide/recipes/index.html'
 ]
 
-const missing = frozen.filter((path) => !existsSync(join(dist, path)))
+// The list above is history: what 10.0.0 already published. This second half is the future: whatever the
+// READMEs currently point at is what the NEXT release freezes, so it has to exist before that release, not
+// after someone reports a dead link from nuget.org. Reading them turns "remember to add a path here" into a
+// check -- the same reason scripts/verify-anchors.mjs exists.
+const SITE = 'https://janzen01.github.io/efcore.pagination/'
+
+const readmes = [
+	join(root, 'README.md'),
+	...readdirSync(join(root, 'src'), { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => join(root, 'src', entry.name, 'README.md'))
+]
+
+const advertised = new Map()
+
+for (const readme of readmes.filter(existsSync)) {
+	for (const [, path] of readFileSync(readme, 'utf8').matchAll(/https:\/\/janzen01\.github\.io\/efcore\.pagination\/([^)\s"']*)/g)) {
+		// Only site pages: the READMEs also link into github.com paths under the same project name.
+		if (path.startsWith('blob/') || path.startsWith('releases')) continue
+		if (path !== '' && !path.endsWith('/')) continue
+		advertised.set(`${path}index.html`, relative(root, readme).replaceAll('\\', '/'))
+	}
+}
+
+const required = new Map(frozen.map((path) => [path, 'released in 10.0.0']))
+for (const [path, source] of advertised) if (!required.has(path)) required.set(path, source)
+
+const missing = [...required].filter(([path]) => !existsSync(join(dist, path)))
 
 if (missing.length > 0) {
-	console.error('\nThese URLs ship inside released packages and are missing from the build:\n')
-	for (const path of missing) {
-		console.error(`  https://janzen01.github.io/efcore.pagination/${path.replace(/index\.html$/, '')}`)
+	console.error('\nThese URLs are published in a package README and are missing from the build:\n')
+	for (const [path, source] of missing) {
+		console.error(`  ${SITE}${path.replace(/index\.html$/, '')}   (${source})`)
 	}
 	console.error('\nEach page must be authored as <name>/index.md so it builds to <name>/index.html.\n')
 	process.exit(1)
 }
 
-console.log(`All ${frozen.length} released URLs are present in the build.`)
+console.log(`All ${required.size} advertised URLs are present in the build (${frozen.length} of them frozen by 10.0.0).`)

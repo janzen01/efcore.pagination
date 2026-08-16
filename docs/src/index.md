@@ -105,7 +105,7 @@ dotnet add package Janzen.Pagination.AspNetCore
 ## Where to go next
 
 The guide is meant to be read in order, but each page stands on its own.
-**[Getting started](./guide/getting-started/)** takes it from install to a paginated endpoint returning JSON.
+**[Getting started](/guide/getting-started/)** takes it from install to a paginated endpoint returning JSON.
 
 Once it runs, the site splits by what you are doing:
 

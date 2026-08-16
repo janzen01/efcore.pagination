@@ -95,6 +95,20 @@ builder.Services.AddPagination(p => p.UseLikeStrategy(new CitextLikeStrategy()))
 Call it once at startup, before serving requests. It sets a static, so the last call wins — do not switch it
 per request.
 
+### The static behind it
+
+`UseLikeStrategy(...)` assigns `PaginateLikeDefaults.Strategy`, a public, settable, process-wide property.
+Reading it tells you which strategy is active; assigning it is the non-DI way in, for a console tool or a
+test host with no service collection:
+
+```csharp
+PaginateLikeDefaults.Strategy = new CitextLikeStrategy();
+```
+
+It defaults to the portable `LIKE` strategy, so nothing has to be registered for the engine to work. Because
+it is mutable and shared, a test that swaps it changes behaviour for everything running alongside it — see
+[Testing your pagination](/recipes/testing/#watch-the-process-wide-statics).
+
 ## One process, one strategy
 
 Because the strategy is process-wide, an application that talks to **PostgreSQL and something else** in the

@@ -25,6 +25,21 @@ dotnet add package Janzen.Pagination.PostgreSql
 The core engine is the only required package — the other two are additive. `.AspNetCore` and `.PostgreSql`
 both reference the core transitively, so installing either alone also works.
 
+### Which `using` you need
+
+| Namespace | For |
+|-----------|-----|
+| `Janzen.Pagination.EntityFrameworkCore` | the `Paginate*Async` entry points, `PaginateTypeSupport` |
+| `Janzen.Pagination.EntityFrameworkCore.Configuration` | `PaginateConfig<T>`, `IPaginateConfigProvider<T>` |
+| `Janzen.Pagination.EntityFrameworkCore.Model` | `PaginateQuery`, `PaginatedResponse<T>`, `PaginateFilterOperator`, `PaginateQueryException` |
+| `Janzen.Pagination.EntityFrameworkCore.Links` | `PaginateLinkContext`, only when you build links yourself |
+| `Janzen.Pagination.EntityFrameworkCore.DependencyInjection` | `AddPagination`, and **every** `AddAspNetCore` / `UsePostgreSql` / `UseNodaTime` — the add-ons declare into this one namespace on purpose, so registration reads the same whichever packages you installed |
+| `Janzen.Pagination.AspNetCore` | `ToPaginateQuery()`, `AddPaginationLinkHeader()`, and the `HttpRequest` overloads of `Paginate*Async` |
+| `Janzen.Pagination.AspNetCore.OpenApi` | `[PaginatedQuery<T>]`, `PaginatedQueryOperationTransformer` |
+
+`WithPagination<T>()` needs no `using` at all: it is declared in `Microsoft.AspNetCore.Builder`, which a
+Minimal API file already has.
+
 ## 2. The entity and the DTO
 
 Nothing is required of the entity. The response DTO should be a **record** (or any type with a public

@@ -99,8 +99,11 @@ Two pieces of state are global and outlive a test:
 - `PaginateLikeDefaults.Strategy` — what `UsePostgreSql()` sets. A test that swaps it changes behaviour for
   every test running concurrently, so keep those in a non-parallel collection and restore the previous value
   afterwards.
-- `PaginateTypeSupport` registrations and `PaginateNodaTime.Register()` are **append-only and idempotent**,
-  so they are safe to call from many tests but cannot be undone. Register them once, in a fixture.
+- `PaginateTypeSupport` registrations **cannot be undone**, and the three methods do not behave alike on a
+  repeat call: a value parser or simple type registered twice for the same type **replaces** the earlier
+  one, while a projection conversion is **appended** — registering the same delegate twice installs it
+  twice. Only `PaginateNodaTime.Register()` is genuinely idempotent, guarded by a flag. Register all of
+  them once, in a fixture, and never per test.
 
 ## What this library does not test
 

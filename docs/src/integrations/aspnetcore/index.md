@@ -14,11 +14,22 @@ builder.Services.AddPagination(pagination => pagination.AddAspNetCore());
 builder.Services.AddControllers();
 ```
 
-`AddAspNetCore()` configures `MvcOptions`: it inserts the `PaginateQuery` model binder at position 0 and adds
-the `PaginateExceptionFilter`. Both only matter for **controllers** — a Minimal-API-only app can skip it and
-still get everything, because `WithPagination<T>()` attaches its own endpoint filter and
-`Request.ToPaginateQuery()` is an explicit call. You would then use `AddPagination(...)` only to select a
-[LIKE strategy](../postgresql/) or register NodaTime.
+`AddAspNetCore()` configures `MvcOptions`: it inserts the `PaginateQuery` model binder
+(`PaginateQueryModelBinderProvider`) at position 0 and adds the `PaginateExceptionFilter`. Both only matter
+for **controllers** — a Minimal-API-only app can skip it and still get everything, because
+`WithPagination<T>()` attaches its own endpoint filter and `Request.ToPaginateQuery()` is an explicit call.
+You would then use `AddPagination(...)` only to select a [LIKE strategy](../postgresql/) or register NodaTime.
+
+The lambda's parameter is an `IPaginationBuilder`. Every add-on hangs an extension method off it, which is
+why they all read the same way regardless of which package they come from. It exposes one member, `Services`,
+the underlying `IServiceCollection` — the escape hatch for registering your own types inside the same block:
+
+```csharp
+builder.Services.AddPagination(pagination => {
+    pagination.AddAspNetCore().UsePostgreSql();
+    pagination.Services.AddSingleton<ProductPaginateConfigProvider>();
+});
+```
 
 ## Two layers name the same config
 
@@ -29,6 +40,11 @@ separately and **nothing checks that they agree**:
 |---|---|---|
 | `[PaginatedQuery<TProvider>]` / `WithPagination<TProvider>()` | a **provider type** | documents the operation — [OpenAPI](./openapi/) reads the config through it |
 | the `config` argument to `Paginate*Async` | a **config instance** | enforces it at run time |
+
+The attribute is `PaginatedQueryAttribute<TConfigProvider>`, constrained
+`where TConfigProvider : IPaginateConfigProvider` and applicable to methods only;
+`WithPagination<TConfigProvider>()` carries the same constraint and attaches the same metadata. Note the
+constraint is the **non-generic** `IPaginateConfigProvider`, so a provider satisfies it either way.
 
 So an endpoint documented with one provider and executed against a different config compiles, runs, and
 publishes a contract it does not honour. Point both at the same place — a `static readonly` field on the
