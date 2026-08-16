@@ -1,8 +1,3 @@
----
-title: Configuration
-nav_order: 4
----
-
 # Configuration
 
 `PaginateConfig<TEntity>` is the contract between your entity and the query string. It is built once with a
@@ -81,7 +76,7 @@ is independent, so name the ones you want:
 .WithGuards(maxFilterValues: 500)     // large $in lists on this resource, everything else default
 ```
 
-See [Query-string → Guards](query-string.md#guards) for what each one rejects.
+See [Query-string → Guards](/reference/query-string/#guards) for what each one rejects.
 
 ---
 
@@ -232,7 +227,7 @@ restriction nobody can see in the docs is a support ticket waiting to happen.
 The library stays auth-agnostic: you evaluate the boolean from whatever you have — a role, a claim, a tenant, a
 feature flag. Because it is captured when the config is **built**, per-user gating means building the config
 per request or caching one config per role. See [Recipes → role-based
-configurations](recipes.md#role-based-configurations).
+configurations](/recipes/#role-based-configurations).
 
 A default sort field disabled by `.When(false)` is skipped rather than fatal, so the resource still pages for
 callers who cannot see it.

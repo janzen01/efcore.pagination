@@ -1,8 +1,3 @@
----
-title: Recipes
-nav_order: 8
----
-
 # Recipes
 
 Task-shaped answers. Each one is self-contained.
@@ -106,7 +101,7 @@ var page = await db.Articles.PaginateSelectAsync(request, config, a => new Artic
 
 One query; the `SELECT` mentions only these columns. If an aggregate needs CLR logic EF cannot translate —
 rounding, a divide-by-zero guard — project the raw ingredients and finish them with
-[`PaginateSelectMapAsync`](projections.md#paginateselectmapasync--sql-then-finish-in-memory).
+[`PaginateSelectMapAsync`](/guide/projections/#paginateselectmapasync--sql-then-finish-in-memory).
 
 ## Expose the contract as metadata
 
@@ -132,7 +127,7 @@ public object Meta() {
 }
 ```
 
-The same metadata is what the [OpenAPI transformer](aspnetcore.md#openapi) reads, so the two cannot disagree.
+The same metadata is what the [OpenAPI transformer](/integrations/aspnetcore/#openapi) reads, so the two cannot disagree.
 
 ## Build links outside ASP.NET Core
 

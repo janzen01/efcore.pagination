@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <!-- Vector master for icon.png. The packages ship the PNG because NuGet does not accept SVG;
+       this file is the source for any other size (favicon, social preview, docs).
+       The filled tile keeps contrast independent of the host background: nuget.org is light,
+       IDE package lists are often dark. The two solid bars are the current page.
+
+       icon.png next to this file is this SVG exported at 512x512 (transparent background).
+       Change this file, then re-export with a real SVG renderer, e.g.:
+           inkscape assets/icon.svg -o assets/icon.png -w 512 -h 512
+           # or: magick -background none -density 384 assets/icon.svg -resize 512x512 assets/icon.png
+       Do not hand-translate these coordinates into a drawing library — the first PNG was made
+       that way and the semi-transparent bars came out wrong. -->
+  <rect width="512" height="512" rx="112" fill="#512BD4"/>
+  <rect x="106" y="100" width="264" height="34" rx="17" fill="#FFFFFF" fill-opacity="0.35"/>
+  <rect x="106" y="156" width="228" height="34" rx="17" fill="#FFFFFF" fill-opacity="0.35"/>
+  <rect x="106" y="212" width="300" height="34" rx="17" fill="#FFFFFF"/>
+  <rect x="106" y="268" width="264" height="34" rx="17" fill="#FFFFFF"/>
+  <rect x="106" y="324" width="272" height="34" rx="17" fill="#FFFFFF" fill-opacity="0.35"/>
+  <rect x="106" y="380" width="214" height="34" rx="17" fill="#FFFFFF" fill-opacity="0.35"/>
+</svg>

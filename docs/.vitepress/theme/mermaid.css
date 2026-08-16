@@ -1,0 +1,44 @@
+/*
+ * Mermaid renders client-side into `div.mermaid`, and it sizes every node by measuring the label in the
+ * browser at that moment. Two things then go wrong on a VitePress page, and both look like a rendering bug
+ * rather than a CSS one.
+ */
+
+/* The diagram is a figure, not a paragraph: it belongs in the middle of the column, not flush left. */
+.mermaid {
+	display: flex;
+	justify-content: center;
+	margin: 24px 0;
+}
+
+.mermaid svg {
+	max-width: 100%;
+	height: auto;
+}
+
+/*
+ * Clipping. A node label lives inside an <foreignObject> whose height was fixed at measurement time. Anything
+ * that makes the text taller afterwards -- the theme's web font finishing its load, or the prose rules below
+ * applying to the element -- pushes the last line past that height, and the default `overflow: hidden` cuts it
+ * in half. That is the "paging, projection" line showing only its top half.
+ *
+ * `overflow: visible` draws the label in full whatever the box says, and neutralising the prose margins and
+ * line-height keeps the label the size mermaid measured in the first place.
+ */
+.mermaid foreignObject {
+	overflow: visible;
+}
+
+.mermaid foreignObject div,
+.mermaid foreignObject span,
+.mermaid foreignObject p {
+	margin: 0;
+	padding: 0;
+	line-height: 1.4;
+}
+
+/* The theme styles <p> inside prose with a top margin; inside a label that shifts the text off centre. */
+.mermaid .nodeLabel,
+.mermaid .edgeLabel {
+	line-height: 1.4;
+}

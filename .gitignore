@@ -1,12 +1,20 @@
 # Docs
-# docs/ is local planning; only the published guide and the GitHub Pages site are tracked.
-# The site is built by GitHub Pages' own Jekyll from master /docs — a file that is not
-# re-included here is invisible to the build, and the deploy silently ignores it.
+# docs/ stays deny-by-default: anything dropped in there is local planning unless it is named below.
+# The site itself is the VitePress project, and a source file that is not covered here is invisible
+# to the build, which then publishes a site missing that page without failing.
 docs/*
-!docs/guide/
-!docs/_config.yml
-!docs/_includes/
-!docs/index.md
+!docs/src/
+!docs/.vitepress/
+!docs/scripts/
+!docs/package.json
+!docs/.npmrc
+!docs/pnpm-lock.yaml
+
+# Build output and tooling, which the site does not ship.
+docs/.dist/
+docs/node_modules/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
 
 # JetBrains IDEs
 **/.idea/**/workspace.xml

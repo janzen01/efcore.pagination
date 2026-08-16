@@ -7,6 +7,8 @@ usage docs for *consuming* the packages live in [README.md](README.md) and each 
 
 - **.NET 10 SDK** (the repo is `net10.0`-only)
 - **git**
+- **Node 24 + pnpm** — only if you touch the documentation site under `docs/`. Nothing in `src/` or `test/` needs
+  them, so skip this unless you are editing docs.
 
 No database or extra services are required — the four `Janzen.Pagination.*` projects restore from nuget.org and build
 on their own.
@@ -75,6 +77,23 @@ graphify update .
 
 The semantic layer needs an AI-provider token, but inside an interactive Claude Code session the host model performs
 extraction and no token is required.
+
+## Optional — the documentation site
+
+The site under `docs/` is a [VitePress](https://vitepress.dev) project, published to GitHub Pages by
+`.github/workflows/docs.yml` on every push to `master` that touches `docs/`. `pnpm` comes from corepack, pinned
+by the `packageManager` field.
+
+```bash
+cd docs
+pnpm install
+pnpm docs:dev      # local preview with hot reload
+pnpm docs:build    # what CI runs
+```
+
+`pnpm docs:build` ends by checking that every URL already published inside a released package README still exists
+in the output. If that check fails, a page was renamed in a way that turns a shipped link into a 404 — read
+`docs/scripts/verify-frozen-urls.mjs` before "fixing" it.
 
 ## Optional — publishing (maintainers)
 

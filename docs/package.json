@@ -1,0 +1,22 @@
+{
+  "name": "@janzen01/efcore.pagination-docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Documentation site for Janzen.Pagination, published to GitHub Pages.",
+  "packageManager": "pnpm@10.13.1",
+  "engines": {
+    "node": ">=24.19.0"
+  },
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build && node scripts/verify-frozen-urls.mjs",
+    "docs:preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "mermaid": "^11.16.1",
+    "vitepress": "2.0.0-alpha.19",
+    "vitepress-plugin-mermaid": "^2.0.17",
+    "vue": "^3.5.40"
+  }
+}

@@ -1,8 +1,3 @@
----
-title: ASP.NET Core
-nav_order: 6
----
-
 # ASP.NET Core
 
 What `Janzen.Pagination.AspNetCore` adds on top of the engine: query-string binding, `400 ProblemDetails`,
@@ -23,7 +18,7 @@ builder.Services.AddControllers();
 the `PaginateExceptionFilter`. Both only matter for **controllers** — a Minimal-API-only app can skip it and
 still get everything, because `WithPagination<T>()` attaches its own endpoint filter and
 `Request.ToPaginateQuery()` is an explicit call. You would then use `AddPagination(...)` only to select a
-[LIKE strategy](providers-and-types.md) or register NodaTime.
+[LIKE strategy](../postgresql/) or register NodaTime.
 
 ---
 
@@ -95,7 +90,7 @@ Every invalid query — a bad operator, an unknown sort field, an out-of-range l
 ```
 
 The `title` is always `Invalid query`; `detail` carries the specific message. The full list is in the
-[error catalogue](query-string.md#error-catalogue). No per-action `try`/`catch` is needed anywhere.
+[error catalogue](/reference/query-string/#error-catalogue). No per-action `try`/`catch` is needed anywhere.
 
 The controller path builds the payload through the app's registered `ProblemDetailsFactory`, so your own
 `AddProblemDetails` customisation (extra members, `type` URIs, trace identifiers) applies here too.
@@ -180,14 +175,14 @@ Because the parameters are generated from the config, they cannot drift from wha
 
 `.ShowBadge("Admin only", "language-admin")` renders as an inline `<code>` chip appended to that parameter's
 description. The `language-` prefix is required because it is the only class an API reference UI's markdown
-sanitizer preserves there — see [Configuration → ShowBadge](configuration.md#showbadge). Colour it from the
+sanitizer preserves there — see [Configuration → ShowBadge](/guide/configuration/#showbadge). Colour it from the
 reference UI's custom CSS:
 
 ```css
 .language-admin { background: #8B1A1A; color: #fff; border-radius: 4px; padding: 1px 6px }
 ```
 
-Fields gated with [`.When(...)`](configuration.md#when--conditional-fields) stay documented regardless of the
+Fields gated with [`.When(...)`](/guide/configuration/#when--conditional-fields) stay documented regardless of the
 condition, so the published contract is the widest one; enforcement happens at query time.
 
 ---

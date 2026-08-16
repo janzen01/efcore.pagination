@@ -1,8 +1,3 @@
----
-title: Getting started
-nav_order: 2
----
-
 # Getting started
 
 From nothing to a paginated, filterable, sortable JSON endpoint. The example is an ASP.NET Core Web API on
@@ -119,7 +114,7 @@ public sealed class ProductController(AppDbContext db) : ControllerBase {
 `page`, `limit` and friends as action parameters. Passing `this.Request` is what makes the response carry
 `first`/`prev`/`next`/`last` links; omit it and those are `null`.
 
-The `Minimal API` equivalent is in [ASP.NET Core → Minimal APIs](aspnetcore.md#minimal-apis).
+The `Minimal API` equivalent is in [ASP.NET Core → Minimal APIs](../aspnetcore/#minimal-apis).
 
 ## 6. What comes back
 
@@ -195,10 +190,10 @@ var page = await db.Products.PaginateAsync<Product, ProductDto>(request, config,
 
 `page.Links` will be `null` — links need a `PaginateLinkContext`, which the ASP.NET Core overloads build
 from the current request. `page.Meta` still carries the full paging state. You can supply a context yourself;
-see [Recipes → links outside ASP.NET Core](recipes.md#build-links-outside-aspnet-core).
+see [Recipes → links outside ASP.NET Core](/recipes/#build-links-outside-aspnet-core).
 
 ## Next
 
-- The complete wire format, operator by operator → **[Query-string contract](query-string.md)**
-- Everything the builder can declare → **[Configuration](configuration.md)**
-- Sub-collections, aggregates, computed fields → **[Projections](projections.md)**
+- The complete wire format, operator by operator → **[Query-string contract](/reference/query-string/)**
+- Everything the builder can declare → **[Configuration](../configuration/)**
+- Sub-collections, aggregates, computed fields → **[Projections](../projections/)**

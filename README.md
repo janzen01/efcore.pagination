@@ -19,7 +19,7 @@ GET /products?page=2&limit=25&sortBy=price:DESC&search=widget&filter.status=$in:
 
 That contract is borrowed from [nestjs-paginate](https://github.com/ppetzold/nestjs-paginate) (MIT) — the
 same query parameters, operator names and response envelope.
-[Query-string contract](docs/guide/query-string.md) is the exact specification.
+[Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/) is the exact specification.
 
 ## What you get
 
@@ -110,7 +110,7 @@ public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery reques
 }
 ```
 
-The full walkthrough is in **[Getting started](docs/guide/getting-started.md)**.
+The full walkthrough is in **[Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/)**.
 
 ## The query string, at a glance
 
@@ -124,22 +124,22 @@ The full walkthrough is in **[Getting started](docs/guide/getting-started.md)**.
 | `filter.<field>` | `?filter.price=$btw:10,500`          | `[$not:][$and:\|$or:]$operator:value` — repeatable per field. |
 
 Every operator, every value format and the complete `400` catalogue: **[Query-string
-contract](docs/guide/query-string.md)**.
+contract](https://janzen01.github.io/efcore.pagination/guide/query-string/)**.
 
 ## Documentation
 
-**[→ Full guide](docs/guide/)** — getting started, the query-string contract, configuration, projections,
+**[→ Full guide](https://janzen01.github.io/efcore.pagination/guide/)** — getting started, the query-string contract, configuration, projections,
 ASP.NET Core, providers and custom types, recipes.
 
 | | |
 |---|---|
-| [Getting started](docs/guide/getting-started.md) | Install → register → a working paginated endpoint. |
-| [Query-string contract](docs/guide/query-string.md) | Every parameter and operator, with the error catalogue. |
-| [Configuration](docs/guide/configuration.md) | Every builder method: what it enables and what it rejects. |
-| [Projections](docs/guide/projections.md) | The four entry points and how to pick between them. |
-| [ASP.NET Core](docs/guide/aspnetcore.md) | Binding, `ProblemDetails`, links, OpenAPI, Minimal APIs. |
-| [Providers & custom types](docs/guide/providers-and-types.md) | `LIKE` vs `ILIKE`, NodaTime, your own value types. |
-| [Recipes](docs/guide/recipes.md) | RBAC, collection filters, aggregates, testing, performance. |
+| [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/) | Install → register → a working paginated endpoint. |
+| [Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/) | Every parameter and operator, with the error catalogue. |
+| [Configuration](https://janzen01.github.io/efcore.pagination/guide/configuration/) | Every builder method: what it enables and what it rejects. |
+| [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/) | The four entry points and how to pick between them. |
+| [ASP.NET Core](https://janzen01.github.io/efcore.pagination/guide/aspnetcore/) | Binding, `ProblemDetails`, links, OpenAPI, Minimal APIs. |
+| [Providers & custom types](https://janzen01.github.io/efcore.pagination/guide/providers-and-types/) | `LIKE` vs `ILIKE`, NodaTime, your own value types. |
+| [Recipes](https://janzen01.github.io/efcore.pagination/guide/recipes/) | RBAC, collection filters, aggregates, testing, performance. |
 
 Also in the repository: **[SETUP.md](SETUP.md)** for building the library itself, and **[CLAUDE.md](CLAUDE.md)**
 for architecture, versioning and the decisions behind them (written for humans and AI agents alike).

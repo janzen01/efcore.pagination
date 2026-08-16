@@ -1,8 +1,3 @@
----
-title: Projections
-nav_order: 5
----
-
 # Projections
 
 Four entry points, one per projection strategy. They are deliberately **not overloads of one name**: the call
@@ -36,7 +31,7 @@ flowchart TD
 | Map | `PaginateMapAsync<TEntity, TResult>(request, config, projector)` | in memory | **every column of the entity** |
 
 All four take an optional `PaginateLinkContext? linkContext = null` and `CancellationToken ct = default`; the
-[ASP.NET Core](aspnetcore.md) package mirrors them with an `HttpRequest` parameter in place of the link
+[ASP.NET Core](../aspnetcore/) package mirrors them with an `HttpRequest` parameter in place of the link
 context.
 
 ### Type-argument order
@@ -76,7 +71,7 @@ var page = await db.Products.PaginateAsync<Product, ProductDto>(request, config,
    case-insensitively.
 3. If the types are assignable (including `T` → `T?`), the member is used directly.
 4. Otherwise a registered conversion is tried — that is how `Instant` → `DateTimeOffset` works when the
-   [`.NodaTime`](providers-and-types.md#nodatime) package is installed.
+   [`.NodaTime`](/integrations/nodatime/) package is installed.
 5. Otherwise, if the target is a *simple* type (primitive, `string`, `enum`, `Guid`, `decimal`, `DateTime`,
    `DateTimeOffset`, or a registered one) it fails — there is nothing sensible to do.
 6. Otherwise it recurses: the target is treated as a nested DTO and built from the source member the same way.

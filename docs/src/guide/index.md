@@ -1,23 +1,20 @@
----
-title: Guide
-nav_exclude: true
-permalink: /guide/
----
-
 # Janzen.Pagination — guide
 
-Everything a consumer needs, in reading order. Each page stands on its own, so jumping straight to the one
-you need also works.
+Three pages, in reading order. Each stands on its own, so jumping straight to the one you need also works.
 
 | Page | What it answers |
 |------|-----------------|
-| **[Getting started](getting-started.md)** | Install, register, and get a paginated endpoint returning JSON. |
-| **[Query-string contract](query-string.md)** | Every parameter and every filter operator, with request → SQL examples. |
-| **[Configuration](configuration.md)** | Every `PaginateConfigBuilder<T>` method: what it enables and what it rejects. |
-| **[Projections](projections.md)** | The four `Paginate*Async` entry points and how to pick between them. |
-| **[ASP.NET Core](aspnetcore.md)** | Model binding, `ProblemDetails`, links, OpenAPI, controllers and Minimal APIs. |
-| **[Providers & custom types](providers-and-types.md)** | `LIKE` vs `ILIKE`, NodaTime, teaching the engine your own types. |
-| **[Recipes](recipes.md)** | RBAC, collection filters, aggregates, `Link` headers, non-web callers, testing. |
+| **[Getting started](./getting-started/)** | Install, register, and get a paginated endpoint returning JSON. |
+| **[Configuration](./configuration/)** | Every `PaginateConfigBuilder<T>` method: what it enables and what it rejects. |
+| **[Projections](./projections/)** | The four `Paginate*Async` entry points and how to pick between them. |
+
+The rest of the site is not narrative, so it lives outside the guide:
+
+| Section | What it is for |
+|---------|----------------|
+| **[Reference](/reference/query-string/)** | The wire contract, looked up mid-task: every parameter, every operator, every `400`, and the SQL each one emits. |
+| **[Integrations](/integrations/)** | One page per package — ASP.NET Core, PostgreSQL, NodaTime — plus teaching the engine your own types. |
+| **[Cookbook](/recipes/)** | Task-shaped answers: RBAC, collection filters, aggregates, `Link` headers, non-web callers, testing. |
 
 ## The 30-second version
 
