@@ -134,8 +134,8 @@ ASP.NET Core, providers and custom types, recipes.
 | | |
 |---|---|
 | [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/) | Install → register → a working paginated endpoint. |
-| [Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/) | Every parameter and operator, with the error catalogue. |
-| [Configuration](https://janzen01.github.io/efcore.pagination/guide/configuration/) | Every builder method: what it enables and what it rejects. |
+| [Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/) | Every parameter and operator, with the SQL each one emits. |
+| [Configuration](https://janzen01.github.io/efcore.pagination/guide/configuration/) | The contract between an entity and the query string, method by method. |
 | [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/) | The four entry points and how to pick between them. |
 | [ASP.NET Core](https://janzen01.github.io/efcore.pagination/guide/aspnetcore/) | Binding, `ProblemDetails`, links, OpenAPI, Minimal APIs. |
 | [Providers & custom types](https://janzen01.github.io/efcore.pagination/guide/providers-and-types/) | `LIKE` vs `ILIKE`, NodaTime, your own value types. |

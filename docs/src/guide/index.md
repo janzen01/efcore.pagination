@@ -4,17 +4,9 @@ Three pages, in reading order. Each stands on its own, so jumping straight to th
 
 | Page | What it answers |
 |------|-----------------|
-| **[Getting started](./getting-started/)** | Install, register, and get a paginated endpoint returning JSON. |
-| **[Configuration](./configuration/)** | Every `PaginateConfigBuilder<T>` method: what it enables and what it rejects. |
+| **[Getting started](./getting-started/)** | Install, register, and get a paginated endpoint returning JSON — plus what the engine does with the request once it arrives. |
+| **[Configuration](./configuration/)** | What an allow-list buys you, and the three decisions every config has to make. |
 | **[Projections](./projections/)** | The four `Paginate*Async` entry points and how to pick between them. |
-
-The rest of the site is not narrative, so it lives outside the guide:
-
-| Section | What it is for |
-|---------|----------------|
-| **[Reference](/reference/query-string/)** | The wire contract, looked up mid-task: every parameter, every operator, every `400`, and the SQL each one emits. |
-| **[Integrations](/integrations/)** | One page per package — ASP.NET Core, PostgreSQL, NodaTime — plus teaching the engine your own types. |
-| **[Cookbook](/recipes/)** | Task-shaped answers: RBAC, collection filters, aggregates, `Link` headers, non-web callers, testing. |
 
 ## The 30-second version
 
@@ -36,35 +28,15 @@ PaginatedResponse<ProductDto> page = await db.Products.PaginateAsync<Product, Pr
 GET /products?page=2&limit=25&sortBy=name:DESC&search=acme&filter.status=$in:active,pending
 ```
 
-## How the pieces fit
+The engine works on its own against any `IQueryable<T>`; the ASP.NET Core, PostgreSQL and NodaTime packages
+are independent add-ons, so take only the ones you need.
 
-```mermaid
-graph BT
-    Core["<b>Janzen.Pagination.EntityFrameworkCore</b><br/>query engine: config, filtering, sorting, paging, projection"]
+## When the guide is not what you want
 
-    Pg["<b>.PostgreSql</b><br/>native ILIKE"]
-    Web["<b>.AspNetCore</b><br/>binding · ProblemDetails · links · OpenAPI"]
-    Noda["<b>.NodaTime</b><br/>Instant · LocalDate"]
+The guide is prose you follow once. The rest of the site is shaped for other moments:
 
-    Pg --> Core
-    Web --> Core
-    Noda --> Core
-
-    classDef core fill:#512BD4,stroke:#512BD4,color:#fff
-    classDef addon fill:none,stroke:#512BD4,stroke-width:2px
-    class Core core
-    class Pg,Web,Noda addon
-```
-
-The engine works on its own against any `IQueryable<T>`. The three add-ons are independent of each other —
-take only the ones you need.
-
-## Two things worth knowing up front
-
-**The configuration is the allow-list.** A field that is not declared `Sortable` / `Searchable` / `Filterable`
-cannot be sorted, searched or filtered on, and an operator not listed for a field is rejected for that field.
-There is no "expose the whole entity" mode, deliberately.
-
-**Paging is offset-based and needs a deterministic order.** `WithTieBreaker(p => p.Id)` appends a unique key as
-the final ordering key so two rows that compare equal on the primary sort still land in a stable order. Without
-any order at all the engine refuses the query rather than returning silently unstable pages.
+- **[Reference](/reference/query-string/)** is looked up mid-task — the request and response contracts, every
+  builder method and what it refuses, and every `400`.
+- **[Integrations](/integrations/)** is per package: what changes when you add one.
+- **[Cookbook](/recipes/)** is task-shaped — role-based configs, collection filters, aggregates, non-web
+  callers, testing.

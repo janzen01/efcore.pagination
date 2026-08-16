@@ -215,7 +215,7 @@ Full contract, value formats and the complete list of `400` messages:
 
 - [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/)
 - [Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/)
-- [Configuration reference](https://janzen01.github.io/efcore.pagination/guide/configuration/)
+- [Configuration](https://janzen01.github.io/efcore.pagination/guide/configuration/)
 - [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/)
 - [Recipes](https://janzen01.github.io/efcore.pagination/guide/recipes/)
 

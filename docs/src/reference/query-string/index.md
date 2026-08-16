@@ -18,24 +18,13 @@ parameters. `page` and `limit` themselves *are* validated and return `400`.
 For repeatable parameters, repeat the key (`?sortBy=a:ASC&sortBy=b:DESC`). Comma-joining them in one value
 does **not** work — that reads as a single malformed instruction.
 
-## How a request becomes a query
+Rejections are quoted inline below where they help explain a rule. The complete list, and which message wins
+when a request is wrong in several ways at once, is in [Errors](../errors/); the ceilings that
+produce several of them are in [Configuration API → Guards](../configuration/#guards).
 
-```mermaid
-flowchart TB
-    Q["query string"] --> V["validate page, limit,<br/>sort, search, filters"]
-    V -->|"anything unhonourable"| E["400 PaginateQueryException"]
-    V --> W["WHERE: filters AND (search)"]
-    W --> O["ORDER BY: sortBy or DefaultSortBy,<br/>then the tie-breaker"]
-    O --> C["SELECT COUNT(*)"]
-    C -->|"0 rows"| Z["empty page, second query skipped"]
-    C --> P["LIMIT / OFFSET + projection"]
-```
-
-Two things follow from that shape, and both are visible in the SQL:
-
-- **Validation happens before the database is touched.** A rejected request costs no query.
-- **A page is two queries, and sometimes one.** The count runs first; when it comes back `0`, the second
-  query is never sent. A filter that cannot match anything therefore costs exactly one cheap count.
+For the pipeline these six parameters feed — bind, validate, filter, count, sort, page — see
+[Getting started](/guide/getting-started/#what-the-engine-does-with-that-request). This page is the parameters
+themselves.
 
 ::: info About the SQL on this page
 Every statement quoted here was captured from the engine running against **SQLite**, so the text is that
@@ -86,12 +75,12 @@ GET /products?sortBy=status:ASC&sortBy=rank:DESC
 ORDER BY "p"."Status", "p"."Rank" DESC, "p"."Id"
 ```
 
-That trailing `"p"."Id"` is the tie-breaker, and it is the whole point of the feature: two products sharing a
-status and a rank would otherwise be free to swap places between page 1 and page 2, dropping one row and
-repeating another.
+That trailing `"p"."Id"` is the configured
+[tie-breaker](../configuration/#withtiebreaker), appended to every query so that rows which compare
+equal cannot swap places between pages.
 
-- More than `MaxSortFields` (default 5) → `400`.
-- A field that is not configured sortable (or is disabled for this caller via [`.When(...)`](/guide/configuration/#when--conditional-fields)) → `400 Sort for field 'x' is not configured.`
+- More than [`MaxSortFields`](../configuration/#guards) (default 5) → `400`.
+- A field that is not configured sortable (or is disabled for this caller via [`.When(...)`](../configuration/#when)) → `400 Sort for field 'x' is not configured.`
 - No `sortBy` at all → the config's `DefaultSortBy` entries, in declaration order.
 - The configured **tie-breaker is always appended last**, whichever of the two applied.
 
@@ -395,61 +384,6 @@ included.
 Values are emitted as SQL **parameters** (`EF.Parameter`), never inlined literals — every `@p` on this page is
 that at work. The database can reuse one plan across every value your callers send, and a value can never be
 read as SQL.
-
-## Guards
-
-Per-config ceilings that bound how expensive one request can be. Defaults shown; change them with
-[`WithGuards(...)`](/guide/configuration/#withguards).
-
-| Guard | Default | Exceeded → |
-|-------|--------:|------------|
-| `MaxLimit` | *(required, no default)* | `400 Query parameter 'limit' must be between 1 and N.` |
-| `MaxFilterValues` | 100 | `400 Filter 'x' accepts at most N values.` |
-| `MaxFilterConditions` | 20 | `400 Too many filter conditions; at most N are allowed.` |
-| `MaxSortFields` | 5 | `400 Too many sort fields; at most N are allowed.` |
-| `MaxSearchLength` | 256 | `400 Search term must not exceed N characters.` |
-
-`MaxFilterConditions` counts every `filter.*` value across all fields, so 20 conditions total — not 20 per
-field.
-
-## Error catalogue
-
-Everything below is a `PaginateQueryException`, surfaced by the ASP.NET Core integration as
-`400 Bad Request` with `title: "Invalid query"` and the message as `detail`. See
-[ASP.NET Core → Errors](/integrations/aspnetcore/#errors-as-problemdetails).
-
-| Message | Cause |
-|---------|-------|
-| `Query parameter 'page' must be a positive integer.` | `page` is not a plain positive integer. |
-| `Query parameter 'limit' must be between 1 and N.` | `limit` out of range. |
-| `Sort value 'x' must use the format 'field:ASC' or 'field:DESC'.` | Missing the `:direction` half. |
-| `Sort direction 'x' is not supported.` | Direction is neither `ASC` nor `DESC`. |
-| `Too many sort fields; at most N are allowed.` | More `sortBy` values than `MaxSortFields`. |
-| `Sort for field 'x' is not configured.` | Not declared `Sortable`, or disabled by `.When(false)`. |
-| `Pagination requires a deterministic sort order. …` | No `sortBy`, no `DefaultSortBy`, no tie-breaker. |
-| `Search term must not exceed N characters.` | `search` longer than `MaxSearchLength`. |
-| `Search is not configured for this resource.` | `search` sent to a config with no searchable fields. |
-| `Search for field 'x' is not configured.` | Unknown `searchBy` field. |
-| `Search field 'x' is specified more than once.` | Duplicate `searchBy` value. |
-| `Filter for field 'x' is not configured.` | Not declared `Filterable`, or disabled by `.When(false)`. |
-| `Filter 'x' must not be empty.` | `?filter.x=` with no value at all. |
-| `Filter 'x' uses unknown operator '$foo'.` | Token is not one of the operators above. |
-| `Filter 'x' must use the format '$operator:value'.` | No operator token, or an operator other than `$null` used bare. |
-| `Filter 'x' does not support operator '$foo'.` | Valid operator, not whitelisted for that field. |
-| `Filter 'x' requires at least one '$in' value.` | `$in` with an empty list. |
-| `Filter 'x' requires exactly two '$btw' values.` | `$btw` with anything but two values. |
-| `Filter 'x' requires at least one '$contains' value.` | `$contains` on a collection with an empty list. |
-| `Filter 'x' supports '$contains' only for string or collection fields.` | `$contains` on a scalar. |
-| `Filter 'x' supports string pattern operators only for string fields.` | `$sw` / `$ilike` on a non-string. |
-| `Too many filter conditions; at most N are allowed.` | Over `MaxFilterConditions`. |
-| `Filter 'x' accepts at most N values.` | Over `MaxFilterValues` in one list. |
-| `Value 'v' is not valid for type 'T'.` | Unparseable, or an undefined enum member. |
-| `Value 'v' is not a valid GUID.` / `boolean` / `instant` / `local date` | Type-specific parse failure. |
-| `Value for type 'T' must not be empty.` | Empty value for a non-nullable target. |
-| `Filtering values of type 'T' is not supported.` | No parser registered for that CLR type. |
-
-A field disabled by `.When(false)` reports **exactly** the same message as a field that does not exist — the
-existence of an admin-only field is not disclosed to callers who cannot use it.
 
 ## One request, end to end
 

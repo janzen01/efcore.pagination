@@ -10,7 +10,7 @@
   },
   "scripts": {
     "docs:dev": "vitepress dev",
-    "docs:build": "vitepress build && node scripts/verify-frozen-urls.mjs",
+    "docs:build": "vitepress build && node scripts/verify-frozen-urls.mjs && node scripts/verify-anchors.mjs",
     "docs:preview": "vitepress preview"
   },
   "devDependencies": {

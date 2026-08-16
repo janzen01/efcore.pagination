@@ -47,6 +47,7 @@ GET /products?page=2&limit=25&sortBy=price:DESC&search=widget&filter.status=$in:
 ## Kam dál
 
 - [Getting started](/guide/getting-started/) — od instalace k funkčnímu endpointu
-- [Query-string contract](/reference/query-string/) — přesná specifikace všech parametrů, operátorů a chyb `400`,
+- [Query-string contract](/reference/query-string/) — přesná specifikace všech parametrů a operátorů,
   včetně SQL, které z každého operátoru vyleze
-- [Configuration](/guide/configuration/) — každá metoda builderu, co povoluje a co odmítá
+- [Configuration API](/reference/configuration/) — každá metoda builderu, co povoluje a co odmítá
+- [Errors](/reference/errors/) — všechny chyby `400`, co je způsobí a jak je opravit

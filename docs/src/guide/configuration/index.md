@@ -1,7 +1,8 @@
 # Configuration
 
-`PaginateConfig<TEntity>` is the contract between your entity and the query string. It is built once with a
-fluent builder, is immutable, and is safe to hold in a static field.
+`PaginateConfig<TEntity>` is the contract between your entity and the query string. Nothing a caller sends is
+interpreted against your model directly — it is matched against this declaration first, and rejected if it
+does not appear here.
 
 ```csharp
 var config = PaginateConfig<Product>.Create(builder => builder
@@ -9,6 +10,25 @@ var config = PaginateConfig<Product>.Create(builder => builder
     .Sortable("name", p => p.Name)
     .WithTieBreaker(p => p.Id));
 ```
+
+That is a complete, working configuration: products can be paged and sorted by name, and by nothing else.
+
+> This page is the reasoning. For every builder method, its signature and what it refuses, see
+> [Configuration API](/reference/configuration/).
+
+## It is an allow-list, not a query language
+
+A field you do not declare is not addressable, and an operator you do not grant for a field is rejected for
+that field. There is no wildcard and no opt-out.
+
+This is the difference between exposing pagination and exposing your database. A generic query API lets a
+caller sort by any column — including the unindexed `text` one — and filter with any operator, including a
+leading-wildcard match across ten million rows. Here, every query shape a caller can produce is one you wrote
+down, so the set of statements your database will ever see is finite and reviewable.
+
+The practical consequence: **declare what a screen actually needs**, not everything that might one day be
+useful. Adding a field later is a one-line change; discovering in production that someone can `$ilike` an
+unindexed column is not.
 
 ## What each declaration unlocks
 
@@ -46,198 +66,81 @@ flowchart LR
     FM --> F
 ```
 
-Field names are **arbitrary public aliases** — they need not match property names, and they are matched
-case-insensitively. Declaring the same name twice for the same kind replaces the earlier declaration.
+Field names are **arbitrary public aliases**. They need not match property names, and choosing them well is
+worth a minute: they are what appears in your OpenAPI document, in client code and in the URLs your callers
+bookmark. Renaming one later is a breaking change to your API even though nothing in your entity moved.
 
----
+## Three things you have to decide
 
-## Limits and guards
+### How big a page may be
 
-### `WithLimits`
+There is no default page size, and `WithLimits` is the one call you cannot omit. The right size is a property
+of the resource — how wide the row is, how expensive the projection, how the client renders it — so the
+library refuses to guess.
 
 ```csharp
 .WithLimits(defaultLimit: 25, maxLimit: 100)
 ```
 
-**Required.** `Create` throws `InvalidOperationException` if it is missing — there is no implicit page size,
-because the right one is a property of the resource, not of the library. Both values must be positive and
-`defaultLimit <= maxLimit`.
+An over-limit request is rejected rather than trimmed. A caller who asks for 5000 and silently receives 100
+will page through your collection wrongly and never find out why.
 
-### `WithGuards`
+### How the order stays stable
+
+Offset paging only works if the sort is total. Rows that compare equal on the sort you asked for have no
+defined order between them, so the database may return them one way for page 1 and another way for page 2 —
+one row shown twice, another never shown at all. It is a bug that looks like data corruption and reproduces
+only under load.
+
+A tie-breaker on any unique column removes the ambiguity for good:
 
 ```csharp
-.WithGuards(maxFilterValues: 100, maxFilterConditions: 20, maxSortFields: 5, maxSearchLength: 256)
+.Sortable("price", p => p.Price)
+.WithTieBreaker(p => p.Id)          // appended to every sort, always last
 ```
 
-Optional ceilings that bound the cost of a single request; the values above are the defaults. Each parameter
-is independent, so name the ones you want:
+The engine takes this seriously enough to refuse: with no `sortBy`, no `DefaultSortBy` and no tie-breaker, a
+request fails rather than paging an unordered set. Configure the tie-breaker once and the question never
+arises again.
+
+`DefaultSortBy` is the separate question of what "no `sortBy`" should mean — newest first, featured first —
+and it applies only when the caller expresses no preference at all. A request that sends `sortBy` replaces
+your defaults entirely rather than merging with them.
+
+### What is addressable, and how
+
+Sorting, searching and filtering are three independent declarations, and a field may appear in any
+combination of them:
 
 ```csharp
-.WithGuards(maxFilterValues: 500)     // large $in lists on this resource, everything else default
-```
-
-See [Query-string → Guards](/reference/query-string/#guards) for what each one rejects.
-
----
-
-## Sorting
-
-### `Sortable`
-
-```csharp
-.Sortable("name", p => p.Name)
-.Sortable("author", p => p.Author.LastName)          // navigation properties are fine
-.Sortable("reviewCount", p => p.Reviews.Count)       // anything EF can translate to ORDER BY
-```
-
-Enables `?sortBy=name:ASC`. The selector is used as-is in `OrderBy`/`ThenBy`, so any expression your provider
-can translate works.
-
-### `DefaultSortBy`
-
-```csharp
-.DefaultSortBy("isFeatured", PaginateSortDirection.Desc)
-.DefaultSortBy("published", PaginateSortDirection.Desc)
-.DefaultSortBy("title")                               // Asc is the default
-```
-
-Applied in declaration order when the request sends no `sortBy` at all. A request that sends `sortBy` replaces
-the defaults entirely — they do not merge. The field must also be declared `Sortable`, or `Create` throws.
-
-### `WithTieBreaker`
-
-```csharp
-.WithTieBreaker(p => p.Id)
-```
-
-Appends a unique key as the **final** ordering key on every query, whether the sort came from the request or
-from the defaults. Strongly recommended: offset paging over rows that compare equal on the primary sort has no
-defined order, so the same row can appear on two pages or on none. `Id` (or any unique column) fixes that.
-
-It is also the fallback that keeps a resource queryable when neither `sortBy` nor `DefaultSortBy` applies —
-without any of the three the engine rejects the request.
-
----
-
-## Searching
-
-### `Searchable`
-
-```csharp
-.Searchable("name", p => p.Name)
-.Searchable("description", p => p.Description)        // string? is fine
-.Searchable("authorName", p => p.Author.DisplayName)
-```
-
-The selector must return `string?`. Every searchable field participates in `?search=` (OR'd together) and can
-be addressed individually via `?searchBy=`.
-
-### `IgnoreSearchByInQueryParam`
-
-```csharp
-.IgnoreSearchByInQueryParam()
-```
-
-Drops `searchBy` from the contract: `search` then always spans all searchable fields. Use it when narrowing
-the search would leak which columns exist, or when you simply do not want the extra surface.
-
----
-
-## Filtering
-
-### `Filterable`
-
-```csharp
-.Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
-.Filterable("price",  p => p.Price,
-    PaginateFilterOperator.Eq,
-    PaginateFilterOperator.GreaterThanOrEqual,
-    PaginateFilterOperator.LessThanOrEqual,
-    PaginateFilterOperator.Between)
-.Filterable("categoryName", p => p.Category.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.ILike)
-```
-
-**At least one operator is required** — an empty operator list throws. The operator list is the allow-list for
-that field: `?filter.price=$ilike:x` on the field above is a `400`, because `ILike` was not granted.
-
-`TValue` decides how raw strings are parsed and which operators are legal at runtime: string pattern operators
-(`$sw`, `$ilike`) require a `string` field, `$contains` requires a string or a collection.
-
-Pick operators deliberately rather than granting the full set. Each one you grant is a query shape the database
-has to serve — `$ilike` on an unindexed text column is a sequential scan the client can trigger at will.
-
-### `FilterableMany`
-
-Filters the entity by a value on **any element** of a child collection — translated to `Any(...)`:
-
-```csharp
-// ?filter.tag=$eq:dotnet  → articles that have at least one tag named "dotnet"
-.FilterableMany("tag", a => a.Tags, t => t.Name,
-    PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.ILike)
-
-// ?filter.reviewerId=$in:a,b → orders reviewed by any of these people
-.FilterableMany("reviewerId", o => o.Reviews, r => r.ReviewerId,
+.Sortable("name", p => p.Name)                                        // ?sortBy=name:ASC
+.Searchable("name", p => p.Name)                                      // ?search=widget
+.Filterable("status", p => p.Status,                                  // ?filter.status=$eq:Active
     PaginateFilterOperator.Eq, PaginateFilterOperator.In)
 ```
 
-The first lambda selects the collection, the second selects the value on one element. The operator is applied
-to that value inside the `Any` predicate, so `$in:a,b` means *has an element matching a **or** b*.
+Filters carry a second decision the other two do not: **which operators**. The list is per field, and it is
+where the cost of a query gets decided. `$eq` and `$in` on an indexed column are cheap; `$ilike` on an
+unindexed text column is a sequential scan a caller can trigger at will. Grant the operators a screen uses,
+not the full set.
 
-For a field that already **is** a collection on the entity (an array column, say), use plain `Filterable` with
-`PaginateFilterOperator.Contains` instead — there `$contains:a,b` means the collection holds **both**.
-
----
-
-## Documentation and access control
-
-### `ShowBadge`
+For values that live on a **child collection**, `FilterableMany` filters the entity by *any* matching element,
+without you writing the join:
 
 ```csharp
-.Sortable("slug", p => p.Slug).ShowBadge("Public", "language-public")
-.Searchable("title", p => p.Title).ShowBadge("Beta")     // no class → neutral chip
+// ?filter.tag=$eq:dotnet  → products carrying at least one tag named "dotnet"
+.FilterableMany("tag", p => p.Tags, t => t.Name,
+    PaginateFilterOperator.Eq, PaginateFilterOperator.In)
 ```
 
-Attaches a label to **the field declared immediately before it**, surfaced in the generated OpenAPI metadata
-and rendered as a chip by API reference UIs such as Scalar. Calling it before any field throws.
+The first lambda picks the collection, the second picks the value on one element, and the engine builds the
+`EXISTS`. It is easy to miss because the need usually looks like "I have to write a custom endpoint for this"
+— a tag filter, an order filtered by who reviewed it, a document filtered by a recipient.
 
-The optional CSS class **must start with `language-`**. That is not a style preference: it is the only class
-prefix the reference UI's markdown sanitizer keeps on an inline `<code>` element in a parameter description —
-inline styles and other classes are stripped. Anything else throws at configuration time. You then colour it
-from the reference UI's own custom CSS:
+## Where a config lives
 
-```css
-.language-public { background: #277A2C; color: #fff; border-radius: 4px; padding: 1px 6px }
-```
-
-### `When` — conditional fields
-
-```csharp
-.Filterable("isHidden", a => a.IsHidden, PaginateFilterOperator.Eq)
-    .When(currentUserIsAdmin).ShowBadge("Admin only", "language-admin")
-```
-
-Marks the preceding field as conditional. When the boolean is `false` the field behaves at query time exactly
-as if it were **not configured** — a request targeting it gets a `400` worded identically to an unknown field,
-so its existence is not disclosed. It stays in the OpenAPI output either way, which keeps the documented
-surface the widest one.
-
-`.When` **must** be paired with `.ShowBadge(...)` — otherwise `Create` throws, on the grounds that a
-restriction nobody can see in the docs is a support ticket waiting to happen.
-
-The library stays auth-agnostic: you evaluate the boolean from whatever you have — a role, a claim, a tenant, a
-feature flag. Because it is captured when the config is **built**, per-user gating means building the config
-per request or caching one config per role. See [Recipes → role-based
-configurations](/recipes/#role-based-configurations).
-
-A default sort field disabled by `.When(false)` is skipped rather than fatal, so the resource still pages for
-callers who cannot see it.
-
----
-
-## Providers
-
-`IPaginateConfigProvider<TEntity>` is how the ASP.NET Core integration finds a config to document. You
-implement only the typed `GetConfig()`; the non-generic member comes from a default interface implementation.
+Building one walks expression trees and freezes several dictionaries, so build it **once** and share it. The
+result is immutable and thread-safe.
 
 ```csharp
 public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Product> {
@@ -245,6 +148,9 @@ public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Prod
     public readonly static PaginateConfig<Product> Config = PaginateConfig<Product>.Create(b => b
         .WithLimits(25, 100)
         .Sortable("name", p => p.Name)
+        .Sortable("price", p => p.Price)
+        .Searchable("name", p => p.Name)
+        .Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
         .WithTieBreaker(p => p.Id));
 
     public PaginateConfig<Product> GetConfig() => Config;
@@ -252,27 +158,33 @@ public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Prod
 }
 ```
 
-Building a config walks expression trees and freezes several dictionaries, so build it **once** — a static
-field, or a singleton in DI. Rebuilding per request works but is wasted allocation; the exception is per-user
-gating, where the cheap route is one cached config per role rather than one per request.
+Wrapping it in an `IPaginateConfigProvider<TEntity>` is what lets the
+[ASP.NET Core integration](/integrations/aspnetcore/) find the config and generate OpenAPI parameters from
+the same declaration the engine enforces — so the documented surface and the accepted surface cannot drift
+apart.
 
-## Reading the configuration back
+Some validation cannot happen until the whole config is known, and it runs at the end of `Create`. A config
+that compiles can still throw on first use, so build it somewhere a test or a startup path will notice.
 
-Every config exposes its own metadata, which is how the OpenAPI transformer documents itself and is equally
-available to you — for a `/meta` endpoint, an admin UI, or a contract test:
+## Fields not everyone may use
+
+`.When(condition)` marks the preceding field conditional: when the condition is false, the field behaves as
+if it were never configured, and the error a caller gets is worded identically to one for a field that does
+not exist. Nobody learns that an admin-only filter is there.
 
 ```csharp
-IPaginateConfig meta = provider.GetConfig();
-
-meta.DefaultLimit;        // int
-meta.MaxLimit;            // int
-meta.DefaultSortBy;       // IReadOnlyList<PaginateSort>   — Field + Direction
-meta.SortableFields;      // IReadOnlyList<PaginateFieldMetadata>        — Name, Type, Badge?
-meta.SearchableFields;    // IReadOnlyList<PaginateFieldMetadata>
-meta.FilterableFields;    // IReadOnlyList<PaginateFilterFieldMetadata>  — + allowed Operators
-meta.MaxFilterValues; meta.MaxFilterConditions; meta.MaxSortFields; meta.MaxSearchLength;
-meta.IgnoreSearchByInQueryParam;
+.Filterable("isHidden", a => a.IsHidden, PaginateFilterOperator.Eq)
+    .When(currentUserIsAdmin).ShowBadge("Admin only", "language-admin")
 ```
 
-Conditional fields appear in these lists regardless of their condition — the metadata is the documented
-surface, not the per-caller one.
+The condition is captured when the config is **built**, not per request, so per-user gating means one cached
+config per role rather than one per request — see
+[Recipes → role-based configurations](/recipes/#role-based-configurations). The paired
+[`ShowBadge`](/reference/configuration/#showbadge) is mandatory, on the grounds that a restriction nobody can
+see in the documentation is a support ticket waiting to happen.
+
+## Next
+
+- Every method, every rejection → **[Configuration API](/reference/configuration/)**
+- What the declarations look like on the wire → **[Query-string contract](/reference/query-string/)**
+- Turning entities into DTOs → **[Projections](../projections/)**

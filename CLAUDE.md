@@ -16,8 +16,14 @@ Published on nuget.org as the **10.x** line; prereleases carry an `-rc.N` suffix
 (Settings → Pages → Source → **GitHub Actions**, not "deploy from a branch"). Sources live in `docs/src`, the
 build lands in `docs/.dist`, config is [docs/.vitepress/config.mts](docs/.vitepress/config.mts), package manager
 is **pnpm** pinned through `packageManager` in [docs/package.json](docs/package.json).
-- **`pnpm docs:build` is the local build**, and it ends by running `scripts/verify-frozen-urls.mjs`. Keep those
-  chained: the check is the only thing standing between a rename and a dead link inside a released package.
+- **`pnpm docs:build` is the local build**, and it ends by running `scripts/verify-frozen-urls.mjs` and then
+  `scripts/verify-anchors.mjs`. Keep all three chained: the first is the only thing standing between a rename
+  and a dead link inside a released package, the second catches what `ignoreDeadLinks` structurally cannot —
+  a link to a heading that no longer exists on a page that does. It reads ids out of `.dist` rather than
+  deriving them from the markdown, because **VitePress slugify is not GitHub slugify**: an apostrophe becomes
+  a dash (`keep-a-big-table-s-page-count-cheap`) and an em dash survives into the id verbatim
+  (`paginateselectmapasync-—-sql-then-finish-in-memory`). Guessing the slug is how the two dead anchors that
+  motivated the script got written.
 - **The published URLs must keep answering, and every one of them ends with a slash** (`/guide/query-string/`).
   They ship inside the four package READMEs, which nuget.org renders per version forever. This is *not* a
   freeze on the site's structure: a page may move, as long as the old path still publishes something — the
@@ -27,8 +33,17 @@ is **pnpm** pinned through `packageManager` in [docs/package.json](docs/package.
   `<name>/index.html`, and renaming one to `<name>.md` builds `<name>.html`, which GitHub Pages serves at
   `/guide/query-string` but **not** at `/guide/query-string/`. `docs/scripts/verify-frozen-urls.mjs` fails the
   build when one of those paths has nothing behind it, stub or page.
-- **A dead link fails the build** (`ignoreDeadLinks: false`). Cross-page links are relative and end in a slash
-  (`../configuration/`, `../query-string/#guards`).
+- **A dead link fails the build** (`ignoreDeadLinks: false`). Links are **relative within a section**
+  (`../configuration/`, `../query-string/#guards`) and **root-absolute across sections**
+  (`/guide/projections/`), always ending in a slash. Both halves matter: a relative link that crosses a
+  section boundary resolves inside the *current* one, which is how two guide pages ended up pointing at the
+  `/guide/aspnetcore/` redirect stub and silently losing their `#fragment` on the way through.
+- **Which section a page belongs to is decided by how it is read**, not by what it is about: the guide is
+  prose you follow once (one example per idea, link out for the full list), the reference is looked up
+  mid-task and is exhaustive (one subject per page, signature + what it refuses + captured SQL), integrations
+  are per package, the cookbook is task-shaped. A corollary that is easy to violate: **every fact has exactly
+  one home** and the other pages link to it. A per-method enumeration inside the guide, or a second copy of
+  the guards table, is the thing this rule exists to prevent.
 - **Navigation lives in `config.mts`**, not in front matter. The pages carry no front matter at all; VitePress
   takes the title from the first `#` heading. A new page has to be added to the sidebar by hand, or it is
   reachable only by link and search.
@@ -149,7 +164,7 @@ independent of each other — consumers pick the extensions they need:
   exempt** (verified: omitting `Badge = null` fails the build). Ordinary methods therefore name their parameters
   with `<paramref>` inside the summary and carry no `<param>` at all; positional records are the exception below.
 - **`<inheritdoc />` is for one thing only:** the eleven `PaginateConfig<TEntity>` members implementing
-  `IPaginateConfig`, whose prose lives once on the interface — `docs/src/guide/configuration/` teaches the metadata
+  `IPaginateConfig`, whose prose lives once on the interface — `docs/src/reference/configuration/` teaches the metadata
   read-back path as `IPaginateConfig meta = provider.GetConfig()`, so the interface is the type a consumer holds for
   them. Don't spread the tag elsewhere, and don't "fix" those eleven into duplicated prose. Note the compiler copies
   the tag into the `.xml` verbatim rather than expanding it (Roslyn resolves it in quick info), so it only works while

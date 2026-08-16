@@ -48,7 +48,7 @@ features:
   - title: Guards by default
     icon: 🛡️
     details: Ceilings on page size, filter values, filter conditions, sort fields and search length, so one request cannot cost the database an afternoon.
-    link: /reference/query-string/#guards
+    link: /reference/configuration/#guards
     linkText: See the defaults
 ---
 
@@ -106,5 +106,11 @@ dotnet add package Janzen.Pagination.AspNetCore
 
 The guide is meant to be read in order, but each page stands on its own.
 **[Getting started](./guide/getting-started/)** takes it from install to a paginated endpoint returning JSON.
-**[Query-string contract](/reference/query-string/)** is the exact specification of every parameter, every
-operator and every `400`, with the SQL each one produces.
+
+Once it runs, the site splits by what you are doing:
+
+| | |
+|---|---|
+| **[Query-string contract](/reference/query-string/)** | Every parameter and operator, with the SQL each one produces. The [response](/reference/response/), the [config API](/reference/configuration/) and the [`400` catalogue](/reference/errors/) sit beside it. |
+| **[Cookbook](/recipes/)** | Task-shaped: role-based configs, collection filters, aggregates, [non-web callers](/recipes/without-aspnetcore/), [indexing](/recipes/performance/), [testing](/recipes/testing/), [troubleshooting](/recipes/troubleshooting/). |
+| **[Integrations](/integrations/)** | What changes when you add [ASP.NET Core](/integrations/aspnetcore/), [PostgreSQL](/integrations/postgresql/), [NodaTime](/integrations/nodatime/), or [a type of your own](/integrations/custom-types/). |

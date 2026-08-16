@@ -20,17 +20,26 @@ const guide = {
 const integrations = {
     overview: '/integrations/',
     aspnetcore: '/integrations/aspnetcore/',
+    openapi: '/integrations/aspnetcore/openapi/',
     postgresql: '/integrations/postgresql/',
     nodatime: '/integrations/nodatime/',
     customTypes: '/integrations/custom-types/'
 }
 
 const reference = {
-    queryString: '/reference/query-string/'
+    queryString: '/reference/query-string/',
+    response: '/reference/response/',
+    configuration: '/reference/configuration/',
+    errors: '/reference/errors/'
 }
 
 const cookbook = {
-    recipes: '/recipes/'
+    recipes: '/recipes/',
+    withoutAspNetCore: '/recipes/without-aspnetcore/',
+    performance: '/recipes/performance/',
+    testing: '/recipes/testing/',
+    troubleshooting: '/recipes/troubleshooting/',
+    migration: '/recipes/migration/'
 }
 
 const feed = 'https://www.nuget.org/packages/Janzen.Pagination.'
@@ -63,6 +72,7 @@ const integrationsSidebar = [
         items: [
             { text: 'Overview', link: integrations.overview },
             { text: 'ASP.NET Core', link: integrations.aspnetcore },
+            { text: 'ASP.NET Core — OpenAPI', link: integrations.openapi },
             { text: 'PostgreSQL', link: integrations.postgresql },
             { text: 'NodaTime', link: integrations.nodatime },
             { text: 'Custom types', link: integrations.customTypes }
@@ -73,14 +83,26 @@ const integrationsSidebar = [
 const referenceSidebar = [
     {
         text: 'Reference',
-        items: [{ text: 'Query-string contract', link: reference.queryString }]
+        items: [
+            { text: 'Query-string contract', link: reference.queryString },
+            { text: 'Response contract', link: reference.response },
+            { text: 'Configuration API', link: reference.configuration },
+            { text: 'Errors', link: reference.errors }
+        ]
     }
 ]
 
 const cookbookSidebar = [
     {
         text: 'Cookbook',
-        items: [{ text: 'Recipes', link: cookbook.recipes }]
+        items: [
+            { text: 'Recipes', link: cookbook.recipes },
+            { text: 'Without ASP.NET Core', link: cookbook.withoutAspNetCore },
+            { text: 'Performance and indexing', link: cookbook.performance },
+            { text: 'Testing', link: cookbook.testing },
+            { text: 'Troubleshooting', link: cookbook.troubleshooting },
+            { text: 'From nestjs-paginate', link: cookbook.migration }
+        ]
     }
 ]
 
@@ -128,13 +150,28 @@ const config = withMermaid(defineConfig({
                         items: [
                             { text: 'Overview', link: integrations.overview },
                             { text: 'ASP.NET Core', link: integrations.aspnetcore },
+                            { text: 'ASP.NET Core — OpenAPI', link: integrations.openapi },
                             { text: 'PostgreSQL', link: integrations.postgresql },
                             { text: 'NodaTime', link: integrations.nodatime },
                             { text: 'Custom types', link: integrations.customTypes }
                         ]
                     },
-                    { text: 'Reference', link: reference.queryString },
-                    { text: 'Cookbook', link: cookbook.recipes },
+                    {
+                        text: 'Reference',
+                        items: [
+                            { text: 'Query-string contract', link: reference.queryString },
+                            { text: 'Response contract', link: reference.response },
+                            { text: 'Configuration API', link: reference.configuration },
+                            { text: 'Errors', link: reference.errors }
+                        ]
+                    },
+                    {
+                        text: 'Cookbook',
+                        items: [
+                            { text: 'Recipes', link: cookbook.recipes },
+                            { text: 'Without ASP.NET Core', link: cookbook.withoutAspNetCore }
+                        ]
+                    },
                     {
                         text: 'NuGet',
                         items: [

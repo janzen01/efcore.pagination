@@ -26,4 +26,4 @@ provider is an EF `IAsyncQueryProvider` and takes a different path when it is no
 
 So the whole pipeline — filters, search, sort, paging, projection — runs against an in-memory list, with
 case-insensitive search, which makes unit-testing a `PaginateConfig<T>` cheap. See
-[Recipes → test a config without a database](/recipes/#test-a-config-without-a-database).
+[Testing your pagination](/recipes/testing/).
