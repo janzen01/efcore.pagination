@@ -1,12 +1,18 @@
----
-title: Getting started
-nav_order: 2
----
-
 # Getting started
 
 From nothing to a paginated, filterable, sortable JSON endpoint. The example is an ASP.NET Core Web API on
-PostgreSQL; skip to [Without ASP.NET Core](#without-aspnet-core) if you only want the engine.
+PostgreSQL; if you only want the engine, everything below except step 4 and step 5 still applies — see
+[Pagination without ASP.NET Core](/recipes/without-aspnetcore/).
+
+## Requirements
+
+- **.NET 10** and **EF Core 10**. The packages are `net10.0`-only, and the major version tracks the framework
+  they pair with: a `10.x` package goes with .NET 10.
+- **Not trim-safe or Native-AOT-safe.** The engine builds expression trees and uses reflection, so every
+  `Paginate*Async` entry point carries `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`. Publishing a
+  trimmed or AOT app produces analyzer warnings, and those warnings are accurate — the annotations are there
+  so you find out at build time rather than at run time.
+- No database is required to *use* it: the engine works against any `IQueryable<T>`.
 
 ## 1. Install
 
@@ -18,6 +24,21 @@ dotnet add package Janzen.Pagination.PostgreSql
 
 The core engine is the only required package — the other two are additive. `.AspNetCore` and `.PostgreSql`
 both reference the core transitively, so installing either alone also works.
+
+### Which `using` you need
+
+| Namespace | For |
+|-----------|-----|
+| `Janzen.Pagination.EntityFrameworkCore` | the `Paginate*Async` entry points, `PaginateTypeSupport` |
+| `Janzen.Pagination.EntityFrameworkCore.Configuration` | `PaginateConfig<T>`, `IPaginateConfigProvider<T>` |
+| `Janzen.Pagination.EntityFrameworkCore.Model` | `PaginateQuery`, `PaginatedResponse<T>`, `PaginateFilterOperator`, `PaginateQueryException` |
+| `Janzen.Pagination.EntityFrameworkCore.Links` | `PaginateLinkContext`, only when you build links yourself |
+| `Janzen.Pagination.EntityFrameworkCore.DependencyInjection` | `AddPagination`, and **every** `AddAspNetCore` / `UsePostgreSql` / `UseNodaTime` — the add-ons declare into this one namespace on purpose, so registration reads the same whichever packages you installed |
+| `Janzen.Pagination.AspNetCore` | `ToPaginateQuery()`, `AddPaginationLinkHeader()`, and the `HttpRequest` overloads of `Paginate*Async` |
+| `Janzen.Pagination.AspNetCore.OpenApi` | `[PaginatedQuery<T>]`, `PaginatedQueryOperationTransformer` |
+
+`WithPagination<T>()` needs no `using` at all: it is declared in `Microsoft.AspNetCore.Builder`, which a
+Minimal API file already has.
 
 ## 2. The entity and the DTO
 
@@ -119,7 +140,7 @@ public sealed class ProductController(AppDbContext db) : ControllerBase {
 `page`, `limit` and friends as action parameters. Passing `this.Request` is what makes the response carry
 `first`/`prev`/`next`/`last` links; omit it and those are `null`.
 
-The `Minimal API` equivalent is in [ASP.NET Core → Minimal APIs](aspnetcore.md#minimal-apis).
+The `Minimal API` equivalent is in [ASP.NET Core → Minimal APIs](/integrations/aspnetcore/#minimal-apis).
 
 ## 6. What comes back
 
@@ -149,9 +170,9 @@ GET /products?page=2&limit=2&sortBy=price:DESC&filter.status=$eq:Active
 }
 ```
 
-`itemCount` is how many rows this page actually returned; `itemsPerPage` is the effective limit. `previous` is
-`null` on the first page, `next` on the last; `first` and `last` are always present when a link context was
-supplied.
+`itemCount` is how many rows this page actually returned; `itemsPerPage` is the effective limit. Every field,
+including when each link is `null` and what `meta` reports for a page past the end, is in
+[Response contract](/reference/response/).
 
 ## What the engine does with that request
 
@@ -175,30 +196,8 @@ flowchart TD
 Two queries per request: one `COUNT(*)` over the filtered set, one page fetch. Asking for a page past the end
 returns an empty `items` with the real `meta`, and skips the second query entirely.
 
-## Without ASP.NET Core
-
-The engine has no web dependency. Build the request yourself:
-
-```csharp
-var request = new PaginateQuery {
-    Page = 2,
-    Limit = 25,
-    SortBy = ["name:DESC"],
-    Search = "acme",
-    Filters = new Dictionary<string, IReadOnlyList<string>> {
-        ["status"] = ["$eq:Active"],
-    },
-};
-
-var page = await db.Products.PaginateAsync<Product, ProductDto>(request, config, ct: ct);
-```
-
-`page.Links` will be `null` — links need a `PaginateLinkContext`, which the ASP.NET Core overloads build
-from the current request. `page.Meta` still carries the full paging state. You can supply a context yourself;
-see [Recipes → links outside ASP.NET Core](recipes.md#build-links-outside-aspnet-core).
-
 ## Next
 
-- The complete wire format, operator by operator → **[Query-string contract](query-string.md)**
-- Everything the builder can declare → **[Configuration](configuration.md)**
-- Sub-collections, aggregates, computed fields → **[Projections](projections.md)**
+- The complete wire format, operator by operator → **[Query-string contract](/reference/query-string/)**
+- Everything the builder can declare → **[Configuration](../configuration/)**
+- Sub-collections, aggregates, computed fields → **[Projections](../projections/)**

@@ -41,3 +41,19 @@ updates:
       actions:
         patterns:
           - "*"
+
+  # The documentation site. `npm` is the ecosystem name for the whole family, so it reads the pnpm
+  # lockfile too. Nothing here ships to a consumer -- a broken docs build stops a deploy, never an
+  # install -- so it is grouped into one PR a week rather than triaged package by package.
+  - package-ecosystem: "npm"
+    directory: "/docs"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      docs:
+        patterns:
+          - "*"

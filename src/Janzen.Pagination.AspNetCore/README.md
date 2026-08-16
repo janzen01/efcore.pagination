@@ -80,9 +80,12 @@ validated.
 
 ## Documentation
 
-- [ASP.NET Core integration](https://janzen01.github.io/efcore.pagination/guide/aspnetcore/)
+- [ASP.NET Core integration](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/)
+- [OpenAPI](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/openapi/)
 - [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/)
-- [Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/)
+- [Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/)
+- [Response contract](https://janzen01.github.io/efcore.pagination/reference/response/)
+- [Errors](https://janzen01.github.io/efcore.pagination/reference/errors/)
 - [Full guide](https://janzen01.github.io/efcore.pagination/)
 
 ## License

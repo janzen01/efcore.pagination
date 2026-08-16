@@ -29,7 +29,7 @@ public sealed class PaginateQuery {
 	/// <summary>Search term matched against the configured searchable fields.</summary>
 	public string? Search { get; init; }
 
-	/// <summary>Subset of searchable fields to search; empty uses the configured defaults. Ignored when the config sets <c>IgnoreSearchBy()</c>.</summary>
+	/// <summary>Subset of searchable fields to search; empty uses the configured defaults. Ignored when the config sets <c>IgnoreSearchByInQueryParam()</c>.</summary>
 	public IReadOnlyList<string> SearchBy { get; init; } = [];
 
 	/// <summary>Filter criteria per field; each value uses the <c>"$op:value"</c> form (e.g. <c>"$eq:42"</c>).</summary>

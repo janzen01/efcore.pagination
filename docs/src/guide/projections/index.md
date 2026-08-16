@@ -1,8 +1,3 @@
----
-title: Projections
-nav_order: 5
----
-
 # Projections
 
 Four entry points, one per projection strategy. They are deliberately **not overloads of one name**: the call
@@ -36,23 +31,27 @@ flowchart TD
 | Map | `PaginateMapAsync<TEntity, TResult>(request, config, projector)` | in memory | **every column of the entity** |
 
 All four take an optional `PaginateLinkContext? linkContext = null` and `CancellationToken ct = default`; the
-[ASP.NET Core](aspnetcore.md) package mirrors them with an `HttpRequest` parameter in place of the link
+[ASP.NET Core](/integrations/aspnetcore/) package mirrors them with an `HttpRequest` parameter in place of the link
 context.
 
-### Type-argument order
+### Type arguments
 
-These are C# extension-block members, so when you name type arguments explicitly the **entity comes first**:
+**`PaginateAsync` is the one that has to be written out**, and it is not a style choice: there is no lambda,
+so nothing tells the compiler what `TResult` is. Naming one type argument is not enough either — name one and
+you must name both. These are C# extension-block members, so the **entity comes first**:
 
 ```csharp
 db.Products.PaginateAsync<Product, ProductDto>(request, config);
 ```
 
-Wherever you pass a lambda (`selector`, `postMap`, `projector`) everything is inferable, so the short form
-compiles too:
+The other three take a lambda, which infers everything. The short form is the intended one:
 
 ```csharp
 db.Products.PaginateSelectAsync(request, config, p => new ProductDto(p.Id, p.Name));
 ```
+
+If you find yourself spelling out type arguments on those three, the lambda's return type is probably not
+what you think it is.
 
 ---
 
@@ -76,7 +75,7 @@ var page = await db.Products.PaginateAsync<Product, ProductDto>(request, config,
    case-insensitively.
 3. If the types are assignable (including `T` → `T?`), the member is used directly.
 4. Otherwise a registered conversion is tried — that is how `Instant` → `DateTimeOffset` works when the
-   [`.NodaTime`](providers-and-types.md#nodatime) package is installed.
+   [`.NodaTime`](/integrations/nodatime/) package is installed.
 5. Otherwise, if the target is a *simple* type (primitive, `string`, `enum`, `Guid`, `decimal`, `DateTime`,
    `DateTimeOffset`, or a registered one) it fails — there is nothing sensible to do.
 6. Otherwise it recurses: the target is treated as a nested DTO and built from the source member the same way.
@@ -197,12 +196,9 @@ For a page of 25 rows out of a million:
 | `PaginateSelectMapAsync` | 25 | those the selector names | `postMap` × 25 |
 | `PaginateMapAsync` | 25 | **all** | `projector` × 25 |
 
-Every strategy runs the same two queries: one `COUNT(*)` over the filtered set, then one page fetch. Requesting
-a page past the end skips the second one.
+The choice of strategy does not change the number of queries — see
+[Getting started](../getting-started/#what-the-engine-does-with-that-request) for the shape all four share.
 
-## Trimming and Native AOT
-
-All four entry points are annotated `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`. The engine builds
-expression trees and uses reflection (`MakeGenericMethod`, projection mapping), so it is **not** trim- or
-AOT-safe. The annotations exist so a trimmed or AOT build gives you an analyzer warning instead of a runtime
-failure — treat them as accurate, not as noise to suppress.
+All four are also annotated `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`, because projection is
+exactly the part that needs reflection: see
+[Requirements](../getting-started/#requirements).

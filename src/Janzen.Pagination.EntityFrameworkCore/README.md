@@ -118,9 +118,9 @@ PaginateConfig<Article>.Create(b => b
 ```
 
 `.When` takes a plain boolean — you evaluate it from your own context (role, claims, tenant, feature flag); the library
-stays auth-agnostic. The condition is captured when the config is built, so per-user RBAC means building the config
-**per request** (e.g. an `IPaginateConfigProvider<T>` resolved from DI with the current user) rather than a static
-singleton.
+stays auth-agnostic. The condition is captured when the config is **built**, so per-user gating means one cached config
+**per distinct set of permissions** — two roles, two static fields — rather than calling `Create` per request. Building
+walks every selector expression tree, which is not work that belongs on a hot path.
 
 ## Projection strategies
 
@@ -209,15 +209,18 @@ Criteria on different fields are always ANDed; there is no cross-field `OR` or g
 rather than inlined literals.
 
 Full contract, value formats and the complete list of `400` messages:
-[Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/).
+[Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/).
 
 ## Documentation
 
 - [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/)
-- [Query-string contract](https://janzen01.github.io/efcore.pagination/guide/query-string/)
-- [Configuration reference](https://janzen01.github.io/efcore.pagination/guide/configuration/)
+- [Configuration](https://janzen01.github.io/efcore.pagination/guide/configuration/)
 - [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/)
-- [Recipes](https://janzen01.github.io/efcore.pagination/guide/recipes/)
+- [Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/)
+- [Response contract](https://janzen01.github.io/efcore.pagination/reference/response/)
+- [Configuration API](https://janzen01.github.io/efcore.pagination/reference/configuration/)
+- [Errors](https://janzen01.github.io/efcore.pagination/reference/errors/)
+- [Cookbook](https://janzen01.github.io/efcore.pagination/recipes/)
 
 ## Trimming & Native AOT
 

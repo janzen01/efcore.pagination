@@ -1,8 +1,3 @@
----
-title: ASP.NET Core
-nav_order: 6
----
-
 # ASP.NET Core
 
 What `Janzen.Pagination.AspNetCore` adds on top of the engine: query-string binding, `400 ProblemDetails`,
@@ -19,11 +14,58 @@ builder.Services.AddPagination(pagination => pagination.AddAspNetCore());
 builder.Services.AddControllers();
 ```
 
-`AddAspNetCore()` configures `MvcOptions`: it inserts the `PaginateQuery` model binder at position 0 and adds
-the `PaginateExceptionFilter`. Both only matter for **controllers** — a Minimal-API-only app can skip it and
-still get everything, because `WithPagination<T>()` attaches its own endpoint filter and
-`Request.ToPaginateQuery()` is an explicit call. You would then use `AddPagination(...)` only to select a
-[LIKE strategy](providers-and-types.md) or register NodaTime.
+`AddAspNetCore()` configures `MvcOptions`: it inserts the `PaginateQuery` model binder
+(`PaginateQueryModelBinderProvider`) at position 0 and adds the `PaginateExceptionFilter`. Both only matter
+for **controllers** — a Minimal-API-only app can skip it and still get everything, because
+`WithPagination<T>()` attaches its own endpoint filter and `Request.ToPaginateQuery()` is an explicit call.
+You would then use `AddPagination(...)` only to select a [LIKE strategy](../postgresql/) or register NodaTime.
+
+The lambda's parameter is an `IPaginationBuilder`. Every add-on hangs an extension method off it, which is
+why they all read the same way regardless of which package they come from. It exposes one member, `Services`,
+the underlying `IServiceCollection` — the escape hatch for registering your own types inside the same block:
+
+```csharp
+builder.Services.AddPagination(pagination => {
+    pagination.AddAspNetCore().UsePostgreSql();
+    pagination.Services.AddSingleton<ProductPaginateConfigProvider>();
+});
+```
+
+## Two layers name the same config
+
+This is the part worth getting straight before writing an endpoint, because the two halves are wired
+separately and **nothing checks that they agree**:
+
+| | Names the config as | Does |
+|---|---|---|
+| `[PaginatedQuery<TProvider>]` / `WithPagination<TProvider>()` | a **provider type** | documents the operation — [OpenAPI](./openapi/) reads the config through it |
+| the `config` argument to `Paginate*Async` | a **config instance** | enforces it at run time |
+
+The attribute is `PaginatedQueryAttribute<TConfigProvider>`, constrained
+`where TConfigProvider : IPaginateConfigProvider` and applicable to methods only;
+`WithPagination<TConfigProvider>()` carries the same constraint and attaches the same metadata. Note the
+constraint is the **non-generic** `IPaginateConfigProvider`, so a provider satisfies it either way.
+
+So an endpoint documented with one provider and executed against a different config compiles, runs, and
+publishes a contract it does not honour. Point both at the same place — a `static readonly` field on the
+provider is the shortest way to make that hard to get wrong:
+
+```csharp
+public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Product> {
+    public readonly static PaginateConfig<Product> Config = PaginateConfig<Product>.Create(b => b
+        .WithLimits(25, 100)
+        .Sortable("name", p => p.Name)
+        .WithTieBreaker(p => p.Id));
+
+    public PaginateConfig<Product> GetConfig() => Config;
+}
+```
+
+**Does the provider need to be registered in DI?** Usually no. The OpenAPI transformer creates it with
+`ActivatorUtilities.CreateInstance`, which builds a type with a parameterless constructor without it ever
+being registered. Register it only when its constructor takes services — and note that even then, nothing
+injects the provider into your action: the interface exists so the attribute has a type to name, while your
+handler reads the config directly.
 
 ---
 
@@ -95,7 +137,7 @@ Every invalid query — a bad operator, an unknown sort field, an out-of-range l
 ```
 
 The `title` is always `Invalid query`; `detail` carries the specific message. The full list is in the
-[error catalogue](query-string.md#error-catalogue). No per-action `try`/`catch` is needed anywhere.
+[error catalogue](/reference/errors/). No per-action `try`/`catch` is needed anywhere.
 
 The controller path builds the payload through the app's registered `ProblemDetailsFactory`, so your own
 `AddProblemDetails` customisation (extra members, `type` URIs, trace identifiers) applies here too.
@@ -115,39 +157,15 @@ When you pass an `HttpRequest`, the response's `Links` are built from the curren
 }
 ```
 
-On the last page the same object comes back with `"next": null`:
+Every current query parameter except `page` is preserved and re-escaped — including ones the library does not
+recognise, so client-side state survives paging. The URLs are **path-relative, with no scheme or host**, which
+is what you want behind a proxy or a path base; prefix them yourself if your clients need absolute URLs.
 
-```json
-"links": { "first": "…&page=1", "previous": "…&page=18", "next": null, "last": "…&page=19" }
-```
+**No `HttpRequest`, no links.** `Links` then comes back `null` as a whole, and callers page by `meta` instead.
 
-- **Path-relative, no scheme or host.** Behind a proxy or a path base that is what you want; prefix them
-  yourself if your clients need absolute URLs.
-- Every current query parameter except `page` is preserved and re-escaped — including parameters the library
-  does not know about, so client-side state survives paging.
-- `first` and `last` are always present (`last` is at least page 1, even for an empty result set).
-  `previous` is `null` on page 1; `next` is `null` on the last page and when there are no results. That `null`
-  is serialized, not dropped — it is what tells the client there is no such page, so the shape of `links` is
-  the same on every page.
-- **No `HttpRequest`, no links.** `Links` is then `null` as a whole, i.e. `"links": null`. Callers outside
-  ASP.NET Core page by `meta` instead.
-
-### `Link` response header (RFC 8288)
-
-Opt-in, in addition to the body:
-
-```csharp
-var page = await db.Products.PaginateAsync<Product, ProductDto>(request, config, this.Request, ct);
-this.Response.AddPaginationLinkHeader(page.Links);
-return page;
-```
-
-```http
-Link: </products?limit=25&page=1>; rel="first", </products?limit=25&page=3>; rel="next", …
-```
-
-Absent links are skipped, and if none are present no header is written. Passing a `null` `Links` is a no-op,
-so the call is safe on a page produced without a link context.
+When each individual link is `null`, why those nulls are serialized rather than dropped, the opt-in RFC 8288
+`Link` header, and how to build a link context outside ASP.NET Core are all in
+[Response contract](/reference/response/).
 
 ---
 
@@ -160,35 +178,12 @@ builder.Services.AddOpenApi(options =>
     options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
 ```
 
-`PaginatedQueryOperationTransformer` is a plain `IOpenApiOperationTransformer`, so your app owns the document
-name and the rest of the pipeline. It acts only on operations carrying `[PaginatedQuery<TProvider>]` (or
-`WithPagination<TProvider>()`), and reads the config through that provider.
+It acts only on operations carrying `[PaginatedQuery<TProvider>]` or `WithPagination<TProvider>()`, and reads
+the config through that provider — so the documented parameters are generated from the same declaration the
+engine enforces and cannot drift from it.
 
-For each such operation it adds:
-
-- `page` and `limit`, with the resource's real `DefaultLimit` and `MaxLimit` in the description;
-- `sortBy` and `searchBy`, listing the configured field names;
-- `search`;
-- one `filter.<field>` parameter per filterable field, listing the operators that field allows and carrying an
-  example such as `$eq:42` — typed from the field's CLR type, and preferring `$ilike` when the PostgreSQL
-  strategy is active and the field allows it;
-- a documented `400` response, "The pagination query parameters were invalid."
-
-Because the parameters are generated from the config, they cannot drift from what the engine enforces.
-
-### Badges
-
-`.ShowBadge("Admin only", "language-admin")` renders as an inline `<code>` chip appended to that parameter's
-description. The `language-` prefix is required because it is the only class an API reference UI's markdown
-sanitizer preserves there — see [Configuration → ShowBadge](configuration.md#showbadge). Colour it from the
-reference UI's custom CSS:
-
-```css
-.language-admin { background: #8B1A1A; color: #fff; border-radius: 4px; padding: 1px 6px }
-```
-
-Fields gated with [`.When(...)`](configuration.md#when--conditional-fields) stay documented regardless of the
-condition, so the published contract is the widest one; enforcement happens at query time.
+What it emits parameter by parameter, how types and examples are derived, how badges render and why the
+`language-` prefix is mandatory: **[OpenAPI](./openapi/)**.
 
 ---
 

@@ -50,7 +50,8 @@ as its example operator.
 
 ## Documentation
 
-- [Providers & custom types](https://janzen01.github.io/efcore.pagination/guide/providers-and-types/)
+- [PostgreSQL integration](https://janzen01.github.io/efcore.pagination/integrations/postgresql/)
+- [Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/)
 - [Full guide](https://janzen01.github.io/efcore.pagination/)
 
 ## License

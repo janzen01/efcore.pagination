@@ -1,0 +1,89 @@
+name: Docs
+
+# The site is a VitePress build, so Pages cannot serve it straight from the branch any more:
+# Settings -> Pages -> Source is "GitHub Actions", and this workflow is what publishes.
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  # Build-only on a pull request. Without this nothing checks the site before it lands: ci.yml never
+  # touches docs/, master has no required checks, and the two verifiers chained into `pnpm docs:build`
+  # are the only thing standing between a renamed heading and a dead link inside a released package.
+  pull_request:
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A queued deploy is worth more than an in-flight one, but cancelling mid-deploy would leave the site
+# half-published, so the running job is allowed to finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # package_json_file is resolved against the REPOSITORY ROOT, which has no package.json -- the one
+      # carrying `packageManager` lives in docs/. The `defaults.run.working-directory` above does not
+      # help: it applies to `run:` steps only, never to a `uses:` step's inputs. Without this the action
+      # finds no version to install and the job dies here, before it ever reaches the build.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          package_json_file: docs/package.json
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Belongs before the build in GitHub's template, so that a site which does read base_path gets it.
+      # This one hardcodes `base` in config.mts, so the step contributes nothing today -- but running it
+      # out of order is the kind of thing that only bites once someone starts relying on the output.
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+        if: github.event_name != 'pull_request'
+
+      # docs:build ends in scripts/verify-frozen-urls.mjs and then scripts/verify-anchors.mjs. The first
+      # fails if a URL that already shipped inside a released package stops existing; the second fails if
+      # a link points at a heading that no longer does, which `ignoreDeadLinks` structurally cannot see.
+      # Those two checks are the reason this job can be trusted.
+      - name: Build
+        run: pnpm docs:build
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: github.event_name != 'pull_request'
+        with:
+          path: docs/.dist
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # A job-level permissions block REPLACES the workflow-level one rather than merging with it, so
+    # contents: read has to be repeated here. deploy-pages does not check anything out today, but the
+    # omission would only surface as a failure once someone adds a step that does.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
