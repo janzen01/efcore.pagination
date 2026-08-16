@@ -82,6 +82,15 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   mounts everything in the browser, and mermaid draws its SVG there too. To see the real DOM without asking
   someone to look: `& "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new
   --virtual-time-budget=8000 --dump-dom <url>`.
+- **The reading-preferences menu is `@nolebase/vitepress-plugin-enhanced-readabilities`**, mounted into the
+  `nav-bar-content-after` and `nav-screen-content-after` slots in `.vitepress/theme/index.ts` (Layout Switch,
+  which widens the content for the wide SQL blocks and tables, plus Spotlight). It needs **both** halves of
+  the `vite` block in `config.mts`: it ships raw `.vue` in its dist, so `optimizeDeps.exclude` keeps the dev
+  server from pre-bundling it (otherwise the menu silently never mounts) and `ssr.noExternal` makes Vite
+  bundle it for SSR instead of letting Node `require` a `.vue` file (otherwise the production build fails
+  while rendering). Same pairing as the MDS Dynamics docs. Extending the theme this way does not disturb
+  mermaid, which registers through a Vite alias rather than through the theme — verified in the rendered DOM,
+  not assumed.
 - Mermaid comes from `vitepress-plugin-mermaid` via `withMermaid()`. It declares a peer on VitePress 1.x and we
   run the 2.0 alpha, so pnpm prints an unmet-peer warning; the diagrams render regardless (same pairing as the
   MDS Dynamics docs). If they ever stop rendering, that warning is the first place to look.

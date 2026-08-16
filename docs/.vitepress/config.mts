@@ -152,6 +152,19 @@ const config = withMermaid(defineConfig({
         ['meta', { name: 'theme-color', content: '#512BD4' }]
     ],
 
+    // Nolebase enhanced-readabilities ships raw .vue in its dist, so Vite has to bundle it for SSR rather
+    // than let Node require it -- Node cannot load a .vue file. Both halves are needed: without `exclude`
+    // the dev server pre-bundles it and the menu never mounts, without `noExternal` the production build
+    // fails while rendering.
+    vite: {
+        optimizeDeps: {
+            exclude: ['@nolebase/vitepress-plugin-enhanced-readabilities/client']
+        },
+        ssr: {
+            noExternal: [/@nolebase\//]
+        }
+    },
+
     locales: {
         root: {
             label: 'English',
