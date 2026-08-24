@@ -61,8 +61,12 @@
     <!-- Package output (symbols) -->
     <PropertyGroup>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
-        <IncludeSymbols>true</IncludeSymbols>
-        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <!-- Embedded PDBs rather than a .snupkg on nuget.org's symbol server. The debug information travels inside
+             the assembly, so stepping into these sources needs nothing configured on the consumer's side: no symbol
+             server enabled, no separate download, and it works offline. Settling "what does this overload actually
+             do" by decompiling the shipped package is the failure this removes.
+             The two are mutually exclusive: an embedded PDB leaves no .pdb file for IncludeSymbols to pack. -->
+        <DebugType>embedded</DebugType>
     </PropertyGroup>
 
     <!-- Packaging: each packable project ships its own README.md as the NuGet readme, and they all

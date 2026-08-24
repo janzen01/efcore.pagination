@@ -31,13 +31,15 @@ internal static class PaginateExpressionUtils {
 
 	/// <summary>
 	///     Escapes LIKE/ILIKE wildcard characters so user input is matched literally (used together with
-	///     <c>ESCAPE '\'</c>).
+	///     <c>ESCAPE '\'</c>). <c>[</c> is escaped unconditionally even though only SQL Server reads it as a range
+	///     opener: PostgreSQL and SQLite treat any escaped character as a literal, so one pattern stays portable.
 	/// </summary>
 	public static string EscapeLikePattern(string value) {
 		return value
 			.Replace("\\", @"\\", StringComparison.Ordinal)
 			.Replace("%", "\\%", StringComparison.Ordinal)
-			.Replace("_", "\\_", StringComparison.Ordinal);
+			.Replace("_", "\\_", StringComparison.Ordinal)
+			.Replace("[", "\\[", StringComparison.Ordinal);
 	}
 
 	public static Expression BuildInMemoryStringMatchExpression(Expression valueExpression, string value, bool startsWith) {

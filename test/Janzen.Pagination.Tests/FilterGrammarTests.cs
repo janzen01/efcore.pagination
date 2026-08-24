@@ -51,6 +51,14 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 		Assertions.HasIds(await this.Page(Query.Filter("discontinuedAt", "$null")), 1, 2, 3, 4, 5, 7, 8);
 	}
 
+	[Theory]
+	[InlineData("$null:false")]
+	[InlineData("$null:true")]
+	public async Task Null_is_also_the_one_operator_that_refuses_a_value(string criterion) {
+		// The value used to be parsed and then dropped, so `$null:false` selected the rows it says it excludes.
+		Assert.Equal("Filter 'discontinuedAt' does not take a value for '$null'.", await this.Rejects(Query.Filter("discontinuedAt", criterion)));
+	}
+
 	[Fact]
 	public async Task Everything_after_the_operator_colon_is_the_value() {
 		// The value itself contains a colon; parsing stops at the first operator token and takes the rest.

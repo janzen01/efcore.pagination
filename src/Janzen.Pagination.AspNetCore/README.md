@@ -58,10 +58,12 @@ response, and maps `PaginateQueryException` to a `400` Problem Details via an en
 ### Links and the `Link` header
 
 Passing the `HttpRequest` to a `Paginate*Async` call is what fills `response.Links` with
-`first`/`prev`/`next`/`last`, built from the current request: path-relative, with every other query parameter
-preserved. An absent link (`prev` on page 1, `next` on the last page) is serialized as `null` rather than
-dropped, so the shape does not change per page. Omit the `HttpRequest` and `Links` is `null` as a whole. For
-the RFC 8288 header as well (a `null` `Links` writes no header):
+`first`/`previous`/`next`/`last` and `current`, built from the current request: path-relative — including the
+app's `UsePathBase` prefix — with every other query parameter preserved. An absent link (`previous` on page 1,
+`next` on the last page) is serialized as `null` rather than dropped, so the shape does not change per page;
+`current` echoes the request and is always there. Omit the `HttpRequest` and `Links` is `null` as a whole. For
+the [RFC 8288 header](https://janzen01.github.io/efcore.pagination/reference/response/#link-response-header-rfc-8288)
+as well (a `null` `Links` writes no header):
 
 ```csharp
 var page = await db.Products.PaginateAsync<Product, ProductDto>(request, config, this.Request, ct);
@@ -70,10 +72,12 @@ this.Response.AddPaginationLinkHeader(page.Links);
 
 ### Errors
 
-Any invalid query becomes `400 Bad Request` with `title: "Invalid query"` and the specific message as
-`detail` — via `PaginateExceptionFilter` for controllers (registered by `AddAspNetCore()`) or
-`PaginateExceptionEndpointFilter` for Minimal APIs (registered by `WithPagination<T>()`). No per-action
-`try`/`catch` needed.
+Any invalid query becomes [`400 Bad Request` with `title: "Invalid
+query"`](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/#errors-as-problemdetails) and the
+specific message as `detail` — via `PaginateExceptionFilter` for controllers (registered by `AddAspNetCore()`) or
+`PaginateExceptionEndpointFilter` for Minimal APIs (registered by `WithPagination<T>()`). Both build the payload
+through the app's `ProblemDetailsFactory` when one is registered, so the two pipelines answer with the same
+members. No per-action `try`/`catch` needed.
 
 Unknown query parameters are ignored, so clients keep their own tracking parameters; `page` and `limit` are
 validated.
@@ -87,6 +91,12 @@ validated.
 - [Response contract](https://janzen01.github.io/efcore.pagination/reference/response/)
 - [Errors](https://janzen01.github.io/efcore.pagination/reference/errors/)
 - [Full guide](https://janzen01.github.io/efcore.pagination/)
+
+## Debugging
+
+The package ships **embedded PDBs with Source Link**, so a debugger steps straight into these sources at the exact
+commit the version was built from. Nothing to configure: no symbol server, no separate symbol download, and it works
+offline.
 
 ## License
 

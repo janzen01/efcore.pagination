@@ -54,8 +54,8 @@ connection. That is also how you can check this yourself against your own model.
 because `ToQueryString()` renders them that way; at run time they are parameters.
 :::
 
-Both strategies pass an explicit `ESCAPE '\'`, and the engine escapes `\`, `%` and `_` in the user's value, so
-a search for `100%` matches the literal text rather than everything:
+Both strategies pass an explicit `ESCAPE '\'`, and the engine escapes `\`, `%`, `_` and `[` in the user's
+value, so a search for `100%` matches the literal text rather than everything:
 
 ```http
 ?filter.name=$contains:100%
@@ -63,7 +63,8 @@ a search for `100%` matches the literal text rather than everything:
 
 becomes the pattern `%100\%%` — the caller's `%` is escaped into a literal, the surrounding two are the
 engine's. A caller therefore cannot smuggle a wildcard through a search box and turn an indexed prefix match
-into a full scan.
+into a full scan. `[` is in the list for SQL Server's sake, where it opens a character range; PostgreSQL
+treats `\[` as the literal character, so escaping it costs nothing here.
 
 Registering the strategy also nudges the OpenAPI examples: with PostgreSQL active, a filterable string field
 that allows `ILike` gets `$ilike:…` as its example instead of the field's first configured operator.

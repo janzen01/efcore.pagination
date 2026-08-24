@@ -34,18 +34,25 @@ Six parameters plus a `400`, in this order:
 | `page` | `integer`, minimum `1`, default `1` | fixed |
 | `limit` | `integer`, minimum `1`, **maximum `MaxLimit`**, default `DefaultLimit` | `WithLimits` |
 | `sortBy` | `array` of `string`, exploded, **enum of every `field:ASC` / `field:DESC`** | `Sortable`, `DefaultSortBy` |
-| `search` | `string` | fixed |
+| `search` | `string` | `Searchable` |
 | `searchBy` | `array` of `string`, exploded, enum of the searchable names | `Searchable` |
 | `filter.<field>` | `array` of `string`, exploded, one parameter **per filterable field** | `Filterable`, `FilterableMany` |
-| `400` response | `application/problem+json` with `type` / `title` / `status` / `detail` / `instance` | fixed |
+| `400` response | `application/problem+json` with `type` / `title` / `status` / `detail` / `instance` / `traceId` | fixed |
 
-Two conditions worth knowing:
+Three conditions worth knowing:
 
-- **`searchBy` is omitted entirely** when the config calls
+- **Both search parameters are omitted** when the config declares no `Searchable` field at all. There is no
+  free-text surface to document: `search` would advertise an input whose only possible answer is a `400`, and
+  `searchBy` one with nothing to narrow.
+- **`searchBy` alone is omitted** when the config calls
   [`IgnoreSearchByInQueryParam()`](/reference/configuration/#ignoresearchbyinqueryparam). It is ignored at
   run time, so advertising it would be a lie.
 - **`filter.` parameters are ordered by field name** (ordinal), not by declaration order, so the document is
   stable across config edits that only move lines around.
+
+`traceId` is in the `400` schema because [both
+pipelines](../#errors-as-problemdetails) build the payload through the app's
+`ProblemDetailsFactory`, which adds it. `instance` stays as the standard member it is.
 
 Exploded array parameters are what tell a client to repeat the key — `?sortBy=a:ASC&sortBy=b:DESC` — rather
 than comma-join it.

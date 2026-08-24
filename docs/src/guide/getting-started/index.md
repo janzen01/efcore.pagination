@@ -165,7 +165,8 @@ GET /products?page=2&limit=2&sortBy=price:DESC&filter.status=$eq:Active
     "first": "/products?limit=2&sortBy=price%3ADESC&filter.status=%24eq%3AActive&page=1",
     "previous": "/products?limit=2&sortBy=price%3ADESC&filter.status=%24eq%3AActive&page=1",
     "next": "/products?limit=2&sortBy=price%3ADESC&filter.status=%24eq%3AActive&page=3",
-    "last": "/products?limit=2&sortBy=price%3ADESC&filter.status=%24eq%3AActive&page=19"
+    "last": "/products?limit=2&sortBy=price%3ADESC&filter.status=%24eq%3AActive&page=19",
+    "current": "/products?limit=2&sortBy=price%3ADESC&filter.status=%24eq%3AActive&page=2"
   }
 }
 ```

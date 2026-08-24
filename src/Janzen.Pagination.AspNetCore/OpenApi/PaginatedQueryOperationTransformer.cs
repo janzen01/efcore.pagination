@@ -35,9 +35,10 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	/// <summary>
 	///     Rewrites one operation: a no-op unless the endpoint carries <see cref="PaginatedQueryAttribute" />, otherwise
 	///     it drops the generated <see cref="PaginateQuery" /> parameters and adds documented <c>page</c>, <c>limit</c>,
-	///     <c>sortBy</c>, <c>search</c>, one <c>filter.&lt;field&gt;</c> per filterable field, and a <c>400</c> Problem
-	///     Details response. <c>searchBy</c> is added only when <see cref="IPaginateConfig.IgnoreSearchByInQueryParam" />
-	///     is not set — the engine ignores it otherwise.
+	///     <c>sortBy</c>, one <c>filter.&lt;field&gt;</c> per filterable field, and a <c>400</c> Problem Details
+	///     response. <c>search</c> follows only when the config declares a <c>Searchable</c> field, and <c>searchBy</c>
+	///     additionally requires <see cref="IPaginateConfig.IgnoreSearchByInQueryParam" /> to be unset — the engine
+	///     ignores it otherwise.
 	/// </summary>
 	public Task TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken) {
 
@@ -56,11 +57,16 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		operation.Parameters.Add(CreatePageParameter());
 		operation.Parameters.Add(CreateLimitParameter(config));
 		operation.Parameters.Add(CreateSortByParameter(config));
-		operation.Parameters.Add(CreateSearchParameter());
+		// A resource with no Searchable field has no free-text surface at all, so neither parameter belongs on it:
+		// `search` would document an input whose only possible answer is a 400, and `searchBy` one with nothing to
+		// narrow. Advertising them is what pushes a config into IgnoreSearchByInQueryParam() just to hide them.
+		if (config.SearchableFields.Count > 0) {
+			operation.Parameters.Add(CreateSearchParameter());
 
-		// searchBy is ignored at runtime when the resource opts out, so it must not be advertised.
-		if (!config.IgnoreSearchByInQueryParam) {
-			operation.Parameters.Add(CreateSearchByParameter(config));
+			// searchBy is ignored at runtime when the resource opts out, so it must not be advertised.
+			if (!config.IgnoreSearchByInQueryParam) {
+				operation.Parameters.Add(CreateSearchByParameter(config));
+			}
 		}
 
 		foreach (var field in config.FilterableFields.OrderBy(field => field.Name, StringComparer.Ordinal)) {
@@ -91,7 +97,10 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 							["title"] = new OpenApiSchema { Type = JsonSchemaType.String },
 							["status"] = new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
 							["detail"] = new OpenApiSchema { Type = JsonSchemaType.String },
-							["instance"] = new OpenApiSchema { Type = JsonSchemaType.String }
+							["instance"] = new OpenApiSchema { Type = JsonSchemaType.String },
+							// ProblemDetailsFactory adds traceId to every payload it builds, which both pipelines now
+							// go through — documenting only the standard members would understate what clients receive.
+							["traceId"] = new OpenApiSchema { Type = JsonSchemaType.String }
 						}
 					}
 				}

@@ -1,3 +1,5 @@
+using Janzen.Pagination.EntityFrameworkCore.Engine;
+
 namespace Janzen.Pagination.Tests;
 
 /// <summary>What each of the eleven operators actually matches, against real SQL.</summary>
@@ -100,6 +102,18 @@ public sealed class FilterOperatorTests(SqliteFixture fixture) : IClassFixture<S
 		// Unescaped "50_ off" would match "50% off bundle"; escaped it is a literal underscore.
 		Assert.Empty((await this.Page(Query.Filter("name", "$ilike:50_ off"))).Items);
 		Assertions.HasIds(await this.Page(Query.Filter("name", "$ilike:50% off")), 4);
+	}
+
+	[Fact]
+	public async Task Bracket_in_the_value_is_escaped() {
+
+		// SQL Server reads a bare "[a]" as a one-character range. PostgreSQL and SQLite read any escaped character as
+		// a literal, so escaping it unconditionally keeps a single pattern correct on all three. Asserted on the
+		// pattern because SQLite cannot tell the two forms apart; the query only proves it accepts the escaped one.
+		Assert.Equal("\\[a]", PaginateExpressionUtils.EscapeLikePattern("[a]"));
+
+		Assert.Empty((await this.Page(Query.Filter("name", "$ilike:[a]"))).Items);
+
 	}
 
 	[Fact]

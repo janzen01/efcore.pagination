@@ -89,12 +89,12 @@ Same three parts, different names in two places:
 | — | **`meta.itemCount`** — rows on this page, which has no counterpart there |
 | `meta.sortBy` / `search` / `filter` *(request echo)* | absent — `meta` reports the page, not the request |
 | `links.first` / `previous` / `next` / `last` | same names |
-| `links.current` | **absent** |
-| links are absolute URLs | links are **path-relative**, and the whole `links` object is `null` without a link context |
+| `links.current` | same name, and never `null` |
+| links are absolute URLs | links are **path-relative** (path base included), and the whole `links` object is `null` without a link context |
 
-So the two client-side changes that are not optional: read `items` instead of `data`, and do not expect
-`links.current` or the echoed request in `meta`. Everything a client needs to navigate is still in `meta` —
-see [Response contract](/reference/response/).
+So the two client-side changes that are not optional: read `items` instead of `data`, and do not expect the
+echoed request in `meta`. Everything a client needs to navigate is still in `meta` — see
+[Response contract](/reference/response/).
 
 ## Ordering is stricter
 

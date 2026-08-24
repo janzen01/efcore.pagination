@@ -3,6 +3,7 @@ using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.EntityFrameworkCore;
 
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -61,10 +62,10 @@ internal abstract class PaginateFilterField(
 			PaginateFilterOperator.ILike => BuildStringPatternExpression(valueExpression, criterion.Value, false, context),
 			PaginateFilterOperator.StartsWith => BuildStringPatternExpression(valueExpression, criterion.Value, true, context),
 			PaginateFilterOperator.Contains => BuildContainsExpression(valueExpression, criterion.Value, context, maxFilterValues),
-			PaginateFilterOperator.LessThan => Expression.LessThan(valueExpression, ConvertValue(criterion.Value, valueExpression.Type, context)),
-			PaginateFilterOperator.LessThanOrEqual => Expression.LessThanOrEqual(valueExpression, ConvertValue(criterion.Value, valueExpression.Type, context)),
-			PaginateFilterOperator.GreaterThan => Expression.GreaterThan(valueExpression, ConvertValue(criterion.Value, valueExpression.Type, context)),
-			PaginateFilterOperator.GreaterThanOrEqual => Expression.GreaterThanOrEqual(valueExpression, ConvertValue(criterion.Value, valueExpression.Type, context)),
+			PaginateFilterOperator.LessThan => BuildComparison(valueExpression, criterion.Value, Expression.LessThan, context),
+			PaginateFilterOperator.LessThanOrEqual => BuildComparison(valueExpression, criterion.Value, Expression.LessThanOrEqual, context),
+			PaginateFilterOperator.GreaterThan => BuildComparison(valueExpression, criterion.Value, Expression.GreaterThan, context),
+			PaginateFilterOperator.GreaterThanOrEqual => BuildComparison(valueExpression, criterion.Value, Expression.GreaterThanOrEqual, context),
 			PaginateFilterOperator.Between => BuildBetweenExpression(valueExpression, criterion.Value, context, maxFilterValues),
 			_ => throw new PaginateQueryException($"Filter operator '{criterion.Operator}' is not supported.")
 		};
@@ -109,13 +110,60 @@ internal abstract class PaginateFilterField(
 		string[] values = SplitValueList(value, maxFilterValues);
 		if (values.Length != 2) throw new PaginateQueryException($"Filter '{Name}' requires exactly two '$btw' values.");
 
-		var lower = ConvertValue(values[0], valueExpression.Type, context);
-		var upper = ConvertValue(values[1], valueExpression.Type, context);
-
 		return Expression.AndAlso(
-			Expression.GreaterThanOrEqual(valueExpression, lower),
-			Expression.LessThanOrEqual(valueExpression, upper)
+			BuildComparison(valueExpression, values[0], Expression.GreaterThanOrEqual, context),
+			BuildComparison(valueExpression, values[1], Expression.LessThanOrEqual, context)
 		);
+
+	}
+
+	/// <summary>
+	///     Builds one range comparison. The expression factories define no relational operator for enums, strings or
+	///     <see cref="Guid" />, so each gets a translatable stand-in rather than the build-time exception that used to
+	///     escape as a 500 for a request the field's own operator allow-list had permitted.
+	/// </summary>
+	private Expression BuildComparison(Expression valueExpression, string value, Func<Expression, Expression, BinaryExpression> comparison, PaginateExpressionContext context) {
+
+		// Numbers, dates and add-on types that define their own operators (NodaTime's Instant, LocalDate) go straight
+		// through; only the three families below need help.
+		if (!Type.IsEnum && Type != typeof(string) && Type != typeof(Guid)) {
+			var constant = ConvertValue(value, valueExpression.Type, context);
+
+			try {
+				return comparison(valueExpression, constant);
+			} catch (InvalidOperationException exception) {
+				// bool, and anything registered through PaginateTypeSupport without operators of its own.
+				throw new PaginateQueryException($"Filter '{Name}' does not support comparison operators for type '{Type.Name}'.", exception);
+			}
+		}
+
+		// Unwrapping the nullable keeps both stand-ins working on the underlying value; the null guard below restores
+		// the "a NULL row does not match" behaviour a lifted operator would have given for free.
+		var operand = Nullable.GetUnderlyingType(valueExpression.Type) is null
+			? valueExpression
+			: Expression.Property(valueExpression, "Value");
+
+		Expression compare;
+
+		if (Type.IsEnum) {
+			// Compare on the underlying integral type, which is also what the column stores unless the model maps the
+			// enum to text — in which case this filter does not translate, exactly as it did not before.
+			var underlying = Enum.GetUnderlyingType(Type);
+			object? ordinal = Convert.ChangeType(PaginateValueConverter.Convert(value, Type), underlying, CultureInfo.InvariantCulture);
+
+			compare = comparison(Expression.Convert(operand, underlying), ToConstant(ordinal, underlying, context));
+		} else {
+			// CompareTo translates to a plain SQL comparison, so the ordering is the database's — collation for
+			// strings, byte order for Guids — rather than the one .NET would apply in memory.
+			compare = comparison(
+				Expression.Call(operand, Type.GetMethod(nameof(IComparable.CompareTo), [Type])!, ConvertValue(value, Type, context)),
+				Expression.Constant(0));
+		}
+
+		// Mirrors the pattern operators: SQL already yields false for NULL, the in-memory provider would throw.
+		return valueExpression.Type.IsValueType && Nullable.GetUnderlyingType(valueExpression.Type) is null
+			? compare
+			: Expression.AndAlso(Expression.NotEqual(valueExpression, Expression.Constant(null, valueExpression.Type)), compare);
 
 	}
 
@@ -178,8 +226,11 @@ internal abstract class PaginateFilterField(
 	///     Converts a raw string value to a constant of the target type, optionally wrapped in
 	///     <see cref="EF.Parameter{T}" /> for plan reuse.
 	/// </summary>
-	private static Expression ConvertValue(string value, Type targetType, PaginateExpressionContext context) {
-		var constant = Expression.Constant(PaginateValueConverter.Convert(value, targetType), targetType);
+	private static Expression ConvertValue(string value, Type targetType, PaginateExpressionContext context) { return ToConstant(PaginateValueConverter.Convert(value, targetType), targetType, context); }
+
+	/// <summary>Wraps an already-converted value as a constant of <paramref name="targetType" />, parameterised as above.</summary>
+	private static Expression ToConstant(object? value, Type targetType, PaginateExpressionContext context) {
+		var constant = Expression.Constant(value, targetType);
 		return context.UseDatabaseFunctions ? PaginateExpressionUtils.ToDatabaseParameter(constant) : constant;
 	}
 

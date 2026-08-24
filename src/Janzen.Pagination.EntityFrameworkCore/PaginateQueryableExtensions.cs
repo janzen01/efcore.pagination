@@ -143,7 +143,13 @@ public static class PaginateQueryableExtensions {
 
 	}
 
-	private static IQueryable<TEntity> ApplySort<TEntity>(IQueryable<TEntity> query, PaginateQuery request, PaginateConfig<TEntity> config) {
+	/// <summary>
+	///     Validates the sort and resolves it to ordering keys, the tie-breaker appended last. Kept separate from
+	///     applying them because the validation belongs <b>before</b> the count: resolution used to live inside the
+	///     non-empty branch, so a request that matched nothing — or asked for a page past the end — never had its
+	///     <c>sortBy</c> checked at all, and answered 200 to a name that does not exist.
+	/// </summary>
+	private static IReadOnlyList<(LambdaExpression Selector, bool Descending)> ResolveSorts<TEntity>(PaginateQuery request, PaginateConfig<TEntity> config) {
 
 		IReadOnlyList<PaginateSort> sorts;
 
@@ -158,25 +164,33 @@ public static class PaginateQueryableExtensions {
 			sorts = request.SortBy.Select(PaginateExpressionUtils.ParseSort).ToArray();
 		}
 
-		bool first = true;
+		List<(LambdaExpression Selector, bool Descending)> keys = [];
 
 		foreach (var sort in sorts) {
 			if (!config.TryGetSortableField(sort.Field, out var field)) throw new PaginateQueryException($"Sort for field '{sort.Field}' is not configured.");
 
-			query = PaginateExpressionUtils.ApplyOrder(query, field.Selector, sort.Direction == PaginateSortDirection.Desc, first);
-			first = false;
+			keys.Add((field.Selector, sort.Direction == PaginateSortDirection.Desc));
 		}
 
 		// Append the configured tie-breaker as the final ordering key, so offset paging is deterministic even when the
 		// primary sort is absent or non-unique (Skip/Take over an unordered or ambiguous set is non-deterministic).
 		if (config.TieBreakerSelector is not null) {
-			query = PaginateExpressionUtils.ApplyOrder(query, config.TieBreakerSelector, config.TieBreakerDirection == PaginateSortDirection.Desc, first);
-			first = false;
+			keys.Add((config.TieBreakerSelector, config.TieBreakerDirection == PaginateSortDirection.Desc));
 		}
 
-		if (first) {
+		if (keys.Count == 0) {
 			throw new PaginateQueryException(
 				"Pagination requires a deterministic sort order. Pass 'sortBy', configure DefaultSortBy(...), or add WithTieBreaker(...) to the pagination configuration.");
+		}
+
+		return keys;
+
+	}
+
+	private static IQueryable<TEntity> ApplySorts<TEntity>(IQueryable<TEntity> query, IReadOnlyList<(LambdaExpression Selector, bool Descending)> sorts) {
+
+		for (int index = 0; index < sorts.Count; index++) {
+			query = PaginateExpressionUtils.ApplyOrder(query, sorts[index].Selector, sorts[index].Descending, index == 0);
 		}
 
 		return query;
@@ -328,6 +342,10 @@ public static class PaginateQueryableExtensions {
 			var query = ApplyFilters(source, request, config, context);
 			query = ApplySearch(query, request, config, context);
 
+			// Resolved before the count, so the documented order (page/limit, filters, search, sortBy, then SQL) holds
+			// even when the request is answered by the empty short-circuit below and never reaches the database.
+			var sorts = ResolveSorts(request, config);
+
 			int totalItems = await CountAsync(query, ct).ConfigureAwait(false);
 			int totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)limit);
 
@@ -339,7 +357,7 @@ public static class PaginateQueryableExtensions {
 			if (skip >= totalItems) {
 				items = [];
 			} else {
-				query = ApplySort(query, request, config);
+				query = ApplySorts(query, sorts);
 				items = await project(query.Skip((int)skip).Take(limit), ct).ConfigureAwait(false);
 			}
 

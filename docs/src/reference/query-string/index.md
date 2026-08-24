@@ -147,8 +147,9 @@ GET /products?search=gizmo&searchBy=name
 WHERE "p"."Name" LIKE @p ESCAPE '\'
 ```
 
-- `%` and `_` in the term are escaped — hence the `ESCAPE '\'` — so they match literally rather than as
-  wildcards.
+- `%`, `_` and `[` in the term are escaped — hence the `ESCAPE '\'` — so they match literally rather than as
+  wildcards. `[` only opens a character range on SQL Server, but escaping it everywhere keeps one pattern
+  correct on every provider: PostgreSQL and SQLite read any escaped character as a literal.
 - Longer than `MaxSearchLength` (default 256) → `400`.
 - A `searchBy` field that is not searchable → `400`; the same field twice → `400`. Both are validated **even
   when `search` is absent**, so a typo surfaces instead of silently searching everything.
@@ -236,7 +237,9 @@ An empty list is `400 Filter 'x' requires at least one '$in' value.`
 
 #### `$null` — is null
 
-Takes no value:
+Takes no value, and refuses one — `?filter.description=$null:false` is a
+`400 Filter 'description' does not take a value for '$null'.` rather than a filter that reads as one thing and
+does the other. `$not:$null` is how you ask for the opposite:
 
 ```http
 ?filter.description=$null
@@ -308,6 +311,18 @@ non-string field is `400 Filter 'x' supports '$contains' only for string or coll
 ```sql
 WHERE "p"."Rank" >= @p
 ```
+
+Numbers and dates are the obvious cases. **`string`, `Guid` and enums order too**, and the ordering is the
+database's, not .NET's:
+
+| Field type | Ordered by | Worth knowing |
+|------------|-----------|---------------|
+| `string` | the column's **collation** | `$gt:m` returns different rows under a case-sensitive and a case-insensitive collation. The engine does not impose one. |
+| `Guid` | the database's byte order | which is not always .NET's `Guid.CompareTo` order. The same divergence already applies to sorting a `Guid` column; filters inherit it rather than introduce it. |
+| enums | the **underlying integral value**, not the member name | so it follows declaration order. A model that maps the enum to text cannot translate this. |
+| `bool` | — | `400 Filter 'x' does not support comparison operators for type 'Boolean'.` There is no ordering to ask for; use `$eq`. |
+
+A `NULL` column never matches a comparison, in either direction — the same three-valued logic `$eq` follows.
 
 #### `$btw` — inclusive range
 

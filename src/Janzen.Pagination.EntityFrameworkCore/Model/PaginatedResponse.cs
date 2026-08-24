@@ -46,4 +46,16 @@ public sealed record PaginatedLinks(
 	string? Previous,
 	string? Next,
 	string? Last
-);
+) {
+
+	/// <summary>
+	///     Link to the page that was requested — the request echoed back, so it is never <see langword="null" /> and is
+	///     present past the last page too, where <see cref="Next" /> and <see cref="Previous" /> already say what is
+	///     navigable. A client that stores "where am I" URLs (bookmarks, retry, restoring table state) reads it here
+	///     instead of reassembling it from <see cref="PaginatedResponse{T}.Meta" /> and its own knowledge of the path.
+	///     Declared outside the positional list on purpose: the constructor, <c>Deconstruct</c> and <c>with</c> keep
+	///     their shape, and it serializes after the four positional members.
+	/// </summary>
+	public string? Current { get; init; }
+
+}

@@ -11,6 +11,10 @@
 // `/guide/<name>` but 404s at `/guide/<name>/` -- a dead link inside a package, found by a consumer.
 //
 // Add a path here when a new one is published in a package README. Never remove one.
+//
+// A README URL may also carry a `#fragment`, and the second half of this script checks it against the ids the build
+// actually emitted. A deep link is frozen exactly like the page it points into: reword the heading and every copy of
+// that readme nuget.org has already rendered lands the reader at the top of the page instead.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
@@ -46,13 +50,24 @@ const readmes = [
 ]
 
 const advertised = new Map()
+const fragments = []
 
 for (const readme of readmes.filter(existsSync)) {
-	for (const [, path] of readFileSync(readme, 'utf8').matchAll(/https:\/\/janzen01\.github\.io\/efcore\.pagination\/([^)\s"']*)/g)) {
+	const source = relative(root, readme).replaceAll('\\', '/')
+
+	for (const [, url] of readFileSync(readme, 'utf8').matchAll(/https:\/\/janzen01\.github\.io\/efcore\.pagination\/([^)\s"']*)/g)) {
 		// Only site pages: the READMEs also link into github.com paths under the same project name.
-		if (path.startsWith('blob/') || path.startsWith('releases')) continue
+		if (url.startsWith('blob/') || url.startsWith('releases')) continue
+
+		const [path, anchor] = url.split('#')
 		if (path !== '' && !path.endsWith('/')) continue
-		advertised.set(`${path}index.html`, relative(root, readme).replaceAll('\\', '/'))
+
+		advertised.set(`${path}index.html`, source)
+
+		// A README link that names a section is frozen the same way the page is, and a fragment cannot be recalled
+		// from a readme nuget.org has already rendered. Nothing else checks these: scripts/verify-anchors.mjs walks
+		// the markdown sources, and these are absolute URLs sitting in files VitePress never builds.
+		if (anchor) fragments.push({ page: `${path}index.html`, anchor, source, url })
 	}
 }
 
@@ -70,4 +85,21 @@ if (missing.length > 0) {
 	process.exit(1)
 }
 
-console.log(`All ${required.size} advertised URLs are present in the build (${frozen.length} of them frozen by 10.0.0).`)
+// Every page above exists, so reading them is safe from here.
+const idsOf = (page) => new Set([...readFileSync(join(dist, page), 'utf8').matchAll(/id="([^"]+)"/g)].map((match) => match[1]))
+
+const dangling = fragments.filter(({ page, anchor }) => !idsOf(page).has(anchor))
+
+if (dangling.length > 0) {
+	console.error('\nThese README links name a heading the build did not emit:\n')
+	for (const { url, source } of dangling) {
+		console.error(`  ${SITE}${url}   (${source})`)
+	}
+	console.error('\nRead the id out of .dist -- VitePress slugify is not GitHub slugify.\n')
+	process.exit(1)
+}
+
+console.log(
+	`All ${required.size} advertised URLs are present in the build (${frozen.length} of them frozen by 10.0.0), ` +
+	`and all ${fragments.length} deep-linked headings exist.`
+)

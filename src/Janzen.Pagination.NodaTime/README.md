@@ -68,6 +68,12 @@ to recurse into them.
 - [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/)
 - [Full guide](https://janzen01.github.io/efcore.pagination/)
 
+## Debugging
+
+The package ships **embedded PDBs with Source Link**, so a debugger steps straight into these sources at the exact
+commit the version was built from. Nothing to configure: no symbol server, no separate symbol download, and it works
+offline.
+
 ## License
 
 [MIT](https://github.com/janzen01/efcore.pagination/blob/master/LICENSE) © Lubos Jansky

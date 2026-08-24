@@ -97,4 +97,34 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 
 	}
 
+	/// <summary>
+	///     Sort resolution runs before the count, so the three tests below hold for requests that never reach the
+	///     row-fetching query at all. It used to run inside the non-empty branch, which meant a filter matching
+	///     nothing — or simply a page past the end — answered 200 to a sort the config does not have.
+	/// </summary>
+	private static PaginateQuery MatchingNothing(params string[] sortBy) {
+		return new PaginateQuery {
+			Limit = Query.All,
+			SortBy = sortBy,
+			Filters = new Dictionary<string, IReadOnlyList<string>> { ["id"] = ["$eq:999"] }
+		};
+	}
+
+	[Fact]
+	public async Task An_unsortable_field_is_rejected_even_when_the_filter_matches_nothing() {
+		Assert.Equal("Sort for field 'nope' is not configured.", await this.Rejects(MatchingNothing("nope:ASC")));
+	}
+
+	[Fact]
+	public async Task An_unsortable_field_is_rejected_even_past_the_last_page() {
+		Assert.Equal("Sort for field 'nope' is not configured.", await this.Rejects(new PaginateQuery { Page = 999, SortBy = ["nope:ASC"] }));
+	}
+
+	[Fact]
+	public async Task Paging_without_any_ordering_is_refused_even_when_nothing_matches() {
+		Assert.Equal(
+			"Pagination requires a deterministic sort order. Pass 'sortBy', configure DefaultSortBy(...), or add WithTieBreaker(...) to the pagination configuration.",
+			await this.Rejects(MatchingNothing(), Unordered));
+	}
+
 }

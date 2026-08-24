@@ -21,7 +21,8 @@ client reads `meta` to decide whether to fetch again.
     "first":    "/products?limit=2&filter.status=%24eq%3AActive&page=1",
     "previous": "/products?limit=2&filter.status=%24eq%3AActive&page=1",
     "next":     "/products?limit=2&filter.status=%24eq%3AActive&page=3",
-    "last":     "/products?limit=2&filter.status=%24eq%3AActive&page=19"
+    "last":     "/products?limit=2&filter.status=%24eq%3AActive&page=19",
+    "current":  "/products?limit=2&filter.status=%24eq%3AActive&page=2"
   }
 }
 ```
@@ -33,8 +34,13 @@ sealed record PaginatedResponse<T>(IReadOnlyList<T> Items, PaginatedMeta Meta, P
 
 sealed record PaginatedMeta(int TotalItems, int ItemCount, int ItemsPerPage, int TotalPages, int CurrentPage);
 
-sealed record PaginatedLinks(string? First, string? Previous, string? Next, string? Last);
+sealed record PaginatedLinks(string? First, string? Previous, string? Next, string? Last) {
+    public string? Current { get; init; }
+}
 ```
+
+`Current` sits outside the positional list on purpose, so the constructor, `Deconstruct` and `with` keep the
+shape they had; the engine sets it, a caller never does.
 
 Nothing here is serializer-specific: the JSON above is what ASP.NET Core's default camelCase settings
 produce from those records. The tables below use the JSON names; the CLR members are the same names in
@@ -74,10 +80,11 @@ a URL to be relative to, so there is nothing honest to put there:
 "links": null
 ```
 
-With a link context, all four keys are present on every page, and an absent link carries `null`:
+With a link context, every key is present on every page, and an absent link carries `null`:
 
 ```json
-"links": { "first": "…&page=1", "previous": "…&page=18", "next": null, "last": "…&page=19" }
+"links": { "first": "…&page=1", "previous": "…&page=18", "next": null, "last": "…&page=19",
+           "current": "…&page=19" }
 ```
 
 | Link | `null` when |
@@ -86,16 +93,23 @@ With a link context, all four keys are present on every page, and an absent link
 | `previous` | on page 1 |
 | `next` | on the last page, and whenever nothing matched |
 | `last` | never — it is page 1 for an empty result set |
+| `current` | never — it echoes the request, so it answers past the last page too |
+
+`current` is the request that was made, not a clamped one: ask for page 900 of a 19-page result and it comes
+back pointing at page 900, while `next` and `previous` say what is actually navigable. It is what a client
+that stores "where am I" URLs — bookmarks, retry, restoring table state — would otherwise reassemble from
+`meta` plus its own knowledge of the path.
 
 **Those nulls are serialized, not omitted.** `"next": null` is the client's answer to "is there another
 page", so dropping the key would force it to distinguish "no next page" from "this API does not send next
 links". Keeping every key means `links` has the same shape on every page. Payload-size linters flag this;
 it is deliberate.
 
-The URLs are **path-relative — no scheme, no host.** Behind a proxy or a path base that is what you want;
-prefix them yourself if your clients need absolute URLs. Every current query parameter except `page` is
-carried over and percent-encoded, including parameters the library does not recognise, so client-side state
-survives paging.
+The URLs are **path-relative — no scheme, no host.** Behind a proxy that is what you want; prefix them
+yourself if your clients need absolute URLs. The app's **path base is part of the path**, so an app mounted
+under `UsePathBase("/api")` emits `/api/products?…`. Every current query parameter except `page` is carried
+over and percent-encoded, including parameters the library does not recognise, so client-side state survives
+paging.
 
 ## Building links: `PaginateLinkContext`
 

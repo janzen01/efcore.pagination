@@ -139,8 +139,11 @@ Every invalid query — a bad operator, an unknown sort field, an out-of-range l
 The `title` is always `Invalid query`; `detail` carries the specific message. The full list is in the
 [error catalogue](/reference/errors/). No per-action `try`/`catch` is needed anywhere.
 
-The controller path builds the payload through the app's registered `ProblemDetailsFactory`, so your own
-`AddProblemDetails` customisation (extra members, `type` URIs, trace identifiers) applies here too.
+**Both** paths build the payload through the app's registered `ProblemDetailsFactory` when there is one, so
+your own `AddProblemDetails` customisation (extra members, `type` URIs, trace identifiers) applies to either,
+and the same error comes back with the same members whichever pipeline served it. An app with no MVC services
+registered at all has no factory; there the endpoint filter falls back to a bare `Results.Problem`, which
+carries `title`, `status` and `detail` but not `type` or `traceId`.
 
 ---
 
@@ -153,13 +156,16 @@ When you pass an `HttpRequest`, the response's `Links` are built from the curren
   "first":    "/products?limit=25&filter.status=%24eq%3AActive&page=1",
   "previous": "/products?limit=25&filter.status=%24eq%3AActive&page=1",
   "next":     "/products?limit=25&filter.status=%24eq%3AActive&page=3",
-  "last":     "/products?limit=25&filter.status=%24eq%3AActive&page=19"
+  "last":     "/products?limit=25&filter.status=%24eq%3AActive&page=19",
+  "current":  "/products?limit=25&filter.status=%24eq%3AActive&page=2"
 }
 ```
 
 Every current query parameter except `page` is preserved and re-escaped — including ones the library does not
 recognise, so client-side state survives paging. The URLs are **path-relative, with no scheme or host**, which
-is what you want behind a proxy or a path base; prefix them yourself if your clients need absolute URLs.
+is what you want behind a proxy; prefix them yourself if your clients need absolute URLs. `Request.PathBase`
+is part of the path, so an app mounted with `UsePathBase("/api")` emits `/api/products?…` rather than links
+that 404.
 
 **No `HttpRequest`, no links.** `Links` then comes back `null` as a whole, and callers page by `meta` instead.
 

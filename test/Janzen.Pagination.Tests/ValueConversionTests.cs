@@ -1,3 +1,5 @@
+using Janzen.Pagination.EntityFrameworkCore.Engine;
+
 namespace Janzen.Pagination.Tests;
 
 /// <summary>How raw query-string text becomes a typed value, and what it says when it cannot.</summary>
@@ -85,6 +87,29 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	public async Task An_unparseable_target_type_is_reported_as_unsupported() {
 		Assert.Equal("Filtering values of type 'List`1' is not supported.",
 			await this.Rejects(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
+	}
+
+	/// <summary>
+	///     Asserted on the converter rather than through a query: a <see cref="DateTime" /> compares by ticks alone,
+	///     so a wrong <see cref="DateTimeKind" /> changes nothing in memory and nothing in the SQL SQLite emits — it
+	///     shifts the instant only once a provider converts the parameter to UTC, and only on a server that is not on
+	///     UTC. There is no zone-independent behaviour to hang this on, and a behavioural test would pass in CI.
+	/// </summary>
+	[Theory]
+	[InlineData("2026-01-01T00:00:00")]
+	[InlineData("2026-01-01T02:00:00+02:00")]
+	public void A_date_time_is_parsed_as_the_utc_instant(string value) {
+
+		var parsed = Assert.IsType<DateTime>(PaginateValueConverter.Convert(value, typeof(DateTime)));
+
+		Assert.Equal(DateTimeKind.Utc, parsed.Kind);
+		Assert.Equal(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), parsed);
+
+	}
+
+	[Fact]
+	public void A_date_time_offset_is_parsed_as_the_utc_instant() {
+		Assert.Equal(TimeSpan.Zero, Assert.IsType<DateTimeOffset>(PaginateValueConverter.Convert("2026-01-01T02:00:00+02:00", typeof(DateTimeOffset))).Offset);
 	}
 
 }
