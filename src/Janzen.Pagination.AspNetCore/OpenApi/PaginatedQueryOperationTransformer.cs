@@ -207,7 +207,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				Type = JsonSchemaType.Array,
 				Items = new OpenApiSchema {
 					Type = JsonSchemaType.String,
-					Enum = [.. config.SearchableFields.Select(field => JsonValue.Create(field.Name)!)]
+					Enum = [.. config.SearchableFields.Select(field => JsonValue.Create(field.Name))]
 				}
 			}
 		};
@@ -250,7 +250,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	private static JsonNode[] BuildSortEnum(IPaginateConfig config) {
 		return [.. config.SortableFields
 			.SelectMany(field => new JsonNode[] {
-				JsonValue.Create($"{field.Name}:ASC")!, JsonValue.Create($"{field.Name}:DESC")!
+				JsonValue.Create($"{field.Name}:ASC"), JsonValue.Create($"{field.Name}:DESC")
 			})];
 	}
 
@@ -323,7 +323,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	// Renders an optional field badge as a <code> chip appended to the parameter description. The API reference
 	// sanitizer (Scalar uses GitHub-flavored Markdown / rehype-sanitize) strips inline style and every class except
-	// one matching /^language-/ on <code> — so a badge is a <code> chip carrying that class, and the consumer colors
+	// one matching /^language-/ on <code>. So a badge is a <code> chip carrying that class, and the consumer colors
 	// it through the reference UI's custom CSS. ShowBadge guarantees the class starts with "language-". Without a
 	// class it's a neutral code chip. Name and class are HTML-encoded so a stray character can't break the markup.
 	private static string RenderBadge(PaginateBadge? badge) {
