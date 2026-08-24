@@ -1,3 +1,1 @@
 #nullable enable
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Current.get -> string?
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Current.init -> void

@@ -1,8 +1,8 @@
 // Fails the build if a URL that has already shipped inside a released NuGet package stops answering.
 //
 // The four package READMEs are rendered by nuget.org against the version they were packed with, forever.
-// The paths below are the ones 10.0.0 shipped, and each ends with a slash, because Jekyll's
-// `permalink: pretty` built every page as `<name>/index.html`.
+// The lists below are that history, each entry tagged with the release that published it, and each path ends
+// with a slash: Jekyll built `<name>/index.html` and VitePress still does.
 //
 // This does not freeze the site's structure. A page may move; what has to stay at the old path is
 // *something* -- the page, or a redirect stub (a markdown file whose `head` sets `http-equiv: refresh`),
@@ -10,11 +10,14 @@
 // renaming `<name>/index.md` to `<name>.md` builds `<name>.html`, which GitHub Pages serves at
 // `/guide/<name>` but 404s at `/guide/<name>/` -- a dead link inside a package, found by a consumer.
 //
-// Add a path here when a new one is published in a package README. Never remove one.
+// The second half reads the READMEs as they are *now* and requires the same of whatever they advertise, because
+// that is what the NEXT release freezes. So the job at release time is to move that set into the lists below under
+// the new version number, which is what turns "the READMEs still happen to point there" into a permanent guarantee.
+// Never remove an entry.
 //
-// A README URL may also carry a `#fragment`, and the second half of this script checks it against the ids the build
-// actually emitted. A deep link is frozen exactly like the page it points into: reword the heading and every copy of
-// that readme nuget.org has already rendered lands the reader at the top of the page instead.
+// A README URL may also carry a `#fragment`, checked against the ids the build actually emitted. A deep link is
+// frozen exactly like the page it points into: reword the heading and every copy of that readme nuget.org has
+// already rendered lands the reader at the top of the page instead.
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
@@ -25,15 +28,39 @@ const root = join(docs, '..')
 const dist = join(docs, '.dist')
 
 const frozen = [
-	'index.html',
-	'guide/index.html',
-	'guide/getting-started/index.html',
-	'guide/query-string/index.html',
-	'guide/configuration/index.html',
-	'guide/projections/index.html',
-	'guide/aspnetcore/index.html',
-	'guide/providers-and-types/index.html',
-	'guide/recipes/index.html'
+	// 10.0.0 -- the pre-VitePress guide, built by Jekyll's `permalink: pretty`. Four of these are redirect stubs today.
+	['index.html', '10.0.0'],
+	['guide/index.html', '10.0.0'],
+	['guide/getting-started/index.html', '10.0.0'],
+	['guide/query-string/index.html', '10.0.0'],
+	['guide/configuration/index.html', '10.0.0'],
+	['guide/projections/index.html', '10.0.0'],
+	['guide/aspnetcore/index.html', '10.0.0'],
+	['guide/providers-and-types/index.html', '10.0.0'],
+	['guide/recipes/index.html', '10.0.0'],
+
+	// 10.0.1 -- the READMEs stopped leaning on the stubs above and point at the current homes instead.
+	['integrations/aspnetcore/index.html', '10.0.1'],
+	['integrations/aspnetcore/openapi/index.html', '10.0.1'],
+	['integrations/custom-types/index.html', '10.0.1'],
+	['integrations/nodatime/index.html', '10.0.1'],
+	['integrations/postgresql/index.html', '10.0.1'],
+	['recipes/index.html', '10.0.1'],
+	['reference/configuration/index.html', '10.0.1'],
+	['reference/errors/index.html', '10.0.1'],
+	['reference/query-string/index.html', '10.0.1'],
+	['reference/response/index.html', '10.0.1']
+]
+
+// The deep links a package README names, frozen for the same reason and just as permanently: reword the heading and
+// every copy of that readme nuget.org has already rendered drops its reader at the top of the page instead.
+const frozenFragments = [
+	['integrations/aspnetcore/index.html', 'errors-as-problemdetails', '10.0.1'],
+	['integrations/postgresql/index.html', 'like-vs-ilike', '10.0.1'],
+	['reference/errors/index.html', 'filter-operators', '10.0.1'],
+	['reference/query-string/index.html', 'operator-reference', '10.0.1'],
+	['reference/query-string/index.html', 'value-formats', '10.0.1'],
+	['reference/response/index.html', 'link-response-header-rfc-8288', '10.0.1']
 ]
 
 // The list above is history: what 10.0.0 already published. This second half is the future: whatever the
@@ -50,7 +77,13 @@ const readmes = [
 ]
 
 const advertised = new Map()
-const fragments = []
+
+// Keyed so a link that is both frozen and still advertised is checked once, and reported as frozen: that is the
+// half that cannot be fixed by editing a README.
+const fragments = new Map(frozenFragments.map(([page, anchor, release]) => [
+	`${page}#${anchor}`,
+	{ page, anchor, source: `released in ${release}`, url: `${page.replace(/index\.html$/, '')}#${anchor}` }
+]))
 
 for (const readme of readmes.filter(existsSync)) {
 	const source = relative(root, readme).replaceAll('\\', '/')
@@ -62,16 +95,17 @@ for (const readme of readmes.filter(existsSync)) {
 		const [path, anchor] = url.split('#')
 		if (path !== '' && !path.endsWith('/')) continue
 
-		advertised.set(`${path}index.html`, source)
+		const page = `${path}index.html`
+		advertised.set(page, source)
 
-		// A README link that names a section is frozen the same way the page is, and a fragment cannot be recalled
-		// from a readme nuget.org has already rendered. Nothing else checks these: scripts/verify-anchors.mjs walks
-		// the markdown sources, and these are absolute URLs sitting in files VitePress never builds.
-		if (anchor) fragments.push({ page: `${path}index.html`, anchor, source, url })
+		// A README link that names a section is frozen the same way the page is. Nothing else checks these:
+		// scripts/verify-anchors.mjs walks the markdown sources, and these are absolute URLs sitting in files
+		// VitePress never builds.
+		if (anchor && !fragments.has(`${page}#${anchor}`)) fragments.set(`${page}#${anchor}`, { page, anchor, source, url })
 	}
 }
 
-const required = new Map(frozen.map((path) => [path, 'released in 10.0.0']))
+const required = new Map(frozen.map(([path, release]) => [path, `released in ${release}`]))
 for (const [path, source] of advertised) if (!required.has(path)) required.set(path, source)
 
 const missing = [...required].filter(([path]) => !existsSync(join(dist, path)))
@@ -88,7 +122,7 @@ if (missing.length > 0) {
 // Every page above exists, so reading them is safe from here.
 const idsOf = (page) => new Set([...readFileSync(join(dist, page), 'utf8').matchAll(/id="([^"]+)"/g)].map((match) => match[1]))
 
-const dangling = fragments.filter(({ page, anchor }) => !idsOf(page).has(anchor))
+const dangling = [...fragments.values()].filter(({ page, anchor }) => !idsOf(page).has(anchor))
 
 if (dangling.length > 0) {
 	console.error('\nThese README links name a heading the build did not emit:\n')
@@ -100,6 +134,6 @@ if (dangling.length > 0) {
 }
 
 console.log(
-	`All ${required.size} advertised URLs are present in the build (${frozen.length} of them frozen by 10.0.0), ` +
-	`and all ${fragments.length} deep-linked headings exist.`
+	`All ${required.size} advertised URLs are present in the build (${frozen.length} frozen by a release), ` +
+	`and all ${fragments.size} deep-linked headings exist (${frozenFragments.length} of them frozen).`
 )

@@ -102,6 +102,8 @@ Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.QueryParameters.
 Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.QueryParameters.init -> void
 Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks
 Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.<Clone>$() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Current.get -> string?
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Current.init -> void
 Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Deconstruct(out string? First, out string? Previous, out string? Next, out string? Last) -> void
 Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Equals(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks? other) -> bool
 Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.First.get -> string?
