@@ -106,7 +106,8 @@ public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery reques
   "items": [ { "id": "7f3c…", "name": "Widget Pro", "price": 249.00 } ],
   "meta":  { "totalItems": 26, "itemCount": 1, "itemsPerPage": 25, "totalPages": 2, "currentPage": 2 },
   "links": { "first": "/products?limit=25&page=1", "previous": "/products?limit=25&page=1",
-             "next": null, "last": "/products?limit=25&page=2" }
+             "next": null, "last": "/products?limit=25&page=2",
+             "current": "/products?limit=25&page=2" }
 }
 ```
 
@@ -123,8 +124,11 @@ The full walkthrough is in **[Getting started](https://janzen01.github.io/efcore
 | `searchBy`       | `?searchBy=name`                     | Narrows `search` to a subset of them. |
 | `filter.<field>` | `?filter.price=$btw:10,500`          | `[$not:][$and:\|$or:]$operator:value` — repeatable per field. |
 
-Every operator and every value format, with the SQL each one emits: **[Query-string
-contract](https://janzen01.github.io/efcore.pagination/reference/query-string/)**. Every `400` it can produce: **[Errors](https://janzen01.github.io/efcore.pagination/reference/errors/)**.
+Every operator with the SQL it emits: **[operator
+reference](https://janzen01.github.io/efcore.pagination/reference/query-string/#operator-reference)**. What each type
+accepts: **[value formats](https://janzen01.github.io/efcore.pagination/reference/query-string/#value-formats)**.
+Every `400` it can produce, in the order the engine validates:
+**[Errors](https://janzen01.github.io/efcore.pagination/reference/errors/)**.
 
 ## Documentation
 

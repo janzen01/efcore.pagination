@@ -72,6 +72,12 @@ internal static class PaginateFilterParser {
 				throw new PaginateQueryException($"Filter '{field}' uses unknown operator '{token}'.");
 			}
 
+			// $null is documented as valueless and PaginateFilterField drops whatever follows it, so `$null:false`
+			// used to behave as a bare `$null` — the opposite of what the caller wrote.
+			if (filterOperator == PaginateFilterOperator.Null && afterToken.Length > 0) {
+				throw new PaginateQueryException($"Filter '{field}' does not take a value for '$null'.");
+			}
+
 			return new PaginateFilterCriterion(filterOperator, afterToken, not, connector);
 
 		}

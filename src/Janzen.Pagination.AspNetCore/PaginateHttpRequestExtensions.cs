@@ -44,7 +44,9 @@ public static class PaginateHttpRequestExtensions {
 				query.AddRange(values.Select(value => new KeyValuePair<string, string>(key, value ?? string.Empty)));
 			}
 
-			return new PaginateLinkContext(request.Path.ToString(), query);
+			// The path base belongs in the link: an app mounted under UsePathBase("/api") would otherwise hand clients
+			// links that 404. PathString.Add keeps the escaping correct, and the builder emits the result verbatim.
+			return new PaginateLinkContext(request.PathBase.Add(request.Path).ToString(), query);
 
 		}
 

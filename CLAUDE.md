@@ -48,7 +48,10 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   build when one of those paths has nothing behind it, stub or page. Its hardcoded list is *history* — what
   `10.0.0` published, never removable — and it additionally **reads the root and package READMEs** and requires
   every site URL they advertise to exist too, because those are what the *next* release freezes. So repointing
-  a README is safe: forget to publish the target and the build says so, naming the README.
+  a README is safe: forget to publish the target and the build says so, naming the README. **A `#fragment` in a
+  README URL is checked the same way**, against the ids in the built page — a README deep link is frozen exactly
+  like the page it points into, and `verify-anchors.mjs` cannot see it (that one walks the markdown sources;
+  these are absolute URLs in files VitePress never builds).
 - **A dead link fails the build** (`ignoreDeadLinks: false`). Links are **relative within a section**
   (`../configuration/`, `../query-string/#guards`) and **root-absolute across sections**
   (`/guide/projections/`), always ending in a slash. Both halves matter: a relative link that crosses a
@@ -153,10 +156,13 @@ independent of each other — consumers pick the extensions they need:
   the collection properties would compare by reference and lie, so there is no `with`. In ASP.NET Core it binds from
   `?page=&limit=&sortBy=&search=&filter.<field>=$op:value`.
 - **`PaginatedResponse<T>`** — envelope: `Items`, `Meta` (totalItems / itemCount / itemsPerPage / totalPages /
-  currentPage), `Links` (first / previous / next / last), which is `null` as a whole unless a
-  `PaginateLinkContext` was supplied; within it, `previous` / `next` are `null` at the edges. **Nulls are
-  serialized, never dropped** — `"next": null` is the client's answer to "is there a next page", so no
-  `JsonIgnore` on these; the payload shape is identical on every page.
+  currentPage), `Links` (first / previous / next / last / **current**), which is `null` as a whole unless a
+  `PaginateLinkContext` was supplied; within it, `previous` / `next` are `null` at the edges, while `current`
+  never is — it echoes the requested page, past the end included. **Nulls are serialized, never dropped** —
+  `"next": null` is the client's answer to "is there a next page", so no `JsonIgnore` on these; the payload
+  shape is identical on every page. `current` is a non-positional init-only member, which is what keeps the
+  ctor / `Deconstruct` / `with` shape (and the binary contract) untouched — the pattern for extending these
+  records additively.
 - **Entry points** (extension methods on `IQueryable<TEntity>`). One name per projection strategy — deliberately *not*
   overloads, so the choice is explicit at the call site and adding an optional parameter later stays non-breaking
   (`Select` = projected in SQL, `Map` = mapped in memory):
@@ -228,8 +234,10 @@ The package version's **first component tracks the .NET / EF Core major it targe
 .NET 10 and EF Core 10. This is lockstep versioning, as used by `Npgsql.EntityFrameworkCore.PostgreSQL` and
 `Microsoft.Extensions.*`, so the pairing is visible without reading the dependency list.
 
-- **Own breaking changes ride the framework major** whenever possible. Mid-cycle ones go into **minor** and are called
-  out in the release notes — the major is not available for them.
+- Within a line the scheme is **`<.net>.<breaking>.<additive+fixes>`**: the middle component is reserved for the
+  library's **own breaking changes** — they ride the framework major whenever possible, and a mid-cycle one bumps
+  the middle component with a release-note callout. Everything else — new API surface and bug fixes alike — bumps
+  the **third** component (so a release adding builder methods is `10.0.1`, not `10.1.0`).
 - **A new .NET major means a new package line** (`11.x`). The engine touches expression trees, `EF.Parameter` and
   `EF.Functions`, so a rebuild against the new EF Core major is needed regardless of the version scheme: a `net10.0`
   assembly loaded against EF Core 11 can fail at runtime. Dependabot opens the `Microsoft.EntityFrameworkCore` major
@@ -303,6 +311,17 @@ plain `Where` and no engine involved:
 `PaginateLikeDefaults.Strategy` is a process-wide mutable static, so tests that swap it sit in the
 `[Collection("LikeDefaults")]` non-parallel collection and restore it in `Dispose`.
 
+`PaginateTypeSupport` is process-wide **and append-only** — a registration cannot be undone. Tests that
+register anything therefore key it to a type declared in the test file itself, so it can never be reached by
+another test.
+
+The test project is named in the core project's `InternalsVisibleTo` list, alongside the two add-on packages.
+Use it sparingly — the point is behaviour, not internals — but two invariants have no behaviour to assert
+against and are tested directly: `PaginateValueConverter`'s UTC `DateTimeKind` (a `DateTime` compares by
+ticks, so the wrong `Kind` changes nothing in memory and nothing in the SQL SQLite emits; it shifts the
+instant only on a provider that converts, on a server off UTC — a behavioural test would pass in CI either
+way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server reads it as a range).
+
 Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs a real PostgreSQL server.
 
 ## Intentional decisions — do NOT "fix" these
@@ -316,6 +335,13 @@ Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs
 - **`nuget.config` lists nuget.org only** and clears machine sources — deliberate, for reproducible restores. nuget.org
   is both the restore source and the publish target; publishing authenticates via Trusted Publishing (OIDC), so there is
   no API-key secret in the repo.
+- **Embedded PDBs, not a `.snupkg`.** `DebugType=embedded` in [Directory.Build.props](Directory.Build.props);
+  `IncludeSymbols` / `SymbolPackageFormat` are deliberately gone, and the two cannot coexist anyway — an embedded
+  PDB leaves no `.pdb` file for a symbols package to hold. What it buys: stepping into these sources needs nothing
+  configured on the consumer's side, no symbol server and no separate download, and it works offline. That is worth
+  the ~50–200 KB per package. SourceLink itself is in-box in the .NET SDK — there is no `Microsoft.SourceLink.*`
+  reference to add, only `PublishRepositoryUrl` / `EmbedUntrackedSources` / `ContinuousIntegrationBuild`, which are
+  already set.
 - **`.slnx` + lock files** — enabling `RestorePackagesWithLockFile` on the `.slnx` restore fails with
   `Invalid framework identifier ''`; lock files are intentionally not enabled at the solution level.
 - **The assemblies are not strong-named**, and this was decided at `10.0.0` rather than left open. Adding a

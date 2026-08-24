@@ -27,8 +27,11 @@ internal static class PaginateValueConverter {
 			if (type == typeof(float)) return float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
 			if (type == typeof(double)) return double.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
 			if (type == typeof(decimal)) return decimal.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture);
-			if (type == typeof(DateTimeOffset)) return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
-			if (type == typeof(DateTime)) return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
+			// AssumeUniversal alone reads an offsetless value as UTC and then hands back Kind=Local, which shifts the
+			// comparison by the server's zone against a UTC-kind column. AdjustToUniversal is what makes the
+			// documented "no offset means UTC" true on a machine that is not on UTC.
+			if (type == typeof(DateTimeOffset)) return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+			if (type == typeof(DateTime)) return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
 			if (type.IsEnum) {
 				// Enums are addressed by name only — numeric forms are rejected so the filter contract is stable

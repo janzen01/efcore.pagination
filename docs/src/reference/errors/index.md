@@ -21,6 +21,10 @@ So a request with both a bad `page` and an unknown filter field reports the `pag
 reveals the next one. Validation finishes before the database is touched, so a rejected request costs no
 query at all.
 
+That holds whatever the request would have returned. A `sortBy` naming a field the config does not have is a
+`400` even when the filters match nothing, and even past the last page — cases with no rows to order, and
+therefore the ones where a validation gap is least likely to be noticed.
+
 Errors are grouped below in that same order.
 
 ---
@@ -63,6 +67,11 @@ counting, so they do not each consume a condition.
 | `Filter 'x' must not be empty.` | `?filter.x=` with nothing after the `=` | send `$op:value`, or drop the parameter |
 | `Filter 'x' uses unknown operator '$foo'.` | a `$token` that is not one of the eleven operators | see the [operator reference](../query-string/#operator-reference) |
 | `Filter 'x' must use the format '$operator:value'.` | no operator token at all, or an operator other than `$null` sent bare | every operator except `$null` needs a value |
+| `Filter 'x' does not take a value for '$null'.` | `$null:false`, `$null:true` — anything after the token | `$null` is valueless; `$not:$null` is how you ask for the opposite |
+
+The last two are the same rule read from both ends: every operator except `$null` needs a value, and `$null`
+refuses one. A value used to be parsed and then dropped, so `$null:false` quietly selected the rows it reads
+as excluding.
 
 ### Filter operators
 
@@ -76,6 +85,7 @@ Raised once the operator is known and is being applied to the field.
 | `Filter 'x' requires at least one '$contains' value.` | `$contains:` on a collection field with an empty list | supply the values the collection must hold |
 | `Filter 'x' supports '$contains' only for string or collection fields.` | `$contains` against a number, date or enum field | use `$eq` or `$in` on a scalar |
 | `Filter 'x' supports string pattern operators only for string fields.` | `$sw` or `$ilike` against a non-string field | pattern matching needs a `string` selector |
+| `Filter 'x' does not support comparison operators for type 'T'.` | `$lt`/`$lte`/`$gt`/`$gte`/`$btw` against a type with no ordering — `bool`, and any type registered through [`PaginateTypeSupport`](/integrations/custom-types/) that defines no comparison operators | there is nothing to order; use `$eq` or `$in`. Numbers, dates, `string`, `Guid` and enums all compare — see [comparisons](../query-string/#lt-lte-gt-gte-—-comparisons) |
 | `Filter 'x' accepts at most N values.` | one list longer than `MaxFilterValues` | the ceiling is **per criterion**, so splitting a huge `$in` across two criteria of the same field is a legitimate workaround; raising it is [`WithGuards`](../configuration/#withguards) |
 | `Filter operator '<member>' is not supported.` | an operator with no implementation behind it. Every current member has one, so no query string can reach this — it is an engine-internal guard, and it names the **enum member** rather than a `$token` for exactly that reason | not reachable from a request; treat it as a bug report |
 

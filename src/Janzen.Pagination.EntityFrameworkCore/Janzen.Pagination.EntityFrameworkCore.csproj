@@ -13,6 +13,10 @@
     <ItemGroup>
         <InternalsVisibleTo Include="Janzen.Pagination.AspNetCore"/>
         <InternalsVisibleTo Include="Janzen.Pagination.PostgreSql"/>
+        <!-- Value conversion is the one engine detail with no observable behaviour to assert against: a parsed
+             DateTime's Kind changes no comparison in memory and no SQL SQLite emits, yet it shifts the instant on a
+             provider that converts to UTC. The test project reaches PaginateValueConverter directly for that. -->
+        <InternalsVisibleTo Include="Janzen.Pagination.Tests"/>
     </ItemGroup>
 
 </Project>

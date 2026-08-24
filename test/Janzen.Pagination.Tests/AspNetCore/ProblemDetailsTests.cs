@@ -16,18 +16,21 @@ namespace Janzen.Pagination.Tests.AspNetCore;
 /// </summary>
 public sealed class ProblemDetailsTests {
 
-	private static ExceptionContext MvcContext(Exception exception) {
+	/// <summary>A request context carrying the MVC services, which is where <c>ProblemDetailsFactory</c> comes from.</summary>
+	private static DefaultHttpContext HttpContextWithMvcServices() {
 
 		var services = new ServiceCollection();
 		services.AddLogging();
 		services.AddControllers();
 
-		var http = new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
+		return new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
 
-		return new ExceptionContext(new ActionContext(http, new RouteData(), new ActionDescriptor()), []) {
+	}
+
+	private static ExceptionContext MvcContext(Exception exception) {
+		return new ExceptionContext(new ActionContext(HttpContextWithMvcServices(), new RouteData(), new ActionDescriptor()), []) {
 			Exception = exception
 		};
-
 	}
 
 	[Fact]
@@ -63,6 +66,7 @@ public sealed class ProblemDetailsTests {
 	[Fact]
 	public async Task The_endpoint_filter_maps_the_exception_to_the_same_400() {
 
+		// No RequestServices at all: a hand-built context, and the shape a Minimal-API-only app without MVC gets.
 		var context = new DefaultEndpointFilterInvocationContext(new DefaultHttpContext());
 
 		object? result = await new PaginateExceptionEndpointFilter()
@@ -73,6 +77,32 @@ public sealed class ProblemDetailsTests {
 		Assert.Equal(400, problem.StatusCode);
 		Assert.Equal("Invalid query", problem.ProblemDetails.Title);
 		Assert.Equal("Sort direction 'UP' is not supported.", problem.ProblemDetails.Detail);
+
+	}
+
+	[Fact]
+	public async Task The_two_pipelines_produce_the_same_payload_when_the_factory_is_registered() {
+
+		// The endpoint filter used to call Results.Problem directly, so the same error came back with a different set
+		// of members depending on whether the endpoint was a controller action or a Minimal API handler.
+		const string Message = "Sort direction 'UP' is not supported.";
+
+		var mvc = MvcContext(new PaginateQueryException(Message));
+		new PaginateExceptionFilter().OnException(mvc);
+
+		var expected = Assert.IsAssignableFrom<ProblemDetails>(Assert.IsType<ObjectResult>(mvc.Result).Value);
+
+		object? result = await new PaginateExceptionEndpointFilter().InvokeAsync(
+			new DefaultEndpointFilterInvocationContext(HttpContextWithMvcServices()),
+			_ => throw new PaginateQueryException(Message));
+
+		var actual = Assert.IsType<ProblemHttpResult>(result).ProblemDetails;
+
+		Assert.Equal(expected.Type, actual.Type);
+		Assert.Equal(expected.Title, actual.Title);
+		Assert.Equal(expected.Status, actual.Status);
+		Assert.Equal(expected.Detail, actual.Detail);
+		Assert.Equal(expected.Extensions.Keys, actual.Extensions.Keys);
 
 	}
 

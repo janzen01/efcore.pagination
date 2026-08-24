@@ -40,9 +40,11 @@ PaginateConfig<Product>.Create(b => b
 
 ## What it changes
 
-Three things emit a pattern match: free-text `search`, the `$ilike` and `$sw` filter operators, and
-`$contains` on a string field. This package makes all of them use `ILIKE` instead of `LIKE`. Both forms pass an
-explicit `ESCAPE '\'`, and the engine escapes `\`, `%` and `_` in the user's value, so a search for `100%`
+Three things emit a pattern match: free-text `search`, the [`$ilike` and `$sw` filter
+operators](https://janzen01.github.io/efcore.pagination/reference/query-string/#operator-reference), and
+`$contains` on a string field. This package makes all of them use [`ILIKE` instead of
+`LIKE`](https://janzen01.github.io/efcore.pagination/integrations/postgresql/#like-vs-ilike). Both forms pass an
+explicit `ESCAPE '\'`, and the engine escapes `\`, `%`, `_` and `[` in the user's value, so a search for `100%`
 matches that literal text.
 
 It also nudges the generated OpenAPI examples: a filterable string field that allows `ILike` gets `$ilike:…`
@@ -53,6 +55,12 @@ as its example operator.
 - [PostgreSQL integration](https://janzen01.github.io/efcore.pagination/integrations/postgresql/)
 - [Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/)
 - [Full guide](https://janzen01.github.io/efcore.pagination/)
+
+## Debugging
+
+The package ships **embedded PDBs with Source Link**, so a debugger steps straight into these sources at the exact
+commit the version was built from. Nothing to configure: no symbol server, no separate symbol download, and it works
+offline.
 
 ## License
 

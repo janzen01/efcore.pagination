@@ -194,7 +194,9 @@ filter.<field> = [$not:] [$and: | $or:] $<operator>[:<value>[,<value>…]]
 | `$lt` `$lte` `$gt` `$gte` | comparable | `<` `<=` `>` `>=` |
 | `$btw` | comparable | inclusive range — exactly two comma-separated values |
 
-Each field whitelists its own operators; one that is not granted for that field is a `400`.
+Each field whitelists its own
+[operators](https://janzen01.github.io/efcore.pagination/reference/query-string/#operator-reference); one that is not
+granted for that field is a `400`.
 
 ```http
 ?filter.status=$in:Active,Draft
@@ -208,8 +210,10 @@ Criteria on different fields are always ANDed; there is no cross-field `OR` or g
 **by name** (`Active`), numbers and dates use the invariant culture, and values are emitted as SQL parameters
 rather than inlined literals.
 
-Full contract, value formats and the complete list of `400` messages:
-[Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/).
+The full contract is the [Query-string
+contract](https://janzen01.github.io/efcore.pagination/reference/query-string/); what each type accepts is
+[value formats](https://janzen01.github.io/efcore.pagination/reference/query-string/#value-formats), and every `400`
+a filter can produce is [Errors](https://janzen01.github.io/efcore.pagination/reference/errors/#filter-operators).
 
 ## Documentation
 
@@ -228,6 +232,12 @@ The engine builds LINQ expression trees and uses reflection (DTO projection mapp
 so it is **not compatible with trimming or Native AOT**. Every public `Paginate*Async`
 entry point is annotated with `[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`, so consumers
 building trimmed or AOT applications get accurate analyzer warnings rather than silent runtime failures.
+
+## Debugging
+
+The package ships **embedded PDBs with Source Link**, so a debugger steps straight into these sources at the exact
+commit the version was built from. Nothing to configure: no symbol server, no separate symbol download, and it works
+offline.
 
 ## License
 

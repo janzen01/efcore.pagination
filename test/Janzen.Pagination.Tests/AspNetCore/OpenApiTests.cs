@@ -28,6 +28,18 @@ public sealed class DocumentedConfigProvider : IPaginateConfigProvider<Product> 
 
 }
 
+/// <summary>A resource with no free-text surface at all — no <c>Searchable</c> field, and no opt-out either.</summary>
+public sealed class SearchlessConfigProvider : IPaginateConfigProvider<Product> {
+
+	public PaginateConfig<Product> GetConfig() {
+		return PaginateConfig<Product>.Create(b => b
+			.WithLimits(defaultLimit: 15, maxLimit: 60)
+			.WithTieBreaker(p => p.Id)
+			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+	}
+
+}
+
 /// <summary>
 ///     Starts a real application once and captures its OpenAPI document. Constructing an
 ///     <c>OpenApiOperationTransformerContext</c> by hand would test the transformer in isolation; running the
@@ -49,6 +61,7 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 
 		app.MapOpenApi();
 		app.MapGet("/products", () => Results.Ok()).WithPagination<DocumentedConfigProvider>();
+		app.MapGet("/searchless", () => Results.Ok()).WithPagination<SearchlessConfigProvider>();
 		app.MapGet("/plain", () => Results.Ok());
 
 		await app.StartAsync();
@@ -153,6 +166,30 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		var responses = fixture.Document.GetProperty("paths").GetProperty("/products").GetProperty("get").GetProperty("responses");
 
 		Assert.Contains("invalid", responses.GetProperty("400").GetProperty("description").GetString()!, StringComparison.OrdinalIgnoreCase);
+
+	}
+
+	[Fact]
+	public void The_validation_failure_schema_documents_what_the_runtime_actually_sends() {
+
+		var properties = fixture.Document.GetProperty("paths").GetProperty("/products").GetProperty("get")
+			.GetProperty("responses").GetProperty("400")
+			.GetProperty("content").GetProperty("application/problem+json")
+			.GetProperty("schema").GetProperty("properties");
+
+		// traceId is added by ProblemDetailsFactory, which both pipelines go through; the schema used to list only
+		// the RFC members and leave a client to discover it.
+		Assert.True(properties.TryGetProperty("traceId", out _));
+		Assert.True(properties.TryGetProperty("instance", out _));
+
+	}
+
+	[Fact]
+	public void A_resource_with_nothing_searchable_advertises_neither_search_parameter() {
+
+		// Both used to be emitted unconditionally, which is what pushes such a config into
+		// IgnoreSearchByInQueryParam() purely to stop the generated documentation offering searchBy.
+		Assert.Equal(["page", "limit", "sortBy", "filter.status"], this.ParameterNames("/searchless"));
 
 	}
 

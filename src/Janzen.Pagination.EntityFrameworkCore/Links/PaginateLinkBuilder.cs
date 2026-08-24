@@ -23,7 +23,10 @@ internal static class PaginateLinkBuilder {
 			currentPage > 1 ? BuildLink(context.Path, prefix, currentPage - 1) : null,
 			totalPages > 0 && currentPage < totalPages ? BuildLink(context.Path, prefix, currentPage + 1) : null,
 			BuildLink(context.Path, prefix, lastPage)
-		);
+		) {
+			// The requested page, not a clamped one: this echoes the request, so it stays truthful past the last page.
+			Current = BuildLink(context.Path, prefix, currentPage)
+		};
 
 	}
 
