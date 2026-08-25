@@ -136,8 +136,14 @@ work and still return a usable `IQueryable`; there is simply no SQL to print.
   yourself: `await db.Products.ApplyPaginateFilters(request, config).Query.CountAsync(ct)`.
 - **No past-the-end short-circuit.** `PaginateAsync` skips the page query entirely when the count says you are
   past the last row. `ApplyPagination` cannot know that without issuing a count of its own — which a method
-  whose whole point is "do not touch the database yet" must not do — so a deep out-of-range page composes a
-  real `OFFSET` query that returns nothing. Count the matching set first if your callers can ask for arbitrary
-  pages; you need `totalItems` for the envelope anyway.
+  whose whole point is "do not touch the database yet" must not do — so an out-of-range page composes a real
+  query that returns nothing.
+
+  What that costs is easy to overestimate. `OFFSET` cannot skip rows that do not exist, so the work is bounded
+  by the **size of the matching set**, not by how large the page number is: page 9999 over eight rows costs
+  eight rows, same as page 4 does. It is only a real cost when the matching set is large — and then it is
+  exactly the cost of legitimate deep paging into that same set, which
+  [Performance and indexing](/recipes/performance/) covers. If it matters for your traffic, count the matching
+  set first and skip the fetch yourself; you need `totalItems` for the envelope anyway.
 - **No envelope.** `PaginatedMeta` and `PaginatedLinks` are built by the entry points; a caller composing by
   hand builds its own response shape, with `PaginateComposedQuery` supplying the effective request half.

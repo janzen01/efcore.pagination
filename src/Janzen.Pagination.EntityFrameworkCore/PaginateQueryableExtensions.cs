@@ -253,8 +253,12 @@ public static class PaginateQueryableExtensions {
 	}
 
 	private static IQueryable<TEntity> ApplyPage<TEntity>(IQueryable<TEntity> query, int page, int limit) {
-		// Long arithmetic so a very large page cannot overflow; a skip past int.MaxValue can only yield an empty
-		// page anyway, which is exactly what saturating gives — no provider stores that many rows.
+		// Long arithmetic so a very large page cannot overflow the int that Skip takes. PaginateCoreAsync never
+		// reaches the cast — its skip >= totalItems short-circuit runs first, so skip is below totalItems and
+		// therefore below int.MaxValue — but ApplyPagination has no count to guard it with.
+		// ponytail: saturating, so a request whose page × limit exceeds int.MaxValue composes OFFSET int.MaxValue
+		// rather than the true arithmetic. Both land past the end of any real table, so the rows returned are the
+		// same; only the printed SQL differs from the request. Widen if a provider ever stores that many rows.
 		long skip = (long)(page - 1) * limit;
 		return query.Skip((int)Math.Min(skip, int.MaxValue)).Take(limit);
 	}

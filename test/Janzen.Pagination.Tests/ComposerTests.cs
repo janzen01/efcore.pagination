@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
+using System.Globalization;
+
 namespace Janzen.Pagination.Tests;
 
 /// <summary>
@@ -165,6 +167,42 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 
 		Assert.NotNull(composed.SortBy);
 		Assert.Empty(composed.SortBy);
+
+	}
+
+	[Fact]
+	public async Task A_page_past_the_end_composes_a_query_that_returns_nothing() {
+
+		await using var context = fixture.CreateContext();
+
+		var request = new PaginateQuery { Page = 4, Limit = 3 };
+
+		// This is the one place the composed query is not the executed one: PaginateAsync's count already said
+		// there is nothing to fetch, so it runs no page query at all. The composer has no count, composes the
+		// real query, and arrives at the same answer by paying for it. The cost is bounded by the match set —
+		// OFFSET cannot skip rows that do not exist — so it is the eight rows here, not the offset.
+		var composed = SqliteFixture.Products(context).ApplyPagination(request, TestData.Config);
+		int[] rows = await composed.Query.Select(product => product.Id).ToArrayAsync(TestContext.Current.CancellationToken);
+
+		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(request);
+
+		Assert.Empty(rows);
+		Assert.Empty(page.Items);
+
+	}
+
+	[Fact]
+	public async Task An_absurd_page_saturates_the_offset_rather_than_overflowing() {
+
+		await using var context = fixture.CreateContext();
+
+		// page × limit is 4_999_999_950, which Skip(int) cannot express. Saturating is the deliberate ceiling:
+		// int.MaxValue is past the end of any real table, so the rows are the same and nothing wraps negative.
+		var composed = SqliteFixture.Products(context)
+			.ApplyPagination(new PaginateQuery { Page = 100_000_000, Limit = 50 }, TestData.Config);
+
+		Assert.Contains(int.MaxValue.ToString(CultureInfo.InvariantCulture), composed.Query.ToQueryString(), StringComparison.Ordinal);
+		Assert.Empty(await composed.Query.ToArrayAsync(TestContext.Current.CancellationToken));
 
 	}
 
