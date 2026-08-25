@@ -6,7 +6,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.Model;
 /// </summary>
 /// <typeparam name="T">The item type of the page — the projection's result type, not the entity.</typeparam>
 /// <param name="Items">The rows on this page, in the query's sort order. Empty past the last page.</param>
-/// <param name="Meta">Paging counters for this page: see <see cref="PaginatedMeta" />.</param>
+/// <param name="Meta">Paging counters for this page, plus the effective request echoed back: see <see cref="PaginatedMeta" />.</param>
 /// <param name="Links">Hypermedia links, or <see langword="null" /> as a whole when the call supplied no link context. Serialized as <c>null</c>, never omitted.</param>
 public sealed record PaginatedResponse<T>(
 	IReadOnlyList<T> Items,
@@ -16,8 +16,17 @@ public sealed record PaginatedResponse<T>(
 
 /// <summary>
 ///     Paging metadata: <see cref="TotalItems" /> across all pages, <see cref="ItemCount" /> on this page,
-///     <see cref="ItemsPerPage" />, <see cref="TotalPages" /> and the 1-based <see cref="CurrentPage" />.
+///     <see cref="ItemsPerPage" />, <see cref="TotalPages" /> and the 1-based <see cref="CurrentPage" /> —
+///     plus <see cref="HasPreviousPage" /> / <see cref="HasNextPage" /> and the effective request echoed back
+///     as <see cref="SortBy" />, <see cref="Search" />, <see cref="SearchBy" /> and <see cref="Filter" />.
 /// </summary>
+/// <remarks>
+///     The engine fills the six non-positional members; the positional constructor leaves them at their
+///     defaults, so a caller assembling this record by hand — composing a query and building its own envelope —
+///     emits <c>"hasNextPage": false</c> and an empty echo unless it sets them with an object initializer. They
+///     are settable rather than computed because a future counting strategy that caps or skips the count
+///     derives <see cref="HasNextPage" /> from the fetch rather than from <see cref="TotalPages" />.
+/// </remarks>
 /// <param name="TotalItems">Rows matching the filter and search across <b>all</b> pages, before paging.</param>
 /// <param name="ItemCount">Rows actually returned on this page — smaller than <paramref name="ItemsPerPage" /> on the last page, and <c>0</c> past the end.</param>
 /// <param name="ItemsPerPage">The effective page size for this request: the requested <c>limit</c>, or the configured default when it was omitted.</param>

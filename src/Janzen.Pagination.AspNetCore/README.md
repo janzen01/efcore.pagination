@@ -79,9 +79,11 @@ this.Response.AddPaginationLinkHeader(page.Links);
              "sortBy": ["name:ASC"], "search": null, "searchBy": [],
              "filter": { "status": ["$eq:Active"] },
              "hasPreviousPage": true, "hasNextPage": false },
-  "links": { "first": "/products?limit=25&page=1", "previous": "/products?limit=25&page=1",
-             "next": null, "last": "/products?limit=25&page=2",
-             "current": "/products?limit=25&page=2" }
+  "links": { "first": "/products?limit=25&filter.status=%24eq%3AActive&page=1",
+             "previous": "/products?limit=25&filter.status=%24eq%3AActive&page=1",
+             "next": null,
+             "last": "/products?limit=25&filter.status=%24eq%3AActive&page=2",
+             "current": "/products?limit=25&filter.status=%24eq%3AActive&page=2" }
 }
 ```
 

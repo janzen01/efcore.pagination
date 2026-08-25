@@ -229,7 +229,7 @@ you can assert on, and for anything computed over the **matching set** rather th
 ```csharp
 // The page query: filters, search, ordering (tie-breaker included), Skip/Take. No count, no projection.
 var composed = db.Products.ApplyPagination(request, config);
-string sql   = composed.Query.ToQueryString();   // exactly what PaginateAsync executes
+string sql   = composed.Query.ToQueryString();   // the engine's query, minus the projection it would add
 // composed also carries the effective Page/Limit/SortBy/Search/SearchBy/Filter, for a custom envelope.
 
 // The matching set: filters and search only. Facets, sums, exports.

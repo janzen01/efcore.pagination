@@ -89,8 +89,11 @@ statement before it runs — no database round-trip, no log scraping:
 string sql = db.Products.ApplyPagination(request, config).Query.ToQueryString();
 ```
 
-That is the same query the engine executes, because both compose through one code path. See
-[Query composers](/reference/composers/) for the two of them and what each validates.
+Filters, search, ordering and `Skip`/`Take` are exactly what the engine would run, because both compose
+through one code path. **The projection is not** — the composer adds no `Select`, so the `SELECT` list you see
+is the whole entity rather than the narrowed one the section above is about. To measure column width, apply
+your own selector to `Query` (or to the source directly) before printing. See
+[Query composers](/reference/composers/) for both composers and what each validates.
 
 To see what ran in production, where you cannot re-issue the request, log it instead:
 
