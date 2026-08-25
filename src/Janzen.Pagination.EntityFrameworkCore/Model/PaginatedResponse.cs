@@ -29,7 +29,36 @@ public sealed record PaginatedMeta(
 	int ItemsPerPage,
 	int TotalPages,
 	int CurrentPage
-);
+) {
+
+	/// <summary>
+	///     The ordering that was applied, in the request's own wire form (<c>"name:DESC"</c>) and in order. This is
+	///     the <b>effective</b> order, not the echo of what arrived: an omitted <c>sortBy</c> reports the configured
+	///     <c>DefaultSortBy</c>, which is the only way a client rendering sort arrows can know where they belong. The
+	///     tie-breaker is not listed — it is an implementation detail of deterministic paging, not requested order.
+	/// </summary>
+	public IReadOnlyList<string> SortBy { get; init; } = [];
+
+	/// <summary>The search term that was applied, or <see langword="null" /> when the request carried none. Serialized as <c>null</c> rather than dropped.</summary>
+	public string? Search { get; init; }
+
+	/// <summary>
+	///     The searchable fields the term actually ran over — again effective, so an omitted <c>searchBy</c> reports
+	///     every configured searchable field instead of an empty list the client would have to interpret. Empty when
+	///     no search ran.
+	/// </summary>
+	public IReadOnlyList<string> SearchBy { get; init; } = [];
+
+	/// <summary>The request's filters, echoed verbatim per field, for a client rendering filter chips. Empty when the request carried none.</summary>
+	public IReadOnlyDictionary<string, IReadOnlyList<string>> Filter { get; init; } = PaginateQuery.EmptyFilters;
+
+	/// <summary>Whether a page precedes this one — <see cref="CurrentPage" /> is above 1. Saves every client re-deriving it from the counters.</summary>
+	public bool HasPreviousPage { get; init; }
+
+	/// <summary>Whether a page follows this one — <see cref="CurrentPage" /> is below <see cref="TotalPages" />. <see langword="false" /> past the last page, where nothing follows either.</summary>
+	public bool HasNextPage { get; init; }
+
+}
 
 /// <summary>
 ///     Hypermedia links for the page, present only when a link context was supplied — see

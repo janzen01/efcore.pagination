@@ -127,6 +127,28 @@ One query; the `SELECT` mentions only these columns. If an aggregate needs CLR l
 rounding, a divide-by-zero guard — project the raw ingredients and finish them with
 [`PaginateSelectMapAsync`](/guide/projections/#paginateselectmapasync-—-sql-then-finish-in-memory).
 
+## Facet counts over the whole match set
+
+The section above puts an aggregate on each row. A facet is the other kind: one number per bucket, computed
+over **everything the request matched**, not over the page. `ApplyPaginateFilters` gives you that set as an
+`IQueryable`, so the buckets come from the same filters as the page and cannot fall out of step with them:
+
+```csharp
+var matching = db.Articles.ApplyPaginateFilters(request, config);
+
+var page   = await db.Articles.PaginateAsync<Article, ArticleDto>(request, config, this.Request, ct);
+var facets = await matching
+    .GroupBy(a => a.Status)
+    .Select(g => new { Status = g.Key, Count = g.Count() })
+    .ToDictionaryAsync(r => r.Status, r => r.Count, ct);
+
+return new { page.Items, page.Meta, page.Links, facets };
+```
+
+Two queries, deliberately — the counts are a separate question from the page. Anything else over the match
+set works the same way (`SumAsync`, `MaxAsync`, an export that streams every row). See
+[Query composers](/reference/composers/) for what the composer validates and what it leaves alone.
+
 ## Expose the contract as metadata
 
 Every config can describe itself, which is handy for a self-documenting endpoint or an admin UI that builds

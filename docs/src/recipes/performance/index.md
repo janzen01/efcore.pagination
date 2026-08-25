@@ -82,8 +82,17 @@ built from what the DTO actually names. On a wide table that difference dwarfs a
 
 ## Measuring it
 
-There is no handle to call `ToQueryString()` on mid-flight, because the engine composes onto your `IQueryable`
-and then executes. Read what actually ran instead:
+`ApplyPagination` composes the page query and hands it back **unexecuted**, so `ToQueryString()` gives you the
+statement before it runs — no database round-trip, no log scraping:
+
+```csharp
+string sql = db.Products.ApplyPagination(request, config).Query.ToQueryString();
+```
+
+That is the same query the engine executes, because both compose through one code path. See
+[Query composers](/reference/composers/) for the two of them and what each validates.
+
+To see what ran in production, where you cannot re-issue the request, log it instead:
 
 ```csharp
 options.UseNpgsql(connectionString).LogTo(Console.WriteLine, LogLevel.Information);

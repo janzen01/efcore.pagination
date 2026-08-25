@@ -75,10 +75,38 @@ public void Config_builds() => Assert.NotNull(ProductPaginateConfigProvider.Conf
 
 A static config field is initialised lazily, so touching it is what runs the validation.
 
+## Assert the SQL, without running it
+
+`ApplyPagination` composes the page query and stops there, so `ToQueryString()` prints the statement the
+engine would execute — no server, no log scraping, no round-trip:
+
+```csharp
+[Fact]
+public void An_active_filter_reaches_the_indexed_column() {
+
+    var request = new PaginateQuery { Filters = new Dictionary<string, IReadOnlyList<string>> {
+        ["status"] = ["$eq:Active"]
+    } };
+
+    string sql = _db.Products.ApplyPagination(request, ProductConfig.Instance).Query.ToQueryString();
+
+    Assert.Contains("\"Status\" = ", sql);
+
+}
+```
+
+This is the test to reach for when the question is "does my `Filterable` reach the column I indexed" rather
+than "does it return the right rows". It needs a real provider — that is what generates SQL — but not a
+reachable server: a `DbContext` built on a connection string nobody opens is enough.
+
+The same handle answers the other half of the doubt: `ApplyPaginateFilters` returns the match set, so
+`CountAsync` on it tells you what the filter selected without paging getting in the way. See
+[Query composers](/reference/composers/).
+
 ## When you do need a database
 
-Two things a plain `IQueryable` cannot tell you: whether an expression **translates**, and what SQL comes out.
-SQLite in-memory covers both without Docker, and is what this library's own suite uses.
+Two things a plain `IQueryable` cannot tell you: whether an expression **translates**, and what the query
+**returns**. SQLite in-memory covers both without Docker, and is what this library's own suite uses.
 
 Two SQLite limits shape what may be asserted there. **Neither is caused by the engine** — both reproduce with
 a plain `Where` and no pagination involved — but both will surprise you:

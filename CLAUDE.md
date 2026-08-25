@@ -156,7 +156,10 @@ independent of each other — consumers pick the extensions they need:
   the collection properties would compare by reference and lie, so there is no `with`. In ASP.NET Core it binds from
   `?page=&limit=&sortBy=&search=&filter.<field>=$op:value`.
 - **`PaginatedResponse<T>`** — envelope: `Items`, `Meta` (totalItems / itemCount / itemsPerPage / totalPages /
-  currentPage), `Links` (first / previous / next / last / **current**), which is `null` as a whole unless a
+  currentPage, plus the non-positional **`SortBy` / `Search` / `SearchBy` / `Filter` / `HasPreviousPage` /
+  `HasNextPage`** — the *effective* request echoed back, so a client sees where `DefaultSortBy` and the
+  searchable-field defaults landed; the tie-breaker is deliberately absent from `SortBy`, and field names are
+  canonical rather than as-typed), `Links` (first / previous / next / last / **current**), which is `null` as a whole unless a
   `PaginateLinkContext` was supplied; within it, `previous` / `next` are `null` at the edges, while `current`
   never is — it echoes the requested page, past the end included. **Nulls are serialized, never dropped** —
   `"next": null` is the client's answer to "is there a next page", so no `JsonIgnore` on these; the payload
@@ -173,6 +176,16 @@ independent of each other — consumers pick the extensions they need:
     projection, then `postMap` over the page **in memory** for the fields EF cannot translate.
   - `PaginateMapAsync<TEntity, TResult>(request, config, projector, …)` — paginate, then map **in memory** (computed
     fields / collections needing client-side logic); materializes the full entity.
+- **Composers** (same `extension<TEntity>(IQueryable<TEntity>)` block) — build the query and stop before executing:
+  - `ApplyPaginateFilters(request, config)` → `IQueryable<TEntity>`: filters + search only, for facets / sums /
+    exports over the **match set**. Validates everything except `sortBy`, which it never applies.
+  - `ApplyPagination(request, config)` → `PaginateComposedQuery<TEntity>`: the full page query (`Query`) plus the
+    effective `Page` / `Limit` / `SortBy` / `Search` / `SearchBy` / `Filter` — the same six values `PaginatedMeta`
+    carries, from the same resolution. Full validation; **no** count and **no** past-the-end short-circuit, so it
+    describes what would run rather than optimizing it away.
+  - All three paths (both composers and `PaginateCoreAsync`) go through one private `Compose`, which is what makes
+    "the composed SQL is the executed SQL" true. `ComposerTests` asserts it against a captured command — do not
+    give a composer its own copy of a stage.
 - **`PaginateFilterOperator`** — `Eq`, `In`, `Null`, `StartsWith`, `Contains`, `ILike`, `GreaterThan(OrEqual)`,
   `LessThan(OrEqual)`, `Between`. Each field whitelists its allowed operators.
 - **DI:** `services.AddPagination(b => { b.AddAspNetCore(); b.UsePostgreSql(); b.AddNodaTime(); });` — add only the
