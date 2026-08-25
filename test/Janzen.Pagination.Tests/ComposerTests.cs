@@ -17,6 +17,11 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 		Filters = new Dictionary<string, IReadOnlyList<string>> { ["status"] = ["$eq:Active"] }
 	};
 
+	/// <summary>Orders only by the tie-breaker: nothing is ever *requested*, so the sort echo is empty rather than null.</summary>
+	private readonly static PaginateConfig<Product> TieBreakerOnly = PaginateConfig<Product>.Create(b => b
+		.WithLimits(50, 50)
+		.WithTieBreaker(p => p.Id));
+
 	private static string Rejects(Action act) { return Assert.Throws<PaginateQueryException>(act).Message; }
 
 	[Fact]
@@ -92,7 +97,7 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 
 		int matched = await SqliteFixture.Products(context)
 			.ApplyPaginateFilters(Query.Filter("status", "$eq:Active"), TestData.Config)
-			.CountAsync(TestContext.Current.CancellationToken);
+			.Query.CountAsync(TestContext.Current.CancellationToken);
 
 		// Five active products — more than the default page holds, which is the point: no Take was applied.
 		Assert.Equal(5, matched);
@@ -107,7 +112,7 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 		// The facet recipe, as living documentation: group the filtered set, not the page.
 		var facets = await SqliteFixture.Products(context)
 			.ApplyPaginateFilters(Query.Filter("rank", "$gte:30"), TestData.Config)
-			.GroupBy(product => product.Status)
+			.Query.GroupBy(product => product.Status)
 			.Select(group => new { Status = group.Key, Count = group.Count() })
 			.ToDictionaryAsync(row => row.Status, row => row.Count, TestContext.Current.CancellationToken);
 
@@ -123,7 +128,43 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 		using var context = fixture.CreateContext();
 
 		// Ordering never runs on this path, so rejecting a sort it will not apply would refuse a usable request.
-		Assert.NotNull(SqliteFixture.Products(context).ApplyPaginateFilters(Query.Sort("nonexistent:ASC"), TestData.Config));
+		var composed = SqliteFixture.Products(context).ApplyPaginateFilters(Query.Sort("nonexistent:ASC"), TestData.Config);
+
+		// null, not empty: the difference between "never resolved" and "resolved to no ordering".
+		Assert.Null(composed.SortBy);
+		Assert.NotNull(composed.Query);
+
+	}
+
+	[Fact]
+	public void The_filtered_composer_still_reports_every_other_effective_value() {
+
+		using var context = fixture.CreateContext();
+
+		// Only the ordering is unknowable on this path; page, limit, search and filters are resolved as usual.
+		var filtered = SqliteFixture.Products(context).ApplyPaginateFilters(Request, TestData.Config);
+		var paged = SqliteFixture.Products(context).ApplyPagination(Request, TestData.Config);
+
+		Assert.Null(filtered.SortBy);
+		Assert.Equal(paged.Page, filtered.Page);
+		Assert.Equal(paged.Limit, filtered.Limit);
+		Assert.Equal(paged.Search, filtered.Search);
+		Assert.Equal(paged.SearchBy, filtered.SearchBy);
+		Assert.Equal(paged.Filter, filtered.Filter);
+
+	}
+
+	[Fact]
+	public void The_paged_composer_resolves_an_absent_sort_to_an_empty_list_not_null() {
+
+		using var context = fixture.CreateContext();
+
+		// A config with no DefaultSortBy and no request sort still has the tie-breaker, so it orders - but nothing
+		// was *requested*, and that is an empty echo rather than the null the filtered composer returns.
+		var composed = SqliteFixture.Products(context).ApplyPagination(new PaginateQuery(), TieBreakerOnly);
+
+		Assert.NotNull(composed.SortBy);
+		Assert.Empty(composed.SortBy);
 
 	}
 

@@ -176,13 +176,16 @@ independent of each other — consumers pick the extensions they need:
     projection, then `postMap` over the page **in memory** for the fields EF cannot translate.
   - `PaginateMapAsync<TEntity, TResult>(request, config, projector, …)` — paginate, then map **in memory** (computed
     fields / collections needing client-side logic); materializes the full entity.
-- **Composers** (same `extension<TEntity>(IQueryable<TEntity>)` block) — build the query and stop before executing:
-  - `ApplyPaginateFilters(request, config)` → `IQueryable<TEntity>`: filters + search only, for facets / sums /
-    exports over the **match set**. Validates everything except `sortBy`, which it never applies.
-  - `ApplyPagination(request, config)` → `PaginateComposedQuery<TEntity>`: the full page query (`Query`) plus the
-    effective `Page` / `Limit` / `SortBy` / `Search` / `SearchBy` / `Filter` — the same six values `PaginatedMeta`
-    carries, from the same resolution. Full validation; **no** count and **no** past-the-end short-circuit, so it
-    describes what would run rather than optimizing it away.
+- **Composers** (same `extension<TEntity>(IQueryable<TEntity>)` block) — build the query and stop before executing.
+  Both return `PaginateComposedQuery<TEntity>`: the composed `Query` plus the effective `Page` / `Limit` /
+  `SortBy` / `Search` / `SearchBy` / `Filter`, the same values `PaginatedMeta` carries, from the same resolution.
+  - `ApplyPaginateFilters(request, config)` — filters + search only (`Query` is the **match set**, unordered and
+    unpaged), for facets / sums / exports. Validates everything except `sortBy`, which it never applies.
+  - `ApplyPagination(request, config)` — the full page query. Full validation; **no** count and **no**
+    past-the-end short-circuit, so it describes what would run rather than optimizing it away.
+  - **`SortBy` is nullable and `null` ≠ `[]`**: `null` means "never resolved" (the filtered composer), `[]` means
+    "resolved, nothing requested". Collapsing them would make `?sortBy=name:DESC` report `[]` on the filtered
+    path, which reads as "nothing is sorted". Don't "simplify" it back to non-null.
   - All three paths (both composers and `PaginateCoreAsync`) go through one private `Compose`, which is what makes
     "the composed SQL is the executed SQL" true. `ComposerTests` asserts it against a captured command — do not
     give a composer its own copy of a stage.

@@ -233,14 +233,15 @@ string sql   = composed.Query.ToQueryString();   // exactly what PaginateAsync e
 // composed also carries the effective Page/Limit/SortBy/Search/SearchBy/Filter, for a custom envelope.
 
 // The matching set: filters and search only. Facets, sums, exports.
-var facets = await db.Products.ApplyPaginateFilters(request, config)
+var facets = await db.Products.ApplyPaginateFilters(request, config).Query
     .GroupBy(p => p.Status)
     .Select(g => new { Status = g.Key, Count = g.Count() })
     .ToListAsync(ct);
 ```
 
-Both reject exactly what `PaginateAsync` rejects, at compose time — except that `ApplyPaginateFilters` does not
-validate `sortBy`, which it never applies. See
+Both return the same `PaginateComposedQuery<TEntity>` and reject exactly what `PaginateAsync` rejects, at
+compose time — except that `ApplyPaginateFilters` does not validate `sortBy`, which it never applies, and
+reports it as `null` rather than empty. See
 [Query composers](https://janzen01.github.io/efcore.pagination/reference/composers/).
 
 ## Documentation

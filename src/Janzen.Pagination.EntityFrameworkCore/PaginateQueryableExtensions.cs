@@ -391,12 +391,18 @@ public static class PaginateQueryableExtensions {
 		///     <c>ApplyPagination</c> for the page itself. Validation matches the real pipeline for the stages this
 		///     runs, so <paramref name="request" />'s <c>page</c>, <c>limit</c>, filters and <c>searchBy</c> are
 		///     rejected here exactly as <c>PaginateAsync</c> rejects them; <c>sortBy</c> is the one exception, left
-		///     unchecked because ordering never runs.
+		///     unchecked because ordering never runs. That is also why the result's
+		///     <see cref="PaginateComposedQuery{TEntity}.SortBy" /> is <see langword="null" /> here rather than empty
+		///     — every other member is resolved and truthful.
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		public IQueryable<TEntity> ApplyPaginateFilters(PaginateQuery request, PaginateConfig<TEntity> config) {
-			return Compose(source, request, config).Query;
+		public PaginateComposedQuery<TEntity> ApplyPaginateFilters(PaginateQuery request, PaginateConfig<TEntity> config) {
+
+			var (query, limit, search, searchBy) = Compose(source, request, config);
+
+			return new PaginateComposedQuery<TEntity>(query, request.Page, limit, null, search, searchBy, request.Filters);
+
 		}
 
 		/// <summary>

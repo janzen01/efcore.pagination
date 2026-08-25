@@ -6,7 +6,7 @@ Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Page.
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Query.get -> System.Linq.IQueryable<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Search.get -> string?
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SearchBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>?
 Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.Filter.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
 Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.Filter.init -> void
 Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.HasNextPage.get -> bool
@@ -19,7 +19,7 @@ Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.SearchBy.get -> System
 Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.SearchBy.init -> void
 Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.SortBy.init -> void
-Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEntity>(System.Linq.IQueryable<TEntity>!).ApplyPaginateFilters(Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config) -> System.Linq.IQueryable<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEntity>(System.Linq.IQueryable<TEntity>!).ApplyPaginateFilters(Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEntity>(System.Linq.IQueryable<TEntity>!).ApplyPagination(Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>!
-static Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.ApplyPaginateFilters<TEntity>(this System.Linq.IQueryable<TEntity>! source, Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config) -> System.Linq.IQueryable<TEntity>!
+static Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.ApplyPaginateFilters<TEntity>(this System.Linq.IQueryable<TEntity>! source, Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>!
 static Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.ApplyPagination<TEntity>(this System.Linq.IQueryable<TEntity>! source, Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>!

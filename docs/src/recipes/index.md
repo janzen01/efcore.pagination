@@ -134,7 +134,7 @@ over **everything the request matched**, not over the page. `ApplyPaginateFilter
 `IQueryable`, so the buckets come from the same filters as the page and cannot fall out of step with them:
 
 ```csharp
-var matching = db.Articles.ApplyPaginateFilters(request, config);
+var matching = db.Articles.ApplyPaginateFilters(request, config).Query;
 
 var page   = await db.Articles.PaginateAsync<Article, ArticleDto>(request, config, this.Request, ct);
 var facets = await matching

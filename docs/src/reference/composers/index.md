@@ -6,7 +6,7 @@ short, so you can look at the query, run it yourself, or reuse the matching set 
 page of rows.
 
 ```csharp
-IQueryable<TEntity> ApplyPaginateFilters<TEntity>(
+PaginateComposedQuery<TEntity> ApplyPaginateFilters<TEntity>(
     this IQueryable<TEntity> source, PaginateQuery request, PaginateConfig<TEntity> config);
 
 PaginateComposedQuery<TEntity> ApplyPagination<TEntity>(
@@ -30,7 +30,7 @@ is "every row this request matches", which is the input to anything computed ove
 over the page:
 
 ```csharp
-var matching = db.Products.ApplyPaginateFilters(request, config);
+var matching = db.Products.ApplyPaginateFilters(request, config).Query;
 
 var facets = await matching
     .GroupBy(p => p.Status)
@@ -58,20 +58,33 @@ var rows   = await composed.Query.Select(Dto.From).ToListAsync(ct); // your own 
 
 ### `PaginateComposedQuery<TEntity>`
 
+**Both** composers return it. What differs is `Query` — the page query from one, the matching set from the
+other — and `SortBy`.
+
 | Member | Type | What it holds |
 |--------|------|---------------|
 | `Query` | `IQueryable<TEntity>` | The composed query, unexecuted. |
 | `Page` | `int` | The 1-based page requested. Not clamped. |
 | `Limit` | `int` | The **effective** page size: the requested `limit`, or the config's `DefaultLimit`. |
-| `SortBy` | `string[]` | The **effective** order in `"field:DIR"` form. Tie-breaker excluded. |
+| `SortBy` | `string[]?` | The **effective** order in `"field:DIR"` form, tie-breaker excluded — or `null`, see below. |
 | `Search` | `string?` | The search term that ran, or `null`. |
 | `SearchBy` | `string[]` | The **effective** fields it ran over. `[]` when no search ran. |
 | `Filter` | `IReadOnlyDictionary<string, IReadOnlyList<string>>` | The request's filters, verbatim per field. |
 
-These are the same six values that reach [`meta`](../response/#the-request-echo) on the normal path, from the
-same resolution — so a caller building its own envelope reports the effective request without re-deriving it.
-It is a class rather than a record: value equality over an `IQueryable` and three collections would compare by
+These are the same values that reach [`meta`](../response/#the-request-echo) on the normal path, from the same
+resolution — so a caller building its own envelope reports the effective request without re-deriving it. It is
+a class rather than a record: value equality over an `IQueryable` and three collections would compare by
 reference and answer a question it cannot actually answer.
+
+::: warning `SortBy` is nullable, and `null` does not mean `[]`
+`null` means the ordering was **never resolved** — what `ApplyPaginateFilters` returns, because it does not
+order and so never reads `sortBy` at all. `[]` means the ordering **was** resolved and the request asked for
+none (the tie-breaker still orders the query; it is not part of the requested order).
+
+Without that distinction a request carrying `?sortBy=name:DESC` through the filtered composer would report
+`[]`, which reads as "nothing is sorted" — an answer the caller cannot tell apart from the truth. Every other
+member is resolved on both paths and truthful on both.
+:::
 
 ## What each one validates
 
@@ -87,7 +100,10 @@ messages — see [Errors](../errors/). One difference, and it is deliberate:
 | "requires a deterministic sort order" | **no** | yes |
 
 `ApplyPaginateFilters` never reaches ordering, so rejecting a sort it will not apply would refuse a request it
-can serve perfectly well. If you need the sort validated, you are asking for the page — use `ApplyPagination`.
+can serve perfectly well. The sharpest case is the last row of that table: a config with neither
+`DefaultSortBy` nor `WithTieBreaker` cannot be paged at all and is rejected outright by `ApplyPagination` —
+yet counting or grouping its matching set is perfectly valid, and that is what the filtered composer is for.
+Its `null` `SortBy` is the same fact restated. If you need the sort validated, you are asking for the page.
 
 ## Asserting SQL in your own tests
 
@@ -117,6 +133,11 @@ work and still return a usable `IQueryable`; there is simply no SQL to print.
 ## Not covered
 
 - **No count.** Neither composer issues one, so neither can tell you `totalItems`. Ask the matching set
-  yourself: `await db.Products.ApplyPaginateFilters(request, config).CountAsync(ct)`.
+  yourself: `await db.Products.ApplyPaginateFilters(request, config).Query.CountAsync(ct)`.
+- **No past-the-end short-circuit.** `PaginateAsync` skips the page query entirely when the count says you are
+  past the last row. `ApplyPagination` cannot know that without issuing a count of its own — which a method
+  whose whole point is "do not touch the database yet" must not do — so a deep out-of-range page composes a
+  real `OFFSET` query that returns nothing. Count the matching set first if your callers can ask for arbitrary
+  pages; you need `totalItems` for the envelope anyway.
 - **No envelope.** `PaginatedMeta` and `PaginatedLinks` are built by the entry points; a caller composing by
   hand builds its own response shape, with `PaginateComposedQuery` supplying the effective request half.

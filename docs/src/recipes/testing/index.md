@@ -99,7 +99,7 @@ This is the test to reach for when the question is "does my `Filterable` reach t
 than "does it return the right rows". It needs a real provider — that is what generates SQL — but not a
 reachable server: a `DbContext` built on a connection string nobody opens is enough.
 
-The same handle answers the other half of the doubt: `ApplyPaginateFilters` returns the match set, so
+The same handle answers the other half of the doubt: `ApplyPaginateFilters(...).Query` is the match set, so
 `CountAsync` on it tells you what the filter selected without paging getting in the way. See
 [Query composers](/reference/composers/).
 
