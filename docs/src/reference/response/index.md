@@ -203,7 +203,7 @@ while (true) {
     Process(page.Items);
 
     // totalPages is 0 for an empty result set, so this also ends the very first pass.
-    if (page.Meta.CurrentPage >= page.Meta.TotalPages) break;
+    if (!page.Meta.HasNextPage) break;
 
     request = request.WithPage(page.Meta.CurrentPage + 1);
 

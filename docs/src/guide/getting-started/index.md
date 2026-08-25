@@ -159,7 +159,13 @@ GET /products?page=2&limit=2&sortBy=price:DESC&filter.status=$eq:Active
     "itemCount": 2,
     "itemsPerPage": 2,
     "totalPages": 19,
-    "currentPage": 2
+    "currentPage": 2,
+    "sortBy": ["price:DESC"],
+    "search": null,
+    "searchBy": [],
+    "filter": { "status": ["$eq:Active"] },
+    "hasPreviousPage": true,
+    "hasNextPage": true
   },
   "links": {
     "first": "/products?limit=2&sortBy=price%3ADESC&filter.status=%24eq%3AActive&page=1",
@@ -171,8 +177,11 @@ GET /products?page=2&limit=2&sortBy=price:DESC&filter.status=$eq:Active
 }
 ```
 
-`itemCount` is how many rows this page actually returned; `itemsPerPage` is the effective limit. Every field,
-including when each link is `null` and what `meta` reports for a page past the end, is in
+`itemCount` is how many rows this page actually returned; `itemsPerPage` is the effective limit. The four
+echo fields report what the query **actually did** — note `"sortBy": ["price:DESC"]` even though the config
+also appended its tie-breaker, and note that a request omitting `sortBy` would get the configured
+`DefaultSortBy` back rather than an empty list. That is what lets a grid header draw its own state. Every
+field, including when each link is `null` and what `meta` reports for a page past the end, is in
 [Response contract](/reference/response/).
 
 ## What the engine does with that request

@@ -60,7 +60,7 @@ server knows where `DefaultSortBy` landed. See
 Off the web, navigate by `Meta` and `WithPage` instead; the result goes straight back into the engine:
 
 ```csharp
-var next = response.Meta.CurrentPage < response.Meta.TotalPages
+var next = response.Meta.HasNextPage
     ? request.WithPage(response.Meta.CurrentPage + 1)
     : null; // last page
 

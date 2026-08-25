@@ -36,7 +36,8 @@ are independent add-ons, so take only the ones you need.
 The guide is prose you follow once. The rest of the site is shaped for other moments:
 
 - **[Reference](/reference/query-string/)** is looked up mid-task — the request and response contracts, every
-  builder method and what it refuses, and every `400`.
+  builder method and what it refuses, the [composers](/reference/composers/) that hand the query back
+  unexecuted, and every `400`.
 - **[Integrations](/integrations/)** is per package: what changes when you add one.
 - **[Cookbook](/recipes/)** is task-shaped — role-based configs, collection filters, aggregates, non-web
   callers, testing.
