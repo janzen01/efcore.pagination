@@ -212,8 +212,35 @@ while (true) {
 
 `WithPage` does **not** validate: an out-of-range page is rejected when the query executes, so the `400` and
 its wording come from one place. Note that `PaginateQuery` is a class rather than a record, and has no `with`
-— value equality over its collection properties would compare by reference and lie — so `WithPage` is the
-supported way to derive one request from another.
+— it carries no equality at all rather than one that would compare its collection properties by reference and
+lie — so `WithPage` is the supported way to derive one request from another. The envelope records took the
+other route; see below.
+
+## Comparing envelopes
+
+`PaginatedResponse<T>`, `PaginatedMeta` and `PaginatedLinks` compare **by value**, all the way down:
+
+```csharp
+// Two responses to the same request, fetched separately.
+first == second   // true
+```
+
+That needs saying because it is not what the record shape gives you for free. A record's synthesized equality
+runs every member through `EqualityComparer<T>.Default`, which is reference equality for a list or a
+dictionary — so `items`, `sortBy`, `searchBy` and `filter` would have made two envelopes describing the same
+page compare unequal. These three records hand-write `Equals` and `GetHashCode` instead. The rules:
+
+- **`items` compares element by element**, each through `T`'s own equality. A projection record compares by
+  value; a projection declared as a class compares by reference, because that is its contract, not the
+  envelope's.
+- **Order is part of the value** for `items`, `sortBy` and `searchBy`. A page is an ordered thing.
+- **`filter` is order-independent** — a dictionary has no order — and its **keys match ordinally**. It echoes
+  the request's field names verbatim, so `Status` and `status` are different echoes even though the field
+  lookup that produced them is case-insensitive.
+- Equal envelopes hash equal, so they work as dictionary keys and in a `HashSet`.
+
+An envelope deserialized from a payload carrying explicit `null`s where the contract promises a list reports
+inequality rather than throwing.
 
 ## `Link` response header (RFC 8288)
 

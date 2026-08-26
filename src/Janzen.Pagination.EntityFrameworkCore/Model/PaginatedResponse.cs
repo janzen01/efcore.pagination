@@ -180,8 +180,14 @@ public sealed record PaginatedLinks(
 /// </summary>
 internal static class PaginateStructuralEquality {
 
-	public static bool ListEquals<T>(IReadOnlyList<T> left, IReadOnlyList<T> right) {
+	// The nullable parameters are deliberate even though the members they compare are declared non-nullable.
+	// The synthesized equality these replace went through EqualityComparer<T>.Default, which answers for null
+	// instead of throwing, and a deserialized envelope really can carry one: System.Text.Json does not enforce
+	// nullable annotations, so a payload with an explicit "items": null or "sortBy": null overwrites the
+	// initializer. Comparing such an envelope used to report inequality; it must not start throwing.
+	public static bool ListEquals<T>(IReadOnlyList<T>? left, IReadOnlyList<T>? right) {
 		if (ReferenceEquals(left, right)) return true;
+		if (left is null || right is null) return false;
 		if (left.Count != right.Count) return false;
 
 		var comparer = EqualityComparer<T>.Default;
@@ -194,11 +200,12 @@ internal static class PaginateStructuralEquality {
 	}
 
 	public static bool FilterEquals(
-		IReadOnlyDictionary<string, IReadOnlyList<string>> left,
-		IReadOnlyDictionary<string, IReadOnlyList<string>> right
+		IReadOnlyDictionary<string, IReadOnlyList<string>>? left,
+		IReadOnlyDictionary<string, IReadOnlyList<string>>? right
 	) {
 
 		if (ReferenceEquals(left, right)) return true;
+		if (left is null || right is null) return false;
 		if (left.Count != right.Count) return false;
 
 		// Keys are matched ORDINALLY, not through either dictionary's own comparer — those disagree. The model
@@ -226,7 +233,9 @@ internal static class PaginateStructuralEquality {
 
 	}
 
-	public static int ListHash<T>(IReadOnlyList<T> list) {
+	public static int ListHash<T>(IReadOnlyList<T>? list) {
+		if (list is null) return 0;
+
 		var hash = new HashCode();
 
 		foreach (var item in list) hash.Add(item);
@@ -239,7 +248,8 @@ internal static class PaginateStructuralEquality {
 	///     entries must hash the same however they were built. Per-entry hashes are therefore XORed rather than
 	///     combined in sequence, and keys are hashed ordinally to match <see cref="FilterEquals" />.
 	/// </summary>
-	public static int FilterHash(IReadOnlyDictionary<string, IReadOnlyList<string>> filter) {
+	public static int FilterHash(IReadOnlyDictionary<string, IReadOnlyList<string>>? filter) {
+		if (filter is null) return 0;
 
 		int hash = filter.Count;
 

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Text.Json;
 
 namespace Janzen.Pagination.Tests;
 
@@ -178,6 +179,29 @@ public sealed class EnvelopeEqualityTests {
 		Assert.NotEqual(
 			new PaginatedResponse<ProductDto>([widget, gizmo], Meta(), null),
 			new PaginatedResponse<ProductDto>([gizmo, widget], Meta(), null));
+
+	}
+
+	[Fact]
+	public void A_deserialized_envelope_carrying_nulls_reports_inequality_rather_than_throwing() {
+
+		// System.Text.Json does not enforce nullable annotations, so a payload with an explicit "items": null or
+		// "sortBy": null overwrites the initializer despite the declarations. The synthesized equality these
+		// replace answered for that through EqualityComparer<T>.Default; hand-written equality must not start
+		// throwing where it used to return false.
+		string json = """{"items":null,"meta":{"totalItems":0,"itemCount":0,"itemsPerPage":25,"totalPages":0,"currentPage":1,"sortBy":null,"searchBy":null,"filter":null},"links":null}""";
+
+		var deserialized = JsonSerializer.Deserialize<PaginatedResponse<ProductDto>>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+		var wellFormed = new PaginatedResponse<ProductDto>([], new PaginatedMeta(0, 0, 25, 0, 1), null);
+
+		Assert.NotEqual(wellFormed, deserialized);
+		Assert.NotEqual(wellFormed.GetHashCode(), deserialized.GetHashCode());
+
+		// And two equally malformed ones still answer, rather than each throwing on the way.
+		var second = JsonSerializer.Deserialize<PaginatedResponse<ProductDto>>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+
+		Assert.Equal(deserialized, second);
+		Assert.Equal(deserialized.GetHashCode(), second.GetHashCode());
 
 	}
 
