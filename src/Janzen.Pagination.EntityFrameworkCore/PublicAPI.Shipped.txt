@@ -1,5 +1,4 @@
 #nullable enable
-const Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery.DefaultPage = 1 -> int
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.DefaultLimit.get -> int
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.DefaultSortBy.get -> System.Collections.Generic.IReadOnlyList<Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateSort!>!
@@ -100,47 +99,14 @@ Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.Path.get -> stri
 Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.Path.init -> void
 Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.QueryParameters.get -> System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<string!, string!>>!
 Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.QueryParameters.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.<Clone>$() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks!
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Current.get -> string?
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Current.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Deconstruct(out string? First, out string? Previous, out string? Next, out string? Last) -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Equals(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks? other) -> bool
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.First.get -> string?
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.First.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Last.get -> string?
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Last.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Next.get -> string?
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Next.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.PaginatedLinks(string? First, string? Previous, string? Next, string? Last) -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Previous.get -> string?
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Previous.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.<Clone>$() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta!
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.CurrentPage.get -> int
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.CurrentPage.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.Deconstruct(out int TotalItems, out int ItemCount, out int ItemsPerPage, out int TotalPages, out int CurrentPage) -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.Equals(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta? other) -> bool
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.ItemCount.get -> int
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.ItemCount.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.ItemsPerPage.get -> int
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.ItemsPerPage.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.PaginatedMeta(int TotalItems, int ItemCount, int ItemsPerPage, int TotalPages, int CurrentPage) -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.TotalItems.get -> int
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.TotalItems.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.TotalPages.get -> int
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.TotalPages.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.<Clone>$() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>!
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Deconstruct(out System.Collections.Generic.IReadOnlyList<T>! Items, out Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta! Meta, out Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks? Links) -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Equals(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>? other) -> bool
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Items.get -> System.Collections.Generic.IReadOnlyList<T>!
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Items.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Links.get -> Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks?
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Links.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Meta.get -> Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta!
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Meta.init -> void
-Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.PaginatedResponse(System.Collections.Generic.IReadOnlyList<T>! Items, Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta! Meta, Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks? Links) -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Filter.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Limit.get -> int
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Page.get -> int
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Query.get -> System.Linq.IQueryable<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Search.get -> string?
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SearchBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>?
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator.Between = 10 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator.Contains = 5 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
@@ -174,13 +140,69 @@ Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryException.PaginateQuery
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateSortDirection
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateSortDirection.Asc = 0 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateSortDirection
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateSortDirection.Desc = 1 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateSortDirection
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.<Clone>$() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Current.get -> string?
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Current.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Deconstruct(out string? First, out string? Previous, out string? Next, out string? Last) -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Equals(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks? other) -> bool
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.First.get -> string?
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.First.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Last.get -> string?
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Last.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Next.get -> string?
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Next.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.PaginatedLinks(string? First, string? Previous, string? Next, string? Last) -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Previous.get -> string?
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.Previous.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.<Clone>$() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.CurrentPage.get -> int
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.CurrentPage.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.Deconstruct(out int TotalItems, out int ItemCount, out int ItemsPerPage, out int TotalPages, out int CurrentPage) -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.Equals(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta? other) -> bool
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.Filter.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.Filter.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.HasNextPage.get -> bool
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.HasNextPage.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.HasPreviousPage.get -> bool
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.HasPreviousPage.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.ItemCount.get -> int
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.ItemCount.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.ItemsPerPage.get -> int
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.ItemsPerPage.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.PaginatedMeta(int TotalItems, int ItemCount, int ItemsPerPage, int TotalPages, int CurrentPage) -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.Search.get -> string?
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.Search.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.SearchBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.SearchBy.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.SortBy.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.TotalItems.get -> int
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.TotalItems.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.TotalPages.get -> int
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.TotalPages.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.<Clone>$() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Deconstruct(out System.Collections.Generic.IReadOnlyList<T>! Items, out Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta! Meta, out Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks? Links) -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Equals(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>? other) -> bool
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Items.get -> System.Collections.Generic.IReadOnlyList<T>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Items.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Links.get -> Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks?
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Links.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Meta.get -> Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.Meta.init -> void
+Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.PaginatedResponse(System.Collections.Generic.IReadOnlyList<T>! Items, Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta! Meta, Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks? Links) -> void
 Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions
 Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEntity>(System.Linq.IQueryable<TEntity>!)
+Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEntity>(System.Linq.IQueryable<TEntity>!).ApplyPaginateFilters(Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEntity>(System.Linq.IQueryable<TEntity>!).ApplyPagination(Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEntity>(System.Linq.IQueryable<TEntity>!).PaginateAsync<TResult>(Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config, Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? linkContext = null, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<TResult>!>!
 Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEntity>(System.Linq.IQueryable<TEntity>!).PaginateMapAsync<TResult>(Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config, System.Func<TEntity, TResult>! projector, Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? linkContext = null, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<TResult>!>!
 Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEntity>(System.Linq.IQueryable<TEntity>!).PaginateSelectAsync<TResult>(Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config, System.Linq.Expressions.Expression<System.Func<TEntity, TResult>!>! selector, Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? linkContext = null, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<TResult>!>!
 Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEntity>(System.Linq.IQueryable<TEntity>!).PaginateSelectMapAsync<TProjection, TResult>(Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config, System.Linq.Expressions.Expression<System.Func<TEntity, TProjection>!>! selector, System.Func<TProjection, TResult>! postMap, Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? linkContext = null, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<TResult>!>!
 Janzen.Pagination.EntityFrameworkCore.PaginateTypeSupport
+const Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery.DefaultPage = 1 -> int
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge.Equals(object? obj) -> bool
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge.GetHashCode() -> int
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge.ToString() -> string!
@@ -226,6 +248,8 @@ static Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.operator !=(Jan
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.operator ==(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta? left, Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta? right) -> bool
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.operator !=(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>? left, Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>? right) -> bool
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.operator ==(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>? left, Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>? right) -> bool
+static Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.ApplyPaginateFilters<TEntity>(this System.Linq.IQueryable<TEntity>! source, Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>!
+static Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.ApplyPagination<TEntity>(this System.Linq.IQueryable<TEntity>! source, Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>!
 static Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.PaginateAsync<TEntity, TResult>(this System.Linq.IQueryable<TEntity>! source, Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config, Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? linkContext = null, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<TResult>!>!
 static Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.PaginateMapAsync<TEntity, TResult>(this System.Linq.IQueryable<TEntity>! source, Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config, System.Func<TEntity, TResult>! projector, Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? linkContext = null, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<TResult>!>!
 static Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.PaginateSelectAsync<TEntity, TResult>(this System.Linq.IQueryable<TEntity>! source, Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config, System.Linq.Expressions.Expression<System.Func<TEntity, TResult>!>! selector, Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? linkContext = null, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<TResult>!>!
