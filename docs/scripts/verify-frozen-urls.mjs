@@ -49,7 +49,10 @@ const frozen = [
 	['reference/configuration/index.html', '10.0.1'],
 	['reference/errors/index.html', '10.0.1'],
 	['reference/query-string/index.html', '10.0.1'],
-	['reference/response/index.html', '10.0.1']
+	['reference/response/index.html', '10.0.1'],
+
+	// 10.0.2 -- the query composers got their own reference page, named by the EntityFrameworkCore readme.
+	['reference/composers/index.html', '10.0.2']
 ]
 
 // The deep links a package README names, frozen for the same reason and just as permanently: reword the heading and
@@ -60,7 +63,8 @@ const frozenFragments = [
 	['reference/errors/index.html', 'filter-operators', '10.0.1'],
 	['reference/query-string/index.html', 'operator-reference', '10.0.1'],
 	['reference/query-string/index.html', 'value-formats', '10.0.1'],
-	['reference/response/index.html', 'link-response-header-rfc-8288', '10.0.1']
+	['reference/response/index.html', 'link-response-header-rfc-8288', '10.0.1'],
+	['reference/response/index.html', 'the-request-echo', '10.0.2']
 ]
 
 // The list above is history: what 10.0.0 already published. This second half is the future: whatever the
