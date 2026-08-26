@@ -166,6 +166,14 @@ independent of each other — consumers pick the extensions they need:
   shape is identical on every page. `current` is a non-positional init-only member, which is what keeps the
   ctor / `Deconstruct` / `with` shape (and the binary contract) untouched — the pattern for extending these
   records additively.
+  **`PaginatedMeta` and `PaginatedResponse<T>` hand-write `Equals`/`GetHashCode`**, because a record's
+  synthesized equality runs every field through `EqualityComparer<T>.Default` — reference equality for the
+  three collection members and for `Items`, which made two envelopes describing the same page unequal. Two
+  consequences when touching them: **a new member has to be added to both methods by hand** (the compiler will
+  not warn), and the two rules the implementation rests on must survive — `Filter` keys are matched
+  **ordinally**, not through either dictionary's own comparer (the binder's is `OrdinalIgnoreCase`,
+  `PaginateQuery.EmptyFilters` is `Ordinal`, and deferring to one of them makes equality *asymmetric*), and
+  `FilterHash` combines entries **commutatively**, because a dictionary has no order.
 - **Entry points** (extension methods on `IQueryable<TEntity>`). One name per projection strategy — deliberately *not*
   overloads, so the choice is explicit at the call site and adding an optional parameter later stays non-breaking
   (`Select` = projected in SQL, `Map` = mapped in memory):

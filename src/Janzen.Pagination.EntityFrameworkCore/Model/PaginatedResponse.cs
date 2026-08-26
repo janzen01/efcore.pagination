@@ -12,7 +12,36 @@ public sealed record PaginatedResponse<T>(
 	IReadOnlyList<T> Items,
 	PaginatedMeta Meta,
 	PaginatedLinks? Links
-);
+) {
+
+	/// <summary>
+	///     Compares two envelopes by value: <see cref="Items" /> element by element (each through
+	///     <typeparamref name="T" />'s own equality, so a projection record compares by value and a class by
+	///     reference), then <see cref="Meta" /> and <see cref="Links" />. Written by hand because the synthesized
+	///     version would compare the <see cref="Items" /> <b>list</b> by reference and report two identical pages
+	///     as different.
+	/// </summary>
+	public bool Equals(PaginatedResponse<T>? other) {
+		if (ReferenceEquals(this, other)) return true;
+
+		return other is not null
+			&& PaginateStructuralEquality.ListEquals(Items, other.Items)
+			&& Meta == other.Meta
+			&& Links == other.Links;
+	}
+
+	/// <summary>Hashes the same members <see cref="Equals(PaginatedResponse{T})" /> compares, so equal envelopes hash equal.</summary>
+	public override int GetHashCode() {
+		var hash = new HashCode();
+
+		hash.Add(PaginateStructuralEquality.ListHash(Items));
+		hash.Add(Meta);
+		hash.Add(Links);
+
+		return hash.ToHashCode();
+	}
+
+}
 
 /// <summary>
 ///     Paging metadata: <see cref="TotalItems" /> across all pages, <see cref="ItemCount" /> on this page,
@@ -67,6 +96,51 @@ public sealed record PaginatedMeta(
 	/// <summary>Whether a page follows this one — <see cref="CurrentPage" /> is below <see cref="TotalPages" />. <see langword="false" /> past the last page, where nothing follows either.</summary>
 	public bool HasNextPage { get; init; }
 
+	/// <summary>
+	///     Compares two metas by value, the three collection members included. Written by hand because the
+	///     synthesized version compares <see cref="SortBy" />, <see cref="SearchBy" /> and <see cref="Filter" /> by
+	///     <b>reference</b>, which would report two metas describing the same page as different.
+	/// </summary>
+	/// <remarks>
+	///     <b>A member added to this record has to be added here and to <see cref="GetHashCode" /> too</b> — that is
+	///     what a hand-written equality costs, and the compiler will not remind you.
+	/// </remarks>
+	public bool Equals(PaginatedMeta? other) {
+		if (ReferenceEquals(this, other)) return true;
+
+		return other is not null
+			&& TotalItems == other.TotalItems
+			&& ItemCount == other.ItemCount
+			&& ItemsPerPage == other.ItemsPerPage
+			&& TotalPages == other.TotalPages
+			&& CurrentPage == other.CurrentPage
+			&& HasPreviousPage == other.HasPreviousPage
+			&& HasNextPage == other.HasNextPage
+			&& Search == other.Search
+			&& PaginateStructuralEquality.ListEquals(SortBy, other.SortBy)
+			&& PaginateStructuralEquality.ListEquals(SearchBy, other.SearchBy)
+			&& PaginateStructuralEquality.FilterEquals(Filter, other.Filter);
+	}
+
+	/// <summary>Hashes the same members <see cref="Equals(PaginatedMeta)" /> compares, so equal metas hash equal.</summary>
+	public override int GetHashCode() {
+		var hash = new HashCode();
+
+		hash.Add(TotalItems);
+		hash.Add(ItemCount);
+		hash.Add(ItemsPerPage);
+		hash.Add(TotalPages);
+		hash.Add(CurrentPage);
+		hash.Add(HasPreviousPage);
+		hash.Add(HasNextPage);
+		hash.Add(Search);
+		hash.Add(PaginateStructuralEquality.ListHash(SortBy));
+		hash.Add(PaginateStructuralEquality.ListHash(SearchBy));
+		hash.Add(PaginateStructuralEquality.FilterHash(Filter));
+
+		return hash.ToHashCode();
+	}
+
 }
 
 /// <summary>
@@ -95,5 +169,86 @@ public sealed record PaginatedLinks(
 	///     their shape, and it serializes after the four positional members.
 	/// </summary>
 	public string? Current { get; init; }
+
+}
+
+/// <summary>
+///     Structural comparison for the envelope records' collection members. A record's synthesized equality runs
+///     every field through <c>EqualityComparer&lt;T&gt;.Default</c>, which for a list or a dictionary is reference
+///     equality — so two envelopes describing the same page would compare unequal. These restore what the record
+///     shape advertises.
+/// </summary>
+internal static class PaginateStructuralEquality {
+
+	public static bool ListEquals<T>(IReadOnlyList<T> left, IReadOnlyList<T> right) {
+		if (ReferenceEquals(left, right)) return true;
+		if (left.Count != right.Count) return false;
+
+		var comparer = EqualityComparer<T>.Default;
+
+		for (int index = 0; index < left.Count; index++) {
+			if (!comparer.Equals(left[index], right[index])) return false;
+		}
+
+		return true;
+	}
+
+	public static bool FilterEquals(
+		IReadOnlyDictionary<string, IReadOnlyList<string>> left,
+		IReadOnlyDictionary<string, IReadOnlyList<string>> right
+	) {
+
+		if (ReferenceEquals(left, right)) return true;
+		if (left.Count != right.Count) return false;
+
+		// Keys are matched ORDINALLY, not through either dictionary's own comparer — those disagree. The model
+		// binder builds an OrdinalIgnoreCase map, PaginateQuery.EmptyFilters is Ordinal, and a hand-built request
+		// brings whatever the caller chose. Using the right-hand one would make equality asymmetric: a request
+		// echoing 'Status' and one echoing 'status' would compare equal in one direction and not the other.
+		// Ordinal is also the honest reading of the member, which echoes the request's field names verbatim.
+		// The scan is quadratic in the number of filtered FIELDS, which the config caps in single digits.
+		foreach ((string field, var values) in left) {
+
+			bool matched = false;
+
+			foreach ((string otherField, var otherValues) in right) {
+				if (!string.Equals(field, otherField, StringComparison.Ordinal)) continue;
+
+				matched = ListEquals(values, otherValues);
+				break;
+			}
+
+			if (!matched) return false;
+
+		}
+
+		return true;
+
+	}
+
+	public static int ListHash<T>(IReadOnlyList<T> list) {
+		var hash = new HashCode();
+
+		foreach (var item in list) hash.Add(item);
+
+		return hash.ToHashCode();
+	}
+
+	/// <summary>
+	///     Hashes the filter map <b>commutatively</b>: a dictionary has no order, so two maps holding the same
+	///     entries must hash the same however they were built. Per-entry hashes are therefore XORed rather than
+	///     combined in sequence, and keys are hashed ordinally to match <see cref="FilterEquals" />.
+	/// </summary>
+	public static int FilterHash(IReadOnlyDictionary<string, IReadOnlyList<string>> filter) {
+
+		int hash = filter.Count;
+
+		foreach ((string field, var values) in filter) {
+			hash ^= HashCode.Combine(StringComparer.Ordinal.GetHashCode(field), ListHash(values));
+		}
+
+		return hash;
+
+	}
 
 }
