@@ -104,7 +104,9 @@ public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery reques
 ```json
 {
   "items": [ { "id": "7f3c…", "name": "Widget Pro", "price": 249.00 } ],
-  "meta":  { "totalItems": 26, "itemCount": 1, "itemsPerPage": 25, "totalPages": 2, "currentPage": 2 },
+  "meta":  { "totalItems": 26, "itemCount": 1, "itemsPerPage": 25, "totalPages": 2, "currentPage": 2,
+             "sortBy": ["name:ASC"], "search": null, "searchBy": [], "filter": {},
+             "hasPreviousPage": true, "hasNextPage": false },
   "links": { "first": "/products?limit=25&page=1", "previous": "/products?limit=25&page=1",
              "next": null, "last": "/products?limit=25&page=2",
              "current": "/products?limit=25&page=2" }
@@ -149,6 +151,7 @@ Every `400` it can produce, in the order the engine validates:
 | [Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/) | Every parameter and operator, with the SQL each one emits. |
 | [Response contract](https://janzen01.github.io/efcore.pagination/reference/response/) | The envelope, `meta` field by field, and how links behave. |
 | [Configuration API](https://janzen01.github.io/efcore.pagination/reference/configuration/) | Every builder method: what it declares and what it refuses. |
+| [Query composers](https://janzen01.github.io/efcore.pagination/reference/composers/) | Getting the query back unexecuted: `ToQueryString()`, facets over the match set. |
 | [Errors](https://janzen01.github.io/efcore.pagination/reference/errors/) | Every `400`, in the order the engine validates. |
 
 **Integrations** — what changes when you add a package:

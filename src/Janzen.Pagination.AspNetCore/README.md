@@ -70,6 +70,29 @@ var page = await db.Products.PaginateAsync<Product, ProductDto>(request, config,
 this.Response.AddPaginationLinkHeader(page.Links);
 ```
 
+### What the client gets back
+
+```json
+{
+  "items": [ { "id": "7f3c…", "name": "Widget Pro", "price": 249.00 } ],
+  "meta":  { "totalItems": 26, "itemCount": 1, "itemsPerPage": 25, "totalPages": 2, "currentPage": 2,
+             "sortBy": ["name:ASC"], "search": null, "searchBy": [],
+             "filter": { "status": ["$eq:Active"] },
+             "hasPreviousPage": true, "hasNextPage": false },
+  "links": { "first": "/products?limit=25&filter.status=%24eq%3AActive&page=1",
+             "previous": "/products?limit=25&filter.status=%24eq%3AActive&page=1",
+             "next": null,
+             "last": "/products?limit=25&filter.status=%24eq%3AActive&page=2",
+             "current": "/products?limit=25&filter.status=%24eq%3AActive&page=2" }
+}
+```
+
+`meta` echoes the **effective** request, not the raw one: this response reports `"sortBy": ["name:ASC"]` even
+though the client sent no `sortBy`, because that is where `DefaultSortBy` landed — which is exactly what a
+grid header needs to draw its arrow. Every key is always present; `null`, `[]` and `{}` carry the absent
+cases. See
+[Response contract](https://janzen01.github.io/efcore.pagination/reference/response/#the-request-echo).
+
 ### Errors
 
 Any invalid query becomes [`400 Bad Request` with `title: "Invalid

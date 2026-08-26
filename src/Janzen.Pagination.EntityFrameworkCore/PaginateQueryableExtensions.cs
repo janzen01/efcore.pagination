@@ -81,12 +81,21 @@ public static class PaginateQueryableExtensions {
 
 	}
 
+	/// <summary>
+	///     Applies the search term and reports through <paramref name="searchFields" /> which searchable fields it
+	///     actually ran over — the request's <c>searchBy</c>, or every configured field when it was omitted. That
+	///     resolution is the half a client cannot perform, so it is what <c>meta.searchBy</c> carries; empty when no
+	///     search ran.
+	/// </summary>
 	private static IQueryable<TEntity> ApplySearch<TEntity>(
 		IQueryable<TEntity> query,
 		PaginateQuery request,
 		PaginateConfig<TEntity> config,
-		PaginateExpressionContext context
+		PaginateExpressionContext context,
+		out IReadOnlyList<string> searchFields
 	) {
+
+		searchFields = [];
 
 		if (string.IsNullOrWhiteSpace(request.Search)) {
 			// No search runs, but a supplied searchBy is still validated: an unknown or repeated field is a client bug
@@ -104,6 +113,8 @@ public static class PaginateQueryableExtensions {
 
 		var fields = ResolveSearchFields(request, config);
 		if (fields.Count == 0) throw new PaginateQueryException("Search is not configured for this resource.");
+
+		searchFields = fields.Select(field => field.Name).ToArray();
 
 		var entity = Expression.Parameter(typeof(TEntity), "item");
 
@@ -144,12 +155,16 @@ public static class PaginateQueryableExtensions {
 	}
 
 	/// <summary>
-	///     Validates the sort and resolves it to ordering keys, the tie-breaker appended last. Kept separate from
+	///     Validates the sort and resolves it to ordering keys, the tie-breaker appended last, alongside the same
+	///     order in wire form for <c>meta.sortBy</c> — canonical field names, tie-breaker excluded. Kept separate from
 	///     applying them because the validation belongs <b>before</b> the count: resolution used to live inside the
 	///     non-empty branch, so a request that matched nothing — or asked for a page past the end — never had its
 	///     <c>sortBy</c> checked at all, and answered 200 to a name that does not exist.
 	/// </summary>
-	private static IReadOnlyList<(LambdaExpression Selector, bool Descending)> ResolveSorts<TEntity>(PaginateQuery request, PaginateConfig<TEntity> config) {
+	private static (IReadOnlyList<(LambdaExpression Selector, bool Descending)> Keys, IReadOnlyList<string> Tokens) ResolveSorts<TEntity>(
+		PaginateQuery request,
+		PaginateConfig<TEntity> config
+	) {
 
 		IReadOnlyList<PaginateSort> sorts;
 
@@ -165,11 +180,15 @@ public static class PaginateQueryableExtensions {
 		}
 
 		List<(LambdaExpression Selector, bool Descending)> keys = [];
+		List<string> tokens = [];
 
 		foreach (var sort in sorts) {
 			if (!config.TryGetSortableField(sort.Field, out var field)) throw new PaginateQueryException($"Sort for field '{sort.Field}' is not configured.");
 
 			keys.Add((field.Selector, sort.Direction == PaginateSortDirection.Desc));
+			// The configured name, not the requested spelling: field lookup is case-insensitive, so echoing the
+			// request back would report 'COLOR:DESC' for a field the rest of the contract calls 'color'.
+			tokens.Add($"{field.Name}:{PaginateExpressionUtils.FormatDirection(sort.Direction)}");
 		}
 
 		// Append the configured tie-breaker as the final ordering key, so offset paging is deterministic even when the
@@ -183,7 +202,7 @@ public static class PaginateQueryableExtensions {
 				"Pagination requires a deterministic sort order. Pass 'sortBy', configure DefaultSortBy(...), or add WithTieBreaker(...) to the pagination configuration.");
 		}
 
-		return keys;
+		return (keys, tokens);
 
 	}
 
@@ -195,6 +214,53 @@ public static class PaginateQueryableExtensions {
 
 		return query;
 
+	}
+
+	/// <summary>
+	///     The shared front half of every path: validate, resolve the effective limit, then apply filters and search.
+	///     <c>PaginateAsync</c>, <c>ApplyPaginateFilters</c> and <c>ApplyPagination</c> all enter here, which is what
+	///     keeps "what the composer shows" and "what the engine runs" from drifting apart. The sort is deliberately
+	///     <b>not</b> resolved here — <c>ApplyPaginateFilters</c> never reaches ordering, so validating
+	///     <c>sortBy</c> for it would reject requests it does not act on.
+	/// </summary>
+	private static (IQueryable<TEntity> Query, int Limit, string? Search, IReadOnlyList<string> SearchBy) Compose<TEntity>(
+		IQueryable<TEntity> source,
+		PaginateQuery request,
+		PaginateConfig<TEntity> config
+	) {
+
+		ArgumentNullException.ThrowIfNull(source);
+		ArgumentNullException.ThrowIfNull(request);
+		ArgumentNullException.ThrowIfNull(config);
+
+		request.EnsureValid();
+
+		// Mirrors the 'limit' guard: an out-of-range page is a caller bug, so surface it instead of clamping it away.
+		if (request.Page < PaginateQuery.DefaultPage) throw new PaginateQueryException("Query parameter 'page' must be a positive integer.");
+
+		int limit = PaginateExpressionUtils.ParseLimit(request, config);
+		bool useDatabaseFunctions = source.Provider is IAsyncQueryProvider;
+		var context = new PaginateExpressionContext(useDatabaseFunctions, PaginateLikeDefaults.Strategy);
+
+		var query = ApplyFilters(source, request, config, context);
+		query = ApplySearch(query, request, config, context, out var searchBy);
+
+		// A whitespace-only term runs no search, so it is reported as absent rather than echoed back as applied.
+		string? search = string.IsNullOrWhiteSpace(request.Search) ? null : request.Search;
+
+		return (query, limit, search, searchBy);
+
+	}
+
+	private static IQueryable<TEntity> ApplyPage<TEntity>(IQueryable<TEntity> query, int page, int limit) {
+		// Long arithmetic so a very large page cannot overflow the int that Skip takes. PaginateCoreAsync never
+		// reaches the cast — its skip >= totalItems short-circuit runs first, so skip is below totalItems and
+		// therefore below int.MaxValue — but ApplyPagination has no count to guard it with.
+		// ponytail: saturating, so a request whose page × limit exceeds int.MaxValue composes OFFSET int.MaxValue
+		// rather than the true arithmetic. Both land past the end of any real table, so the rows returned are the
+		// same; only the printed SQL differs from the request. Widen if a provider ever stores that many rows.
+		long skip = (long)(page - 1) * limit;
+		return query.Skip((int)Math.Min(skip, int.MaxValue)).Take(limit);
 	}
 
 	private static IQueryable<T> AsNoTrackingIfSupported<T>(IQueryable<T> query) {
@@ -318,6 +384,63 @@ public static class PaginateQueryableExtensions {
 			}, linkContext, ct);
 		}
 
+		/// <summary>
+		///     Applies the request's filters and search to the queryable and hands it back <b>unexecuted</b>, so a
+		///     caller can compute something over the matching set that is not a page of it: facet counts, a
+		///     <c>Sum</c>, a full export. Without this the only way to do that was to re-implement the filter
+		///     translation by hand and hope the two stayed in step.
+		/// </summary>
+		/// <remarks>
+		///     Ordering, <c>Skip</c>/<c>Take</c>, the count and the projection are <b>not</b> applied — use
+		///     <c>ApplyPagination</c> for the page itself. Validation matches the real pipeline for the stages this
+		///     runs, so <paramref name="request" />'s <c>page</c>, <c>limit</c>, filters and <c>searchBy</c> are
+		///     rejected here exactly as <c>PaginateAsync</c> rejects them; <c>sortBy</c> is the one exception, left
+		///     unchecked because ordering never runs. That is also why the result's
+		///     <see cref="PaginateComposedQuery{TEntity}.SortBy" /> is <see langword="null" /> here rather than empty
+		///     — every other member is resolved and truthful.
+		/// </remarks>
+		[RequiresUnreferencedCode(AotIncompatibleMessage)]
+		[RequiresDynamicCode(AotIncompatibleMessage)]
+		public PaginateComposedQuery<TEntity> ApplyPaginateFilters(PaginateQuery request, PaginateConfig<TEntity> config) {
+
+			var (query, limit, search, searchBy) = Compose(source, request, config);
+
+			return new PaginateComposedQuery<TEntity>(query, request.Page, limit, null, search, searchBy, request.Filters);
+
+		}
+
+		/// <summary>
+		///     Composes the full page query — filters, search, ordering (tie-breaker included) and
+		///     <c>Skip</c>/<c>Take</c> — and hands it back <b>unexecuted</b>, together with the request state the
+		///     engine resolved for it. This is the handle to call <c>ToQueryString()</c> on: the SQL it prints is the
+		///     SQL <c>PaginateAsync</c> would run for the same request, because both compose through one code path.
+		/// </summary>
+		/// <remarks>
+		///     No count is issued and no projection is added, and unlike <c>PaginateAsync</c> there is no
+		///     short-circuit for a page past the last row — the composer describes what would run, it does not
+		///     optimize it away. Validation is the complete one, <c>sortBy</c> included. The returned
+		///     <see cref="PaginateComposedQuery{TEntity}" /> carries the effective limit, ordering and search fields
+		///     for callers assembling their own envelope.
+		/// </remarks>
+		[RequiresUnreferencedCode(AotIncompatibleMessage)]
+		[RequiresDynamicCode(AotIncompatibleMessage)]
+		public PaginateComposedQuery<TEntity> ApplyPagination(PaginateQuery request, PaginateConfig<TEntity> config) {
+
+			var (query, limit, search, searchBy) = Compose(source, request, config);
+			var sorts = ResolveSorts(request, config);
+
+			return new PaginateComposedQuery<TEntity>(
+				ApplyPage(ApplySorts(query, sorts.Keys), request.Page, limit),
+				request.Page,
+				limit,
+				sorts.Tokens,
+				search,
+				searchBy,
+				request.Filters
+			);
+
+		}
+
 		private async Task<PaginatedResponse<TResult>> PaginateCoreAsync<TResult>(PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Func<IQueryable<TEntity>, CancellationToken, Task<TResult[]>> project,
@@ -325,22 +448,9 @@ public static class PaginateQueryableExtensions {
 			CancellationToken ct
 		) {
 
-			ArgumentNullException.ThrowIfNull(source);
-			ArgumentNullException.ThrowIfNull(request);
-			ArgumentNullException.ThrowIfNull(config);
-
-			request.EnsureValid();
-
-			// Mirrors the 'limit' guard: an out-of-range page is a caller bug, so surface it instead of clamping it away.
-			if (request.Page < PaginateQuery.DefaultPage) throw new PaginateQueryException("Query parameter 'page' must be a positive integer.");
+			var (query, limit, search, searchBy) = Compose(source, request, config);
 
 			int page = request.Page;
-			int limit = PaginateExpressionUtils.ParseLimit(request, config);
-			bool useDatabaseFunctions = source.Provider is IAsyncQueryProvider;
-			var context = new PaginateExpressionContext(useDatabaseFunctions, PaginateLikeDefaults.Strategy);
-
-			var query = ApplyFilters(source, request, config, context);
-			query = ApplySearch(query, request, config, context);
 
 			// Resolved before the count, so the documented order (page/limit, filters, search, sortBy, then SQL) holds
 			// even when the request is answered by the empty short-circuit below and never reaches the database.
@@ -357,11 +467,18 @@ public static class PaginateQueryableExtensions {
 			if (skip >= totalItems) {
 				items = [];
 			} else {
-				query = ApplySorts(query, sorts);
-				items = await project(query.Skip((int)skip).Take(limit), ct).ConfigureAwait(false);
+				items = await project(ApplyPage(ApplySorts(query, sorts.Keys), page, limit), ct).ConfigureAwait(false);
 			}
 
-			var meta = new PaginatedMeta(totalItems, items.Length, limit, totalPages, page);
+			var meta = new PaginatedMeta(totalItems, items.Length, limit, totalPages, page) {
+				SortBy          = sorts.Tokens,
+				Search          = search,
+				SearchBy        = searchBy,
+				Filter          = request.Filters,
+				HasPreviousPage = page > PaginateQuery.DefaultPage,
+				HasNextPage     = page < totalPages,
+			};
+
 			var links = PaginateLinkBuilder.Build(linkContext, page, totalPages);
 
 			return new PaginatedResponse<TResult>(items, meta, links);

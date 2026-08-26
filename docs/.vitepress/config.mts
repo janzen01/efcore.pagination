@@ -40,6 +40,7 @@ const reference = {
     queryString: '/reference/query-string/',
     response: '/reference/response/',
     configuration: '/reference/configuration/',
+    composers: '/reference/composers/',
     errors: '/reference/errors/'
 }
 
@@ -97,6 +98,7 @@ const referenceSidebar = [
             { text: 'Query-string contract', link: reference.queryString },
             { text: 'Response contract', link: reference.response },
             { text: 'Configuration API', link: reference.configuration },
+            { text: 'Query composers', link: reference.composers },
             { text: 'Errors', link: reference.errors }
         ]
     }
@@ -198,6 +200,7 @@ const config = withMermaid(defineConfig({
                             { text: 'Query-string contract', link: reference.queryString },
                             { text: 'Response contract', link: reference.response },
                             { text: 'Configuration API', link: reference.configuration },
+                            { text: 'Query composers', link: reference.composers },
                             { text: 'Errors', link: reference.errors }
                         ]
                     },

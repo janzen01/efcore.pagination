@@ -87,13 +87,17 @@ Same three parts, different names in two places:
 | `data` | **`items`** |
 | `meta.itemsPerPage` / `totalItems` / `currentPage` / `totalPages` | same names |
 | — | **`meta.itemCount`** — rows on this page, which has no counterpart there |
-| `meta.sortBy` / `search` / `filter` *(request echo)* | absent — `meta` reports the page, not the request |
+| `meta.sortBy` *(request echo)* | same name, **different shape**: `["color:DESC"]`, our own wire form, not `[["color","DESC"]]` |
+| `meta.search` / `searchBy` *(request echo)* | same names, same idea; `searchBy` reports the fields that were actually searched |
+| `meta.filter` *(request echo)* | same name, **always an array per field** — `{"status": ["$eq:Active"]}`, never a bare string for a single criterion |
+| — | **`meta.hasPreviousPage` / `hasNextPage`** — the two comparisons, pre-computed |
 | `links.first` / `previous` / `next` / `last` | same names |
 | `links.current` | same name, and never `null` |
 | links are absolute URLs | links are **path-relative** (path base included), and the whole `links` object is `null` without a link context |
 
-So the two client-side changes that are not optional: read `items` instead of `data`, and do not expect the
-echoed request in `meta`. Everything a client needs to navigate is still in `meta` — see
+So the client-side changes that are not optional: read `items` instead of `data`, parse `meta.sortBy` as
+`"field:DIR"` strings rather than tuples, read every `meta.filter` value as an array even when there is one
+criterion, and build the URLs yourself if you were relying on them being absolute. See
 [Response contract](/reference/response/).
 
 ## Ordering is stricter

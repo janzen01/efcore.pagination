@@ -111,6 +111,6 @@ Once it runs, the site splits by what you are doing:
 
 | | |
 |---|---|
-| **[Query-string contract](/reference/query-string/)** | Every parameter and operator, with the SQL each one produces. The [response](/reference/response/), the [config API](/reference/configuration/) and the [`400` catalogue](/reference/errors/) sit beside it. |
+| **[Query-string contract](/reference/query-string/)** | Every parameter and operator, with the SQL each one produces. The [response](/reference/response/), the [config API](/reference/configuration/), the [query composers](/reference/composers/) and the [`400` catalogue](/reference/errors/) sit beside it. |
 | **[Cookbook](/recipes/)** | Task-shaped: role-based configs, collection filters, aggregates, [non-web callers](/recipes/without-aspnetcore/), [indexing](/recipes/performance/), [testing](/recipes/testing/), [troubleshooting](/recipes/troubleshooting/). |
 | **[Integrations](/integrations/)** | What changes when you add [ASP.NET Core](/integrations/aspnetcore/), [PostgreSQL](/integrations/postgresql/), [NodaTime](/integrations/nodatime/), or [a type of your own](/integrations/custom-types/). |

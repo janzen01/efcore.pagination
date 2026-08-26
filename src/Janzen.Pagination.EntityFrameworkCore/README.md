@@ -51,10 +51,16 @@ query parameters) was supplied — the ASP.NET Core package builds one from `Htt
 `Links` is `null`, because a URL is meaningless with no request to be relative to. Inside it, an absent link
 (`previous` on the first page, `next` on the last) is `null` and stays in the payload as `null`.
 
+`Meta` carries the counters plus `hasPreviousPage` / `hasNextPage` and an echo of the **effective** request —
+`sortBy`, `search`, `searchBy`, `filter` after the config's defaults have been applied. That is what a grid
+header needs: a request that sent no `sortBy` still gets `"sortBy": ["name:ASC"]` back, because only the
+server knows where `DefaultSortBy` landed. See
+[Response contract](https://janzen01.github.io/efcore.pagination/reference/response/).
+
 Off the web, navigate by `Meta` and `WithPage` instead; the result goes straight back into the engine:
 
 ```csharp
-var next = response.Meta.CurrentPage < response.Meta.TotalPages
+var next = response.Meta.HasNextPage
     ? request.WithPage(response.Meta.CurrentPage + 1)
     : null; // last page
 
@@ -215,6 +221,29 @@ contract](https://janzen01.github.io/efcore.pagination/reference/query-string/);
 [value formats](https://janzen01.github.io/efcore.pagination/reference/query-string/#value-formats), and every `400`
 a filter can produce is [Errors](https://janzen01.github.io/efcore.pagination/reference/errors/#filter-operators).
 
+## Composing without executing
+
+Two extension methods build the query the engine would run and hand it back unexecuted — for a `ToQueryString()`
+you can assert on, and for anything computed over the **matching set** rather than the page:
+
+```csharp
+// The page query: filters, search, ordering (tie-breaker included), Skip/Take. No count, no projection.
+var composed = db.Products.ApplyPagination(request, config);
+string sql   = composed.Query.ToQueryString();   // the engine's query, minus the projection it would add
+// composed also carries the effective Page/Limit/SortBy/Search/SearchBy/Filter, for a custom envelope.
+
+// The matching set: filters and search only. Facets, sums, exports.
+var facets = await db.Products.ApplyPaginateFilters(request, config).Query
+    .GroupBy(p => p.Status)
+    .Select(g => new { Status = g.Key, Count = g.Count() })
+    .ToListAsync(ct);
+```
+
+Both return the same `PaginateComposedQuery<TEntity>` and reject exactly what `PaginateAsync` rejects, at
+compose time — except that `ApplyPaginateFilters` does not validate `sortBy`, which it never applies, and
+reports it as `null` rather than empty. See
+[Query composers](https://janzen01.github.io/efcore.pagination/reference/composers/).
+
 ## Documentation
 
 - [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/)
@@ -223,6 +252,7 @@ a filter can produce is [Errors](https://janzen01.github.io/efcore.pagination/re
 - [Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/)
 - [Response contract](https://janzen01.github.io/efcore.pagination/reference/response/)
 - [Configuration API](https://janzen01.github.io/efcore.pagination/reference/configuration/)
+- [Query composers](https://janzen01.github.io/efcore.pagination/reference/composers/)
 - [Errors](https://janzen01.github.io/efcore.pagination/reference/errors/)
 - [Cookbook](https://janzen01.github.io/efcore.pagination/recipes/)
 

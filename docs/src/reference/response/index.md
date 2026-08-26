@@ -15,7 +15,13 @@ client reads `meta` to decide whether to fetch again.
     "itemCount": 2,
     "itemsPerPage": 2,
     "totalPages": 19,
-    "currentPage": 2
+    "currentPage": 2,
+    "sortBy": ["name:DESC"],
+    "search": null,
+    "searchBy": [],
+    "filter": { "status": ["$eq:Active"] },
+    "hasPreviousPage": true,
+    "hasNextPage": true
   },
   "links": {
     "first":    "/products?limit=2&filter.status=%24eq%3AActive&page=1",
@@ -32,15 +38,22 @@ The C# shape is three records, where `T` is the **projection's** result type, no
 ```csharp
 sealed record PaginatedResponse<T>(IReadOnlyList<T> Items, PaginatedMeta Meta, PaginatedLinks? Links);
 
-sealed record PaginatedMeta(int TotalItems, int ItemCount, int ItemsPerPage, int TotalPages, int CurrentPage);
+sealed record PaginatedMeta(int TotalItems, int ItemCount, int ItemsPerPage, int TotalPages, int CurrentPage) {
+    public IReadOnlyList<string> SortBy { get; init; }
+    public string? Search { get; init; }
+    public IReadOnlyList<string> SearchBy { get; init; }
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> Filter { get; init; }
+    public bool HasPreviousPage { get; init; }
+    public bool HasNextPage { get; init; }
+}
 
 sealed record PaginatedLinks(string? First, string? Previous, string? Next, string? Last) {
     public string? Current { get; init; }
 }
 ```
 
-`Current` sits outside the positional list on purpose, so the constructor, `Deconstruct` and `with` keep the
-shape they had; the engine sets it, a caller never does.
+Those init-only members sit outside the positional lists on purpose, so each record's constructor,
+`Deconstruct` and `with` keep the shape they had; the engine sets them, a caller never does.
 
 Nothing here is serializer-specific: the JSON above is what ASP.NET Core's default camelCase settings
 produce from those records. The tables below use the JSON names; the CLR members are the same names in
@@ -59,6 +72,12 @@ The rows of this page, in the query's sort order. Empty past the last page, whic
 | `itemsPerPage` | `int` | The **effective** page size: the requested `limit`, or the config's `DefaultLimit` when `limit` was omitted. Never the maximum. |
 | `totalPages` | `int` | Pages at this page size, or `0` when nothing matched. |
 | `currentPage` | `int` | The 1-based page that was **requested**. Not clamped, so it can exceed `totalPages`. |
+| `sortBy` | `string[]` | The **effective** order, in the request's own `"field:DIR"` form. See [the echo](#the-request-echo). |
+| `search` | `string \| null` | The search term that ran, or `null`. |
+| `searchBy` | `string[]` | The **effective** fields the term ran over. `[]` when no search ran. |
+| `filter` | `object` | The request's filters, echoed verbatim per field. `{}` when there were none. |
+| `hasPreviousPage` | `bool` | `currentPage > 1`. |
+| `hasNextPage` | `bool` | `currentPage < totalPages`. `false` past the last page, where nothing follows either. |
 
 Two of these are easy to get wrong from the outside:
 
@@ -70,6 +89,36 @@ Two of these are easy to get wrong from the outside:
 
 `meta` is always present and never null. It is the only navigation a caller needs — `links` is a convenience
 on top of it.
+
+### The request echo
+
+`sortBy`, `search`, `searchBy` and `filter` report what the query **actually did**, which for the first three
+is not the same as what arrived. Defaults are resolved on the server:
+
+| Request | `meta.sortBy` | `meta.searchBy` |
+|---------|---------------|-----------------|
+| `?sortBy=name:DESC&search=wid&searchBy=name` | `["name:DESC"]` | `["name"]` |
+| `?search=wid` (config: `DefaultSortBy("rank")`, two searchable fields) | `["rank:ASC"]` | `["name", "description"]` |
+| `?page=2` | `["rank:ASC"]` | `[]` |
+
+That is the whole point of the echo: a client rendering a grid header cannot draw the sort arrow or the
+"searching in…" hint for a request it did not spell out, because only the config knows where the defaults
+landed. Four details worth knowing:
+
+- **Field names are canonical, not as typed.** Lookup is case-insensitive, so `?sortBy=NAME:desc` echoes
+  `name:DESC`.
+- **The tie-breaker is not listed.** `WithTieBreaker(...)` orders every page, but nobody requested it and no
+  arrow belongs on it.
+- **A field switched off by `When(false)` for this caller is absent**, from the defaults too — the same rule
+  that makes it unrequestable.
+- **`filter` is raw.** The values are the `"$op:value"` strings as received, grouped per field, which is what
+  a filter chip renders. Only validated fields can appear: an unknown one is a `400`, so no envelope exists.
+
+`hasPreviousPage` / `hasNextPage` carry the two comparisons every client would otherwise re-derive — and
+`hasNextPage` is `false` past the last page, which the counters alone do not say without a second look.
+
+Like everything else here, **all six keys are always present**, with `null` and `[]` and `{}` carrying the
+absent cases rather than the key disappearing.
 
 ## `links`
 
@@ -154,7 +203,7 @@ while (true) {
     Process(page.Items);
 
     // totalPages is 0 for an empty result set, so this also ends the very first pass.
-    if (page.Meta.CurrentPage >= page.Meta.TotalPages) break;
+    if (!page.Meta.HasNextPage) break;
 
     request = request.WithPage(page.Meta.CurrentPage + 1);
 
@@ -163,8 +212,35 @@ while (true) {
 
 `WithPage` does **not** validate: an out-of-range page is rejected when the query executes, so the `400` and
 its wording come from one place. Note that `PaginateQuery` is a class rather than a record, and has no `with`
-— value equality over its collection properties would compare by reference and lie — so `WithPage` is the
-supported way to derive one request from another.
+— it carries no equality at all rather than one that would compare its collection properties by reference and
+lie — so `WithPage` is the supported way to derive one request from another. The envelope records took the
+other route; see below.
+
+## Comparing envelopes
+
+`PaginatedResponse<T>`, `PaginatedMeta` and `PaginatedLinks` compare **by value**, all the way down:
+
+```csharp
+// Two responses to the same request, fetched separately.
+first == second   // true
+```
+
+That needs saying because it is not what the record shape gives you for free. A record's synthesized equality
+runs every member through `EqualityComparer<T>.Default`, which is reference equality for a list or a
+dictionary — so `items`, `sortBy`, `searchBy` and `filter` would have made two envelopes describing the same
+page compare unequal. These three records hand-write `Equals` and `GetHashCode` instead. The rules:
+
+- **`items` compares element by element**, each through `T`'s own equality. A projection record compares by
+  value; a projection declared as a class compares by reference, because that is its contract, not the
+  envelope's.
+- **Order is part of the value** for `items`, `sortBy` and `searchBy`. A page is an ordered thing.
+- **`filter` is order-independent** — a dictionary has no order — and its **keys match ordinally**. It echoes
+  the request's field names verbatim, so `Status` and `status` are different echoes even though the field
+  lookup that produced them is case-insensitive.
+- Equal envelopes hash equal, so they work as dictionary keys and in a `HashSet`.
+
+An envelope deserialized from a payload carrying explicit `null`s where the contract promises a list reports
+inequality rather than throwing.
 
 ## `Link` response header (RFC 8288)
 

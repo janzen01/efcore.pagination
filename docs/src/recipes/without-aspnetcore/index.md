@@ -65,15 +65,17 @@ while (true) {
 
     await WriteBatchAsync(page.Items, ct);
 
-    if (page.Meta.CurrentPage >= page.Meta.TotalPages) break;
+    if (!page.Meta.HasNextPage) break;
 
     request = request.WithPage(page.Meta.CurrentPage + 1);
 
 }
 ```
 
-The termination test is `CurrentPage >= TotalPages` rather than a null check, and it is correct on the first
-pass too: `TotalPages` is `0` for an empty result set. See
+`HasNextPage` is the termination test, and it is correct on the first pass too: `TotalPages` is `0` for an
+empty result set, so the very first page already reports no next. It is `CurrentPage < TotalPages`
+pre-computed — the comparison every caller used to write by hand, and the one that is easy to get wrong by
+reaching for a null check on `Items` instead. See
 [Response contract](/reference/response/#paging-without-links-withpage) for what each `Meta` field reports.
 
 For a large export, prefer a big `Limit` and a keyset-friendly sort over deep paging — every page still costs

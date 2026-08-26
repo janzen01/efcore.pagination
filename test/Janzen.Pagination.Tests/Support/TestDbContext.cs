@@ -56,6 +56,23 @@ public sealed class SqliteFixture : IAsyncLifetime {
 
 	public TestDbContext CreateContext() { return new TestDbContext(_options); }
 
+	/// <summary>
+	///     A context that appends every executed command's SQL to <paramref name="executedSql" />. Only
+	///     <see cref="ComposerTests" /> needs it, to check the claim the composers rest on: that the query they hand
+	///     back unexecuted is the query the engine executes.
+	/// </summary>
+	public TestDbContext CreateLoggingContext(ICollection<string> executedSql) {
+
+		var options = new DbContextOptionsBuilder<TestDbContext>()
+			.UseSqlite(_connection)
+			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
+			.LogTo(line => executedSql.Add(line), [RelationalEventId.CommandExecuted])
+			.Options;
+
+		return new TestDbContext(options);
+
+	}
+
 	/// <summary>A fresh, untracked query root — every test starts from the same eight rows.</summary>
 	public static IQueryable<Product> Products(TestDbContext context) { return context.Products.AsNoTracking(); }
 

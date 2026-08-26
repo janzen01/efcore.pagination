@@ -93,11 +93,18 @@ validated.
 
 ## Reading what actually ran
 
-The engine composes onto your `IQueryable` and then executes, so there is nothing to call `ToQueryString()`
-on mid-flight. Two ways to see the SQL:
+**The page query, before it runs.** `ApplyPagination` composes it and stops, so `ToQueryString()` prints
+exactly what `PaginateAsync` would execute — filters, search, ordering, `Skip`/`Take`. A configured
+`DbContext` is enough; no server has to answer:
 
-**Before committing to a selector**, apply the same `Select` yourself. This needs a configured `DbContext`,
-not a running database:
+```csharp
+string sql = db.Products.ApplyPagination(request, config).Query.ToQueryString();
+```
+
+See [Query composers](/reference/composers/). It adds no projection, so pair it with the next one when the
+`SELECT` list is what you are chasing.
+
+**A selector, before committing to it.** Apply the same `Select` yourself:
 
 ```csharp
 string sql = db.Products
