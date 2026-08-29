@@ -359,6 +359,18 @@ Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs
 ## Intentional decisions — do NOT "fix" these
 - **net10.0-only** — net9 is EOL and net8 lacks the EF Core 9+ surface the engine relies on (e.g. `EF.Parameter`).
   Don't re-introduce multi-targeting.
+- **Value resolution order is registry → built-ins → `IParsable<TSelf>` → 400**, and the registry going *first* is
+  the load-bearing part: consulted last (as it was before 10.0.3) a registration for an already-built-in type was a
+  silent no-op, so everyone it affected was someone who tried to override and never found out. Don't move it back
+  below the built-in table. The `IParsable` fallback has **no opt-out knob** on purpose — parsing only ever runs for
+  a field the consumer declared filterable, so whitelisting a field of type `T` *is* the opt-in.
+- **`DateOnly`/`TimeOnly` parse with `TryParseExact` against pinned ISO formats, not `Parse`.** The BCL's `Parse` is
+  lossy in opposite directions — it reads `2026-01-03T10:00:00` as a `DateOnly` and drops the time, and reads the
+  same string as a `TimeOnly` and drops the date — so a caller asking about one moment would silently match a whole
+  day. Same reasoning as the NodaTime `Instant` parser refusing a bare date. Don't "simplify" either back to `Parse`.
+- **NodaTime has no ISO-8601 duration pattern** — `DurationPattern.JsonRoundtrip` is the colon form (`2:30:00`)
+  despite the name, verified against NodaTime 3.3.3. The ISO leg (`PT2H30M`) therefore goes through `XmlConvert`,
+  mirroring how the engine reads a `TimeSpan`. Don't replace it with a NodaTime pattern that does not exist.
 - **`[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`** on every public `Paginate*Async` entry point — the engine
   builds expression trees and uses reflection, so it is **not** trim/AOT-safe. The annotations give consumers accurate
   analyzer warnings instead of silent runtime failures; keep them.

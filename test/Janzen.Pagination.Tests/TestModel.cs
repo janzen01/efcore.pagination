@@ -34,6 +34,17 @@ public sealed class Product {
 
 	public DateTimeOffset? DiscontinuedAt { get; set; }
 
+	/// <summary>Zone-free date. Unlike <see cref="CreatedAt" />, SQLite does translate comparisons over this one.</summary>
+	public DateOnly ReleasedOn { get; set; }
+
+	/// <summary>The nullable of the pair, so "an empty value clears to null" is testable for these types too.</summary>
+	public DateOnly? RetiredOn { get; set; }
+
+	public TimeOnly OpensAt { get; set; }
+
+	/// <summary>Equality only, for the same reason as <see cref="Price" />: SQLite stores this as TEXT.</summary>
+	public TimeSpan Warranty { get; set; }
+
 	public List<string> Tags { get; set; } = [];
 
 	public int? CategoryId { get; set; }
@@ -67,6 +78,12 @@ public sealed class Review {
 }
 
 public sealed record ProductDto(int Id, string Name, ProductStatus Status, int Rank);
+
+/// <summary>
+///     Auto-projected onto the zone-free members. Before these types were classified as leaves the builder recursed
+///     into the structs looking for a constructor to map, so this DTO is the regression.
+/// </summary>
+public sealed record ProductDatesDto(int Id, DateOnly ReleasedOn, DateOnly? RetiredOn, TimeOnly OpensAt, TimeSpan Warranty);
 
 public sealed record CategoryDto(int Id, string Name);
 
@@ -156,6 +173,13 @@ public static class TestData {
 		foreach (var product in products) {
 			product.ExternalId = ExternalId(product.Id);
 			product.IsFeatured = product.Id is 1 or 7;
+			// Derived from the id so every assertion over these can be written as a literal: ids 1..8 give
+			// 2026-01-01..08, 09:00..16:00 and 1..8 hours.
+			product.ReleasedOn = new DateOnly(2026, 1, product.Id);
+			product.OpensAt = new TimeOnly(8 + product.Id, 0);
+			product.Warranty = TimeSpan.FromHours(product.Id);
+			// Only the discontinued row is retired, mirroring DiscontinuedAt — everything else stays null.
+			product.RetiredOn = product.Id == 6 ? new DateOnly(2026, 6, 30) : null;
 		}
 
 		return products;
