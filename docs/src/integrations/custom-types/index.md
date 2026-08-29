@@ -39,6 +39,15 @@ The registry runs **first**, so registering a parser for a type the engine alrea
 `Guid` — replaces the built-in one. Before `10.0.3` the registry ran last and such a registration was a silent
 no-op.
 
+Two things are decided before the registry is consulted, and a parser cannot reach either:
+
+- **`string` is returned verbatim.** A registered `string` parser is never called — the type is the wire format,
+  so there is nothing to parse, and routing it through the registry would change what an empty value means for
+  every existing string filter.
+- **An empty or whitespace-only value** is `null` for a nullable target and a `400` for a non-nullable one, per
+  [Value formats](/reference/query-string/#value-formats). That is a nullability rule rather than a parsing one,
+  so your parser is never handed `""`.
+
 ## `RegisterSimpleType` — stop projection recursing into it
 
 ```csharp

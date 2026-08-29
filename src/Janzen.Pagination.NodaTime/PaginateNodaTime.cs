@@ -103,9 +103,19 @@ public static class PaginateNodaTime {
 		var roundtrip = DurationPattern.JsonRoundtrip.Parse(value);
 		if (roundtrip.Success) return roundtrip.Value;
 
+		// Years and months are calendar-dependent and XmlConvert answers them with fixed approximations — P1M is
+		// exactly thirty days, P1Y exactly 365. A filter for "a month" silently becoming a filter for thirty days
+		// is worse than a 400, so those designators are refused rather than approximated.
+		int time = value.IndexOf('T', StringComparison.Ordinal);
+		var datePart = time < 0 ? value.AsSpan() : value.AsSpan(0, time);
+
+		if (datePart.ContainsAny('Y', 'M')) {
+			throw new PaginateQueryException($"Value '{value}' is not a valid duration: a duration in years or months has no fixed length.");
+		}
+
 		try {
 			return Duration.FromTimeSpan(XmlConvert.ToTimeSpan(value));
-		} catch (FormatException) {
+		} catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException) {
 			throw new PaginateQueryException($"Value '{value}' is not a valid duration.");
 		}
 

@@ -36,7 +36,7 @@ The package registers all three through the same public registry any application
 | `LocalTime` | `23:59:59` | `TimeOnly` |
 | `OffsetDateTime` | `2026-01-31T23:59:59+01:00` | `DateTimeOffset` |
 | `YearMonth` | `2026-01` | — |
-| `Duration` | `2:30:00` **or** ISO-8601 `PT2H30M` | — |
+| `Duration` | `2:30:00` **or** ISO-8601 `PT2H30M`. `P1M` / `P1Y` are a `400`: a month has no fixed length, and 30 days is an approximation, not an answer. | — |
 
 Every conversion also carries the nullable pair (`Instant?` → `DateTimeOffset?`). There are no reverse
 conversions: entities hold NodaTime, DTOs hold BCL types.

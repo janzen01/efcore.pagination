@@ -1,7 +1,6 @@
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using System.Xml;
@@ -73,9 +72,15 @@ internal static class PaginateValueConverter {
 					: throw new PaginateQueryException($"Value '{value}' is not valid for type '{type.Name}'.");
 			}
 			// Two accepted spellings: .NET's own "c" (2:30:00) because that is what a .NET caller types, and ISO-8601
-			// (PT2H30M) because it survives a URL without percent-encoded colons. XmlConvert raises FormatException on
-			// a bad value, which the wrapper below turns into the standard message.
-			if (type == typeof(TimeSpan)) return TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan) ? timeSpan : XmlConvert.ToTimeSpan(value);
+			// (PT2H30M) because it survives a URL without percent-encoded colons.
+			// The colon is required for the first: TimeSpan.TryParse reads a bare "2" as two *days*, and nobody who
+			// types 2 into a duration filter means that. Without a colon the value can only be ISO, where "2" is
+			// malformed and answers 400 like any other bad value.
+			if (type == typeof(TimeSpan)) {
+				return value.Contains(':', StringComparison.Ordinal) && TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan)
+					? timeSpan
+					: ParseIsoDuration(value, type.Name);
+			}
 			if (type == typeof(char)) return value.Length == 1 ? value[0] : throw new PaginateQueryException($"Value '{value}' is not valid for type '{type.Name}'.");
 
 			if (type.IsEnum) {
@@ -116,10 +121,6 @@ internal static class PaginateValueConverter {
 
 	}
 
-	[UnconditionalSuppressMessage("AOT", "IL3050",
-		Justification = "The engine is already annotated RequiresUnreferencedCode; a consumer type reaching this path is one the consumer registered as filterable, so it is rooted.")]
-	[UnconditionalSuppressMessage("Trimming", "IL2060",
-		Justification = "Same: the closed generic is over a filterable field's own type, which the configuration keeps rooted.")]
 	private static Func<string, object?>? BuildParsableParser(Type type) {
 
 		// IParsable<TSelf> only — a type parsing into something other than itself is not what this fallback is for.
@@ -137,9 +138,29 @@ internal static class PaginateValueConverter {
 	}
 
 	private static object? ParseParsable<T>(string value) where T : IParsable<T> {
-		return T.TryParse(value, CultureInfo.InvariantCulture, out var parsed)
+		// A TryParse that answers true with a null result would otherwise turn a filter into an IS NULL against a
+		// target the caller declared non-nullable. Only reachable for a class-based T; a struct boxes.
+		return T.TryParse(value, CultureInfo.InvariantCulture, out var parsed) && parsed is not null
 			? parsed
 			: throw new PaginateQueryException($"Value '{value}' is not valid for type '{typeof(T).Name}'.");
+	}
+
+	/// <summary>
+	///     Reads an ISO-8601 duration, refusing the calendar-dependent designators. <c>XmlConvert</c> answers
+	///     <c>P1M</c> with exactly thirty days and <c>P1Y</c> with 365 — a fixed approximation of something that has
+	///     no fixed length — so a filter for "a month" would silently be a filter for thirty days.
+	/// </summary>
+	internal static TimeSpan ParseIsoDuration(string value, string typeName) {
+
+		int time = value.IndexOf('T', StringComparison.Ordinal);
+		var datePart = time < 0 ? value.AsSpan() : value.AsSpan(0, time);
+
+		if (datePart.ContainsAny('Y', 'M')) {
+			throw new PaginateQueryException($"Value '{value}' is not valid for type '{typeName}': a duration in years or months has no fixed length.");
+		}
+
+		return XmlConvert.ToTimeSpan(value);
+
 	}
 
 	private static T Parse<T>(string value, TryParse<T> parser, string displayName) {

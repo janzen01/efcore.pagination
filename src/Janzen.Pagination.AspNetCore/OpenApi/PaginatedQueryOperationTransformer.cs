@@ -303,6 +303,9 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			_ when t == typeof(TimeOnly) => "time",
 			_ when t == typeof(TimeSpan) => "duration",
 			_ when t == typeof(char) => "character",
+			// Above the probes below on purpose: no NodaTime type is an enum, and this way an enum field does not
+			// pay five resolve-by-name lookups against its own assembly before reaching its arm.
+			_ when t.IsEnum => string.Join(" | ", Enum.GetNames(t)),
 			_ when t == t.Assembly.GetType("NodaTime.Instant") => "date-time (UTC)",
 			_ when t == t.Assembly.GetType("NodaTime.LocalDate") => "date",
 			_ when t == t.Assembly.GetType("NodaTime.LocalDateTime") => "date-time (local)",
@@ -310,7 +313,6 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			_ when t == t.Assembly.GetType("NodaTime.OffsetDateTime") => "date-time (offset)",
 			_ when t == t.Assembly.GetType("NodaTime.Duration") => "duration",
 			_ when t == t.Assembly.GetType("NodaTime.YearMonth") => "year-month",
-			_ when t.IsEnum => string.Join(" | ", Enum.GetNames(t)),
 			_ => t.Name
 		};
 	}

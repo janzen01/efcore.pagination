@@ -75,6 +75,30 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 	}
 
 	[Fact]
+	public async Task A_time_span_refuses_a_bare_number() {
+
+		// TimeSpan.TryParse reads "2" as two *days*. Nobody typing 2 into a duration filter means that, so the
+		// colon form is required and a bare number can only be a malformed ISO duration.
+		Assert.Equal("Value '2' is not valid for type 'TimeSpan'.", await this.Rejects(Query.Filter("warranty", "$eq:2")));
+
+	}
+
+	[Theory]
+	[InlineData("P1M")]
+	[InlineData("P1Y")]
+	[InlineData("P1Y2M")]
+	public async Task A_time_span_refuses_calendar_designators(string value) {
+
+		// XmlConvert answers P1M with exactly thirty days and P1Y with 365 — a fixed approximation of something
+		// that has no fixed length. Better a 400 than a filter that quietly means something else.
+		Assert.Equal(
+			$"Value '{value}' is not valid for type 'TimeSpan': a duration in years or months has no fixed length.",
+			await this.Rejects(Query.Filter("warranty", $"$eq:{value}"))
+		);
+
+	}
+
+	[Fact]
 	public async Task An_empty_value_on_a_nullable_date_only_matches_null() {
 
 		// Ids 1-5, 7 and 8 have no RetiredOn; only the discontinued row does.
@@ -134,6 +158,97 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 		Assert.Equal(new TimeOnly(9, 0), first.OpensAt);
 		Assert.Equal(TimeSpan.FromHours(1), first.Warranty);
 
+	}
+
+}
+
+/// <summary>
+///     The rest of the widened parse table: the integer family and <see cref="char" />. In memory rather than
+///     against SQLite, because what is under test is the parse table, not a provider's translation.
+/// </summary>
+/// <remarks>
+///     <see cref="sbyte" /> is deliberately absent — <see cref="ValueParsingRegistryTests" /> registers a
+///     process-wide override for it, which would shadow the built-in branch this class exists to exercise.
+/// </remarks>
+public sealed class ValueParsingNumericTests {
+
+	public sealed class Reading {
+
+		public int Id { get; set; }
+
+		public byte Level { get; set; }
+
+		public ushort Port { get; set; }
+
+		public uint Sequence { get; set; }
+
+		public ulong Offset { get; set; }
+
+		public char Grade { get; set; }
+
+	}
+
+	public sealed record ReadingDto(int Id);
+
+	private readonly static PaginateConfig<Reading> Config = PaginateConfig<Reading>.Create(b => b
+		.WithLimits(10, 10)
+		.WithTieBreaker(r => r.Id)
+		.Filterable("level", r => r.Level, PaginateFilterOperator.Eq)
+		.Filterable("port", r => r.Port, PaginateFilterOperator.Eq)
+		.Filterable("sequence", r => r.Sequence, PaginateFilterOperator.Eq)
+		.Filterable("offset", r => r.Offset, PaginateFilterOperator.Eq)
+		.Filterable("grade", r => r.Grade, PaginateFilterOperator.Eq));
+
+	private static Task<PaginatedResponse<ReadingDto>> FilterAsync(string field, string criterion) {
+
+		IQueryable<Reading> readings = new List<Reading> {
+			new() { Id = 1, Level = 1, Port = 1, Sequence = 1, Offset = 1, Grade = 'a' },
+			// The second row carries each type's maximum, so a value that overflows the *narrower* types still
+			// matches here — that is what proves the right parser is being reached per field.
+			new() { Id = 2, Level = byte.MaxValue, Port = ushort.MaxValue, Sequence = uint.MaxValue, Offset = ulong.MaxValue, Grade = 'b' }
+		}.AsQueryable();
+
+		return readings.PaginateAsync<Reading, ReadingDto>(
+			new PaginateQuery { Filters = new Dictionary<string, IReadOnlyList<string>> { [field] = [criterion] } },
+			Config, null, TestContext.Current.CancellationToken
+		);
+
+	}
+
+	private static async Task<string> RejectsAsync(string field, string criterion) {
+		var exception = await Assert.ThrowsAsync<PaginateQueryException>(() => FilterAsync(field, criterion));
+		return exception.Message;
+	}
+
+	[Theory]
+	[InlineData("level", "255")]
+	[InlineData("port", "65535")]
+	[InlineData("sequence", "4294967295")]
+	[InlineData("offset", "18446744073709551615")]
+	[InlineData("grade", "b")]
+	public async Task Every_widened_type_parses_its_full_range(string field, string value) {
+		Assert.Equal([2], (await FilterAsync(field, $"$eq:{value}")).Items.Select(item => item.Id));
+	}
+
+	[Theory]
+	[InlineData("level", "256", "Byte")]
+	[InlineData("port", "65536", "UInt16")]
+	[InlineData("sequence", "4294967296", "UInt32")]
+	[InlineData("offset", "18446744073709551616", "UInt64")]
+	public async Task An_out_of_range_value_is_a_400_rather_than_an_overflow(string field, string value, string typeName) {
+		Assert.Equal($"Value '{value}' is not valid for type '{typeName}'.", await RejectsAsync(field, $"$eq:{value}"));
+	}
+
+	[Theory]
+	[InlineData("level", "-1")]
+	[InlineData("sequence", "-1")]
+	public async Task An_unsigned_type_refuses_a_negative_value(string field, string value) {
+		Assert.Contains("is not valid for type", await RejectsAsync(field, $"$eq:{value}"));
+	}
+
+	[Fact]
+	public async Task A_char_refuses_more_than_one_character() {
+		Assert.Equal("Value 'ab' is not valid for type 'Char'.", await RejectsAsync("grade", "$eq:ab"));
 	}
 
 }
