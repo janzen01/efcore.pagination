@@ -134,7 +134,7 @@ Four ways to shape each page row into a DTO — pick the cheapest that fits:
 
 | Strategy     | Entry point                                        | Runs where     | Use for |
 |--------------|----------------------------------------------------|----------------|---------|
-| **Auto**     | `PaginateAsync<TEntity, TResult>(request, config)`           | SQL            | DTOs buildable by convention: scalars, single nested objects, `Instant → DateTimeOffset`. |
+| **Auto**     | `PaginateAsync<TEntity, TResult>(request, config)`           | SQL            | DTOs buildable by convention: scalars (`DateOnly`, `TimeOnly` and `TimeSpan` included), single nested objects, and the NodaTime → BCL conversions such as `Instant → DateTimeOffset`. |
 | **Selector** | `PaginateSelectAsync<TEntity, TResult>(request, config, selector)` | SQL (+ shaper) | Anything expressible as a `Select`: aggregates, **sub-collections**, conversions — in one narrow query. |
 | **Selector + finalize** | `PaginateSelectMapAsync<TEntity, TProjection, TResult>(request, config, selector, postMap)` | SQL + in-memory | Most of the row translates, but a field or two needs a CLR computation EF can't translate (weighted aggregate over a sub-collection with a guard/rounding). Narrow `SELECT`; `postMap` finalizes the page only (O(page size)). |
 | **Map**      | `PaginateMapAsync<TEntity, TResult>(request, config, map)`   | in memory      | Only when the response needs the **fully loaded entity**. Over-fetches by design. |
@@ -215,6 +215,10 @@ granted for that field is a `400`.
 Criteria on different fields are always ANDed; there is no cross-field `OR` or grouping. Enums are addressed
 **by name** (`Active`), numbers and dates use the invariant culture, and values are emitted as SQL parameters
 rather than inlined literals.
+
+Any type implementing **`IParsable<TSelf>`** is filterable with no registration at all, so a strongly-typed id
+of your own works as a filter value as it stands. Register a parser only to accept a different format from the
+one its `TryParse` does.
 
 The full contract is the [Query-string
 contract](https://janzen01.github.io/efcore.pagination/reference/query-string/); what each type accepts is
