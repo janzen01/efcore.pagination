@@ -462,13 +462,11 @@ public static class PaginateQueryableExtensions {
 			// Use long arithmetic so a very large page cannot overflow; skip past the last row short-circuits to an empty page.
 			long skip = (long)(page - 1) * limit;
 
-			TResult[] items;
-
-			if (skip >= totalItems) {
-				items = [];
-			} else {
-				items = await project(ApplyPage(ApplySorts(query, sorts.Keys), page, limit), ct).ConfigureAwait(false);
-			}
+			// Past the last row there is nothing to fetch, so the second query is never issued at all — the count
+			// above is the whole cost of asking for a page that does not exist.
+			TResult[] items = skip >= totalItems
+				? []
+				: await project(ApplyPage(ApplySorts(query, sorts.Keys), page, limit), ct).ConfigureAwait(false);
 
 			var meta = new PaginatedMeta(totalItems, items.Length, limit, totalPages, page) {
 				SortBy          = sorts.Tokens,
