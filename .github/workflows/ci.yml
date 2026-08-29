@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  # `push` is scoped to master, so a feature-branch push fires `pull_request` only and there is no
+  # double run to cancel.
   push:
     branches: [ master ]
   pull_request:
@@ -8,9 +10,34 @@ on:
 permissions:
   contents: read
 
+# `head_ref` is populated only on a pull request; on a push it is empty and the group falls back to the
+# unique run id, so a master run can never cancel itself or a sibling. Keying on `github.ref` instead
+# would put two quick master pushes in one group and kill the in-flight one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
 jobs:
+  # Three operating systems because the engine's contract is invariant-culture parsing and its SQL is
+  # provider-translated -- neither is something a Linux-only run can be trusted to have exercised, and the
+  # library is consumed overwhelmingly from Windows.
+  #
+  # Do NOT add a static `name:` here to keep the check context stable across the matrix. GitHub does not
+  # append matrix values to an explicit name, so all three legs would report one context and the last to
+  # finish would win -- a red Windows leg hidden behind a green Linux one. `ci-ok` below is the answer to
+  # context churn.
   build-test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      # One OS failing must still report the others: which platforms broke is the whole diagnostic.
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -22,8 +49,60 @@ jobs:
       - name: Restore
         run: dotnet restore Janzen.Pagination.slnx
 
+      # TreatWarningsAsErrors is set in Directory.Build.props, so this is the analyzer and
+      # missing-XML-doc gate too -- there is no separate lint job.
       - name: Build
         run: dotnet build Janzen.Pagination.slnx -c Release --no-restore -warnaserror
 
       - name: Test
         run: dotnet test Janzen.Pagination.slnx -c Release --no-build
+
+  # The two verifiers chained into `pnpm docs:build` are the only thing standing between a renamed heading
+  # and a dead link inside a package that is already on nuget.org, where it renders against that version
+  # forever. Running here rather than in docs.yml is what finally makes them a gate rather than advice.
+  docs:
+    uses: ./.github/workflows/docs-build.yml
+
+  # The PR title becomes the squash commit on master, and master takes no other kind of merge -- a typo
+  # there is permanent history. Dependabot is exempt: its titles are its own.
+  pr-lint:
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Read through env, never inline `${{ }}`: a PR title is attacker-controlled text, and inline
+      # interpolation would paste it straight into the shell.
+      #
+      # The type list is the union of what master's history actually uses plus the conventional-commit
+      # remainder. `release` is in it because the version bump PR uses it -- leave it out and the one PR
+      # you least want blocked is the one that cannot merge.
+      - name: Check the title is a conventional commit
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -eu
+          printf '%s' "$TITLE" | grep -qE '^(feat|fix|docs|refactor|perf|test|ci|build|chore|release|revert)(\([a-z0-9._/-]+\))?!?: .+' \
+            || { echo "::error::PR title must be 'type(scope): subject' - it becomes the squash commit on master."; exit 1; }
+
+  # The single required status check. It exists for one reason: the matrix above turns `build-test` into
+  # `build-test (ubuntu-latest)` and friends, so a ruleset pinned to job names would need editing on every
+  # matrix change. This name never moves.
+  #
+  # `!cancelled()` rather than `always()`: on a run killed by cancel-in-progress, `always()` would still
+  # run this job and report a red check against a commit nobody is looking at any more.
+  #
+  # A `skipped` dependency passes on purpose (pr-lint on a master push, or on a Dependabot PR) -- only a
+  # real failure or a cancellation is a failure here. `needs.build-test.result` is one aggregate for the
+  # whole matrix, so with fail-fast disabled a single red leg still surfaces as `failure`.
+  ci-ok:
+    needs: [ build-test, docs, pr-lint ]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: |
+          echo "results: ${{ join(needs.*.result, ', ') }}"
+          if ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}; then
+            echo "::error::at least one CI job failed or was cancelled"
+            exit 1
+          fi
