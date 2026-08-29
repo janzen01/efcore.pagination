@@ -132,6 +132,11 @@ Two pieces of state are global and outlive a test:
   one, while a projection conversion is **appended** — registering the same delegate twice installs it
   twice. Only `PaginateNodaTime.Register()` is genuinely idempotent, guarded by a flag. Register all of
   them once, in a fixture, and never per test.
+- Since `10.0.3` the registry is consulted **before** the built-in parsers, which creates a new isolation
+  hazard: registering a parser for a type the engine already handles — `int`, `DateTime`, `Guid` — now takes
+  effect, process-wide, for the rest of the run. A test that overrides one shadows the built-in behaviour for
+  every other test in the assembly. If you need to cover an override, pick a type nothing else in the suite
+  parses.
 
 ## What this library does not test
 
