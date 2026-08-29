@@ -16,6 +16,38 @@ PaginateTypeSupport.RegisterValueParser(typeof(Ulid), raw =>
 Throw `PaginateQueryException` for bad input — that is what turns into a `400` rather than a `500`. Without a
 parser, filtering on that type is `400 Filtering values of type 'Ulid' is not supported.`
 
+### You may not need this at all
+
+If your type implements `IParsable<TSelf>` — the pattern minimal APIs already bind route and query values
+through — the engine finds its `TryParse` on its own, in the invariant culture, with **no registration**:
+
+```csharp
+public readonly record struct Ticket(int Number) : IParsable<Ticket> { … }
+
+// .Filterable("ticket", j => j.Ticket, PaginateFilterOperator.Eq) now works as it stands.
+```
+
+There is no switch to turn that off, and it needs none: parsing only ever happens for a field you declared
+filterable, so whitelisting a field of type `T` *is* the opt-in. Register a parser when you want a different
+format from the one `TryParse` accepts, or a different error message.
+
+### Resolution order
+
+**registry → built-ins → `IParsable<TSelf>` → `400`.**
+
+The registry runs **first**, so registering a parser for a type the engine already handles — `DateTime`, `int`,
+`Guid` — replaces the built-in one. Before `10.0.3` the registry ran last and such a registration was a silent
+no-op.
+
+Two things are decided before the registry is consulted, and a parser cannot reach either:
+
+- **`string` is returned verbatim.** A registered `string` parser is never called — the type is the wire format,
+  so there is nothing to parse, and routing it through the registry would change what an empty value means for
+  every existing string filter.
+- **An empty or whitespace-only value** is `null` for a nullable target and a `400` for a non-nullable one, per
+  [Value formats](/reference/query-string/#value-formats). That is a nullability rule rather than a parsing one,
+  so your parser is never handed `""`.
+
 ## `RegisterSimpleType` — stop projection recursing into it
 
 ```csharp
@@ -86,9 +118,10 @@ Three properties of the registry worth knowing before you call it:
 - **Process-wide.** There is no per-config or per-request scope; a registration affects every query in the
   application, and nothing can be unregistered.
 - **The three behave differently on a repeat call.** Parsers and simple types are keyed by type, so
-  registering the same type again **replaces** the previous parser. Projection conversions are **appended**
-  and tried in registration order, with the first non-`null` result winning — so with two conversions that
-  could both apply, registration order decides.
+  registering the same type again **replaces** the previous parser — including a built-in one, since the
+  registry is consulted first. Projection conversions are **appended** and tried in registration order, with
+  the first non-`null` result winning — so with two conversions that could both apply, registration order
+  decides.
 - **Safe to call concurrently, but register at startup anyway.** The registry itself is thread-safe; what is
   not deterministic is a query that runs before the registration and therefore sees the old behaviour. Doing
   it lazily on first use is how that becomes an intermittent bug.

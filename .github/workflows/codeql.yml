@@ -12,10 +12,18 @@ permissions:
   contents: read
   security-events: write
 
+# A scheduled or push run has no head_ref, so it falls back to the unique run id and never cancels itself.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+# Deliberately outside ci.yml's `ci-ok`: findings here are triaged on the security dashboard, and a query
+# that fires on pre-existing code should not block an unrelated merge.
 jobs:
   analyze:
     name: Analyze C#
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -23,7 +31,7 @@ jobs:
         uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
         with:
           languages: csharp
-          # ponytail: buildless analysis — no .NET SDK to pin here, no build to keep green.
+          # Buildless analysis — no .NET SDK to pin here, and no second build to keep green next to ci.yml's.
           # Switch to `build-mode: manual` + a `dotnet build` step if CodeQL starts
           # missing dataflow through the expression-tree builders.
           build-mode: none

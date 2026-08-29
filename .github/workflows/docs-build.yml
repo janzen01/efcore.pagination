@@ -1,0 +1,65 @@
+name: Docs build
+
+# The VitePress build, called from two places: ci.yml verifies it on every pull request, docs.yml builds
+# the artifact it deploys from master. One copy, so the thing a PR verifies is the thing that gets published.
+on:
+  workflow_call:
+    inputs:
+      upload:
+        description: Produce the GitHub Pages artifact for a caller that is going to deploy it.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # package_json_file is resolved against the REPOSITORY ROOT, which has no package.json -- the one
+      # carrying `packageManager` lives in docs/. The `defaults.run.working-directory` above does not
+      # help: it applies to `run:` steps only, never to a `uses:` step's inputs. Without this the action
+      # finds no version to install and the job dies here, before it ever reaches the build.
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          package_json_file: docs/package.json
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Belongs before the build in GitHub's template, so that a site which does read base_path gets it.
+      # This one hardcodes `base` in config.mts, so the step contributes nothing today -- but running it
+      # out of order is the kind of thing that only bites once someone starts relying on the output.
+      #
+      # Guarded on the INPUT, never on github.event_name: inside a called workflow that expression is the
+      # *caller's* event, so `!= 'pull_request'` would fire here on a fork PR -- a Pages API call that can
+      # 403 and redden a required check on a pull request that has nothing to do with Pages.
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+        if: inputs.upload
+
+      # docs:build ends in scripts/verify-frozen-urls.mjs and then scripts/verify-anchors.mjs. The first
+      # fails if a URL that already shipped inside a released package stops existing; the second fails if
+      # a link points at a heading that no longer does, which `ignoreDeadLinks` structurally cannot see.
+      # Those two checks are the reason this job can be trusted, and the reason ci.yml requires it.
+      - name: Build
+        run: pnpm docs:build
+
+      # A workflow_call job runs inside the CALLER's run, so this artifact is what the caller's own deploy
+      # job picks up -- both sides use the default name, `github-pages`.
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: inputs.upload
+        with:
+          path: docs/.dist

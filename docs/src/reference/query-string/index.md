@@ -426,12 +426,20 @@ flowchart LR
 |-------------|----------|
 | `string` | anything, used verbatim |
 | `bool` | `true` / `false`, case-insensitive (not `1` / `0`) |
+| `char` | exactly one character. A space cannot be expressed — an all-whitespace value is read as empty, see below. |
 | `Guid` | any format `Guid.TryParse` accepts |
-| integers, `decimal`, `float`, `double` | invariant culture — `.` as the decimal separator |
+| integers (`byte`, `sbyte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong`), `decimal`, `float`, `double` | invariant culture — `.` as the decimal separator |
 | `DateTime`, `DateTimeOffset` | invariant culture; a value with no offset is read as **UTC** |
+| `DateOnly` | `yyyy-MM-dd` only. A value carrying a time (`2026-01-03T10:00:00`) is a `400` rather than a silent match on the whole day. |
+| `TimeOnly` | `HH:mm`, `HH:mm:ss` or `HH:mm:ss.fffffff`. A value carrying a date is a `400`, for the same reason. |
+| `TimeSpan` | `2:30:00` (.NET's own form, colon required) **or** ISO-8601 `PT2H30M`. A bare number is a `400` — `TimeSpan.TryParse` would read `2` as two *days*. So is a duration in years or months (`P1M`): those have no fixed length, and answering with a 30-day approximation would be a filter for something the caller did not ask for. |
 | enums | **by name only**, case-insensitive (`Active`, `active`). Numeric values are rejected, and so is a number that does not correspond to a defined member. |
-| `Instant`, `LocalDate` | ISO-8601, with the `.NodaTime` package |
+| `Instant`, `LocalDate`, `LocalDateTime`, `LocalTime`, `OffsetDateTime`, `YearMonth`, `Duration` | ISO-8601, with the `.NodaTime` package — see [NodaTime](/integrations/nodatime/) for the per-type forms |
+| any type implementing `IParsable<TSelf>` | whatever its own `TryParse` accepts, in the invariant culture — **no registration needed** |
 | anything else | `400`, unless registered via [`PaginateTypeSupport`](/integrations/custom-types/) |
+
+Resolution order is **registry → built-ins → `IParsable<TSelf>` → `400`**. A parser you register therefore
+overrides a built-in one, which is what makes the table above a default rather than a ceiling.
 
 An empty value (`?filter.price=$eq:`) is `null` for a nullable target and a `400` for a non-nullable one. Use
 `$null` rather than relying on that.

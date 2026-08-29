@@ -22,10 +22,16 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   `gh api --method PUT repos/janzen01/efcore.pagination/pages -f build_type=workflow`. **Do it before merging
   a change that removes the Jekyll tree from `master:/docs`,** not after — the wrong order rebuilds Jekyll
   against a tree with no site root and takes the frozen URLs down with it.
-- **`docs.yml` also runs build-only on `pull_request`.** That gate is the whole reason the verifiers below
-  are worth having: `ci.yml` never touches `docs/` and `master` has no required checks, so without it a dead
-  link merges green. It is also the only way to test the workflow at all, since `workflow_dispatch` needs the
-  file to exist on the default branch.
+- **The build lives in [docs-build.yml](.github/workflows/docs-build.yml) and is called twice.** `ci.yml`
+  calls it on every pull request (`upload: false`) and `docs.yml` calls it from `master` to produce the
+  artifact it deploys (`upload: true`) — one copy, so a PR verifies exactly what gets published. It is part
+  of `ci-ok`, which means the two verifiers below are a **required** gate: without them a dead link merges
+  green and then renders inside a released package forever.
+  Two things follow. **Guard the Pages steps on `inputs.upload`, never `github.event_name`** — inside a
+  called workflow that expression is the *caller's* event, so `!= 'pull_request'` would fire on a fork PR and
+  redden a required check on a Pages API call it should never make. And **`docs.yml` is now deploy-only**, so
+  its artifact hand-off and environment wiring are no longer exercised before a merge — dispatch it once
+  after changing them.
 - **`pnpm/action-setup` is passed `package_json_file: docs/package.json`.** Its default is `package.json`
   resolved against the *repository root*, which has none, and `defaults.run.working-directory` does not apply
   to a `uses:` step's inputs. Remove that input and the job dies before it reaches the build.
@@ -212,10 +218,18 @@ independent of each other — consumers pick the extensions they need:
 ## Conventions
 - **net10.0-only**, `Nullable=enable`, `ImplicitUsings=enable`, C# `latest` ([Directory.Build.props](Directory.Build.props)).
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
+- **The tree is LF, pinned by [.gitattributes](.gitattributes)** (`* text=auto eol=lf`; `.bat`/`.cmd` carved out).
+  Not cosmetic here: the parameter descriptions this library generates land in a *consumer's* committed OpenAPI
+  artefact, and the transformer builds them from raw string literals, which the compiler copies **verbatim** —
+  a CRLF checkout ships a package whose documentation is CRLF, and the consumer's artefact then rewrites itself
+  on every build. The joins in `PaginatedQueryOperationTransformer` are pinned to `'\n'` for the same reason:
+  **don't put `Environment.NewLine` back.** `OpenApiTests.No_description_carries_a_platform_line_ending` guards
+  both paths at once, and needs the documented config to keep **two** sortable fields and **two** operators on
+  `filter.status` — a one-element `string.Join` emits no separator and the test would pass without testing.
 - **XML docs on every public member** — enforced by the build (`CS1591` is *not* suppressed for the packable
   projects). `GenerateDocumentationFile=true`, so the generated `.xml` ships inside the package and drives consumer
   IntelliSense: a wrong summary is worse than a missing one, because it cannot be recalled for that version.
-  House style, sampled from the existing members: tabs + CRLF; single-line `<summary>` up to ~139 rendered columns,
+  House style, sampled from the existing members: tabs + LF; single-line `<summary>` up to ~139 rendered columns,
   otherwise `///` + **five** spaces on the body lines. Tags in use: `<summary>`, `<remarks>`, `<param>`,
   `<typeparam>`, `<c>`, `<see cref>`, `<see langword>`, `<paramref>`, `<typeparamref>`, `<b>`, `<inheritdoc />`.
   **Do not** introduce `<returns>`, `<exception>`, `<example>` or `<seealso>`.
@@ -242,12 +256,26 @@ independent of each other — consumers pick the extensions they need:
   in the record body to document it — that suppresses the copy and doubles the declaration.
 - Build must stay clean under `-warnaserror` before any commit.
 - **Commits:** small and incremental (one logical change each).
-- **`master` takes no direct pushes.** A ruleset requires a pull request with `build-test` green, signed
+- **`master` takes no direct pushes.** A ruleset requires a pull request with **`ci-ok`** green, signed
   commits and linear history, and forbids force-pushing or deleting the branch. So work lands as
   branch → PR → **squash** merge (the only merge method the repo allows), and a mistake already on `master`
   is fixed with a follow-up commit, never with a rewrite. No approving review is required — a solo
   maintainer cannot approve their own PR, so demanding one would wedge the repo. Tags are a separate
   ruleset: `v*` can be created but never moved or deleted.
+- **`ci-ok` is the required check, and it aggregates rather than tests anything itself.** `build-test` runs
+  as a three-OS matrix, which turns its context into `build-test (ubuntu-latest)` and friends — a ruleset
+  pinned to job names would need editing on every matrix change, so it is pinned to this one name instead.
+  Consequences worth knowing before touching it: a **`skipped`** dependency counts as *passing* for a
+  required check, so never let `ci-ok` itself be skipped by an `if:`; and the ruleset has **no bypass
+  actors**, so a red gate for a reason outside the PR (an npm or nuget.org outage) blocks every merge
+  including the maintainer's — the only escape is editing the ruleset.
+- **Never give the matrix job a static `name:`** to keep its context stable. GitHub does not append matrix
+  values to an explicit name, so all three legs would report one context and the last to finish would win —
+  a red Windows leg hidden behind a green Linux one.
+- **The matrix is ubuntu + windows + macOS on purpose.** The engine's wire contract is invariant-culture
+  parsing and its SQL is provider-translated; a Linux-only suite cannot be trusted to have exercised either,
+  and the library is consumed overwhelmingly from Windows. Actions minutes are free for public repositories
+  on standard runners, so the extra legs cost wall-clock and nothing else.
 - Each packable project ships its **own `README.md`** as the NuGet package readme — keep it in sync with behavior.
 - **GitHub Actions are pinned to a full commit SHA**, with the version in a trailing comment
   (`uses: actions/checkout@3d3c42e… # v7.0.1`). Never replace a SHA with a tag — see *Intentional decisions*.
@@ -351,6 +379,18 @@ Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs
 ## Intentional decisions — do NOT "fix" these
 - **net10.0-only** — net9 is EOL and net8 lacks the EF Core 9+ surface the engine relies on (e.g. `EF.Parameter`).
   Don't re-introduce multi-targeting.
+- **Value resolution order is registry → built-ins → `IParsable<TSelf>` → 400**, and the registry going *first* is
+  the load-bearing part: consulted last (as it was before 10.0.3) a registration for an already-built-in type was a
+  silent no-op, so everyone it affected was someone who tried to override and never found out. Don't move it back
+  below the built-in table. The `IParsable` fallback has **no opt-out knob** on purpose — parsing only ever runs for
+  a field the consumer declared filterable, so whitelisting a field of type `T` *is* the opt-in.
+- **`DateOnly`/`TimeOnly` parse with `TryParseExact` against pinned ISO formats, not `Parse`.** The BCL's `Parse` is
+  lossy in opposite directions — it reads `2026-01-03T10:00:00` as a `DateOnly` and drops the time, and reads the
+  same string as a `TimeOnly` and drops the date — so a caller asking about one moment would silently match a whole
+  day. Same reasoning as the NodaTime `Instant` parser refusing a bare date. Don't "simplify" either back to `Parse`.
+- **NodaTime has no ISO-8601 duration pattern** — `DurationPattern.JsonRoundtrip` is the colon form (`2:30:00`)
+  despite the name, verified against NodaTime 3.3.3. The ISO leg (`PT2H30M`) therefore goes through `XmlConvert`,
+  mirroring how the engine reads a `TimeSpan`. Don't replace it with a NodaTime pattern that does not exist.
 - **`[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`** on every public `Paginate*Async` entry point — the engine
   builds expression trees and uses reflection, so it is **not** trim/AOT-safe. The annotations give consumers accurate
   analyzer warnings instead of silent runtime failures; keep them.

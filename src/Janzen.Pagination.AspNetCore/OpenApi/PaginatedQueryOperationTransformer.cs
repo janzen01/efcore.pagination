@@ -214,7 +214,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	}
 
 	private static OpenApiParameter CreateFilterParameter(PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
-		string operators = string.Join(Environment.NewLine, BuildOperatorTokens(field).Select(token => $"- `{token}`"));
+		string operators = string.Join('\n', BuildOperatorTokens(field).Select(token => $"- `{token}`"));
 		var preferred = likeStrategy.PreferredExampleOperator;
 		string exampleOperator = preferred.HasValue && field.Operators.Contains(preferred.Value)
 			? PaginateFilterParser.GetOperatorToken(preferred.Value)
@@ -269,7 +269,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	}
 
 	private static string BuildFieldDescription(IEnumerable<PaginateFieldMetadata> fields) {
-		return string.Join(Environment.NewLine, fields
+		return string.Join('\n', fields
 			.OrderBy(field => field.Name, StringComparer.Ordinal)
 			.Select(field => $"- `{field.Name}` (`{GetValueTypeName(field.Type)}`){RenderBadge(field.Badge)}"));
 	}
@@ -295,12 +295,24 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			_ when t == typeof(string) => "string",
 			_ when t == typeof(Guid) => "uuid",
 			_ when t == typeof(bool) => "boolean",
-			_ when t == typeof(short) || t == typeof(int) || t == typeof(long) => "integer",
+			_ when t == typeof(byte) || t == typeof(sbyte) || t == typeof(short) || t == typeof(ushort) => "integer",
+			_ when t == typeof(int) || t == typeof(uint) || t == typeof(long) || t == typeof(ulong) => "integer",
 			_ when t == typeof(float) || t == typeof(double) || t == typeof(decimal) => "number",
 			_ when t == typeof(DateTimeOffset) || t == typeof(DateTime) => "date-time",
+			_ when t == typeof(DateOnly) => "date",
+			_ when t == typeof(TimeOnly) => "time",
+			_ when t == typeof(TimeSpan) => "duration",
+			_ when t == typeof(char) => "character",
+			// Above the probes below on purpose: no NodaTime type is an enum, and this way an enum field does not
+			// pay five resolve-by-name lookups against its own assembly before reaching its arm.
+			_ when t.IsEnum => string.Join(" | ", Enum.GetNames(t)),
 			_ when t == t.Assembly.GetType("NodaTime.Instant") => "date-time (UTC)",
 			_ when t == t.Assembly.GetType("NodaTime.LocalDate") => "date",
-			_ when t.IsEnum => string.Join(" | ", Enum.GetNames(t)),
+			_ when t == t.Assembly.GetType("NodaTime.LocalDateTime") => "date-time (local)",
+			_ when t == t.Assembly.GetType("NodaTime.LocalTime") => "time",
+			_ when t == t.Assembly.GetType("NodaTime.OffsetDateTime") => "date-time (offset)",
+			_ when t == t.Assembly.GetType("NodaTime.Duration") => "duration",
+			_ when t == t.Assembly.GetType("NodaTime.YearMonth") => "year-month",
 			_ => t.Name
 		};
 	}

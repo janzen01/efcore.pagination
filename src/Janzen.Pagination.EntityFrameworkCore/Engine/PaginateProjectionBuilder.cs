@@ -131,6 +131,11 @@ internal static class PaginateProjectionBuilder {
 		       effectiveType == typeof(decimal) ||
 		       effectiveType == typeof(DateTime) ||
 		       effectiveType == typeof(DateTimeOffset) ||
+		       // Leaves, not composites. Left out, the builder recursed into the struct looking for a constructor to
+		       // map and failed on a DTO that merely carried a date.
+		       effectiveType == typeof(DateOnly) ||
+		       effectiveType == typeof(TimeOnly) ||
+		       effectiveType == typeof(TimeSpan) ||
 		       PaginateTypeSupport.IsRegisteredSimpleType(effectiveType);
 
 	}
