@@ -18,6 +18,7 @@ public sealed class DocumentedConfigProvider : IPaginateConfigProvider<Product> 
 	public readonly static PaginateConfig<Product> Config = PaginateConfig<Product>.Create(b => b
 		.WithLimits(defaultLimit: 15, maxLimit: 60)
 		.Sortable("rank", p => p.Rank)
+		.Sortable("name", p => p.Name)
 		.WithTieBreaker(p => p.Id)
 		.Searchable("name", p => p.Name)
 		.Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
@@ -158,6 +159,24 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	[Fact]
 	public void A_filter_parameter_documents_the_value_type() {
 		Assert.Contains("Value type", this.Description("filter.status"));
+	}
+
+	[Fact]
+	public void No_description_carries_a_platform_line_ending() {
+
+		// These descriptions land in a consumer's committed OpenAPI document, which CI regenerates and diffs. A CR
+		// makes that artefact's bytes depend on the OS that built it, so it rewrites itself on every build and a bot
+		// commits a change nobody made. Two independent paths put one here: Environment.NewLine in the joins that
+		// build the field and operator lists, and a CRLF checkout of the transformer reaching its raw string
+		// literals, which the compiler copies verbatim. Both are caught by looking for the CR itself.
+		// sortBy lists two fields and filter.status two operators, so neither join is skipped for want of a second
+		// element -- keep it that way, or this test passes without exercising them.
+		string[] offenders = [.. this.Parameters("/products").EnumerateArray()
+			.Where(p => p.TryGetProperty("description", out var description) && description.GetString()?.Contains('\r') == true)
+			.Select(p => p.GetProperty("name").GetString()!)];
+
+		Assert.Empty(offenders);
+
 	}
 
 	[Fact]

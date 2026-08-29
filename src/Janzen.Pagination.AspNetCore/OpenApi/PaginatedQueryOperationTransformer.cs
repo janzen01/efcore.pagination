@@ -214,7 +214,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	}
 
 	private static OpenApiParameter CreateFilterParameter(PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
-		string operators = string.Join(Environment.NewLine, BuildOperatorTokens(field).Select(token => $"- `{token}`"));
+		string operators = string.Join('\n', BuildOperatorTokens(field).Select(token => $"- `{token}`"));
 		var preferred = likeStrategy.PreferredExampleOperator;
 		string exampleOperator = preferred.HasValue && field.Operators.Contains(preferred.Value)
 			? PaginateFilterParser.GetOperatorToken(preferred.Value)
@@ -269,7 +269,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	}
 
 	private static string BuildFieldDescription(IEnumerable<PaginateFieldMetadata> fields) {
-		return string.Join(Environment.NewLine, fields
+		return string.Join('\n', fields
 			.OrderBy(field => field.Name, StringComparer.Ordinal)
 			.Select(field => $"- `{field.Name}` (`{GetValueTypeName(field.Type)}`){RenderBadge(field.Badge)}"));
 	}
