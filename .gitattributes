@@ -1,0 +1,26 @@
+# The whole tree is LF in the working directory, on every platform, whatever the developer's core.autocrlf says.
+# `text=auto` leaves text/binary detection to git, so a binary added later is not mangled, and `eol=lf` applies
+# only to what git decided is text. Every blob in the repository is already LF, so this changed no content at
+# all -- only what a checkout writes to disk, and what an editor is allowed to write back.
+#
+# It matters here because this library composes prose that ends up in a consumer's committed build artefact.
+# Two independent paths carry a line ending out of this repository and into their OpenAPI document:
+#
+# 1. `PaginatedQueryOperationTransformer` builds the parameter descriptions. Those joins are pinned to '\n' in
+#    code, which is the real fix -- a runtime `Environment.NewLine` there put CRLF into the document of every
+#    consumer who built on Windows and LF into the one their CI produced, so the artefact rewrote itself on
+#    every build and a bot committed a change nobody made.
+# 2. The surrounding prose is raw string literals, and a raw string literal is *not* normalised by the
+#    compiler -- it carries this file's bytes into the assembly verbatim (measured on .NET 10, not assumed).
+#    So a CRLF checkout of the transformer ships a package whose descriptions are CRLF, and no amount of
+#    pinning in code reaches that. This line is what closes it.
+#
+# A working tree checked out before this rule landed still holds CRLF, and git will not say so -- a CRLF file
+# normalises back to the same blob, so the tree reads clean. `git ls-files --eol` is what shows it. The
+# one-time refresh has to empty the index first, because git skips a file whose index entry already matches:
+# `git rm --cached -r . ; git read-tree --reset -u HEAD`.
+#
+# Batch files are the standard carve-out: cmd.exe can mis-read a label or a trailing `goto` without CRLF.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf

@@ -212,10 +212,18 @@ independent of each other — consumers pick the extensions they need:
 ## Conventions
 - **net10.0-only**, `Nullable=enable`, `ImplicitUsings=enable`, C# `latest` ([Directory.Build.props](Directory.Build.props)).
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
+- **The tree is LF, pinned by [.gitattributes](.gitattributes)** (`* text=auto eol=lf`; `.bat`/`.cmd` carved out).
+  Not cosmetic here: the parameter descriptions this library generates land in a *consumer's* committed OpenAPI
+  artefact, and the transformer builds them from raw string literals, which the compiler copies **verbatim** —
+  a CRLF checkout ships a package whose documentation is CRLF, and the consumer's artefact then rewrites itself
+  on every build. The joins in `PaginatedQueryOperationTransformer` are pinned to `'\n'` for the same reason:
+  **don't put `Environment.NewLine` back.** `OpenApiTests.No_description_carries_a_platform_line_ending` guards
+  both paths at once, and needs the documented config to keep **two** sortable fields and **two** operators on
+  `filter.status` — a one-element `string.Join` emits no separator and the test would pass without testing.
 - **XML docs on every public member** — enforced by the build (`CS1591` is *not* suppressed for the packable
   projects). `GenerateDocumentationFile=true`, so the generated `.xml` ships inside the package and drives consumer
   IntelliSense: a wrong summary is worse than a missing one, because it cannot be recalled for that version.
-  House style, sampled from the existing members: tabs + CRLF; single-line `<summary>` up to ~139 rendered columns,
+  House style, sampled from the existing members: tabs + LF; single-line `<summary>` up to ~139 rendered columns,
   otherwise `///` + **five** spaces on the body lines. Tags in use: `<summary>`, `<remarks>`, `<param>`,
   `<typeparam>`, `<c>`, `<see cref>`, `<see langword>`, `<paramref>`, `<typeparamref>`, `<b>`, `<inheritdoc />`.
   **Do not** introduce `<returns>`, `<exception>`, `<example>` or `<seealso>`.
