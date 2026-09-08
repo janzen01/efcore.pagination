@@ -370,11 +370,12 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 
 /// <summary>
 ///     The fluent builder handed to the <see cref="PaginateConfig{TEntity}.Create(System.Action{PaginateConfigBuilder{TEntity}})" /> callback — every limit, guard and
-///     sortable, searchable or filterable field is declared on it. <see cref="WithLimits" /> is the one required
-///     call — <c>Build()</c> throws without it, and throws too when a <see cref="DefaultSortBy" /> field is not also
-///     <c>Sortable</c>, or a field marked <see cref="When" /> carries no <see cref="ShowBadge" />. An order is still
-///     required at query time — from <c>sortBy</c>, <see cref="DefaultSortBy" /> or <see cref="WithTieBreaker" /> — or
-///     every request is rejected.
+///     sortable, searchable or filterable field is declared on it. <see cref="WithLimits" /> and
+///     <see cref="WithTieBreaker" /> are the two required calls — <c>Build()</c> throws without either, unless a
+///     <see cref="PaginateConfigDefaults" /> supplies the limits. It throws too when a
+///     <see cref="DefaultSortBy" /> field is not also <c>Sortable</c>, or a field marked <see cref="When" />
+///     carries no <see cref="ShowBadge" />. With the tie-breaker guaranteed there is always an ordering, so no
+///     request can reach an unordered page.
 /// </summary>
 public sealed class PaginateConfigBuilder<TEntity> {
 
@@ -506,9 +507,15 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 	/// <summary>
 	///     Configures a unique key (typically the primary key) appended as the final ordering on every query, so
-	///     offset paging stays deterministic even when the primary sort is absent or non-unique. Strongly recommended:
-	///     paging an unordered or ambiguously ordered set yields non-deterministic page boundaries.
+	///     offset paging stays deterministic even when the primary sort is absent or non-unique. <b>Required</b>:
+	///     <c>Build()</c> throws without it, because paging an ambiguously ordered set can return the same row on
+	///     two pages and skip another.
 	/// </summary>
+	/// <remarks>
+	///     Required outright rather than "a default sort or a tie-breaker": a <see cref="DefaultSortBy" /> field is
+	///     filtered through <see cref="When" /> and this one is not, so the weaker rule would pass for a
+	///     configuration whose only default is disabled for a caller and still leave nothing to order by.
+	/// </remarks>
 	public PaginateConfigBuilder<TEntity> WithTieBreaker<TValue>(Expression<Func<TEntity, TValue>> selector, PaginateSortDirection direction = PaginateSortDirection.Asc) {
 		ArgumentNullException.ThrowIfNull(selector);
 
