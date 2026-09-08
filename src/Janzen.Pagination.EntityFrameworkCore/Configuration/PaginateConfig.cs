@@ -55,9 +55,32 @@ public interface IPaginateConfig {
 	int MaxSearchLength { get; }
 
 	/// <summary>
+	///     Minimum number of characters in the <c>search</c> term, measured after trimming; a shorter term is a 400
+	///     before the query runs. Defaults to 1 — any non-blank term runs. Set by
+	///     <see cref="PaginateConfigBuilder{TEntity}.WithMinSearchLength" />.
+	/// </summary>
+	/// <remarks>A default interface member so an existing external implementation of this interface keeps compiling.</remarks>
+	int MinSearchLength => 1;
+
+	/// <summary>
+	///     Maximum number of rows a request may skip — <c>(page - 1) × limit</c> — or <see langword="null" /> for no
+	///     ceiling, which is the default. A deeper page is a 400 raised before the count query. Set by
+	///     <see cref="PaginateConfigBuilder{TEntity}.WithMaxOffset" />.
+	/// </summary>
+	/// <remarks>A default interface member so an existing external implementation of this interface keeps compiling.</remarks>
+	int? MaxOffset => null;
+
+	/// <summary>
+	///     Row ceiling for <c>limit=-1</c>, or <see langword="null" /> when this resource does not accept it — the
+	///     default. Set by <see cref="PaginateConfigBuilder{TEntity}.AllowUnlimited" />.
+	/// </summary>
+	/// <remarks>A default interface member so an existing external implementation of this interface keeps compiling.</remarks>
+	int? UnlimitedMaxRows => null;
+
+	/// <summary>
 	///     Sorts applied, in declaration order, when the request sends no <c>sortBy</c> — empty when none was declared.
 	///     A request that does send <c>sortBy</c> replaces these entirely; they never merge. Each field must also be
-	///     declared sortable or <see cref="PaginateConfig{TEntity}.Create" /> throws, and an entry disabled by
+	///     declared sortable or <see cref="PaginateConfig{TEntity}.Create(System.Action{PaginateConfigBuilder{TEntity}})" /> throws, and an entry disabled by
 	///     <see cref="PaginateConfigBuilder{TEntity}.When" /> is skipped rather than fatal. The configured tie-breaker
 	///     is appended last either way.
 	/// </summary>
@@ -154,7 +177,7 @@ public interface IPaginateConfigProvider<TEntity> : IPaginateConfigProvider {
 ///     <see cref="IPaginateConfig.DefaultSortBy" /> is a list of these, added via
 ///     <see cref="PaginateConfigBuilder{TEntity}.DefaultSortBy" /> and applied in that order when the request carries
 ///     no <c>sortBy</c>. A default sort field must also be sortable —
-///     <see cref="PaginateConfig{TEntity}.Create" /> throws otherwise — and one disabled by <c>When(false)</c> is
+///     <see cref="PaginateConfig{TEntity}.Create(System.Action{PaginateConfigBuilder{TEntity}})" /> throws otherwise — and one disabled by <c>When(false)</c> is
 ///     skipped rather than failing the query.
 /// </summary>
 /// <param name="Field">Name of a field that must also be declared <c>Sortable</c>.</param>
@@ -204,7 +227,7 @@ public sealed record PaginateFilterFieldMetadata(string Name, Type Type, IReadOn
 ///     The immutable, per-entity pagination contract: page-size and guard limits, the sortable, searchable and
 ///     filterable fields, the default sort and the tie-breaker. Every <c>Paginate*Async</c> entry point takes one, and
 ///     it reads back as <see cref="IPaginateConfig" /> metadata for OpenAPI or a <c>/meta</c> endpoint. The constructor
-///     is internal: build it with <see cref="Create" />.
+///     is internal: build it with <see cref="Create(System.Action{PaginateConfigBuilder{TEntity}})" />.
 /// </summary>
 /// <remarks>
 ///     Building freezes the field dictionaries and projects the metadata lists, so build it once — a static field or a
@@ -219,12 +242,7 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 	private readonly FrozenDictionary<string, PaginateSortField> _sortableFields;
 
 	internal PaginateConfig(
-		int defaultLimit,
-		int maxLimit,
-		int maxFilterValues,
-		int maxFilterConditions,
-		int maxSortFields,
-		int maxSearchLength,
+		PaginateLimits limits,
 		IReadOnlyList<PaginateSort> defaultSortBy,
 		FrozenDictionary<string, PaginateSortField> sortableFields,
 		FrozenDictionary<string, PaginateSearchField<TEntity>> searchableFields,
@@ -234,12 +252,15 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 		PaginateSortDirection tieBreakerDirection
 	) {
 
-		DefaultLimit = defaultLimit;
-		MaxLimit = maxLimit;
-		MaxFilterValues = maxFilterValues;
-		MaxFilterConditions = maxFilterConditions;
-		MaxSortFields = maxSortFields;
-		MaxSearchLength = maxSearchLength;
+		DefaultLimit = limits.DefaultLimit;
+		MaxLimit = limits.MaxLimit;
+		MaxFilterValues = limits.MaxFilterValues;
+		MaxFilterConditions = limits.MaxFilterConditions;
+		MaxSortFields = limits.MaxSortFields;
+		MaxSearchLength = limits.MaxSearchLength;
+		MinSearchLength = limits.MinSearchLength;
+		MaxOffset = limits.MaxOffset;
+		UnlimitedMaxRows = limits.UnlimitedMaxRows;
 		DefaultSortBy = defaultSortBy;
 		_sortableFields = sortableFields;
 		_searchableFields = searchableFields;
@@ -282,6 +303,15 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 	public int MaxSearchLength { get; }
 
 	/// <inheritdoc />
+	public int MinSearchLength { get; }
+
+	/// <inheritdoc />
+	public int? MaxOffset { get; }
+
+	/// <inheritdoc />
+	public int? UnlimitedMaxRows { get; }
+
+	/// <inheritdoc />
 	public IReadOnlyList<PaginateSort> DefaultSortBy { get; }
 
 	/// <inheritdoc />
@@ -313,19 +343,33 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 
 	internal IReadOnlyList<PaginateSearchField<TEntity>> GetDefaultSearchFields() { return _defaultSearchFields; }
 
-	/// <summary>Builds an immutable <see cref="PaginateConfig{TEntity}" /> for an entity using the fluent builder.</summary>
-	public static PaginateConfig<TEntity> Create(Action<PaginateConfigBuilder<TEntity>> configure) {
+	/// <summary>
+	///     Builds an immutable <see cref="PaginateConfig{TEntity}" /> for an entity using the fluent builder, falling
+	///     back to <see cref="PaginateConfigDefaults.Shared" /> for anything the builder does not set.
+	/// </summary>
+	public static PaginateConfig<TEntity> Create(Action<PaginateConfigBuilder<TEntity>> configure) { return Create(PaginateConfigDefaults.Shared, configure); }
+
+	/// <summary>
+	///     Builds an immutable <see cref="PaginateConfig{TEntity}" /> against an explicit
+	///     <paramref name="defaults" /> object, which is consulted for anything the builder does not set and itself
+	///     takes precedence over <see cref="PaginateConfigDefaults.Shared" /> — naming the object at the call site is
+	///     how a group of configurations shares limits without any of them being ambient.
+	/// </summary>
+	/// <param name="defaults">Limits and guards to fall back to; a builder call always wins over these.</param>
+	/// <param name="configure">Declares the limits, guards and fields.</param>
+	public static PaginateConfig<TEntity> Create(PaginateConfigDefaults defaults, Action<PaginateConfigBuilder<TEntity>> configure) {
+		ArgumentNullException.ThrowIfNull(defaults);
 		ArgumentNullException.ThrowIfNull(configure);
 
 		var builder = new PaginateConfigBuilder<TEntity>();
 		configure(builder);
-		return builder.Build();
+		return builder.Build(defaults);
 	}
 
 }
 
 /// <summary>
-///     The fluent builder handed to the <see cref="PaginateConfig{TEntity}.Create" /> callback — every limit, guard and
+///     The fluent builder handed to the <see cref="PaginateConfig{TEntity}.Create(System.Action{PaginateConfigBuilder{TEntity}})" /> callback — every limit, guard and
 ///     sortable, searchable or filterable field is declared on it. <see cref="WithLimits" /> is the one required
 ///     call — <c>Build()</c> throws without it, and throws too when a <see cref="DefaultSortBy" /> field is not also
 ///     <c>Sortable</c>, or a field marked <see cref="When" /> carries no <see cref="ShowBadge" />. An order is still
@@ -338,6 +382,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	private const int DefaultMaxFilterConditions = 20;
 	private const int DefaultMaxSortFields = 5;
 	private const int DefaultMaxSearchLength = 256;
+	private const int DefaultMinSearchLength = 1;
 	private readonly List<PaginateSort> _defaultSortBy = [];
 	private readonly Dictionary<string, PaginateFilterField> _filterableFields = new(StringComparer.OrdinalIgnoreCase);
 	private readonly Dictionary<string, PaginateSearchField<TEntity>> _searchableFields = new(StringComparer.OrdinalIgnoreCase);
@@ -346,11 +391,16 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 	private int? _defaultLimit;
 	private bool _ignoreSearchByInQueryParam;
-	private int _maxFilterConditions = DefaultMaxFilterConditions;
-	private int _maxFilterValues = DefaultMaxFilterValues;
+	// All unset rather than pre-seeded: "not configured here" is what lets the defaults object and
+	// PaginateConfigDefaults.Shared be consulted before the constants above.
+	private int? _maxFilterConditions;
+	private int? _maxFilterValues;
 	private int? _maxLimit;
-	private int _maxSortFields = DefaultMaxSortFields;
-	private int _maxSearchLength = DefaultMaxSearchLength;
+	private int? _maxSortFields;
+	private int? _maxSearchLength;
+	private int? _minSearchLength;
+	private int? _maxOffset;
+	private int? _unlimitedMaxRows;
 	private LambdaExpression? _tieBreakerSelector;
 	private PaginateSortDirection _tieBreakerDirection = PaginateSortDirection.Asc;
 	private IPaginateFieldTarget? _lastField;
@@ -368,23 +418,70 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 	/// <summary>
 	///     Sets DoS guard limits: maximum values per filter, maximum total filter conditions, maximum sort fields,
-	///     and maximum search-term length. Sensible defaults apply when not configured.
+	///     and maximum search-term length. An argument left out is not set here at all, so it falls through to the
+	///     shared defaults and then to the engine's own value — naming one guard never resets the others.
 	/// </summary>
 	public PaginateConfigBuilder<TEntity> WithGuards(
-		int maxFilterValues = DefaultMaxFilterValues,
-		int maxFilterConditions = DefaultMaxFilterConditions,
-		int maxSortFields = DefaultMaxSortFields,
-		int maxSearchLength = DefaultMaxSearchLength
+		int? maxFilterValues = null,
+		int? maxFilterConditions = null,
+		int? maxSortFields = null,
+		int? maxSearchLength = null
 	) {
 		if (maxFilterValues <= 0) throw new ArgumentOutOfRangeException(nameof(maxFilterValues), "Max filter values must be greater than zero.");
 		if (maxFilterConditions <= 0) throw new ArgumentOutOfRangeException(nameof(maxFilterConditions), "Max filter conditions must be greater than zero.");
 		if (maxSortFields <= 0) throw new ArgumentOutOfRangeException(nameof(maxSortFields), "Max sort fields must be greater than zero.");
 		if (maxSearchLength <= 0) throw new ArgumentOutOfRangeException(nameof(maxSearchLength), "Max search length must be greater than zero.");
 
-		_maxFilterValues = maxFilterValues;
-		_maxFilterConditions = maxFilterConditions;
-		_maxSortFields = maxSortFields;
-		_maxSearchLength = maxSearchLength;
+		_maxFilterValues = maxFilterValues ?? _maxFilterValues;
+		_maxFilterConditions = maxFilterConditions ?? _maxFilterConditions;
+		_maxSortFields = maxSortFields ?? _maxSortFields;
+		_maxSearchLength = maxSearchLength ?? _maxSearchLength;
+		return this;
+	}
+
+	/// <summary>
+	///     Sets the minimum length of a <c>search</c> term; a shorter one is rejected rather than run. The term is
+	///     measured after trimming, so it counts what is actually searched for. Defaults to 1 — any non-blank term
+	///     runs. Worth raising on a resource whose search spans several unindexed text columns, where a
+	///     one-character term is the cheapest way to make the database read every row.
+	/// </summary>
+	public PaginateConfigBuilder<TEntity> WithMinSearchLength(int minSearchLength) {
+		if (minSearchLength <= 0) throw new ArgumentOutOfRangeException(nameof(minSearchLength), "Min search length must be greater than zero.");
+
+		_minSearchLength = minSearchLength;
+		return this;
+	}
+
+	/// <summary>
+	///     Caps how many rows a request may skip — <c>(page - 1) × limit</c>. A deeper page is rejected with a 400
+	///     before anything is counted or fetched, because the check is arithmetic. Unset by default.
+	/// </summary>
+	/// <remarks>
+	///     Deliberately a ceiling on the offset rather than on the page number: the offset is what the database
+	///     pays for, and the page a given offset corresponds to moves with <c>limit</c>.
+	/// </remarks>
+	public PaginateConfigBuilder<TEntity> WithMaxOffset(int maxOffset) {
+		if (maxOffset < 0) throw new ArgumentOutOfRangeException(nameof(maxOffset), "Max offset must not be negative.");
+
+		_maxOffset = maxOffset;
+		return this;
+	}
+
+	/// <summary>
+	///     Opts this resource into <c>limit=-1</c>, which returns every matching row as one page.
+	///     <paramref name="maxRows" /> is a mandatory ceiling: the engine fetches one row past it and answers 400
+	///     rather than returning a set it was not promised could be held in memory. Without this call
+	///     <c>limit=-1</c> stays a 400, as do <c>-2</c> and <c>0</c> with or without it.
+	/// </summary>
+	/// <remarks>
+	///     There is no ceiling-free form, and the opt-in is per resource on purpose — it is a statement that
+	///     <i>this</i> collection is bounded, which is not something a global setting could know. An unlimited
+	///     request must ask for page 1; pages of an unbounded set are meaningless.
+	/// </remarks>
+	public PaginateConfigBuilder<TEntity> AllowUnlimited(int maxRows) {
+		if (maxRows <= 0) throw new ArgumentOutOfRangeException(nameof(maxRows), "Max rows must be greater than zero.");
+
+		_unlimitedMaxRows = maxRows;
 		return this;
 	}
 
@@ -532,10 +629,60 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
-	internal PaginateConfig<TEntity> Build() {
+	internal PaginateConfig<TEntity> Build() { return Build(PaginateConfigDefaults.Shared); }
 
-		if (_defaultLimit is not { } defaultLimit || _maxLimit is not { } maxLimit) {
+	internal PaginateConfig<TEntity> Build(PaginateConfigDefaults defaults) {
+
+		// Outward from the most specific: this builder, then the defaults object handed to Create, then the
+		// process-wide Shared one, then the engine's constant. Read once, here -- a config does not observe a
+		// later assignment to Shared, which is why that property documents itself as a startup-time setting.
+		var shared = PaginateConfigDefaults.Shared;
+		int? Resolve(int? own, Func<PaginateConfigDefaults, int?> read) { return own ?? read(defaults) ?? read(shared); }
+
+		if (Resolve(_defaultLimit, d => d.DefaultLimit) is not { } defaultLimit
+			|| Resolve(_maxLimit, d => d.MaxLimit) is not { } maxLimit) {
 			throw new InvalidOperationException("Pagination limits must be configured explicitly via WithLimits(defaultLimit, maxLimit).");
+		}
+
+		// The builder methods reject a nonsense value at the call site, but a defaults object is a plain record
+		// whose init accessors cannot, so whatever survives resolution is checked once here. Skipping it would
+		// let `new PaginateConfigDefaults { MaxOffset = -1 }` refuse every request including page 1.
+		// Ahead of the pairing check below, so a zero maximum is reported as itself rather than as
+		// "default 5 exceeds max 0", which names the wrong value.
+		Positive(defaultLimit, nameof(PaginateConfigDefaults.DefaultLimit));
+		Positive(maxLimit, nameof(PaginateConfigDefaults.MaxLimit));
+
+		// Deferred to here rather than checked in WithLimits, because the two halves may now arrive from
+		// different places -- a shared MaxLimit under a per-config DefaultLimit is a legitimate combination, and
+		// an incompatible one is still a configuration error rather than a request error.
+		if (defaultLimit > maxLimit) {
+			throw new InvalidOperationException($"Default limit {defaultLimit} must not be greater than max limit {maxLimit}.");
+		}
+
+		var limits = new PaginateLimits(
+			defaultLimit,
+			maxLimit,
+			Resolve(_maxFilterValues, d => d.MaxFilterValues) ?? DefaultMaxFilterValues,
+			Resolve(_maxFilterConditions, d => d.MaxFilterConditions) ?? DefaultMaxFilterConditions,
+			Resolve(_maxSortFields, d => d.MaxSortFields) ?? DefaultMaxSortFields,
+			Resolve(_maxSearchLength, d => d.MaxSearchLength) ?? DefaultMaxSearchLength,
+			Resolve(_minSearchLength, d => d.MinSearchLength) ?? DefaultMinSearchLength,
+			Resolve(_maxOffset, d => d.MaxOffset),
+			_unlimitedMaxRows
+		);
+
+		Positive(limits.MaxFilterValues, nameof(PaginateConfigDefaults.MaxFilterValues));
+		Positive(limits.MaxFilterConditions, nameof(PaginateConfigDefaults.MaxFilterConditions));
+		Positive(limits.MaxSortFields, nameof(PaginateConfigDefaults.MaxSortFields));
+		Positive(limits.MaxSearchLength, nameof(PaginateConfigDefaults.MaxSearchLength));
+		Positive(limits.MinSearchLength, nameof(PaginateConfigDefaults.MinSearchLength));
+
+		if (limits.MaxOffset < 0) {
+			throw new InvalidOperationException($"{nameof(PaginateConfigDefaults.MaxOffset)} must not be negative.");
+		}
+
+		if (limits.MinSearchLength > limits.MaxSearchLength) {
+			throw new InvalidOperationException($"Min search length {limits.MinSearchLength} must not be greater than max search length {limits.MaxSearchLength}.");
 		}
 
 		foreach (var sort in _defaultSortBy.Where(sort => !_sortableFields.ContainsKey(sort.Field))) {
@@ -550,12 +697,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		var defaultSortBy = _defaultSortBy.Count == 0 ? [] : _defaultSortBy.ToArray();
 
 		return new PaginateConfig<TEntity>(
-			defaultLimit,
-			maxLimit,
-			_maxFilterValues,
-			_maxFilterConditions,
-			_maxSortFields,
-			_maxSearchLength,
+			limits,
 			defaultSortBy,
 			_sortableFields.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
 			_searchableFields.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
@@ -567,8 +709,25 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 	}
 
+	private static void Positive(int value, string name) {
+		if (value <= 0) throw new InvalidOperationException($"{name} must be greater than zero.");
+	}
+
 	private static HashSet<PaginateFilterOperator> BuildOperatorSet(PaginateFilterOperator[] operators) {
 		return operators.Length > 0 ? operators.ToHashSet() : throw new ArgumentException("At least one filter operator must be configured.", nameof(operators));
 	}
 
 }
+
+/// <summary>The resolved numeric limits of one configuration, gathered so the config constructor is not nine adjacent ints.</summary>
+internal readonly record struct PaginateLimits(
+	int DefaultLimit,
+	int MaxLimit,
+	int MaxFilterValues,
+	int MaxFilterConditions,
+	int MaxSortFields,
+	int MaxSearchLength,
+	int MinSearchLength,
+	int? MaxOffset,
+	int? UnlimitedMaxRows
+);

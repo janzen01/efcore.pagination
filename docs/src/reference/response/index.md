@@ -69,7 +69,7 @@ The rows of this page, in the query's sort order. Empty past the last page, whic
 |-------|------|---------|
 | `totalItems` | `int` | Rows matching the filter and search across **all** pages, before paging is applied. This is the `COUNT` the engine runs first. |
 | `itemCount` | `int` | Rows actually on this page. Smaller than `itemsPerPage` on the last page, `0` past the end. |
-| `itemsPerPage` | `int` | The **effective** page size: the requested `limit`, or the config's `DefaultLimit` when `limit` was omitted. Never the maximum. |
+| `itemsPerPage` | `int` | The **effective** page size: the requested `limit`, or the config's `DefaultLimit` when `limit` was omitted. Never the maximum. For an [unlimited read](../configuration/#allowunlimited) it is `itemCount` — the row count, since `-1` is not a size. |
 | `totalPages` | `int` | Pages at this page size, or `0` when nothing matched. |
 | `currentPage` | `int` | The 1-based page that was **requested**. Not clamped, so it can exceed `totalPages`. |
 | `sortBy` | `string[]` | The **effective** order, in the request's own `"field:DIR"` form. See [the echo](#the-request-echo). |
@@ -77,7 +77,7 @@ The rows of this page, in the query's sort order. Empty past the last page, whic
 | `searchBy` | `string[]` | The **effective** fields the term ran over. `[]` when no search ran. |
 | `filter` | `object` | The request's filters, echoed verbatim per field. `{}` when there were none. |
 | `hasPreviousPage` | `bool` | `currentPage > 1`. |
-| `hasNextPage` | `bool` | `currentPage < totalPages`. `false` past the last page, where nothing follows either. |
+| `hasNextPage` | `bool` | Whether a next page can be **requested**. Normally `currentPage < totalPages`; where the config sets [`WithMaxOffset`](../configuration/#withmaxoffset) it stops at the last reachable page instead, so it is never `true` for a page the same config would answer with a `400`. `false` past the last page. |
 
 Two of these are easy to get wrong from the outside:
 
@@ -116,6 +116,9 @@ landed. Four details worth knowing:
 
 `hasPreviousPage` / `hasNextPage` carry the two comparisons every client would otherwise re-derive — and
 `hasNextPage` is `false` past the last page, which the counters alone do not say without a second look.
+Where the resource caps the offset it is also the only honest answer: `totalPages` still reports the pages the
+data has, and `hasNextPage` reports the ones you may ask for. The two differ on purpose — a client can see
+there is more data than paging will reach rather than discovering it as a `400`.
 
 Like everything else here, **all six keys are always present**, with `null` and `[]` and `{}` carrying the
 absent cases rather than the key disappearing.
@@ -142,6 +145,11 @@ With a link context, every key is present on every page, and an absent link carr
 | `previous` | on page 1 |
 | `next` | on the last page, and whenever nothing matched |
 | `last` | never — it is page 1 for an empty result set |
+
+`next` and `last` are drawn from the last **reachable** page, not from `totalPages`: with
+[`WithMaxOffset`](../configuration/#withmaxoffset) they stop where the guard does, so following `next` can
+never walk into a `400`. An [unlimited read](../configuration/#allowunlimited) is one page, so `first`,
+`last` and `current` are the same URL and both `next` and `previous` are `null`.
 | `current` | never — it echoes the request, so it answers past the last page too |
 
 `current` is the request that was made, not a clamped one: ask for page 900 of a 19-page result and it comes

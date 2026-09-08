@@ -151,11 +151,19 @@ independent of each other — consumers pick the extensions they need:
 
 ## Public API surface
 - **`PaginateConfig<T>`** — fluent, per-entity contract (`PaginateConfig<T>.Create(b => …)`): `.WithLimits(default, max)`,
-  `.WithGuards(…)`, `.Sortable(name, expr)`, `.DefaultSortBy(…)`, `.WithTieBreaker(expr)` (unique key appended as the
+  `.WithGuards(…)`, `.WithMinSearchLength(n)`, `.WithMaxOffset(n)`, `.AllowUnlimited(maxRows)`, `.Sortable(name, expr)`, `.DefaultSortBy(…)`, `.WithTieBreaker(expr)` (unique key appended as the
   final order → deterministic paging), `.Searchable(name, expr)`, `.IgnoreSearchByInQueryParam()`,
   `.Filterable(name, expr, ops…)`, `.FilterableMany(name, coll, expr, ops…)` (matches any element → `Any(...)`), plus
   `.ShowBadge(name, cssClass?)` / `.When(bool)` on the field declared immediately before. Often exposed via an
   `IPaginateConfigProvider<T>`.
+  **`PaginateConfigDefaults`** is the shared-limits object: passed to `Create(defaults, b => …)`, or assigned once
+  to the static `PaginateConfigDefaults.Shared`. Resolution is `WithX` > the passed object > `Shared` > the engine
+  constant, read at `Build()` time — so a shared value is a default, never a ceiling a config cannot raise, and a
+  config never observes a later assignment. `AllowUnlimited` is deliberately **not** on it: an unbounded read is a
+  claim about one resource's size. Its arrival is why `WithGuards`' four parameters became `int?` — with the old
+  `int` defaults, naming one guard silently reset the other three to the constants, discarding shared values the
+  caller never mentioned. Source-compatible, binary-breaking, and the one entry in
+  `CompatibilitySuppressions.xml`.
   Both `Filterable` overloads have an **operator-less sibling** (`.Filterable(name, expr)`) whitelisting
   `PaginateFilterOperators.For<TValue>()` — the public derivation, and the single place a later release widens a
   row (which then widens every shorthand field on rebuild: release-note it). Ranges are deliberately withheld
@@ -382,8 +390,19 @@ plain `Where` and no engine involved:
   outright on a machine whose decimal separator is not a dot. Order and range over `Rank` (an `int`) instead; `Price`
   is only ever tested for equality.
 
-`PaginateLikeDefaults.Strategy` is a process-wide mutable static, so tests that swap it sit in the
-`[Collection("LikeDefaults")]` non-parallel collection and restore it in `Dispose`.
+**The whole suite runs serially**, via `parallelizeTestCollections: false` in
+`test/Janzen.Pagination.Tests/xunit.runner.json` (copied to the output by an explicit `Content` item). The
+engine has three process-wide mutable statics — `PaginateLikeDefaults.Strategy`, `PaginateTypeSupport`'s
+registries and `PaginateConfigDefaults.Shared` — and a `[Collection]` **cannot** isolate a test that assigns
+one: xunit serialises *within* a collection but runs different collections in parallel, so a class holding a
+mutated static still overlaps every other collection. `Shared` is what made that concrete rather than
+theoretical, because every `Build()` in the assembly reads it. Verified by a throwaway probe: with
+`parallelizeTestCollections: true` a pair of two-collection tests asserting "only one of us is live" fails,
+with `false` it passes. The suite is ~2–3s either way. The `[Collection("LikeDefaults")]` /
+`[Collection("ConfigDefaults")]` attributes stay as documentation of the hazard, and such tests still restore
+the static in `Dispose`. Note `[assembly: CollectionBehavior(DisableTestParallelization = true)]` is **not**
+the way to do this here: it is `[Obsolete]` in xunit v3 and `-warnaserror` rejects it, while its replacement
+`ParallelizationAttribute` does not exist in 4.0.0.
 
 `PaginateTypeSupport` is process-wide **and append-only** — a registration cannot be undone. Tests that
 register anything therefore key it to a type declared in the test file itself, so it can never be reached by
@@ -436,12 +455,28 @@ Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs
   `net10.0`-only means no GAC and no binding redirects, and the .NET runtime does not verify strong-name
   signatures. The only cost is `CS8002` on consumers who strong-name their own assemblies. Don't add
   `SignAssembly` to a `10.x` build; a new framework major is the earliest place the question can reopen.
+- **The binder carries `limit=-1` through; the *config* decides.** `PaginateQueryParser` parses `limit` with
+  `AllowLeadingSign` and accepts `-1` specifically, because it has no configuration and cannot know whether
+  this resource opted in. Dropping it there — which is what the original positive-only parser did — makes
+  `AllowUnlimited` unreachable over HTTP while OpenAPI advertises it, and the tests miss it because they build
+  `PaginateQuery` directly. The gate is unchanged and still `ParseLimit`: without `AllowUnlimited` the value
+  gets the ordinary `must be between 1 and N` 400. Everything else negative stays a binder-level 400.
 - **`$null` is decided from the field's *declared* type, never the expression's.** The in-memory rewriter
   lifts a value-typed nested member to `Nullable<T>` so it has somewhere to put "absent"; reading that lifted
   type in `BuildNullExpression` would make `$null` match a row with a missing parent in memory and match
   nothing on any relational provider, which answers from the declared type. So a non-nullable field reports
   "no row is null" on both legs, nested or not — and "has no category" is expressed by filtering the nullable
   FK, not the joined key.
+- **Navigation stops where the offset guard does.** `meta.totalPages` stays the honest page count, but
+  `links.next` / `links.last` / `meta.hasNextPage` are drawn from `NavigablePages`, which clamps to what
+  `WithMaxOffset` allows. Otherwise a config hands out a `next` link to a page it then answers with a 400, and
+  a client that pages by following links walks into a hard error instead of the end of the collection.
+- **`limit=-1` is opt-in per resource and its row ceiling is mandatory.** `AllowUnlimited(maxRows)` has no
+  argument-less form, and `PaginateConfigDefaults` deliberately cannot carry it: a global "unlimited is fine"
+  is a promise about table sizes nobody can make. The engine fetches `maxRows + 1` so "exactly at the ceiling"
+  and "over it" are distinguishable, skips the count entirely (the fetched set *is* the count — one query, not
+  two), and echoes `itemsPerPage` as the actual row count rather than the requested `-1`. `page` must be 1;
+  `-2` and `0` stay `400` with or without the opt-in. Don't add a bare `AllowUnlimited()`.
 - **Unknown query parameters are ignored.** The binder reads exactly six inputs (`page`, `limit`, `sortBy`, `search`,
   `searchBy`, `filter.<field>`); anything else (`offset`, `utm_*`, …) is dropped and the request pages normally.
   API-audit tools report this as "invalid value silently accepted" — it is a false positive. Strict binding would

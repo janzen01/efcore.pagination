@@ -66,7 +66,7 @@ The config is a fluent builder rather than an object literal, and the mapping is
 | `where: { … }` | absent — filter the `IQueryable` before paginating |
 | `nullSort: 'last'` | absent — null ordering is the provider's default |
 | `ignoreSearchByInQueryParam` | `.IgnoreSearchByInQueryParam()` |
-| `updateGlobalConfig({ defaultLimit })` | absent — limits are per resource, deliberately |
+| `updateGlobalConfig({ defaultLimit })` | `PaginateConfigDefaults` — shared explicitly per config, or once via `.Shared`; a config always overrides it. See [Shared defaults](/reference/configuration/#shared-defaults) |
 
 The important shape difference: a column is named by a **lambda**, not a string, so a rename in the entity is
 a compile error rather than a runtime surprise, and the public alias is free to differ from the property name.
@@ -113,15 +113,18 @@ change worth planning for rather than discovering.
 
 ## Limits and page size
 
-`WithLimits(defaultLimit, maxLimit)` is **required** — there is no global default to inherit, because the
-right page size is a property of the resource. Set it per resource while migrating rather than looking for the
-equivalent of `updateGlobalConfig`.
+`WithLimits(defaultLimit, maxLimit)` is **required** unless a shared defaults object supplies both halves,
+because the right page size is a property of the resource rather than of the library. Sharing is explicit either
+way — a config names the object, or a startup assignment does — so there is nothing ambient to inherit by
+accident.
 
 A `limit` above `maxLimit` is **rejected with a `400`**, not reduced. A client that asked for 500 and quietly
 received 100 would page through the collection wrongly, so the request fails instead.
 
-There is also **no "disable pagination" escape hatch** — nothing corresponds to `limit=-1`. A caller that
-genuinely needs the whole set walks it in pages; see
+`limit=-1` exists, but **only where the resource opted in** with
+[`AllowUnlimited(maxRows)`](/reference/configuration/#allowunlimited), and the row ceiling is mandatory — there
+is no way to express a genuinely unbounded read. Where it is not enabled, `-1` is an ordinary out-of-range
+limit and a caller who needs the whole set walks it in pages; see
 [Pagination without ASP.NET Core](../without-aspnetcore/) for the loop.
 
 ## Columns are not client-selectable

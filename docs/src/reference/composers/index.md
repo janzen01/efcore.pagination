@@ -134,6 +134,12 @@ work and still return a usable `IQueryable`; there is simply no SQL to print.
 
 - **No count.** Neither composer issues one, so neither can tell you `totalItems`. Ask the matching set
   yourself: `await db.Products.ApplyPaginateFilters(request, config).Query.CountAsync(ct)`.
+- **No row ceiling for `limit=-1`.** On a resource with
+  [`AllowUnlimited(maxRows)`](../configuration/#allowunlimited), `ApplyPagination` composes the query bounded
+  at `maxRows + 1` — exactly what `PaginateAsync` fetches, so that "at the ceiling" and "over it" can be told
+  apart. Applying the ceiling is the part only execution can do, so **the caller executing the composed query
+  owns that check**: expect the extra row, and refuse the read when it turns up. `Limit` comes back as `-1`
+  rather than a row count for the same reason — there are no items here to count.
 - **No past-the-end short-circuit.** `PaginateAsync` skips the page query entirely when the count says you are
   past the last row. `ApplyPagination` cannot know that without issuing a count of its own — which a method
   whose whole point is "do not touch the database yet" must not do — so an out-of-range page composes a real

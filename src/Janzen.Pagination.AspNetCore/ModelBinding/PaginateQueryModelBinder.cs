@@ -32,7 +32,7 @@ internal static class PaginateQueryParser {
 
 		return new PaginateQuery {
 			Page = ParsePositiveInt(query[PaginateQueryParams.Page], PaginateQueryParams.Page, PaginateQuery.DefaultPage, ref error) ?? PaginateQuery.DefaultPage,
-			Limit = ParsePositiveInt(query[PaginateQueryParams.Limit], PaginateQueryParams.Limit, null, ref error),
+			Limit = ParseLimit(query[PaginateQueryParams.Limit], ref error),
 			SortBy = ReadValues(query[PaginateQueryParams.SortBy]),
 			Search = ReadSingle(query[PaginateQueryParams.Search]),
 			SearchBy = ReadValues(query[PaginateQueryParams.SearchBy]),
@@ -52,6 +52,27 @@ internal static class PaginateQueryParser {
 
 		error ??= $"Query parameter '{name}' must be a positive integer.";
 		return fallback;
+
+	}
+
+	/// <summary>
+	///     As <see cref="ParsePositiveInt" />, plus the one negative value the contract has a meaning for:
+	///     <see cref="PaginateQuery.UnlimitedLimit" />. Whether this resource accepts it is the engine's call
+	///     — the binder has no configuration — so <c>-1</c> is carried through and answered there, with the
+	///     ordinary range message when the resource never opted in.
+	/// </summary>
+	private static int? ParseLimit(StringValues values, ref string? error) {
+
+		string? value = values.FirstOrDefault();
+		if (string.IsNullOrWhiteSpace(value)) return null;
+
+		if (int.TryParse(value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int parsed)
+			&& (parsed > 0 || parsed == PaginateQuery.UnlimitedLimit)) {
+			return parsed;
+		}
+
+		error ??= $"Query parameter '{PaginateQueryParams.Limit}' must be a positive integer.";
+		return null;
 
 	}
 

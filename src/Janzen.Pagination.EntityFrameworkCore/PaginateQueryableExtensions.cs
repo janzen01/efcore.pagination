@@ -105,10 +105,16 @@ public static class PaginateQueryableExtensions {
 			return query;
 		}
 
-		string search = request.Search;
+		// Trimmed before either guard, so both measure the term that is actually searched for. Without this a
+		// three-space-padded "a" satisfied a minimum of 3 and then went looking for the spaces.
+		string search = request.Search.Trim();
 
 		if (search.Length > config.MaxSearchLength) {
 			throw new PaginateQueryException($"Search term must not exceed {config.MaxSearchLength} characters.");
+		}
+
+		if (search.Length < config.MinSearchLength) {
+			throw new PaginateQueryException($"Search term must be at least {config.MinSearchLength} characters.");
 		}
 
 		var fields = ResolveSearchFields(request, config);
@@ -248,6 +254,12 @@ public static class PaginateQueryableExtensions {
 		if (request.Page < PaginateQuery.DefaultPage) throw new PaginateQueryException("Query parameter 'page' must be a positive integer.");
 
 		int limit = PaginateExpressionUtils.ParseLimit(request, config);
+
+		// Arithmetic only, so it costs nothing and runs before the count: a guarded deep page is refused without
+		// the database being asked anything at all. Applied here rather than at the paging stage so it holds for
+		// every entry point, the filtered composer included -- which already validates page and limit the same way.
+		PaginateExpressionUtils.ValidateOffset(request.Page, limit, config);
+
 		bool useDatabaseFunctions = source.Provider is IAsyncQueryProvider;
 		var context = new PaginateExpressionContext(useDatabaseFunctions, PaginateLikeDefaults.Strategy);
 
@@ -255,13 +267,41 @@ public static class PaginateQueryableExtensions {
 		query = ApplySearch(query, request, config, context, out var searchBy);
 
 		// A whitespace-only term runs no search, so it is reported as absent rather than echoed back as applied.
-		string? search = string.IsNullOrWhiteSpace(request.Search) ? null : request.Search;
+		// The echo is trimmed for the same reason the guards are: it reports what ran.
+		string? search = string.IsNullOrWhiteSpace(request.Search) ? null : request.Search.Trim();
 
 		return (query, limit, search, searchBy);
 
 	}
 
+	/// <summary>
+	///     How many pages a caller may actually request, which is <paramref name="totalPages" /> unless the
+	///     configuration caps the offset. Only the navigation uses it; <c>meta.totalPages</c> keeps reporting what
+	///     the data holds, so a client can still see there is more of it than paging will reach.
+	/// </summary>
+	private static int NavigablePages(int totalPages, int limit, IPaginateConfig config) {
+
+		// An unlimited read is one page and never skips, so the offset ceiling has nothing to say about it.
+		if (limit == PaginateQuery.UnlimitedLimit || config.MaxOffset is not { } maxOffset) return totalPages;
+
+		return Math.Min(totalPages, (maxOffset / limit) + 1);
+
+	}
+
+	/// <summary>
+	///     Bounds an unlimited read at <c>maxRows + 1</c> rows — one past the ceiling, so "exactly at the limit" and
+	///     "over it" are distinguishable. A no-op for an ordinary paged request, which <c>ApplyPage</c> bounds.
+	/// </summary>
+	private static IQueryable<TEntity> ApplyCeiling<TEntity>(IQueryable<TEntity> query, int limit, IPaginateConfig config) {
+		return limit == PaginateQuery.UnlimitedLimit ? query.Take(config.UnlimitedMaxRows!.Value + 1) : query;
+	}
+
 	private static IQueryable<TEntity> ApplyPage<TEntity>(IQueryable<TEntity> query, int page, int limit) {
+
+		// Unlimited: one page holding everything. ValidateOffset has already refused any page but the first, and
+		// the caller has bounded the read with Take(maxRows + 1) instead.
+		if (limit == PaginateQuery.UnlimitedLimit) return query;
+
 		// Long arithmetic so a very large page cannot overflow the int that Skip takes. PaginateCoreAsync never
 		// reaches the cast — its skip >= totalItems short-circuit runs first, so skip is below totalItems and
 		// therefore below int.MaxValue — but ApplyPagination has no count to guard it with.
@@ -430,6 +470,12 @@ public static class PaginateQueryableExtensions {
 		///     optimize it away. Validation is the complete one, <c>sortBy</c> included. The returned
 		///     <see cref="PaginateComposedQuery{TEntity}" /> carries the effective limit, ordering and search fields
 		///     for callers assembling their own envelope.
+		///     One consequence for <c>limit=-1</c>: the composed query is bounded at <c>maxRows + 1</c>, which is
+		///     what <c>PaginateAsync</c> fetches so it can tell "at the ceiling" from "over it" — and the check
+		///     itself is something only execution can do. So a caller executing this query is the one holding the
+		///     ceiling: expect the extra row, and refuse the read when it arrives. <c>Limit</c> comes back as
+		///     <see cref="PaginateQuery.UnlimitedLimit" /> rather than a row count, for the same reason — there are
+		///     no items here to count.
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
@@ -439,7 +485,7 @@ public static class PaginateQueryableExtensions {
 			var sorts = ResolveSorts(request, config);
 
 			return new PaginateComposedQuery<TEntity>(
-				ApplyPage(ApplySorts(query, sorts.Keys), request.Page, limit),
+				ApplyPage(ApplyCeiling(ApplySorts(query, sorts.Keys), limit, config), request.Page, limit),
 				request.Page,
 				limit,
 				sorts.Tokens,
@@ -465,28 +511,60 @@ public static class PaginateQueryableExtensions {
 			// even when the request is answered by the empty short-circuit below and never reaches the database.
 			var sorts = ResolveSorts(request, config);
 
-			int totalItems = await CountAsync(query, ct).ConfigureAwait(false);
-			int totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)limit);
+			int totalItems;
+			int totalPages;
+			TResult[] items;
 
-			// Use long arithmetic so a very large page cannot overflow; skip past the last row short-circuits to an empty page.
-			long skip = (long)(page - 1) * limit;
+			if (limit == PaginateQuery.UnlimitedLimit) {
 
-			// Past the last row there is nothing to fetch, so the second query is never issued at all — the count
-			// above is the whole cost of asking for a page that does not exist.
-			TResult[] items = skip >= totalItems
-				? []
-				: await project(ApplyPage(ApplySorts(query, sorts.Keys), page, limit), ct).ConfigureAwait(false);
+				// No count query: the fetched set is the whole match set, so counting it would ask the database the
+				// same question twice. One row past the ceiling is fetched so exceeding it can be told apart from
+				// landing exactly on it.
+				int maxRows = config.UnlimitedMaxRows!.Value;
+				items = await project(ApplyCeiling(ApplySorts(query, sorts.Keys), limit, config), ct).ConfigureAwait(false);
 
-			var meta = new PaginatedMeta(totalItems, items.Length, limit, totalPages, page) {
+				if (items.Length > maxRows) {
+					throw new PaginateQueryException($"The unlimited read is too large: this resource returns at most {maxRows} rows for 'limit=-1'.");
+				}
+
+				totalItems = items.Length;
+				totalPages = totalItems == 0 ? 0 : 1;
+
+			} else {
+
+				totalItems = await CountAsync(query, ct).ConfigureAwait(false);
+				totalPages = totalItems == 0 ? 0 : (int)Math.Ceiling(totalItems / (double)limit);
+
+				// Use long arithmetic so a very large page cannot overflow; skip past the last row short-circuits to an empty page.
+				long skip = (long)(page - 1) * limit;
+
+				// Past the last row there is nothing to fetch, so the second query is never issued at all — the count
+				// above is the whole cost of asking for a page that does not exist.
+				items = skip >= totalItems
+					? []
+					: await project(ApplyPage(ApplySorts(query, sorts.Keys), page, limit), ct).ConfigureAwait(false);
+
+			}
+
+			// itemsPerPage echoes what the page actually holds rather than the requested -1, which is not a size.
+			int itemsPerPage = limit == PaginateQuery.UnlimitedLimit ? items.Length : limit;
+
+			// totalPages stays the honest count of pages the data has; navigation reports the ones a caller may
+			// actually ask for. Without this split, a config with WithMaxOffset hands out a 'next' link and a
+			// hasNextPage of true for a page it then answers with 400 -- a client paging by following next walks
+			// into a hard error instead of the end of the collection.
+			int navigablePages = NavigablePages(totalPages, limit, config);
+
+			var meta = new PaginatedMeta(totalItems, items.Length, itemsPerPage, totalPages, page) {
 				SortBy          = sorts.Tokens,
 				Search          = search,
 				SearchBy        = searchBy,
 				Filter          = request.Filters,
 				HasPreviousPage = page > PaginateQuery.DefaultPage,
-				HasNextPage     = page < totalPages,
+				HasNextPage     = page < navigablePages,
 			};
 
-			var links = PaginateLinkBuilder.Build(linkContext, page, totalPages);
+			var links = PaginateLinkBuilder.Build(linkContext, page, totalPages, navigablePages);
 
 			return new PaginatedResponse<TResult>(items, meta, links);
 

@@ -71,7 +71,7 @@ var next = response.Meta.HasNextPage
 
 | Builder call | Enables | Notes |
 |--------------|---------|-------|
-| `.WithLimits(default, max)` | `page`, `limit` | **Required** — there is no implicit page size. |
+| `.WithLimits(default, max)` | `page`, `limit` | **Required** — there is no implicit page size, unless shared defaults supply one. |
 | `.Sortable(name, expr)` | `sortBy=name:ASC\|DESC` | Any expression the provider can put in `ORDER BY`. |
 | `.DefaultSortBy(name, dir)` | — | Used when the request sends no `sortBy`; the field must be sortable. |
 | `.WithTieBreaker(expr)` | — | Unique key appended as the final ordering key on every query. |
@@ -81,6 +81,9 @@ var next = response.Meta.HasNextPage
 | `.FilterableMany(name, coll, expr, ops…)` | `filter.name=$op:value` | Matches any element of a child collection (`Any(...)`). |
 | `.FilterableMany(name, coll, expr)` | `filter.name=$op:value` | The same derivation, from the value selector's type. |
 | `.WithGuards(…)` | — | Ceilings on filter values / conditions / sort fields / search length. |
+| `.WithMinSearchLength(n)` | — | Rejects a `search` term shorter than `n`, measured after trimming. |
+| `.WithMaxOffset(n)` | — | Rejects a request that would skip more than `n` rows, before the count runs. |
+| `.AllowUnlimited(maxRows)` | `limit=-1` | Opts into one-page-everything, with a mandatory row ceiling. |
 | `.ShowBadge(name, cssClass?)` | — | Labels the preceding field in the OpenAPI output. |
 | `.When(bool)` | — | Gates the preceding field at query time; must be paired with `.ShowBadge`. |
 
@@ -90,8 +93,25 @@ var next = response.Meta.HasNextPage
     PaginateFilterOperator.Eq, PaginateFilterOperator.In)
 
 // Tighter guards than the defaults (100 / 20 / 5 / 256)
-.WithGuards(maxFilterValues: 25, maxSortFields: 3)
+.WithGuards(maxFilterValues: 25, maxSortFields: 3)   // an omitted guard is left unset, not reset
 ```
+
+## Shared limits and guards
+
+Every limit and guard can come from a shared object instead of being retyped per resource — explicitly per
+config, or once at startup:
+
+```csharp
+var defaults = new PaginateConfigDefaults { DefaultLimit = 25, MaxLimit = 100 };
+
+PaginateConfig<Product>.Create(defaults, b => …);   // explicit
+PaginateConfigDefaults.Shared = defaults;           // ambient, read at Build() time
+```
+
+A `WithLimits` / `WithGuards` / `WithX` call beats the object passed to `Create`, which beats `.Shared`, which
+beats the engine’s own constant — so a shared value is never a ceiling a config cannot raise. `AllowUnlimited`
+is deliberately not shareable: an unbounded read is a claim about one resource’s size.
+[Full reference](https://janzen01.github.io/efcore.pagination/reference/configuration/#shared-defaults)
 
 ## Operator defaults
 

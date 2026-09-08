@@ -57,8 +57,9 @@ discarding them. Cost grows with the page number, so page 1 benchmarks fine and 
 
 Three responses, in increasing order of effort:
 
-1. **Cap it.** If nobody has a real reason to reach page 500, reject deep pages at the edge. A `400` is
-   cheaper than the query.
+1. **Cap it.** [`WithMaxOffset(n)`](/reference/configuration/#withmaxoffset) rejects a request that would
+   skip more than `n` rows. The check is arithmetic and runs before the count, so a guarded deep page
+   costs no query at all — which is the point: a `400` is cheaper than the query it prevents.
 2. **Raise `limit` instead of `page`.** Walking a set in 500-row pages touches the offset problem twenty
    times less often than 25-row pages do. This is what a batch export should do — see
    [Pagination without ASP.NET Core](../without-aspnetcore/).

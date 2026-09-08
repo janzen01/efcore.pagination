@@ -190,7 +190,7 @@ field, including when each link is `null` and what `meta` reports for a page pas
 flowchart TD
     Q["<code>?page=2&limit=25&sortBy=name:DESC&search=acme&filter.status=$eq:active</code>"]
     Q --> Bind["bind → <b>PaginateQuery</b>"]
-    Bind --> Valid{"page ≥ 1 and<br/>1 ≤ limit ≤ MaxLimit?"}
+    Bind --> Valid{"page ≥ 1, 1 ≤ limit ≤ MaxLimit,<br/>offset within MaxOffset?"}
     Valid -- no --> Err["<b>400</b> ProblemDetails<br/>title: Invalid query"]
     Valid -- yes --> Filter["<code>Where(...)</code> ← every <code>filter.field</code>"]
     Filter --> Search["<code>Where(...)</code> ← <code>search</code> over the searchBy fields"]
@@ -205,6 +205,12 @@ flowchart TD
 
 Two queries per request: one `COUNT(*)` over the filtered set, one page fetch. Asking for a page past the end
 returns an empty `items` with the real `meta`, and skips the second query entirely.
+
+The validation step is pure arithmetic and runs before either of them, so a request refused there — an
+over-range `limit`, or a page beyond [`WithMaxOffset`](/reference/configuration/#withmaxoffset) — costs no
+query at all. The two opt-in modes change the shape: an
+[unlimited read](/reference/configuration/#allowunlimited) skips the `COUNT(*)` entirely, because the rows it
+fetches *are* the count.
 
 ## Next
 

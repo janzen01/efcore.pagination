@@ -104,4 +104,51 @@ public sealed class QueryParserTests {
 	[Fact]
 	public void A_blank_limit_leaves_the_configured_default_in_force() { Assert.Null(Parse("?limit=").Limit); }
 
+	[Fact]
+	public void The_unlimited_limit_survives_binding() {
+
+		// The binder has no configuration, so it cannot know whether this resource allows -1. Dropping it here
+		// would make AllowUnlimited unreachable over HTTP while OpenAPI advertises it; the engine is where the
+		// config-aware decision belongs, and it still refuses -1 for a resource that never opted in.
+		Assert.Equal(-1, Parse("?limit=-1").Limit);
+
+	}
+
+	[Theory]
+	[InlineData("?limit=-2")]
+	[InlineData("?limit=-0")]
+	[InlineData("?limit=+1")]
+	[InlineData("?limit=abc")]
+	[InlineData("?limit=1.0")]
+	public async Task Every_other_malformed_limit_is_still_refused(string queryString) {
+		Assert.Equal("Query parameter 'limit' must be a positive integer.", await Rejects(Parse(queryString)));
+	}
+
+	[Fact]
+	public async Task A_bound_minus_one_is_answered_by_the_config_not_the_binder() {
+
+		// Refused for a resource that did not opt in -- but with the engine's range message, which is what
+		// proves the value reached it rather than dying during binding.
+		string message = await Rejects(Parse("?limit=-1"));
+
+		Assert.Equal("Query parameter 'limit' must be between 1 and 50.", message);
+
+	}
+
+	[Fact]
+	public async Task A_bound_minus_one_pages_a_resource_that_opted_in() {
+
+		var config = PaginateConfig<Product>.Create(b => b
+			.WithLimits(3, 50)
+			.Sortable("id", p => p.Id)
+			.DefaultSortBy("id")
+			.WithTieBreaker(p => p.Id)
+			.AllowUnlimited(100));
+
+		var page = await TestData.Products().AsQueryable().PageAsync<ProductDto>(Parse("?limit=-1"), config);
+
+		Assert.Equal(8, page.Items.Count);
+
+	}
+
 }
