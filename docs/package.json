@@ -1,10 +1,10 @@
 {
   "name": "@janzen01/efcore.pagination-docs",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Documentation site for Janzen.Pagination, published to GitHub Pages.",
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@10.34.5",
   "engines": {
     "node": ">=24.19.0"
   },
@@ -16,8 +16,8 @@
   "devDependencies": {
     "@nolebase/vitepress-plugin-enhanced-readabilities": "^2.18.2",
     "mermaid": "^11.17.2",
-    "vitepress": "2.0.0-alpha.19",
+    "vitepress": "2.0.0-alpha.20",
     "vitepress-plugin-mermaid": "^2.0.17",
-    "vue": "^3.5.40"
+    "vue": "^3.5.42"
   }
 }
