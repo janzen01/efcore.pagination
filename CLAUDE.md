@@ -336,13 +336,15 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
 2. **At a stable release only**, move each `PublicAPI.Unshipped.txt` into its `PublicAPI.Shipped.txt`. That is
    what makes a later removal an RS0017 build error. Do **not** do it for an `-rc.N`: an rc-only member promoted
    to *shipped* cannot then be dropped before stable without fighting the analyzer.
-3. **At a stable release only**, bump `PackageValidationBaselineVersion` in `Directory.Build.props` to the
-   version just released — it is what every later `dotnet pack` compares the public API against, so leaving it
-   behind means the guard keeps validating against an ever-older surface and stops noticing breaks introduced
-   in between. Same rc caveat as step 2: an `-rc.N` is not a baseline. If the release *contains* a deliberate
-   break, its `CompatibilitySuppressions.xml` entries were needed only against the old baseline and should be
-   deleted in the same commit — regenerate with `dotnet pack -p:ApiCompatGenerateSuppressionFile=true` rather
-   than hand-editing.
+3. **`PackageValidationBaselineVersion` is bumped *after* the publish, never in the release PR.** It resolves
+   through a `PackageDownload`, so pointing it at a version nuget.org does not serve yet fails **restore** with
+   `NU1102: Unable to find package … with version (= x.y.z)` — the release PR's own CI, before any tag exists.
+   So the release ships with the baseline still naming the *previous* version, which is also what makes the
+   validation meaningful for that build. Once the packages are live, a follow-up PR raises the baseline to the
+   version just published and deletes the `CompatibilitySuppressions.xml` entries that existed only against the
+   superseded one (regenerate with `dotnet pack -p:ApiCompatGenerateSuppressionFile=true` rather than
+   hand-editing). Skip that follow-up and the guard keeps validating against an ever-older surface, and the
+   stale suppressions hide the next accidental break behind the same target. An `-rc.N` is not a baseline.
 4. Release notes go **on the GitHub release** — there is no changelog file, and `PackageReleaseNotes` points at
    the Releases page.
 5. Publishing authenticates by **Trusted Publishing (OIDC)**, so there is no API key anywhere. The policy lives

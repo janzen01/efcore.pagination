@@ -7,10 +7,13 @@ Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.IgnoreSearch
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.MaxFilterConditions.get -> int
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.MaxFilterValues.get -> int
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.MaxLimit.get -> int
+Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.MaxOffset.get -> int?
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.MaxSearchLength.get -> int
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.MaxSortFields.get -> int
+Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.MinSearchLength.get -> int
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.SearchableFields.get -> System.Collections.Generic.IReadOnlyList<Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata!>!
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.SortableFields.get -> System.Collections.Generic.IReadOnlyList<Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata!>!
+Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.UnlimitedMaxRows.get -> int?
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfigProvider
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfigProvider.GetConfig() -> Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig!
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfigProvider<TEntity>
@@ -32,13 +35,19 @@ Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.Igno
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.MaxFilterConditions.get -> int
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.MaxFilterValues.get -> int
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.MaxLimit.get -> int
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.MaxOffset.get -> int?
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.MaxSearchLength.get -> int
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.MaxSortFields.get -> int
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.MinSearchLength.get -> int
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.SearchableFields.get -> System.Collections.Generic.IReadOnlyList<Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata!>!
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.SortableFields.get -> System.Collections.Generic.IReadOnlyList<Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata!>!
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.UnlimitedMaxRows.get -> int?
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.AllowUnlimited(int maxRows) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.DefaultSortBy(string! field, Janzen.Pagination.EntityFrameworkCore.Model.PaginateSortDirection direction = Janzen.Pagination.EntityFrameworkCore.Model.PaginateSortDirection.Asc) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.Filterable<TValue>(string! name, System.Linq.Expressions.Expression<System.Func<TEntity, TValue>!>! selector) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.Filterable<TValue>(string! name, System.Linq.Expressions.Expression<System.Func<TEntity, TValue>!>! selector, params Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]! operators) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.FilterableMany<TElement, TValue>(string! name, System.Linq.Expressions.Expression<System.Func<TEntity, System.Collections.Generic.IEnumerable<TElement>!>!>! collectionSelector, System.Linq.Expressions.Expression<System.Func<TElement, TValue>!>! valueSelector) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.FilterableMany<TElement, TValue>(string! name, System.Linq.Expressions.Expression<System.Func<TEntity, System.Collections.Generic.IEnumerable<TElement>!>!>! collectionSelector, System.Linq.Expressions.Expression<System.Func<TElement, TValue>!>! valueSelector, params Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]! operators) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.IgnoreSearchByInQueryParam(bool ignore = true) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.PaginateConfigBuilder() -> void
@@ -46,8 +55,31 @@ Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntit
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.ShowBadge(string! name, string? cssClass = null) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.Sortable<TValue>(string! name, System.Linq.Expressions.Expression<System.Func<TEntity, TValue>!>! selector) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.When(bool condition) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.WithGuards(int? maxFilterValues = null, int? maxFilterConditions = null, int? maxSortFields = null, int? maxSearchLength = null) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.WithLimits(int defaultLimit, int maxLimit) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.WithMaxOffset(int maxOffset) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.WithMinSearchLength(int minSearchLength) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.WithTieBreaker<TValue>(System.Linq.Expressions.Expression<System.Func<TEntity, TValue>!>! selector, Janzen.Pagination.EntityFrameworkCore.Model.PaginateSortDirection direction = Janzen.Pagination.EntityFrameworkCore.Model.PaginateSortDirection.Asc) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.<Clone>$() -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults!
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.DefaultLimit.get -> int?
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.DefaultLimit.init -> void
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.Equals(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults? other) -> bool
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxFilterConditions.get -> int?
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxFilterConditions.init -> void
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxFilterValues.get -> int?
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxFilterValues.init -> void
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxLimit.get -> int?
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxLimit.init -> void
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxOffset.get -> int?
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxOffset.init -> void
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxSearchLength.get -> int?
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxSearchLength.init -> void
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxSortFields.get -> int?
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MaxSortFields.init -> void
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MinSearchLength.get -> int?
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.MinSearchLength.init -> void
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.PaginateConfigDefaults() -> void
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata.<Clone>$() -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata!
 Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata.Badge.get -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge?
@@ -105,6 +137,7 @@ Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Page.
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Query.get -> System.Linq.IQueryable<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Search.get -> string?
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SearchBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator.Between = 10 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator.Contains = 5 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
@@ -117,6 +150,7 @@ Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator.LessThan = 6 
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator.LessThanOrEqual = 7 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator.Null = 2 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator.StartsWith = 4 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery.Filters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery.Filters.init -> void
@@ -201,9 +235,13 @@ Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEnt
 Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.extension<TEntity>(System.Linq.IQueryable<TEntity>!).PaginateSelectMapAsync<TProjection, TResult>(Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery! request, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>! config, System.Linq.Expressions.Expression<System.Func<TEntity, TProjection>!>! selector, System.Func<TProjection, TResult>! postMap, Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? linkContext = null, System.Threading.CancellationToken ct = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<TResult>!>!
 Janzen.Pagination.EntityFrameworkCore.PaginateTypeSupport
 const Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery.DefaultPage = 1 -> int
+const Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery.UnlimitedLimit = -1 -> int
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge.Equals(object? obj) -> bool
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge.GetHashCode() -> int
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge.ToString() -> string!
+override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.Equals(object? obj) -> bool
+override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.GetHashCode() -> int
+override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.ToString() -> string!
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata.Equals(object? obj) -> bool
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata.GetHashCode() -> int
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata.ToString() -> string!
@@ -227,7 +265,12 @@ override Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.GetHas
 override Janzen.Pagination.EntityFrameworkCore.Model.PaginatedResponse<T>.ToString() -> string!
 static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge.operator !=(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge? left, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge? right) -> bool
 static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge.operator ==(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge? left, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateBadge? right) -> bool
+static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.Create(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults! defaults, System.Action<Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!>! configure) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>!
 static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.Create(System.Action<Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!>! configure) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>!
+static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.Shared.get -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults!
+static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.Shared.set -> void
+static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.operator !=(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults? left, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults? right) -> bool
+static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.operator ==(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults? left, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults? right) -> bool
 static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata.operator !=(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata? left, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata? right) -> bool
 static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata.operator ==(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata? left, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFieldMetadata? right) -> bool
 static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFilterFieldMetadata.operator !=(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFilterFieldMetadata? left, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFilterFieldMetadata? right) -> bool
@@ -240,6 +283,8 @@ static Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeDefaults.Strategy.
 static Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeDefaults.Strategy.set -> void
 static Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.operator !=(Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? left, Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? right) -> bool
 static Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.operator ==(Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? left, Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext? right) -> bool
+static Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators.For(System.Type! type) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]!
+static Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators.For<TValue>() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]!
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.operator !=(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks? left, Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks? right) -> bool
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks.operator ==(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks? left, Janzen.Pagination.EntityFrameworkCore.Model.PaginatedLinks? right) -> bool
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta.operator !=(Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta? left, Janzen.Pagination.EntityFrameworkCore.Model.PaginatedMeta? right) -> bool
@@ -255,5 +300,3 @@ static Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.Paginat
 static Janzen.Pagination.EntityFrameworkCore.PaginateTypeSupport.RegisterProjectionConversion(System.Func<System.Linq.Expressions.Expression!, System.Type!, System.Linq.Expressions.Expression?>! tryConvert) -> void
 static Janzen.Pagination.EntityFrameworkCore.PaginateTypeSupport.RegisterSimpleType(System.Type! type) -> void
 static Janzen.Pagination.EntityFrameworkCore.PaginateTypeSupport.RegisterValueParser(System.Type! type, System.Func<string!, object?>! parser) -> void
-Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.WithGuards(int maxFilterValues = 100, int maxFilterConditions = 20, int maxSortFields = 5, int maxSearchLength = 256) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>?
