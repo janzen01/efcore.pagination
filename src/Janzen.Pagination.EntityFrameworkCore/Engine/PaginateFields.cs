@@ -58,7 +58,7 @@ internal abstract class PaginateFilterField(
 		var expression = criterion.Operator switch {
 			PaginateFilterOperator.Eq => BuildEqualityExpression(valueExpression, criterion.Value, context),
 			PaginateFilterOperator.In => BuildInExpression(valueExpression, criterion.Value, context, maxFilterValues),
-			PaginateFilterOperator.Null => BuildNullExpression(valueExpression),
+			PaginateFilterOperator.Null => this.BuildNullExpression(valueExpression),
 			PaginateFilterOperator.ILike => BuildStringPatternExpression(valueExpression, criterion.Value, false, context),
 			PaginateFilterOperator.StartsWith => BuildStringPatternExpression(valueExpression, criterion.Value, true, context),
 			PaginateFilterOperator.Contains => BuildContainsExpression(valueExpression, criterion.Value, context, maxFilterValues),
@@ -76,8 +76,16 @@ internal abstract class PaginateFilterField(
 
 	private BinaryExpression BuildEqualityExpression(Expression valueExpression, string value, PaginateExpressionContext context) { return Expression.Equal(valueExpression, ConvertValue(value, valueExpression.Type, context)); }
 
-	private static Expression BuildNullExpression(Expression valueExpression) {
-		if (Nullable.GetUnderlyingType(valueExpression.Type) is null && valueExpression.Type.IsValueType) {
+	/// <summary>
+	///     Whether the value is null. The decision uses the <b>declared</b> type rather than the expression's,
+	///     because the in-memory leg lifts a value-typed member reached through a navigation to
+	///     <see cref="Nullable{T}" /> so it can yield null instead of throwing. Reading the lifted type here
+	///     would make <c>$null</c> match a row with no parent in memory while the relational leg — which never
+	///     lifts, and answers this from the declared type — matched none, and the two legs must agree. A field
+	///     declared non-nullable therefore reports "no row is null" on both, nested or not.
+	/// </summary>
+	private Expression BuildNullExpression(Expression valueExpression) {
+		if (Nullable.GetUnderlyingType(this.ExpressionType) is null && this.ExpressionType.IsValueType) {
 			return Expression.Constant(false);
 		}
 
@@ -269,6 +277,8 @@ internal sealed class PaginateScalarFilterField<TEntity, TValue>(
 
 	public override Expression BuildExpression(ParameterExpression entity, PaginateFilterCriterion criterion, PaginateExpressionContext context, int maxFilterValues) {
 		var valueExpression = ParameterReplaceVisitor.Replace(selector.Body, selector.Parameters[0], entity);
+		if (!context.UseDatabaseFunctions) valueExpression = PaginateNullSafeRewriter.Rewrite(valueExpression, entity);
+
 		return BuildOperatorExpression(valueExpression, criterion, context, maxFilterValues);
 	}
 
@@ -291,10 +301,22 @@ internal sealed class PaginateCollectionFilterField<TEntity, TElement>(
 		var collectionExpression = ParameterReplaceVisitor.Replace(collectionSelector.Body, collectionSelector.Parameters[0], entity);
 		var element = Expression.Parameter(typeof(TElement), "item");
 		var valueExpression = ParameterReplaceVisitor.Replace(valueSelector.Body, valueSelector.Parameters[0], element);
+
+		if (!context.UseDatabaseFunctions) {
+			collectionExpression = PaginateNullSafeRewriter.Rewrite(collectionExpression, entity);
+			valueExpression = PaginateNullSafeRewriter.Rewrite(valueExpression, element);
+		}
+
 		var predicateBody = BuildOperatorExpression(valueExpression, criterion, context, maxFilterValues);
 		var predicate = Expression.Lambda<Func<TElement, bool>>(predicateBody, element);
 
-		return Expression.Call(EnumerableAnyMethod, collectionExpression, predicate);
+		Expression any = Expression.Call(EnumerableAnyMethod, collectionExpression, predicate);
+
+		// Any(null, …) throws rather than answering false, so an unloaded or genuinely empty navigation would take
+		// down the in-memory leg for a request the database answers with no rows. EF never hands us a null here.
+		return context.UseDatabaseFunctions
+			? any
+			: Expression.AndAlso(Expression.NotEqual(collectionExpression, Expression.Constant(null, collectionExpression.Type)), any);
 
 	}
 

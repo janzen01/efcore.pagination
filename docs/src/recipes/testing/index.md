@@ -36,6 +36,12 @@ lies about production.
 So **assert the set, not the order**, unless the test data pins the sort keys unambiguously. LINQ-to-Objects
 orders strings with the current culture's comparer, which is not what the database will do.
 
+A field that crosses a navigation — `p => p.Category!.Name` — works here too, and a row whose intermediate is
+`null` is treated the way a database treats it: the comparison does not match, a search skips the row, a sort
+orders it as null, and `$null` **does** match it. That parity is deliberate, so a config exercised against a
+list does not pass on a case the real provider answers differently. See
+[Nested attributes](/reference/configuration/#nested-attributes).
+
 ## Test the refusals too
 
 Half the value of an allow-list is what it rejects, and rejections are the cheapest thing here to test:

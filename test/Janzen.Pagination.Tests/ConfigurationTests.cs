@@ -39,11 +39,14 @@ public sealed class ConfigurationTests {
 	}
 
 	[Fact]
-	public void A_filterable_field_needs_at_least_one_operator() {
+	public void An_explicit_operator_list_may_not_be_empty() {
 
+		// Only the explicit signature raises this now: the no-operator call binds to the shorthand overload and
+		// derives a set. Handing that overload an array that happens to be empty stays an error, because
+		// "derive" is a signature the caller chooses, never a silent fallback for a list that came out empty.
 		var exception = Assert.Throws<ArgumentException>(() => Build(b => b
 			.WithLimits(10, 10)
-			.Filterable("id", p => p.Id)));
+			.Filterable("id", p => p.Id, [])));
 
 		Assert.StartsWith("At least one filter operator must be configured.", exception.Message);
 

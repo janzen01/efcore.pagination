@@ -58,10 +58,10 @@ The config is a fluent builder rather than an object literal, and the mapping is
 | `sortableColumns: ['name']` | `.Sortable("name", p => p.Name)` |
 | `searchableColumns: ['name']` | `.Searchable("name", p => p.Name)` |
 | `filterableColumns: { age: [FilterOperator.EQ] }` | `.Filterable("age", p => p.Age, PaginateFilterOperator.Eq)` |
-| `filterableColumns: { age: true }` *(all operators)* | no equivalent — operators are listed explicitly |
+| `filterableColumns: { age: true }` *(all operators)* | `.Filterable("age", p => p.Age)` — every operator the type supports, see [operator defaults](/reference/configuration/#operator-defaults-by-type) |
 | `defaultSortBy: [['id', 'DESC']]` | `.DefaultSortBy("id", PaginateSortDirection.Desc)` |
 | `defaultLimit`, `maxLimit` | `.WithLimits(defaultLimit, maxLimit)` — **required**, no global default |
-| `relations: { … }` | absent — the [projection](/guide/projections/) decides what is loaded |
+| `relations: { … }` | not needed — the lambda names the navigation (`p => p.Author!.Name`), and a dotted field name is the convention; the [projection](/guide/projections/) decides what is loaded |
 | `select: [...]` | absent — the DTO decides |
 | `where: { … }` | absent — filter the `IQueryable` before paginating |
 | `nullSort: 'last'` | absent — null ordering is the provider's default |
