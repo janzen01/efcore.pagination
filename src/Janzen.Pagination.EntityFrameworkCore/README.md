@@ -71,7 +71,7 @@ var next = response.Meta.HasNextPage
 
 | Builder call | Enables | Notes |
 |--------------|---------|-------|
-| `.WithLimits(default, max)` | `page`, `limit` | **Required** — there is no implicit page size. |
+| `.WithLimits(default, max)` | `page`, `limit` | **Required** — there is no implicit page size, unless shared defaults supply one. |
 | `.Sortable(name, expr)` | `sortBy=name:ASC\|DESC` | Any expression the provider can put in `ORDER BY`. |
 | `.DefaultSortBy(name, dir)` | — | Used when the request sends no `sortBy`; the field must be sortable. |
 | `.WithTieBreaker(expr)` | — | Unique key appended as the final ordering key on every query. |
