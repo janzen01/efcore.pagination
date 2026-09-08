@@ -58,6 +58,25 @@
         <PackageTags>pagination;filtering;sorting;efcore;entity-framework-core;linq;query</PackageTags>
     </PropertyGroup>
 
+    <!--
+      Package validation: `dotnet pack` compares each package's public API against the previous released
+      version and fails on an accidental break. It complements the Public API analyzers rather than
+      duplicating them — those guard the intent declared in PublicAPI.Shipped.txt, this guards the packed
+      assembly, including target framework and dependency changes the source files never mention.
+
+      A deliberate break is not a defect here: record it in the project's CompatibilitySuppressions.xml,
+      which then reads as the breaking-change inventory for the release. Bump the baseline at every stable
+      release (see CLAUDE.md, *Releasing*) — leave it behind and the guard silently validates against an
+      ever-older surface.
+
+      Not conditioned on IsPackable: a PropertyGroup here is evaluated before the project body sets it (the
+      same ordering the ItemGroups below rely on in reverse), so the test project opts out in its own csproj.
+    -->
+    <PropertyGroup>
+        <EnablePackageValidation>true</EnablePackageValidation>
+        <PackageValidationBaselineVersion>10.0.3</PackageValidationBaselineVersion>
+    </PropertyGroup>
+
     <!-- Package output (symbols) -->
     <PropertyGroup>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
