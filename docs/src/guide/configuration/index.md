@@ -74,7 +74,7 @@ bookmark. Renaming one later is a breaking change to your API even though nothin
 
 ### How big a page may be
 
-There is no default page size, and `WithLimits` is the one call you cannot omit. The right size is a property
+There is no default page size, and `WithLimits` is one of the two calls you cannot omit. The right size is a property
 of the resource — how wide the row is, how expensive the projection, how the client renders it — so the
 library refuses to guess.
 
@@ -99,9 +99,14 @@ A tie-breaker on any unique column removes the ambiguity for good:
 .WithTieBreaker(p => p.Id)          // appended to every sort, always last
 ```
 
-The engine takes this seriously enough to refuse: with no `sortBy`, no `DefaultSortBy` and no tie-breaker, a
-request fails rather than paging an unordered set. Configure the tie-breaker once and the question never
-arises again.
+The engine takes this seriously enough that `WithTieBreaker` is **required**: a configuration without one does
+not build. It used to be a `400` on every request such a config could not order, which reported a
+configuration defect as a client error and stayed hidden for as long as every caller happened to send
+`sortBy`. Now it is one line, checked once, and the question never arises again.
+
+It is required outright rather than "a default sort **or** a tie-breaker", because the weaker rule does not
+hold: a `DefaultSortBy` field can be switched off per caller by [`When`](/reference/configuration/#when), and
+a config whose only default is disabled would pass that check and still have nothing to order by.
 
 `DefaultSortBy` is the separate question of what "no `sortBy`" should mean — newest first, featured first —
 and it applies only when the caller expresses no preference at all. A request that sends `sortBy` replaces

@@ -123,11 +123,8 @@ equal cannot swap places between pages.
 - No `sortBy` at all → the config's `DefaultSortBy` entries, in declaration order.
 - The configured **tie-breaker is always appended last**, whichever of the two applied.
 
-If there is no `sortBy`, no `DefaultSortBy` and no tie-breaker, the engine refuses the request rather than
-paging an unordered set:
-
-> Pagination requires a deterministic sort order. Pass 'sortBy', configure DefaultSortBy(...), or add
-> WithTieBreaker(...) to the pagination configuration.
+There is therefore always an ordering: a configuration cannot be built without a tie-breaker (see
+[`WithTieBreaker`](/reference/configuration/#withtiebreaker)), so no request can reach an unordered page.
 
 ## `search` and `searchBy`
 

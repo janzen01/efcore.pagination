@@ -74,7 +74,7 @@ var next = response.Meta.HasNextPage
 | `.WithLimits(default, max)` | `page`, `limit` | **Required** — there is no implicit page size, unless shared defaults supply one. |
 | `.Sortable(name, expr)` | `sortBy=name:ASC\|DESC` | Any expression the provider can put in `ORDER BY`. |
 | `.DefaultSortBy(name, dir)` | — | Used when the request sends no `sortBy`; the field must be sortable. |
-| `.WithTieBreaker(expr)` | — | Unique key appended as the final ordering key on every query. |
+| `.WithTieBreaker(expr)` | — | **Required** — unique key appended as the final ordering key on every query, so offset paging is deterministic. |
 | `.Searchable(name, expr)` | `search`, `searchBy=name` | Selector must return `string?`. |
 | `.Filterable(name, expr, ops…)` | `filter.name=$op:value` | At least one operator; the list is that field's allow-list. |
 | `.Filterable(name, expr)` | `filter.name=$op:value` | Every operator the engine can build for `TValue` — see *Operator defaults* below. |
@@ -160,6 +160,7 @@ so the restriction is documented, otherwise `Build()` throws:
 ```csharp
 PaginateConfig<Article>.Create(b => b
     .WithLimits(25, 100)
+    .WithTieBreaker(a => a.Id)
     .Sortable("title", a => a.Title)
     .Filterable("isDeleted", a => a.IsDeleted, PaginateFilterOperator.Eq)
         .When(currentUser.IsAdmin).ShowBadge("Admin only", "language-admin"));

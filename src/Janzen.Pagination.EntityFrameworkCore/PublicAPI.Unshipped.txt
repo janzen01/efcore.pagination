@@ -4,7 +4,6 @@ Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntit
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators.For(System.Type! type) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]!
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators.For<TValue>() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]!
-
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.MaxOffset.get -> int?
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.MinSearchLength.get -> int
 Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.UnlimitedMaxRows.get -> int?
@@ -44,3 +43,6 @@ static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefault
 static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.operator !=(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults? left, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults? right) -> bool
 static Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.operator ==(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults? left, Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults? right) -> bool
 const Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery.UnlimitedLimit = -1 -> int
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
+*REMOVED*Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.WithGuards(int maxFilterValues = 100, int maxFilterConditions = 20, int maxSortFields = 5, int maxSearchLength = 256) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
+*REMOVED*Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>?

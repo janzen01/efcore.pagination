@@ -10,8 +10,8 @@ namespace Janzen.Pagination.EntityFrameworkCore.Model;
 ///     from this very object.
 /// </summary>
 /// <remarks>
-///     How much of the request <see cref="Query" /> carries depends on which composer produced it, and
-///     <see cref="SortBy" /> says which one that was. A class rather than a record: the collection members and
+///     How much of the request <see cref="Query" /> carries depends on which composer produced it; every member
+///     is resolved either way. A class rather than a record: the collection members and
 ///     <see cref="Query" /> would make synthesized value equality compare by reference and answer questions it
 ///     cannot actually answer — the same reason <see cref="PaginateQuery" /> is a class.
 /// </remarks>
@@ -22,7 +22,7 @@ public sealed class PaginateComposedQuery<TEntity> {
 		IQueryable<TEntity> query,
 		int page,
 		int limit,
-		IReadOnlyList<string>? sortBy,
+		IReadOnlyList<string> sortBy,
 		string? search,
 		IReadOnlyList<string> searchBy,
 		IReadOnlyDictionary<string, IReadOnlyList<string>> filter
@@ -55,13 +55,12 @@ public sealed class PaginateComposedQuery<TEntity> {
 	///     <c>sortBy</c>, or the configured <c>DefaultSortBy</c> when it was omitted. The tie-breaker is not listed:
 	///     it is an implementation detail of deterministic paging, not part of the requested order.
 	///     <para>
-	///         <see langword="null" /> means the ordering was never resolved, which is what
-	///         <c>ApplyPaginateFilters</c> returns — it does not order, so it does not read <c>sortBy</c> at all.
-	///         That is a different answer from an empty list, which means the ordering <i>was</i> resolved and the
-	///         request asked for none.
+	///         Empty means the request asked for no ordering and the configuration declares no
+	///         <c>DefaultSortBy</c> — the tie-breaker alone then orders the page. Both composers resolve this;
+	///         <c>ApplyPaginateFilters</c> reports the ordering that would apply without applying it.
 	///     </para>
 	/// </summary>
-	public IReadOnlyList<string>? SortBy { get; }
+	public IReadOnlyList<string> SortBy { get; }
 
 	/// <summary>The search term that was applied, or <see langword="null" /> when the request carried none.</summary>
 	public string? Search { get; }

@@ -256,4 +256,16 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 
 	}
 
+	[Fact]
+	public async Task A_ceiling_at_the_int_maximum_does_not_overflow_into_an_empty_page() {
+
+		// maxRows + 1 wraps to int.MinValue there, and Take with a negative count returns nothing -- so an
+		// unlimited read answered zero rows and a zero count, silently, with no exception anywhere.
+		var page = await Products().PageAsync<ProductDto>(new PaginateQuery { Limit = -1 }, Config(b => b.AllowUnlimited(int.MaxValue)));
+
+		Assert.Equal(8, page.Items.Count);
+		Assert.Equal(8, page.Meta.TotalItems);
+
+	}
+
 }

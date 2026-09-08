@@ -210,12 +210,16 @@ independent of each other — consumers pick the extensions they need:
   Both return `PaginateComposedQuery<TEntity>`: the composed `Query` plus the effective `Page` / `Limit` /
   `SortBy` / `Search` / `SearchBy` / `Filter`, the same values `PaginatedMeta` carries, from the same resolution.
   - `ApplyPaginateFilters(request, config)` — filters + search only (`Query` is the **match set**, unordered and
-    unpaged), for facets / sums / exports. Validates everything except `sortBy`, which it never applies.
-  - `ApplyPagination(request, config)` — the full page query. Full validation; **no** count and **no**
+    unpaged), for facets / sums / exports. Resolves and validates everything, `sortBy` included: it reports the
+    ordering that *would* apply without applying it.
+  - `ApplyPagination(request, config)` — the full page query. Same validation; **no** count and **no**
     past-the-end short-circuit, so it describes what would run rather than optimizing it away.
-  - **`SortBy` is nullable and `null` ≠ `[]`**: `null` means "never resolved" (the filtered composer), `[]` means
-    "resolved, nothing requested". Collapsing them would make `?sortBy=name:DESC` report `[]` on the filtered
-    path, which reads as "nothing is sorted". Don't "simplify" it back to non-null.
+  - **`SortBy` went back to non-nullable in `10.1.0`, and that is F16's doing.** It was nullable because the
+    filtered composer skipped sort resolution — `ResolveSorts` could *refuse* a config with nothing to order
+    by, which would have rejected a facet count over a request that never wanted an order. Making the
+    tie-breaker required at `Build()` deleted that refusal, so both composers now validate identically and
+    `[]` unambiguously means "resolved, nothing requested". Don't re-introduce the null.
+  - Both composers now also call `ResolveSorts`; only `ApplyPagination` applies the result.
   - All three paths (both composers and `PaginateCoreAsync`) go through one private `Compose`, which is what makes
     "the composed SQL is the executed SQL" true. `ComposerTests` asserts it against a captured command — do not
     give a composer its own copy of a stage.
@@ -471,6 +475,16 @@ Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs
   `links.next` / `links.last` / `meta.hasNextPage` are drawn from `NavigablePages`, which clamps to what
   `WithMaxOffset` allows. Otherwise a config hands out a `next` link to a page it then answers with a 400, and
   a client that pages by following links walks into a hard error instead of the end of the collection.
+- **`WithTieBreaker` is required at `Build()`, and required outright** — not "a `DefaultSortBy` *or* a
+  tie-breaker". The weaker form does not hold: a default-sort field is filtered through `When(...)` while the
+  tie-breaker is not, so a config whose only default is disabled for a caller would pass that check and still
+  have nothing to order by. Shipped in `10.1.0` as the library's own breaking change, deliberately not held
+  for `11.0`. What it deleted: the runtime `400 Pagination requires a deterministic sort order …`, its row on
+  `reference/errors/`, and the `keys.Count == 0` guard in `ResolveSorts` — a configuration defect reported as
+  a client error, which stayed invisible for as long as every caller happened to send `sortBy`. Note the
+  break is **behavioural, not binary**: `dotnet pack` stays silent because the `SortBy` nullability change is
+  an annotation, not a signature, so `PublicAPI.Shipped.txt` (RS0017) is the only guard that fires. Don't add
+  an opt-out; a knob that disables a correctness guarantee is a knob someone will turn.
 - **`limit=-1` is opt-in per resource and its row ceiling is mandatory.** `AllowUnlimited(maxRows)` has no
   argument-less form, and `PaginateConfigDefaults` deliberately cannot carry it: a global "unlimited is fine"
   is a promise about table sizes nobody can make. The engine fetches `maxRows + 1` so "exactly at the ceiling"

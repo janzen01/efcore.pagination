@@ -1,11 +1,15 @@
 namespace Janzen.Pagination.Tests;
 
-/// <summary>Ordering: the wire format, the defaults, the tie-breaker, and the refusal to page unordered.</summary>
+/// <summary>Ordering: the wire format, the defaults, and the tie-breaker every configuration must declare.</summary>
 public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFixture> {
 
-	/// <summary>No sortBy, no default, no tie-breaker — the one config the engine refuses to page.</summary>
+	/// <summary>
+	///     No sortable field and no default sort — the tie-breaker alone is the ordering. This used to be the
+	///     config the engine refused to page; it is now the minimum a valid one can be.
+	/// </summary>
 	private readonly static PaginateConfig<Product> Unordered = PaginateConfig<Product>.Create(b => b
 		.WithLimits(50, 50)
+		.WithTieBreaker(p => p.Id)
 		.Filterable("id", p => p.Id, PaginateFilterOperator.Eq));
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request, PaginateConfig<Product>? config = null) {
@@ -80,10 +84,16 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 	}
 
 	[Fact]
-	public async Task Paging_without_any_ordering_is_refused() {
-		Assert.Equal(
-			"Pagination requires a deterministic sort order. Pass 'sortBy', configure DefaultSortBy(...), or add WithTieBreaker(...) to the pagination configuration.",
-			await this.Rejects(new PaginateQuery(), Unordered));
+	public void A_config_that_cannot_order_is_refused_at_build_time() {
+
+		// This used to be a runtime 400 on every request the config could not order -- a configuration defect
+		// reported as a client error, and one that hid for as long as every caller happened to send sortBy.
+		var exception = Assert.Throws<InvalidOperationException>(() => PaginateConfig<Product>.Create(b => b
+			.WithLimits(50, 50)
+			.Sortable("rank", p => p.Rank)));
+
+		Assert.StartsWith("A pagination configuration requires WithTieBreaker(...):", exception.Message);
+
 	}
 
 	[Fact]
@@ -121,10 +131,15 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 	}
 
 	[Fact]
-	public async Task Paging_without_any_ordering_is_refused_even_when_nothing_matches() {
-		Assert.Equal(
-			"Pagination requires a deterministic sort order. Pass 'sortBy', configure DefaultSortBy(...), or add WithTieBreaker(...) to the pagination configuration.",
-			await this.Rejects(MatchingNothing(), Unordered));
+	public async Task A_config_with_only_a_tie_breaker_orders_by_it_even_when_nothing_matches() {
+
+		// The counterpart of the build-time refusal above: a config that declares no sortable field at all is
+		// still perfectly valid, because the tie-breaker is the ordering.
+		var page = await this.Page(MatchingNothing(), Unordered);
+
+		Assert.Empty(page.Items);
+		Assert.Empty(page.Meta.SortBy);
+
 	}
 
 }

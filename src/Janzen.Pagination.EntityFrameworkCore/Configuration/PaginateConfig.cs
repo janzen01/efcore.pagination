@@ -689,6 +689,16 @@ public sealed class PaginateConfigBuilder<TEntity> {
 			throw new InvalidOperationException($"Default sort field '{sort.Field}' is not sortable.");
 		}
 
+		// Required outright, rather than "a default sort or a tie-breaker". The weaker rule does not hold: a
+		// DefaultSortBy field is filtered through When(...), so a config whose only default is disabled for this
+		// caller would pass the build check and still have nothing to order by at request time. One rule that is
+		// always true costs one line on a config that already has to call WithLimits.
+		if (_tieBreakerSelector is null) {
+			throw new InvalidOperationException(
+				"A pagination configuration requires WithTieBreaker(...): offset paging over a non-unique order can return the same row on two pages and skip another. Pass the entity's primary key, e.g. WithTieBreaker(x => x.Id)."
+			);
+		}
+
 		var allFields = _sortableFields.Values.Cast<IPaginateFieldTarget>().Concat(_searchableFields.Values).Concat(_filterableFields.Values);
 		if (allFields.Any(field => field.Condition.HasValue && field.Badge is null)) {
 			throw new InvalidOperationException("A field configured with .When(...) must also declare .ShowBadge(...) so the condition is documented in the OpenAPI output.");

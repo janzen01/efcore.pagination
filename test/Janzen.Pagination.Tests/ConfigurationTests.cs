@@ -3,7 +3,28 @@ namespace Janzen.Pagination.Tests;
 /// <summary>What the builder refuses to produce, and what it exposes about what it did produce.</summary>
 public sealed class ConfigurationTests {
 
-	private static PaginateConfig<Product> Build(Action<PaginateConfigBuilder<Product>> configure) { return PaginateConfig<Product>.Create(configure); }
+	// Every config needs a tie-breaker now, and none of these tests is about that rule, so the helper supplies
+	// one -- the tests that ARE about it call Create directly.
+	private static PaginateConfig<Product> Build(Action<PaginateConfigBuilder<Product>> configure) {
+		return PaginateConfig<Product>.Create(b => {
+			b.WithTieBreaker(p => p.Id);
+			configure(b);
+		});
+	}
+
+	[Fact]
+	public void A_tie_breaker_is_mandatory() {
+
+		var exception = Assert.Throws<InvalidOperationException>(() => PaginateConfig<Product>.Create(b => b
+			.WithLimits(10, 10)
+			.Sortable("id", p => p.Id)
+			.DefaultSortBy("id")));
+
+		// Required outright, not "a default sort or a tie-breaker": a DefaultSortBy field can be disabled by
+		// When(false) for a given caller, so the weaker rule would pass here and still leave nothing to order by.
+		Assert.StartsWith("A pagination configuration requires WithTieBreaker(...):", exception.Message);
+
+	}
 
 	[Fact]
 	public void Limits_are_mandatory() {

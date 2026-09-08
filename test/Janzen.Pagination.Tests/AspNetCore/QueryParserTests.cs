@@ -117,7 +117,8 @@ public sealed class QueryParserTests {
 	[Theory]
 	[InlineData("?limit=-2")]
 	[InlineData("?limit=-0")]
-	[InlineData("?limit=+1")]
+	[InlineData("?limit=%2B1")]   // an escaped plus, which a bare + would have decoded to a space
+	[InlineData("?limit=%2B5")]
 	[InlineData("?limit=abc")]
 	[InlineData("?limit=1.0")]
 	public async Task Every_other_malformed_limit_is_still_refused(string queryString) {
@@ -148,6 +149,16 @@ public sealed class QueryParserTests {
 		var page = await TestData.Products().AsQueryable().PageAsync<ProductDto>(Parse("?limit=-1"), config);
 
 		Assert.Equal(8, page.Items.Count);
+
+	}
+
+	[Fact]
+	public async Task Limit_and_page_still_reject_the_same_forms() {
+
+		// -1 is carved out of limit by matching the literal, not by loosening the number styles: AllowLeadingSign
+		// would also have started accepting "+5" on limit while page went on rejecting it.
+		Assert.Equal("Query parameter 'limit' must be a positive integer.", await Rejects(Parse("?limit=%2B5")));
+		Assert.Equal("Query parameter 'page' must be a positive integer.", await Rejects(Parse("?page=%2B5")));
 
 	}
 
