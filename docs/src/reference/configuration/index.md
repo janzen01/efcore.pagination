@@ -220,29 +220,50 @@ operators need a `string` field, `$contains` needs a string or a collection.
 **Rejects at configuration time:**
 
 - a null or whitespace `name`; a null `selector`
-- an **empty** `operators` list → `ArgumentException`, `At least one filter operator must be configured.`
+- an **empty** `operators` list → `ArgumentException`, `At least one filter operator must be configured.` — this is the *explicit* signature only; omitting the argument entirely selects the shorthand below
 
 **Rejects at request time:** the operator-applicability and value-conversion errors in
 [Errors](../errors/#filter-operators).
 
-The same grant tends to repeat across every date and numeric field, and there is no built-in preset. A shared
-array is the idiom — `params` accepts one directly:
+### Operator defaults by type
+
+Omit the operator list and the field is granted every operator the engine can build for `TValue`:
 
 ```csharp
-private static readonly PaginateFilterOperator[] Comparable = [
-    PaginateFilterOperator.Eq,
-    PaginateFilterOperator.GreaterThan, PaginateFilterOperator.GreaterThanOrEqual,
-    PaginateFilterOperator.LessThan,    PaginateFilterOperator.LessThanOrEqual,
-    PaginateFilterOperator.Between
-];
-
-// …
-.Filterable("price", p => p.Price, Comparable)
-.Filterable("createdAt", p => p.CreatedAt, Comparable)
+.Filterable("age", p => p.Age)                 // Eq, In, Gt, Gte, Lt, Lte, Between
+.Filterable("name", p => p.Name)               // Eq, In, Null, StartsWith, Contains, ILike
+.FilterableMany("tag", a => a.Tags, t => t.Name)
 ```
 
-Worth naming rather than copying: an allow-list you paste eleven times is one you stop reading, and the point
-of the list is that someone reads it.
+| `TValue` | Derived operators |
+|----------|-------------------|
+| `string` | `Eq`, `In`, `Null`, `StartsWith`, `Contains`, `ILike` |
+| `bool` | `Eq` |
+| numbers, `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly`, `TimeSpan`, and [registered types](/guide/providers-and-types/) with an ordering of their own | `Eq`, `In`, `GreaterThan`, `GreaterThanOrEqual`, `LessThan`, `LessThanOrEqual`, `Between` |
+| `Guid`, `char`, enums | `Eq`, `In` |
+| anything else | `ArgumentException` at configuration time — the shorthand never guesses |
+
+`Null` joins the set exactly when the engine can express it: for reference types always, for value types only
+through `Nullable<T>`. So `p => p.Age` (an `int`) has no `$null`, and `p => p.RetiredOn` (a `DateOnly?`) does.
+
+Ranges are deliberately withheld from `string`, `Guid`, `char` and enums. They *translate* — the engine has a
+stand-in for each — but the ordering is then the database's collation or byte order rather than anything you
+chose, which is rarely what a range filter is being asked for. Grant them explicitly when it is.
+
+Two consequences worth knowing before reaching for the shorthand. A field declared this way **widens when the
+library does**: a release that adds an operator to one of these rows grants it to every shorthand field on
+rebuild, and any such release says so in its notes. And the derived set is the whole allow-list, so the advice
+above still holds — `$ilike` on an unindexed text column is a sequential scan whether you typed the operator
+or the type implied it. On a large table, list what you actually serve.
+
+The derivation is public, which is the middle road between the two signatures — start from the set and adjust:
+
+```csharp
+.Filterable("price", p => p.Price, PaginateFilterOperators.For<decimal>())
+.Filterable("score", p => p.Score, [.. PaginateFilterOperators.For<int>(), PaginateFilterOperator.Null])
+```
+
+`PaginateFilterOperators.For(Type)` is the reflection-typed counterpart, for a config assembled dynamically.
 
 ### `FilterableMany`
 
@@ -270,6 +291,29 @@ For a field that already **is** a collection on the entity — an array column �
 
 **Rejects at configuration time:** a null or whitespace `name`; a null on either selector; an empty
 `operators` list, same message as `Filterable`.
+
+---
+
+## Nested attributes
+
+A selector may cross a navigation, and a field name is opaque to the engine — so the convention is to spell
+the path out with dots:
+
+```csharp
+.Filterable("author.name", a => a.Author!.Name)
+.Sortable("author.name",   a => a.Author!.Name)
+.Searchable("author.name", a => a.Author!.Name)
+.FilterableMany("order.product", c => c.Orders, o => o.Product!.Name)
+```
+
+`?filter.author.name=$eq:ann`, `?sortBy=author.name:ASC` and `?searchBy=author.name` then behave like any
+other field: there is nothing to register, because EF derives the join from the navigation in the lambda.
+Nothing stops you calling the field `authorName` — the dotted form is a convention, and the one the generated
+OpenAPI parameter list reads best in.
+
+A row whose intermediate is `null` is treated the way the database treats it: the join yields no value, so a
+comparison does not match, a search skips the row, a sort orders it as null, and `$null` **does** match. That
+holds on a plain `IQueryable` too — see [Testing without a database](/recipes/testing/).
 
 ---
 

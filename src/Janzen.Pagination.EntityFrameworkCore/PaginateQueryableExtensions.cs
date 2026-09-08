@@ -120,7 +120,8 @@ public static class PaginateQueryableExtensions {
 
 		var aggregate = (from field in fields
 			select ParameterReplaceVisitor.Replace(field.Selector.Body, field.Selector.Parameters[0], entity)
-			into valueExpression
+			into spliced
+			let valueExpression = context.UseDatabaseFunctions ? spliced : PaginateNullSafeRewriter.Rewrite(spliced, entity)
 			let notNull = Expression.NotEqual(valueExpression, Expression.Constant(null, valueExpression.Type))
 			let match = context.UseDatabaseFunctions
 				? context.LikeStrategy.BuildLike(
@@ -208,8 +209,16 @@ public static class PaginateQueryableExtensions {
 
 	private static IQueryable<TEntity> ApplySorts<TEntity>(IQueryable<TEntity> query, IReadOnlyList<(LambdaExpression Selector, bool Descending)> sorts) {
 
+		// The same provider test the filter and search stages make, asked here rather than threaded down from
+		// Compose: sorting is resolved separately from the composed query, and one of the two callers has no
+		// context object to carry. A sort key crossing a navigation needs the null-safe form on the in-memory
+		// leg exactly as a filter does — ordering by a rewritten key puts the missing ones where the provider
+		// puts nulls.
+		bool useDatabaseFunctions = query.Provider is IAsyncQueryProvider;
+
 		for (int index = 0; index < sorts.Count; index++) {
-			query = PaginateExpressionUtils.ApplyOrder(query, sorts[index].Selector, sorts[index].Descending, index == 0);
+			var selector = useDatabaseFunctions ? sorts[index].Selector : PaginateNullSafeRewriter.Rewrite(sorts[index].Selector);
+			query = PaginateExpressionUtils.ApplyOrder(query, selector, sorts[index].Descending, index == 0);
 		}
 
 		return query;

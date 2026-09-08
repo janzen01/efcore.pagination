@@ -438,6 +438,25 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	}
 
 	/// <summary>
+	///     Declares a scalar field as filterable via <c>filter.&lt;name&gt;=$op:value</c>, whitelisting every operator
+	///     the engine can build for <typeparamref name="TValue" /> — see <see cref="PaginateFilterOperators.For{TValue}" />
+	///     for the derivation and its limits. Throws when the type has no derivation; such a field takes the overload
+	///     with an explicit operator list.
+	/// </summary>
+	public PaginateConfigBuilder<TEntity> Filterable<TValue>(string name, Expression<Func<TEntity, TValue>> selector) { return Filterable(name, selector, PaginateFilterOperators.For<TValue>()); }
+
+	/// <summary>
+	///     Declares a collection/navigation field as filterable, whitelisting every operator the engine can build for
+	///     <typeparamref name="TValue" /> — the <see cref="PaginateFilterOperators.For{TValue}" /> derivation, exactly as
+	///     the scalar shorthand above. Throws when the type has no derivation.
+	/// </summary>
+	public PaginateConfigBuilder<TEntity> FilterableMany<TElement, TValue>(
+		string name,
+		Expression<Func<TEntity, IEnumerable<TElement>>> collectionSelector,
+		Expression<Func<TElement, TValue>> valueSelector
+	) { return FilterableMany(name, collectionSelector, valueSelector, PaginateFilterOperators.For<TValue>()); }
+
+	/// <summary>
 	///     Declares a scalar field as filterable via <c>filter.&lt;name&gt;=$op:value</c>, restricted to the supplied
 	///     <paramref name="operators" /> (at least one is required).
 	/// </summary>

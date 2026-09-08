@@ -269,6 +269,8 @@ internal sealed class PaginateScalarFilterField<TEntity, TValue>(
 
 	public override Expression BuildExpression(ParameterExpression entity, PaginateFilterCriterion criterion, PaginateExpressionContext context, int maxFilterValues) {
 		var valueExpression = ParameterReplaceVisitor.Replace(selector.Body, selector.Parameters[0], entity);
+		if (!context.UseDatabaseFunctions) valueExpression = PaginateNullSafeRewriter.Rewrite(valueExpression, entity);
+
 		return BuildOperatorExpression(valueExpression, criterion, context, maxFilterValues);
 	}
 
@@ -291,10 +293,22 @@ internal sealed class PaginateCollectionFilterField<TEntity, TElement>(
 		var collectionExpression = ParameterReplaceVisitor.Replace(collectionSelector.Body, collectionSelector.Parameters[0], entity);
 		var element = Expression.Parameter(typeof(TElement), "item");
 		var valueExpression = ParameterReplaceVisitor.Replace(valueSelector.Body, valueSelector.Parameters[0], element);
+
+		if (!context.UseDatabaseFunctions) {
+			collectionExpression = PaginateNullSafeRewriter.Rewrite(collectionExpression, entity);
+			valueExpression = PaginateNullSafeRewriter.Rewrite(valueExpression, element);
+		}
+
 		var predicateBody = BuildOperatorExpression(valueExpression, criterion, context, maxFilterValues);
 		var predicate = Expression.Lambda<Func<TElement, bool>>(predicateBody, element);
 
-		return Expression.Call(EnumerableAnyMethod, collectionExpression, predicate);
+		Expression any = Expression.Call(EnumerableAnyMethod, collectionExpression, predicate);
+
+		// Any(null, …) throws rather than answering false, so an unloaded or genuinely empty navigation would take
+		// down the in-memory leg for a request the database answers with no rows. EF never hands us a null here.
+		return context.UseDatabaseFunctions
+			? any
+			: Expression.AndAlso(Expression.NotEqual(collectionExpression, Expression.Constant(null, collectionExpression.Type)), any);
 
 	}
 

@@ -191,6 +191,12 @@ inspected again.
 Field names are matched case-insensitively, and case variants of the same field collapse into one entry, so
 `?filter.Status=…&filter.status=…` is two criteria on one field rather than two fields.
 
+A name is opaque to the engine — whatever the config called the field. That includes **dots**: a field
+reached through a navigation is conventionally named for its path, so `?filter.author.name=$eq:ann`,
+`?sortBy=author.name:ASC` and `?searchBy=author.name` are ordinary requests against a field named
+`author.name`, not a nested-object syntax. See
+[Nested attributes](/reference/configuration/#nested-attributes).
+
 ### Operator reference
 
 Each field whitelists its own operators in the config; sending one that is not whitelisted for that field is a

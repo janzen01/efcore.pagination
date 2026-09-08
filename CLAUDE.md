@@ -156,6 +156,14 @@ independent of each other — consumers pick the extensions they need:
   `.Filterable(name, expr, ops…)`, `.FilterableMany(name, coll, expr, ops…)` (matches any element → `Any(...)`), plus
   `.ShowBadge(name, cssClass?)` / `.When(bool)` on the field declared immediately before. Often exposed via an
   `IPaginateConfigProvider<T>`.
+  Both `Filterable` overloads have an **operator-less sibling** (`.Filterable(name, expr)`) whitelisting
+  `PaginateFilterOperators.For<TValue>()` — the public derivation, and the single place a later release widens a
+  row (which then widens every shorthand field on rebuild: release-note it). Ranges are deliberately withheld
+  from `string` / `Guid` / `char` / enum, `Null` joins only where the value can be null, and an underivable type
+  throws at `Build()` rather than guessing. The empty-array error stays on the *explicit* signature: "derive" is
+  a signature the caller picks, never a fallback for a list that came out empty. Note the overload resolution —
+  a pre-existing zero-operator call binds to the new overload in normal form and now *configures* instead of
+  throwing; only already-compiled consumers keep the old behaviour, until they rebuild.
 - **`PaginateQuery`** — immutable request: `Page`, `Limit`, `SortBy` (`["field:DESC"]`), `Search`, `SearchBy`, `Filters`
   (`field → ["$op:value"]`), plus `.WithPage(n)` — the same request on another page, which is how a caller with no
   `PaginateLinkContext` (so a `null` `Links`) navigates off `Meta`. It is a `class`, not a `record`: value equality over
@@ -359,6 +367,13 @@ neither needing Docker:
   and it exercises the engine's `UseDatabaseFunctions` path (`EF.Functions.Like`, `EF.Parameter`).
 - **Plain `IQueryable`** (`List<T>.AsQueryable()`) — the engine's other branch (`string.IndexOf`, synchronous terminal
   operators). Also the only place date filters can be asserted, see below.
+  It is additionally the only leg where `PaginateNullSafeRewriter` runs: a selector crossing a navigation
+  (`p => p.Category!.Name`) compiles to a plain dereference here and threw an NRE for a row with no parent,
+  where every relational provider LEFT JOINs and answers normally. The rewrite makes the two legs agree,
+  **including for `$null`, which matches such a row on both** — a predicate-level guard would have answered
+  "no" and quietly disagreed with the database. A value-typed member is lifted to `Nullable<T>` on the way, so
+  a caller reads the rewritten expression's type rather than the member's. `NestedPathTests` is the leg's
+  parity suite; seven of its nine cases fail if the rewriter is short-circuited.
 
 Two SQLite limits shape what may be asserted there, and **neither is the library's doing** — both reproduce with a
 plain `Where` and no engine involved:

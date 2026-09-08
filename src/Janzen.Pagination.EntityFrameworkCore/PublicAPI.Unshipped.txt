@@ -1,1 +1,6 @@
 #nullable enable
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.Filterable<TValue>(string! name, System.Linq.Expressions.Expression<System.Func<TEntity, TValue>!>! selector) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.FilterableMany<TElement, TValue>(string! name, System.Linq.Expressions.Expression<System.Func<TEntity, System.Collections.Generic.IEnumerable<TElement>!>!>! collectionSelector, System.Linq.Expressions.Expression<System.Func<TElement, TValue>!>! valueSelector) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators
+static Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators.For(System.Type! type) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]!
+static Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators.For<TValue>() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]!

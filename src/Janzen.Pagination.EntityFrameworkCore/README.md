@@ -77,7 +77,9 @@ var next = response.Meta.HasNextPage
 | `.WithTieBreaker(expr)` | — | Unique key appended as the final ordering key on every query. |
 | `.Searchable(name, expr)` | `search`, `searchBy=name` | Selector must return `string?`. |
 | `.Filterable(name, expr, ops…)` | `filter.name=$op:value` | At least one operator; the list is that field's allow-list. |
+| `.Filterable(name, expr)` | `filter.name=$op:value` | Every operator the engine can build for `TValue` — see *Operator defaults* below. |
 | `.FilterableMany(name, coll, expr, ops…)` | `filter.name=$op:value` | Matches any element of a child collection (`Any(...)`). |
+| `.FilterableMany(name, coll, expr)` | `filter.name=$op:value` | The same derivation, from the value selector's type. |
 | `.WithGuards(…)` | — | Ceilings on filter values / conditions / sort fields / search length. |
 | `.ShowBadge(name, cssClass?)` | — | Labels the preceding field in the OpenAPI output. |
 | `.When(bool)` | — | Gates the preceding field at query time; must be paired with `.ShowBadge`. |
@@ -90,6 +92,26 @@ var next = response.Meta.HasNextPage
 // Tighter guards than the defaults (100 / 20 / 5 / 256)
 .WithGuards(maxFilterValues: 25, maxSortFields: 3)
 ```
+
+## Operator defaults
+
+Omitting the operator list grants every operator the engine can build for that type: the pattern operators
+for `string`, the range operators for numbers and dates, `Eq`/`In` for `Guid`, `char` and enums, and `Null`
+wherever the value can actually be null. A type with no derivation throws at configuration time rather than
+guessing.
+
+```csharp
+.Filterable("age",  p => p.Age)                                    // Eq, In, Gt, Gte, Lt, Lte, Between
+.Filterable("name", p => p.Name)                                   // Eq, In, Null, StartsWith, Contains, ILike
+.Filterable("price", p => p.Price, PaginateFilterOperators.For<decimal>())   // the same set, spelled out
+```
+
+A field declared this way widens when the library adds an operator to one of those rows, which is called out
+in that release's notes. On a large table, prefer listing what you actually serve.
+
+A selector may cross a navigation — `p => p.Author!.Name`, conventionally named `author.name` — and on a
+plain `IQueryable` a row whose intermediate is `null` behaves as the database would: no match, and `$null`
+matches. [Full reference](https://janzen01.github.io/efcore.pagination/reference/configuration/#nested-attributes)
 
 ## Badges
 
