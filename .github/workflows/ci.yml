@@ -57,6 +57,14 @@ jobs:
       - name: Test
         run: dotnet test Janzen.Pagination.slnx -c Release --no-build
 
+      # Package validation runs at pack time only, so without this step the API-break guard would first
+      # speak inside publish.yml -- after the tag exists, which is exactly too late. One leg is enough:
+      # the comparison is against a downloaded baseline package and produces the same verdict on every
+      # OS, so the other two would only re-download it.
+      - name: Pack (package validation)
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet pack Janzen.Pagination.slnx -c Release --no-build
+
   # The two verifiers chained into `pnpm docs:build` are the only thing standing between a renamed heading
   # and a dead link inside a package that is already on nuget.org, where it renders against that version
   # forever. Running here rather than in docs.yml is what finally makes them a gate rather than advice.

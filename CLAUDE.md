@@ -316,19 +316,26 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
 2. **At a stable release only**, move each `PublicAPI.Unshipped.txt` into its `PublicAPI.Shipped.txt`. That is
    what makes a later removal an RS0017 build error. Do **not** do it for an `-rc.N`: an rc-only member promoted
    to *shipped* cannot then be dropped before stable without fighting the analyzer.
-3. Release notes go **on the GitHub release** — there is no changelog file, and `PackageReleaseNotes` points at
+3. **At a stable release only**, bump `PackageValidationBaselineVersion` in `Directory.Build.props` to the
+   version just released — it is what every later `dotnet pack` compares the public API against, so leaving it
+   behind means the guard keeps validating against an ever-older surface and stops noticing breaks introduced
+   in between. Same rc caveat as step 2: an `-rc.N` is not a baseline. If the release *contains* a deliberate
+   break, its `CompatibilitySuppressions.xml` entries were needed only against the old baseline and should be
+   deleted in the same commit — regenerate with `dotnet pack -p:ApiCompatGenerateSuppressionFile=true` rather
+   than hand-editing.
+4. Release notes go **on the GitHub release** — there is no changelog file, and `PackageReleaseNotes` points at
    the Releases page.
-4. Publishing authenticates by **Trusted Publishing (OIDC)**, so there is no API key anywhere. The policy lives
+5. Publishing authenticates by **Trusted Publishing (OIDC)**, so there is no API key anywhere. The policy lives
    on nuget.org under the *owner* (not per package), keyed to repository owner + repo + `publish.yml` + the
    **`nuget` environment**. That last field is optional on nuget.org's side, but it is filled in here on purpose:
    left empty, the policy would trust any run of that workflow, gated or not. A fresh policy is "pending full
    activation" for 7 days and goes inactive if nothing is published in that window; the first successful publish
    makes it permanent.
-5. The job declares `environment: nuget`, so the run **stops for a manual approval** (required reviewer, and only
+6. The job declares `environment: nuget`, so the run **stops for a manual approval** (required reviewer, and only
    a `v*` tag may deploy) before it reaches the OIDC exchange. Approve it under *Review deployments* in the run.
    Nothing reaches nuget.org until then, which is also why a mismatched policy fails at `NuGet login` rather than
    half-way through a push.
-6. The same job records a **build provenance attestation** for every packed file, and that is where it ends:
+7. The same job records a **build provenance attestation** for every packed file, and that is where it ends:
    **nothing is attached to the GitHub release.** Releases here are *immutable*, so a `gh release upload` step
    fails with `HTTP 422: Cannot upload assets to an immutable release` — learned by trying it during the
    `10.0.0` publish. Don't re-add one. Note what that costs: `gh attestation verify` compares a file digest,
@@ -336,7 +343,7 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    (`.signature.p7s`) to every package it accepts, which rewrites the archive. So the attestation is a
    standing public record that this repo produced those exact bytes, not something a consumer can check
    against a download.
-7. A **draft** release publishes nothing. `gh release edit <tag> --draft=false` is what fires the workflow.
+8. A **draft** release publishes nothing. `gh release edit <tag> --draft=false` is what fires the workflow.
    Pushing a tag on its own is inert here — no workflow watches tags.
 
 ## Testing
@@ -437,5 +444,9 @@ Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs
 2. `dotnet test Janzen.Pagination.slnx -c Release` — green, and **add a case for what you changed**. Behaviour with no
    test is behaviour nothing will notice losing.
 3. Touched the public API? Update the affected package `README.md`, the XML docs and `docs/src/guide/` — a public-API
-   change is a versioning decision.
+   change is a versioning decision. Run `dotnet pack Janzen.Pagination.slnx -c Release --no-build`: package
+   validation compares the packed assembly against the released baseline, so an accidental break surfaces here
+   rather than in `publish.yml` after the tag exists. A **deliberate** break is recorded, not silenced by hand —
+   `dotnet pack -p:ApiCompatGenerateSuppressionFile=true` writes the project's `CompatibilitySuppressions.xml`,
+   and that file then reads as the release's breaking-change inventory.
 4. `graphify update .` to refresh the graph.
