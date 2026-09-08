@@ -86,6 +86,16 @@ Omitted → the config's `DefaultLimit`. Supplied → must be between `1` and th
 `400 Query parameter 'limit' must be between 1 and 100.` An over-large limit is **rejected, not clamped** —
 silently returning fewer rows than asked for is the harder bug to notice.
 
+A resource that opted in with `AllowUnlimited(maxRows)` also accepts **`limit=-1`**: every matching row as
+one page, with `page=1` and nothing else. It costs one query rather than two, `meta.itemsPerPage` reports
+what the page actually holds, and exceeding the configured ceiling is a `400`. Everywhere else `-1` is just
+another out-of-range limit, as are `-2` and `0` even where the mode is enabled. See
+[`AllowUnlimited`](/reference/configuration/#allowunlimited).
+
+A resource may also cap how deep paging goes — `(page - 1) × limit` against
+[`WithMaxOffset`](/reference/configuration/#withmaxoffset). That refusal is raised before anything is
+counted or fetched, so a guarded deep page costs no query at all.
+
 ## `sortBy`
 
 ```
@@ -124,6 +134,10 @@ paging an unordered set:
 `search` matches a substring, case-insensitively on PostgreSQL with the `.PostgreSql` package (see
 [Providers](/integrations/postgresql/)), otherwise per the column collation. The term is matched against every
 configured searchable field and the results OR'd together:
+
+The term is **trimmed** before anything else happens, so `?search=%20widget%20` searches for `widget` and
+`meta.search` echoes the trimmed form. Both length guards measure the trimmed term: `MaxSearchLength`
+(default 256) and [`WithMinSearchLength`](/reference/configuration/#withminsearchlength) (default 1).
 
 ```http
 GET /products?search=gizmo

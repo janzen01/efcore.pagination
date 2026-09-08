@@ -36,6 +36,9 @@ Errors are grouped below in that same order.
 | `Query parameter 'page' must be a positive integer.` | `page` that is not a plain positive integer — `0`, `-1`, `+2`, `2.0`, `abc` | pages are 1-based; send `1` for the first page |
 | `Query parameter 'limit' must be a positive integer.` | the same forms in `limit` | send a whole number, or omit `limit` to get the configured default |
 | `Query parameter 'limit' must be between 1 and N.` | `limit` above the config's `MaxLimit` | ask for at most `N`; the engine **rejects rather than clamps**, so a smaller number is not silently substituted |
+| `Query parameter 'page' exceeds the allowed offset for this resource: at most N rows may be skipped.` | `(page - 1) × limit` above the config's [`WithMaxOffset`](../configuration/#withmaxoffset) | ask for an earlier page, or a larger `limit` to reach the same rows with a smaller offset. Raised before the count, so a guarded deep page costs no query at all |
+| `Query parameter 'page' must be 1 when 'limit' is -1.` | `limit=-1` with any other page | an unlimited read is a single page by definition |
+| `The unlimited read is too large: this resource returns at most N rows for 'limit=-1'.` | more matching rows than the ceiling passed to [`AllowUnlimited`](../configuration/#allowunlimited) | narrow the filters, or page normally |
 
 The two "positive integer" messages are produced during model binding but **deferred**: the binder records
 the problem and never fails the bind, so the request reaches your action and the `400` is raised when
@@ -110,6 +113,7 @@ Raised when the text after the operator cannot become the field's CLR type. See
 | Message | Triggered by | Fix |
 |---------|--------------|-----|
 | `Search term must not exceed N characters.` | `search` longer than `MaxSearchLength` | checked before the query is built, so a long term costs nothing |
+| `Search term must be at least N characters.` | `search` shorter than [`WithMinSearchLength`](../configuration/#withminsearchlength) | measured **after trimming**, so padding does not get a short term past it |
 | `Search is not configured for this resource.` | `search` sent to a config that declares no `Searchable` field | the resource has no free-text surface; filter instead |
 | `Search for field 'x' is not configured.` | a `searchBy` naming a field that is not `Searchable` | `searchBy` narrows the existing search set, it cannot add to it |
 | `Search field 'x' is specified more than once.` | the same `searchBy` value repeated | send each field once |

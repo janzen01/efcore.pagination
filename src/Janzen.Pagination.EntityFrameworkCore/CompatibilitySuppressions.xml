@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
+<!--
+  The breaking-change inventory for this release. One entry, deliberate:
+
+  CP0002 WithGuards(int, int, int, int): its four parameters became int?, so a caller naming one guard
+  no longer silently resets the other three to the engine constants. Source-compatible (WithGuards() and
+  WithGuards(25) both still compile), binary-breaking, and 10.1.0 is the release that may carry it.
+
+  Delete this file when PackageValidationBaselineVersion moves past 10.0.3: the entry exists only against
+  that baseline, and a stale suppression hides the next accidental break behind the same target.
+-->
+<Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Suppression>
+    <DiagnosticId>CP0002</DiagnosticId>
+    <Target>M:Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder`1.WithGuards(System.Int32,System.Int32,System.Int32,System.Int32)</Target>
+    <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
+    <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+</Suppressions>

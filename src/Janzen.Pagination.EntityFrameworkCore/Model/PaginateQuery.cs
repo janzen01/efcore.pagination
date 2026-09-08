@@ -13,6 +13,13 @@ public sealed class PaginateQuery {
 	/// <summary>Page used when the request does not specify one.</summary>
 	public const int DefaultPage = 1;
 
+	/// <summary>
+	///     The <c>limit</c> value asking for every matching row as one page. Accepted only by a configuration that
+	///     called <c>AllowUnlimited(maxRows)</c>, and only together with <see cref="DefaultPage" />; anywhere else
+	///     it is rejected like any other out-of-range limit.
+	/// </summary>
+	public const int UnlimitedLimit = -1;
+
 	internal readonly static IReadOnlyDictionary<string, IReadOnlyList<string>> EmptyFilters =
 		new ReadOnlyDictionary<string, IReadOnlyList<string>>(
 			new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal));
@@ -20,7 +27,10 @@ public sealed class PaginateQuery {
 	/// <summary>1-based page number; defaults to <see cref="DefaultPage" />. Non-positive values are rejected on execution.</summary>
 	public int Page { get; init; } = DefaultPage;
 
-	/// <summary>Requested page size; <see langword="null" /> uses the configured default. Values outside 1..MaxLimit are rejected on execution.</summary>
+	/// <summary>
+	///     Requested page size; <see langword="null" /> uses the configured default. Values outside 1..MaxLimit are
+	///     rejected on execution, except <see cref="UnlimitedLimit" /> where the configuration allows it.
+	/// </summary>
 	public int? Limit { get; init; }
 
 	/// <summary>Sort instructions in <c>"field:ASC"</c> / <c>"field:DESC"</c> form, applied in order; fields must be configured as sortable.</summary>

@@ -18,6 +18,15 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <!-- The engine has three process-wide mutable statics (PaginateLikeDefaults.Strategy, PaginateTypeSupport's
+             registries, PaginateConfigDefaults.Shared), and a [Collection] cannot isolate a test that assigns one:
+             xunit serialises within a collection but runs different collections in parallel. Shared is read by every
+             Build() in the assembly, so a test asserting the engine's own defaults would fail whenever it happened to
+             run alongside one that had raised them. The suite is ~2s either way. -->
+        <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+
+    <ItemGroup>
         <!-- DefaultHttpContext, ExceptionContext, WebApplication for the ASP.NET Core tests. -->
         <FrameworkReference Include="Microsoft.AspNetCore.App"/>
     </ItemGroup>

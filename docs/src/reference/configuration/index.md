@@ -64,13 +64,13 @@ asked for 5000 and received 100 would page through the collection wrongly and ne
 
 - `defaultLimit <= 0` → `ArgumentOutOfRangeException`, `Default limit must be greater than zero.`
 - `maxLimit <= 0` → `ArgumentOutOfRangeException`, `Max limit must be greater than zero.`
-- `defaultLimit > maxLimit` → `ArgumentException`, `Default limit must not be greater than max limit.`
+- `defaultLimit > maxLimit` → `ArgumentException`, `Default limit must not be greater than max limit.` — and again at `Build()` as an `InvalidOperationException` naming both numbers, for the case where the two halves arrive from different places (see [Shared defaults](#shared-defaults))
 
 ---
 
 ## Guards
 
-Four ceilings that bound what a single request may cost. They are not authorization — they are the answer to
+Ceilings that bound what a single request may cost. They are not authorization — they are the answer to
 "one caller sent `?filter.tag=$in:` with nine thousand values".
 
 ### `WithGuards`
@@ -79,8 +79,9 @@ Four ceilings that bound what a single request may cost. They are not authorizat
 .WithGuards(maxFilterValues: 100, maxFilterConditions: 20, maxSortFields: 5, maxSearchLength: 256)
 ```
 
-Optional; the values above are the defaults. Each parameter is independent, so name only the ones you are
-changing:
+Optional; the values above are the engine’s own defaults. Each parameter is independent, so name only the
+ones you are changing — an omitted one is **not set here at all**, so it still falls through to the shared
+defaults below:
 
 ```csharp
 .WithGuards(maxFilterValues: 500)     // large $in lists on this resource, everything else default
@@ -101,6 +102,110 @@ What each one actually counts is where the surprises live:
 `ArgumentOutOfRangeException` with `Max filter values must be greater than zero.`,
 `Max filter conditions must be greater than zero.`, `Max sort fields must be greater than zero.` or
 `Max search length must be greater than zero.` respectively.
+
+---
+
+
+### `WithMinSearchLength`
+
+```csharp
+.WithMinSearchLength(3)
+```
+
+The other end of `MaxSearchLength`, and the more useful one on a large table: `?search=a` across three
+unindexed text columns is the cheapest way a caller can make the database read every row. Defaults to 1 —
+any non-blank term runs.
+
+The term is measured **after trimming**, and trimming happens before the search is built either way, so
+`?search=%20%20a%20%20` is a three-character term that searches for `a` — not a five-character one that
+searches for the spaces.
+
+**Rejects at configuration time:** a value below 1 → `ArgumentOutOfRangeException`; a value above
+`MaxSearchLength` → `InvalidOperationException` at `Build()`, naming both numbers.
+
+### `WithMaxOffset`
+
+```csharp
+.WithMaxOffset(50_000)
+```
+
+Caps how many rows a request may skip — `(page - 1) × limit`. Unset by default. The check is arithmetic, so
+it runs **before the count query**: a guarded deep page is refused without the database being asked anything
+at all.
+
+It is a ceiling on the offset rather than on the page number on purpose. The offset is what the database
+pays for, and which page a given offset corresponds to moves with `limit` — at `maxOffset: 100`, page 11 is
+reachable at `limit=10` and page 4 is not at `limit=50`.
+
+### `AllowUnlimited`
+
+```csharp
+.AllowUnlimited(maxRows: 5_000)
+```
+
+Opts this resource into `?limit=-1`, which returns every matching row as one page. Without the call `-1` is
+rejected like any other out-of-range limit, and `-2` and `0` stay rejected with or without it.
+
+The ceiling is mandatory — there is no argument-less form. The engine fetches one row past it and answers
+`400` rather than materialising a set nobody promised would fit in memory. An unlimited request must ask for
+page 1; pages of an unbounded set are meaningless.
+
+What it costs and what comes back:
+
+- **one query, not two.** The fetched set *is* the count, so no `COUNT(*)` is issued.
+- `meta.itemsPerPage` echoes `itemCount` — the honest value, not the requested `-1`.
+- `meta.hasNextPage` and `meta.hasPreviousPage` are both `false`; `totalPages` is 1, or 0 when nothing matched.
+- `links.first`, `links.last` and `links.current` are the same URL; `next` and `previous` are `null`.
+- an unlimited request that matches nothing reports `itemsPerPage: 0` — it is the row count, and the page
+  holds none. Do not divide by it.
+- [`ApplyPagination`](../composers/) composes the same query bounded at `maxRows + 1`, but cannot apply the
+  ceiling itself — only execution can count rows. A caller executing the composed query for `limit=-1` owns
+  that check.
+
+The opt-in is per resource because it is a claim about *this* collection's size — which is why there is no
+shared default for it, unlike every other guard on this page.
+
+---
+
+## Shared defaults
+
+Every limit and guard above can come from a shared object instead of being retyped per configuration. Two
+ways in, and they compose:
+
+```csharp
+var defaults = new PaginateConfigDefaults { DefaultLimit = 25, MaxLimit = 100, MaxSearchLength = 128 };
+
+// (a) explicit -- only the configurations naming it are affected
+PaginateConfig<Product>.Create(defaults, b => b.Sortable("id", p => p.Id) /* … */);
+
+// (b) ambient -- assign once at startup, every configuration built afterwards picks it up
+PaginateConfigDefaults.Shared = defaults;
+PaginateConfig<Order>.Create(b => b.Sortable("id", o => o.Id) /* … */);
+```
+
+Resolution runs outward from the most specific, and the first source that has a value wins:
+
+**a `WithLimits` / `WithGuards` / `WithX` call** → **the object passed to `Create`** → **`PaginateConfigDefaults.Shared`** → **the engine's own constant**
+
+So a shared value is a default in the ordinary sense: never a ceiling a configuration cannot raise, and never
+something that overrides a value someone wrote down. `WithLimits` also stops being mandatory once both halves
+are available from somewhere — the two may even arrive from different sources, which is why the
+`defaultLimit > maxLimit` check runs again at `Build()`.
+
+Four things worth knowing:
+
+- **`Shared` is read at `Build()` time.** Assign it before the first configuration is built; a configuration
+  does not observe a later assignment. It is process-wide mutable state, so tests that assign it want the
+  same treatment as [`PaginateLikeDefaults`](/guide/providers-and-types/) — a non-parallel collection, and
+  restore it afterwards.
+- **`AllowUnlimited` is deliberately absent** from the object. An unbounded read is a claim about one
+  resource's size, and a default that turned it on everywhere would be exactly the claim nobody can make.
+- It is a `record`, so `PaginateConfigDefaults.Shared with { MaxLimit = 200 }` is the way to vary one value.
+- **A shared value can be raised but not removed.** "Unset" and "explicitly none" are the same absence, so a
+  configuration under a shared `MaxOffset` can raise the ceiling and cannot lift it. Put a ceiling that some
+  resources must not have on those resources rather than in the shared object.
+- The values are validated when a configuration is **built**, not when they are assigned — an `init` accessor
+  cannot reject the way a builder method does. A nonsense value is an `InvalidOperationException` naming it.
 
 ---
 
@@ -314,6 +419,11 @@ OpenAPI parameter list reads best in.
 A row whose intermediate is `null` is treated the way the database treats it: the join yields no value, so a
 comparison does not match, a search skips the row, a sort orders it as null, and `$null` **does** match. That
 holds on a plain `IQueryable` too — see [Testing without a database](/recipes/testing/).
+
+One thing that shape cannot express: `$null` on a **value-typed** nested member. `p => p.Category!.Id` is an
+`int`, and both legs answer "no row is null" from that declared type — the shorthand does not even grant the
+operator. Filter the nullable foreign key instead (`p => p.CategoryId`), which is what "has no category"
+actually means in the model.
 
 ---
 

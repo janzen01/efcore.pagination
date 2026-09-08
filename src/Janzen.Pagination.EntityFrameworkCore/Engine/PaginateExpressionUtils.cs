@@ -66,17 +66,49 @@ internal static class PaginateExpressionUtils {
 
 	}
 
+	/// <summary>
+	///     The effective page size, or <see cref="PaginateQuery.UnlimitedLimit" /> when the caller asked for every
+	///     row and the configuration allows it. Everything downstream treats that value as "no Skip, no Take".
+	/// </summary>
 	public static int ParseLimit(PaginateQuery request, IPaginateConfig config) {
 
 		if (!request.Limit.HasValue) return config.DefaultLimit;
 
 		int limit = request.Limit.Value;
 
+		// Only the exact literal, and only where the resource opted in. -2 and 0 stay a 400 either way, so the
+		// message names the ordinary range rather than advertising a mode this resource may not have.
+		if (limit == PaginateQuery.UnlimitedLimit && config.UnlimitedMaxRows is not null) return limit;
+
 		if (limit < 1 || limit > config.MaxLimit) {
 			throw new PaginateQueryException($"Query parameter 'limit' must be between 1 and {config.MaxLimit}.");
 		}
 
 		return limit;
+
+	}
+
+	/// <summary>
+	///     Rejects a page whose offset exceeds the configured ceiling, and an unlimited request for any page but the
+	///     first. Pure arithmetic, so it runs before anything is counted or fetched.
+	/// </summary>
+	public static void ValidateOffset(int page, int limit, IPaginateConfig config) {
+
+		if (limit == PaginateQuery.UnlimitedLimit) {
+			// Pages of an unbounded set are meaningless: there is exactly one.
+			if (page != PaginateQuery.DefaultPage) throw new PaginateQueryException("Query parameter 'page' must be 1 when 'limit' is -1.");
+
+			return;
+		}
+
+		if (config.MaxOffset is not { } maxOffset) return;
+
+		// Long arithmetic so a very large page cannot overflow into a value that passes.
+		long skip = (long)(page - 1) * limit;
+
+		if (skip > maxOffset) {
+			throw new PaginateQueryException($"Query parameter 'page' exceeds the allowed offset for this resource: at most {maxOffset} rows may be skipped.");
+		}
 
 	}
 

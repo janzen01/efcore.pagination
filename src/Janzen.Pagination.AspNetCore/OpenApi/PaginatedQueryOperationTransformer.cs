@@ -54,14 +54,14 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		operation.Parameters ??= [];
 		RemoveGeneratedPaginateParameters(operation.Parameters);
 
-		operation.Parameters.Add(CreatePageParameter());
+		operation.Parameters.Add(CreatePageParameter(config));
 		operation.Parameters.Add(CreateLimitParameter(config));
 		operation.Parameters.Add(CreateSortByParameter(config));
 		// A resource with no Searchable field has no free-text surface at all, so neither parameter belongs on it:
 		// `search` would document an input whose only possible answer is a 400, and `searchBy` one with nothing to
 		// narrow. Advertising them is what pushes a config into IgnoreSearchByInQueryParam() just to hide them.
 		if (config.SearchableFields.Count > 0) {
-			operation.Parameters.Add(CreateSearchParameter());
+			operation.Parameters.Add(CreateSearchParameter(config));
 
 			// searchBy is ignored at runtime when the resource opts out, so it must not be advertised.
 			if (!config.IgnoreSearchByInQueryParam) {
@@ -121,11 +121,18 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		}
 	}
 
-	private static OpenApiParameter CreatePageParameter() {
+	private static OpenApiParameter CreatePageParameter(IPaginateConfig config) {
+
+		// The offset ceiling is a property of the resource, so it belongs in the description rather than in the
+		// schema: 'maximum' on page would be wrong, since which page a given offset reaches moves with limit.
+		string offset = config.MaxOffset is { } maxOffset
+			? $" At most {maxOffset} rows may be skipped, so the deepest reachable page depends on 'limit'; beyond it the request returns 400."
+			: string.Empty;
+
 		return new OpenApiParameter {
 			Name = PaginateQueryParams.Page,
 			In = ParameterLocation.Query,
-			Description = "Page number to retrieve (1-based). Must be a positive integer; invalid values return 400. Pages past the last page return an empty result set.",
+			Description = $"Page number to retrieve (1-based). Must be a positive integer; invalid values return 400. Pages past the last page return an empty result set.{offset}",
 			Required = false,
 			Schema = new OpenApiSchema {
 				Type = JsonSchemaType.Integer,
@@ -137,10 +144,17 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	}
 
 	private static OpenApiParameter CreateLimitParameter(IPaginateConfig config) {
+
+		// -1 stays outside the schema's minimum on purpose. Expressing "1..max, or exactly -1" needs a oneOf,
+		// which several generators render worse than one honest sentence; the description is the contract here.
+		string unlimited = config.UnlimitedMaxRows is { } maxRows
+			? $" Send -1 with page=1 to receive every matching row as one page, up to {maxRows} of them; more than that returns 400."
+			: string.Empty;
+
 		return new OpenApiParameter {
 			Name = PaginateQueryParams.Limit,
 			In = ParameterLocation.Query,
-			Description = $"Number of records per page. Must be between 1 and {config.MaxLimit}; out-of-range values return 400. Defaults to {config.DefaultLimit} when omitted.",
+			Description = $"Number of records per page. Must be between 1 and {config.MaxLimit}; out-of-range values return 400. Defaults to {config.DefaultLimit} when omitted.{unlimited}",
 			Required = false,
 			Schema = new OpenApiSchema {
 				Type = JsonSchemaType.Integer,
@@ -177,11 +191,13 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		};
 	}
 
-	private static OpenApiParameter CreateSearchParameter() {
+	private static OpenApiParameter CreateSearchParameter(IPaginateConfig config) {
 		return new OpenApiParameter {
 			Name = PaginateQueryParams.Search,
 			In = ParameterLocation.Query,
-			Description = "Search term to filter result values.",
+			Description = config.MinSearchLength > 1
+				? $"Search term to filter result values. Must be at least {config.MinSearchLength} characters after trimming; shorter terms return 400."
+				: "Search term to filter result values.",
 			Required = false,
 			Schema = new OpenApiSchema {
 				Type = JsonSchemaType.String

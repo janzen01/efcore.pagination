@@ -41,6 +41,21 @@ public sealed class SearchlessConfigProvider : IPaginateConfigProvider<Product> 
 
 }
 
+/// <summary>A resource with all three of the guards that change what the parameter descriptions say.</summary>
+public sealed class GuardedConfigProvider : IPaginateConfigProvider<Product> {
+
+	public PaginateConfig<Product> GetConfig() {
+		return PaginateConfig<Product>.Create(b => b
+			.WithLimits(defaultLimit: 15, maxLimit: 60)
+			.WithTieBreaker(p => p.Id)
+			.WithMaxOffset(5_000)
+			.WithMinSearchLength(3)
+			.AllowUnlimited(2_000)
+			.Searchable("name", p => p.Name));
+	}
+
+}
+
 /// <summary>
 ///     Starts a real application once and captures its OpenAPI document. Constructing an
 ///     <c>OpenApiOperationTransformerContext</c> by hand would test the transformer in isolation; running the
@@ -63,6 +78,7 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 		app.MapOpenApi();
 		app.MapGet("/products", () => Results.Ok()).WithPagination<DocumentedConfigProvider>();
 		app.MapGet("/searchless", () => Results.Ok()).WithPagination<SearchlessConfigProvider>();
+		app.MapGet("/guarded", () => Results.Ok()).WithPagination<GuardedConfigProvider>();
 		app.MapGet("/plain", () => Results.Ok());
 
 		await app.StartAsync();
@@ -90,8 +106,10 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		return [.. this.Parameters(path).EnumerateArray().Select(p => p.GetProperty("name").GetString()!)];
 	}
 
-	private string Description(string name) {
-		return this.Parameters("/products").EnumerateArray()
+	private string Description(string name) { return this.Description("/products", name); }
+
+	private string Description(string path, string name) {
+		return this.Parameters(path).EnumerateArray()
 			.Single(p => p.GetProperty("name").GetString() == name)
 			.GetProperty("description").GetString()!;
 	}
@@ -209,6 +227,26 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// Both used to be emitted unconditionally, which is what pushes such a config into
 		// IgnoreSearchByInQueryParam() purely to stop the generated documentation offering searchBy.
 		Assert.Equal(["page", "limit", "sortBy", "filter.status"], this.ParameterNames("/searchless"));
+
+	}
+
+	[Fact]
+	public void A_guarded_resource_documents_its_ceilings() {
+
+		// Each of the three is a property of the resource, so an unguarded one says nothing extra -- which is
+		// what the /products assertions above already pin.
+		Assert.Contains("At most 5000 rows may be skipped", this.Description("/guarded", "page"), StringComparison.Ordinal);
+		Assert.Contains("Send -1 with page=1", this.Description("/guarded", "limit"), StringComparison.Ordinal);
+		Assert.Contains("at least 3 characters after trimming", this.Description("/guarded", "search"), StringComparison.Ordinal);
+
+	}
+
+	[Fact]
+	public void An_unguarded_resource_says_nothing_about_them() {
+
+		Assert.DoesNotContain("rows may be skipped", this.Description("page"), StringComparison.Ordinal);
+		Assert.DoesNotContain("-1", this.Description("limit"), StringComparison.Ordinal);
+		Assert.DoesNotContain("at least", this.Description("search"), StringComparison.Ordinal);
 
 	}
 
