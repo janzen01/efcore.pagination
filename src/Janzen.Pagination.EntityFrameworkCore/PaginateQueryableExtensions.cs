@@ -198,16 +198,11 @@ public static class PaginateQueryableExtensions {
 			tokens.Add($"{field.Name}:{PaginateExpressionUtils.FormatDirection(sort.Direction)}");
 		}
 
-		// Append the configured tie-breaker as the final ordering key, so offset paging is deterministic even when the
-		// primary sort is absent or non-unique (Skip/Take over an unordered or ambiguous set is non-deterministic).
-		if (config.TieBreakerSelector is not null) {
-			keys.Add((config.TieBreakerSelector, config.TieBreakerDirection == PaginateSortDirection.Desc));
-		}
-
-		if (keys.Count == 0) {
-			throw new PaginateQueryException(
-				"Pagination requires a deterministic sort order. Pass 'sortBy', configure DefaultSortBy(...), or add WithTieBreaker(...) to the pagination configuration.");
-		}
+		// Appended last, so offset paging is deterministic even when the primary sort is absent or non-unique
+		// (Skip/Take over an unordered or ambiguous set is non-deterministic). Build() requires it, which is what
+		// makes this non-null and what deleted the runtime refusal that used to live here: a configuration
+		// defect is not a client error, and reporting it as one hid behind clients that happened to send sortBy.
+		keys.Add((config.TieBreakerSelector!, config.TieBreakerDirection == PaginateSortDirection.Desc));
 
 		return (keys, tokens);
 
@@ -293,7 +288,17 @@ public static class PaginateQueryableExtensions {
 	///     "over it" are distinguishable. A no-op for an ordinary paged request, which <c>ApplyPage</c> bounds.
 	/// </summary>
 	private static IQueryable<TEntity> ApplyCeiling<TEntity>(IQueryable<TEntity> query, int limit, IPaginateConfig config) {
-		return limit == PaginateQuery.UnlimitedLimit ? query.Take(config.UnlimitedMaxRows!.Value + 1) : query;
+
+		if (limit != PaginateQuery.UnlimitedLimit) return query;
+
+		// Long arithmetic before the clamp: maxRows + 1 overflows for a ceiling at int.MaxValue, and Take with a
+		// negative count returns nothing -- so an unlimited read would have answered zero rows and a zero count,
+		// silently, with no exception anywhere. Clamped, the fetch is simply unbounded in practice and the
+		// items.Length > maxRows check can never fire, which is the honest reading of that ceiling.
+		int take = (int)Math.Min((long)config.UnlimitedMaxRows!.Value + 1, int.MaxValue);
+
+		return query.Take(take);
+
 	}
 
 	private static IQueryable<TEntity> ApplyPage<TEntity>(IQueryable<TEntity> query, int page, int limit) {
@@ -442,11 +447,10 @@ public static class PaginateQueryableExtensions {
 		/// <remarks>
 		///     Ordering, <c>Skip</c>/<c>Take</c>, the count and the projection are <b>not</b> applied — use
 		///     <c>ApplyPagination</c> for the page itself. Validation matches the real pipeline for the stages this
-		///     runs, so <paramref name="request" />'s <c>page</c>, <c>limit</c>, filters and <c>searchBy</c> are
-		///     rejected here exactly as <c>PaginateAsync</c> rejects them; <c>sortBy</c> is the one exception, left
-		///     unchecked because ordering never runs. That is also why the result's
-		///     <see cref="PaginateComposedQuery{TEntity}.SortBy" /> is <see langword="null" /> here rather than empty
-		///     — every other member is resolved and truthful.
+		///     runs, so <paramref name="request" />'s <c>page</c>, <c>limit</c>, filters, <c>searchBy</c> <b>and</b>
+		///     <c>sortBy</c> are rejected here exactly as <c>PaginateAsync</c> rejects them — the two composers
+		///     validate identically. The result's <see cref="PaginateComposedQuery{TEntity}.SortBy" /> reports the
+		///     ordering that <i>would</i> apply, even though this query carries none.
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
@@ -454,7 +458,13 @@ public static class PaginateQueryableExtensions {
 
 			var (query, limit, search, searchBy) = Compose(source, request, config);
 
-			return new PaginateComposedQuery<TEntity>(query, request.Page, limit, null, search, searchBy, request.Filters);
+			// Resolved but not applied. It used to be skipped here because ResolveSorts could refuse a config that
+			// had nothing to order by -- rejecting a facet count over a request that never wanted an order. With
+			// the tie-breaker required at build time that refusal is gone, so validating sortBy costs nothing and
+			// the two composers stop disagreeing about what a valid request is.
+			var sorts = ResolveSorts(request, config);
+
+			return new PaginateComposedQuery<TEntity>(query, request.Page, limit, sorts.Tokens, search, searchBy, request.Filters);
 
 		}
 

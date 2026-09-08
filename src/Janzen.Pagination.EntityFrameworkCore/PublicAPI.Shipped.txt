@@ -105,7 +105,6 @@ Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Page.
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Query.get -> System.Linq.IQueryable<TEntity>!
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.Search.get -> string?
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SearchBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>?
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator.Between = 10 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator.Contains = 5 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator
@@ -256,3 +255,5 @@ static Janzen.Pagination.EntityFrameworkCore.PaginateQueryableExtensions.Paginat
 static Janzen.Pagination.EntityFrameworkCore.PaginateTypeSupport.RegisterProjectionConversion(System.Func<System.Linq.Expressions.Expression!, System.Type!, System.Linq.Expressions.Expression?>! tryConvert) -> void
 static Janzen.Pagination.EntityFrameworkCore.PaginateTypeSupport.RegisterSimpleType(System.Type! type) -> void
 static Janzen.Pagination.EntityFrameworkCore.PaginateTypeSupport.RegisterValueParser(System.Type! type, System.Func<string!, object?>! parser) -> void
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.WithGuards(int maxFilterValues = 100, int maxFilterConditions = 20, int maxSortFields = 5, int maxSearchLength = 256) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>?

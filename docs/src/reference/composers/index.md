@@ -58,15 +58,15 @@ var rows   = await composed.Query.Select(Dto.From).ToListAsync(ct); // your own 
 
 ### `PaginateComposedQuery<TEntity>`
 
-**Both** composers return it. What differs is `Query` — the page query from one, the matching set from the
-other — and `SortBy`.
+**Both** composers return it, and every member is resolved on both. The only difference is `Query` — the page
+query from one, the matching set from the other.
 
 | Member | Type | What it holds |
 |--------|------|---------------|
 | `Query` | `IQueryable<TEntity>` | The composed query, unexecuted. |
 | `Page` | `int` | The 1-based page requested. Not clamped. |
 | `Limit` | `int` | The **effective** page size: the requested `limit`, or the config's `DefaultLimit`. |
-| `SortBy` | `string[]?` | The **effective** order in `"field:DIR"` form, tie-breaker excluded — or `null`, see below. |
+| `SortBy` | `string[]` | The **effective** order in `"field:DIR"` form, tie-breaker excluded. `[]` when the request asked for none and the config declares no `DefaultSortBy`. |
 | `Search` | `string?` | The search term that ran, or `null`. |
 | `SearchBy` | `string[]` | The **effective** fields it ran over. `[]` when no search ran. |
 | `Filter` | `IReadOnlyDictionary<string, IReadOnlyList<string>>` | The request's filters, verbatim per field. |
@@ -76,34 +76,34 @@ resolution — so a caller building its own envelope reports the effective reque
 a class rather than a record: value equality over an `IQueryable` and three collections would compare by
 reference and answer a question it cannot actually answer.
 
-::: warning `SortBy` is nullable, and `null` does not mean `[]`
-`null` means the ordering was **never resolved** — what `ApplyPaginateFilters` returns, because it does not
-order and so never reads `sortBy` at all. `[]` means the ordering **was** resolved and the request asked for
-none (the tie-breaker still orders the query; it is not part of the requested order).
-
-Without that distinction a request carrying `?sortBy=name:DESC` through the filtered composer would report
-`[]`, which reads as "nothing is sorted" — an answer the caller cannot tell apart from the truth. Every other
-member is resolved on both paths and truthful on both.
+::: tip `SortBy` was nullable before `10.1.0`
+`ApplyPaginateFilters` used to leave it `null`, because resolving the sort could *refuse* a configuration that
+had nothing to order by — and rejecting a facet count over a request that never wanted an order would have
+been wrong. Requiring [`WithTieBreaker`](../configuration/#withtiebreaker) at build time removed that refusal,
+so the filtered composer now resolves and validates `sortBy` like every other stage and reports the ordering
+that *would* apply. `[]` means the request asked for none and the config declares no `DefaultSortBy`; the
+tie-breaker orders the query either way and is never listed.
 :::
 
 ## What each one validates
 
 Both reject exactly what `PaginateAsync` rejects, at compose time instead of execute time, with the same
-messages — see [Errors](../errors/). One difference, and it is deliberate:
+messages — see [Errors](../errors/).
 
 | Checked | `ApplyPaginateFilters` | `ApplyPagination` |
 |---------|:----------------------:|:-----------------:|
 | `page`, `limit` range | yes | yes |
 | Unknown / disallowed filter field and operator, filter guards | yes | yes |
 | `search` length, unknown or repeated `searchBy` field | yes | yes |
-| Unknown `sortBy` field, `sortBy` grammar, `MaxSortFields` | **no** | yes |
-| "requires a deterministic sort order" | **no** | yes |
+| Unknown `sortBy` field, `sortBy` grammar, `MaxSortFields` | yes | yes |
 
-`ApplyPaginateFilters` never reaches ordering, so rejecting a sort it will not apply would refuse a request it
-can serve perfectly well. The sharpest case is the last row of that table: a config with neither
-`DefaultSortBy` nor `WithTieBreaker` cannot be paged at all and is rejected outright by `ApplyPagination` —
-yet counting or grouping its matching set is perfectly valid, and that is what the filtered composer is for.
-Its `null` `SortBy` is the same fact restated. If you need the sort validated, you are asking for the page.
+Since `10.1.0` there is no difference: **both validate everything**, with the same messages.
+
+The one exception used to be `sortBy`, left unchecked by the filtered composer because resolving the sort
+could refuse a configuration that had nothing to order by — and a config you can only ever count, never page,
+was a legitimate thing to build. `WithTieBreaker` is required now, so no such configuration exists, the
+refusal is gone, and validating `sortBy` costs a caller nothing while stopping the two composers from
+disagreeing about what a valid request is.
 
 ## Asserting SQL in your own tests
 

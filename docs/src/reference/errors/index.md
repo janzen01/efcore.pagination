@@ -34,7 +34,7 @@ Errors are grouped below in that same order.
 | Message | Triggered by | Fix |
 |---------|--------------|-----|
 | `Query parameter 'page' must be a positive integer.` | `page` that is not a plain positive integer — `0`, `-1`, `+2`, `2.0`, `abc` | pages are 1-based; send `1` for the first page |
-| `Query parameter 'limit' must be a positive integer.` | the same forms in `limit` | send a whole number, or omit `limit` to get the configured default |
+| `Query parameter 'limit' must be a positive integer.` | the same forms in `limit` — with one carve-out, the literal `-1`, which a resource may accept (see [`AllowUnlimited`](../configuration/#allowunlimited)) and every other resource then answers with the range message below | send a whole number, or omit `limit` to get the configured default |
 | `Query parameter 'limit' must be between 1 and N.` | `limit` above the config's `MaxLimit` | ask for at most `N`; the engine **rejects rather than clamps**, so a smaller number is not silently substituted |
 | `Query parameter 'page' exceeds the allowed offset for this resource: at most N rows may be skipped.` | `(page - 1) × limit` above the config's [`WithMaxOffset`](../configuration/#withmaxoffset) | ask for an earlier page, or a larger `limit` to reach the same rows with a smaller offset. Raised before the count, so a guarded deep page costs no query at all |
 | `Query parameter 'page' must be 1 when 'limit' is -1.` | `limit=-1` with any other page | an unlimited read is a single page by definition |
@@ -136,7 +136,11 @@ messages can occur.
 | `Sort direction 'x' is not supported.` | a direction that is neither `ASC` nor `DESC` (case-insensitive) | no `asc nulls last` or similar |
 | `Too many sort fields; at most N are allowed.` | more `sortBy` values than `MaxSortFields` | only request-supplied sorts count — defaults and the tie-breaker do not |
 | `Sort for field 'x' is not configured.` | a name that was never declared `Sortable`, or is disabled by `.When(false)` | same non-disclosure rule as filters |
-| `Pagination requires a deterministic sort order. Pass 'sortBy', configure DefaultSortBy(...), or add WithTieBreaker(...) to the pagination configuration.` | no `sortBy`, no `DefaultSortBy` and no tie-breaker | **this one is aimed at you, not the caller.** Offset paging over an unordered set silently duplicates and drops rows, so the engine refuses instead. Add [`WithTieBreaker`](../configuration/#withtiebreaker). |
+
+There is no longer an error for "this resource cannot be ordered". `WithTieBreaker` is required at
+configuration time (see [`WithTieBreaker`](../configuration/#withtiebreaker)), so a config that could not
+order does not build — which means it cannot reach a request. That refusal used to be a `400`, and reporting
+a configuration defect as a client error is what moved it.
 
 ---
 

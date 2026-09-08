@@ -60,7 +60,8 @@ The config is a fluent builder rather than an object literal, and the mapping is
 | `filterableColumns: { age: [FilterOperator.EQ] }` | `.Filterable("age", p => p.Age, PaginateFilterOperator.Eq)` |
 | `filterableColumns: { age: true }` *(all operators)* | `.Filterable("age", p => p.Age)` — every operator the type supports, see [operator defaults](/reference/configuration/#operator-defaults-by-type) |
 | `defaultSortBy: [['id', 'DESC']]` | `.DefaultSortBy("id", PaginateSortDirection.Desc)` |
-| `defaultLimit`, `maxLimit` | `.WithLimits(defaultLimit, maxLimit)` — **required**, no global default |
+| `defaultLimit`, `maxLimit` | `.WithLimits(defaultLimit, maxLimit)` — **required** unless shared defaults supply both |
+| *(no equivalent)* | `.WithTieBreaker(p => p.Id)` — **required**; nestjs-paginate has no such rule, so this is one line to add per config when porting |
 | `relations: { … }` | not needed — the lambda names the navigation (`p => p.Author!.Name`), and a dotted field name is the convention; the [projection](/guide/projections/) decides what is loaded |
 | `select: [...]` | absent — the DTO decides |
 | `where: { … }` | absent — filter the `IQueryable` before paginating |

@@ -125,16 +125,16 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 	}
 
 	[Fact]
-	public void The_filtered_composer_does_not_validate_sortBy() {
+	public void The_filtered_composer_validates_sortBy_like_every_other_stage() {
 
 		using var context = fixture.CreateContext();
 
-		// Ordering never runs on this path, so rejecting a sort it will not apply would refuse a usable request.
-		var composed = SqliteFixture.Products(context).ApplyPaginateFilters(Query.Sort("nonexistent:ASC"), TestData.Config);
-
-		// null, not empty: the difference between "never resolved" and "resolved to no ordering".
-		Assert.Null(composed.SortBy);
-		Assert.NotNull(composed.Query);
+		// It used to let this through, because resolving the sort could refuse a config that had nothing to
+		// order by -- rejecting a facet count over a request that never wanted an order. The tie-breaker is
+		// required at build time now, so that refusal is gone and the two composers agree on what is valid.
+		Assert.Equal(
+			"Sort for field 'nonexistent' is not configured.",
+			Rejects(() => SqliteFixture.Products(context).ApplyPaginateFilters(Query.Sort("nonexistent:ASC"), TestData.Config)));
 
 	}
 
@@ -143,11 +143,12 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 
 		using var context = fixture.CreateContext();
 
-		// Only the ordering is unknowable on this path; page, limit, search and filters are resolved as usual.
+		// Every member is resolved on both paths now, and the filtered composer reports the ordering that would
+		// apply even though its query carries none.
 		var filtered = SqliteFixture.Products(context).ApplyPaginateFilters(Request, TestData.Config);
 		var paged = SqliteFixture.Products(context).ApplyPagination(Request, TestData.Config);
 
-		Assert.Null(filtered.SortBy);
+		Assert.Equal(paged.SortBy, filtered.SortBy);
 		Assert.Equal(paged.Page, filtered.Page);
 		Assert.Equal(paged.Limit, filtered.Limit);
 		Assert.Equal(paged.Search, filtered.Search);

@@ -44,6 +44,8 @@ internal static class PaginateQueryParser {
 
 	}
 
+	private const string UnlimitedLiteral = "-1";
+
 	private static int? ParsePositiveInt(StringValues values, string name, int? fallback, ref string? error) {
 
 		string? value = values.FirstOrDefault();
@@ -66,13 +68,11 @@ internal static class PaginateQueryParser {
 		string? value = values.FirstOrDefault();
 		if (string.IsNullOrWhiteSpace(value)) return null;
 
-		if (int.TryParse(value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int parsed)
-			&& (parsed > 0 || parsed == PaginateQuery.UnlimitedLimit)) {
-			return parsed;
-		}
+		// The literal, matched as text rather than by loosening the number styles. AllowLeadingSign would also
+		// have started accepting "+5", which page still rejects -- one contract quietly forking into two.
+		if (value == UnlimitedLiteral) return PaginateQuery.UnlimitedLimit;
 
-		error ??= $"Query parameter '{PaginateQueryParams.Limit}' must be a positive integer.";
-		return null;
+		return ParsePositiveInt(values, PaginateQueryParams.Limit, null, ref error);
 
 	}
 

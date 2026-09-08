@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Janzen.Pagination.Tests;
 
 /// <summary>
@@ -132,6 +134,28 @@ public sealed class OperatorDerivationTests {
 		var page = await TestData.Products().AsQueryable().PageAsync<ProductDto>(Query.Filter("rating", "$gte:5"), config);
 
 		Assertions.HasIds(page, 1);
+
+	}
+
+	/// <summary>Comparable but with no relational operators -- exactly what the engine cannot build a range for.</summary>
+	public readonly struct Score(int value) : IComparable<Score> {
+		public int Value { get; } = value;
+		public int CompareTo(Score other) { return this.Value.CompareTo(other.Value); }
+	}
+
+	[Fact]
+	public void A_registered_type_without_relational_operators_gets_no_range_row() {
+
+		// The type is keyed to this file so the process-wide registration can never be reached by another test.
+		PaginateTypeSupport.RegisterSimpleType(typeof(Score));
+		PaginateTypeSupport.RegisterValueParser(typeof(Score), value => new Score(int.Parse(value, CultureInfo.InvariantCulture)));
+
+		// IComparable<T> alone is not enough: BuildComparison only reaches for its CompareTo stand-in for enums,
+		// string and Guid, and sends everything else down Expression.GreaterThan. Deriving a range row here would
+		// have advertised it through the metadata and OpenAPI and then answered 400 to every range request.
+		var exception = Assert.Throws<ArgumentException>(PaginateFilterOperators.For<Score>);
+
+		Assert.StartsWith("Filter operators cannot be derived for type 'Score'.", exception.Message);
 
 	}
 

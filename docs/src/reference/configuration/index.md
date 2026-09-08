@@ -258,11 +258,20 @@ This is what makes offset paging correct. Rows that compare equal on the primary
 between them, so without a tie-breaker the database is free to return them differently for `page=1` and
 `page=2` — the same row appears twice, or never. Any unique column fixes it.
 
-It is also the fallback that keeps a resource queryable at all: with no `sortBy`, no `DefaultSortBy` and no
-tie-breaker, the engine refuses the request rather than paging an unordered set —
-`400 Pagination requires a deterministic sort order. …`.
+**This call is required.** A configuration without it does not build:
 
-**Rejects at configuration time:** a null `selector`.
+> A pagination configuration requires `WithTieBreaker(...)`: offset paging over a non-unique order can return
+> the same row on two pages and skip another. Pass the entity's primary key, e.g. `WithTieBreaker(x => x.Id)`.
+
+It is required outright rather than "a `DefaultSortBy` **or** a tie-breaker", because the weaker rule does not
+hold: a default-sort field can be switched off per caller by [`When`](#when), so a configuration whose only
+default is disabled would pass that check and still have nothing to order by.
+
+Until `10.1.0` this was a runtime `400` on every request such a configuration could not order. That reported a
+configuration defect as a client error, and it stayed invisible for as long as every caller happened to send
+`sortBy` — which is exactly the condition under which the paging was silently non-deterministic anyway.
+
+**Rejects at configuration time:** a null `selector`; its absence, as above.
 
 ---
 
@@ -369,6 +378,11 @@ The derivation is public, which is the middle road between the two signatures �
 ```
 
 `PaginateFilterOperators.For(Type)` is the reflection-typed counterpart, for a config assembled dynamically.
+
+One ordering requirement comes with it: the derivation reads the process-wide type registry, so a type from an
+add-on package only resolves once that package has registered it. A `static readonly` config using the
+shorthand on a NodaTime type will throw during type initialization if it is built before `AddNodaTime()` (or
+`PaginateNodaTime.Register()`) runs. Register first, or give such a field the explicit operator list.
 
 ### `FilterableMany`
 

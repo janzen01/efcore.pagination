@@ -92,13 +92,13 @@ public static class PaginateFilterOperators {
 	private static PaginateFilterOperator[] Close(PaginateFilterOperator[] operators, bool nullable) { return nullable ? [.. operators, PaginateFilterOperator.Null] : [.. operators]; }
 
 	/// <summary>
-	///     Whether <paramref name="type" /> carries an ordering the engine's comparison builder can use — the same
-	///     two things it reaches for: <see cref="IComparable{T}" /> for the <c>CompareTo</c> stand-in, and the
-	///     relational operators for the direct path.
+	///     Whether <paramref name="type" /> carries an ordering the engine's comparison builder can actually use.
+	///     That means the <b>relational operators</b>, nothing else: the builder reaches for its
+	///     <c>CompareTo</c> stand-in only for enums, <see langword="string" /> and <see cref="System.Guid" />, and
+	///     sends every other type down <c>Expression.GreaterThan</c>, which needs the operator. A registered type
+	///     that implements <see cref="IComparable{T}" /> without operators would otherwise be granted the range
+	///     row here, advertise it through the metadata and OpenAPI, and answer 400 to every range request.
 	/// </summary>
-	private static bool IsOrdered(Type type) {
-		return typeof(IComparable<>).MakeGenericType(type).IsAssignableFrom(type)
-			|| type.GetMethod("op_LessThan", [type, type]) is not null;
-	}
+	private static bool IsOrdered(Type type) { return type.GetMethod("op_LessThan", [type, type]) is not null; }
 
 }

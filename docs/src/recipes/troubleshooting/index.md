@@ -25,9 +25,10 @@ worth checking:
   every `DefaultSortBy` entry.
 - **The tie-breaker is always last**, whichever applied. Seeing an extra column at the end of the `ORDER BY`
   is correct.
-- **`Pagination requires a deterministic sort order.`** means none of the three applies. Add
-  [`WithTieBreaker`](/reference/configuration/#withtiebreaker); it is the fix in almost every case, and it is
-  also the one that stops rows drifting between pages.
+- **`A pagination configuration requires WithTieBreaker(...)`** is thrown when the configuration is *built*,
+  not when a request arrives — so it surfaces at startup or on the first use of that config, never as a `400`.
+  Add [`WithTieBreaker`](/reference/configuration/#withtiebreaker) on any unique column; it is also what stops
+  rows drifting between pages.
 - **Rows appear twice or vanish while paging** and there *is* a sort: the sort is not total. That is the same
   fix — a unique key as the final ordering column.
 
