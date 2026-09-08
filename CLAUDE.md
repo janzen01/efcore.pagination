@@ -436,6 +436,12 @@ Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs
   `net10.0`-only means no GAC and no binding redirects, and the .NET runtime does not verify strong-name
   signatures. The only cost is `CS8002` on consumers who strong-name their own assemblies. Don't add
   `SignAssembly` to a `10.x` build; a new framework major is the earliest place the question can reopen.
+- **`$null` is decided from the field's *declared* type, never the expression's.** The in-memory rewriter
+  lifts a value-typed nested member to `Nullable<T>` so it has somewhere to put "absent"; reading that lifted
+  type in `BuildNullExpression` would make `$null` match a row with a missing parent in memory and match
+  nothing on any relational provider, which answers from the declared type. So a non-nullable field reports
+  "no row is null" on both legs, nested or not — and "has no category" is expressed by filtering the nullable
+  FK, not the joined key.
 - **Unknown query parameters are ignored.** The binder reads exactly six inputs (`page`, `limit`, `sortBy`, `search`,
   `searchBy`, `filter.<field>`); anything else (`offset`, `utm_*`, …) is dropped and the request pages normally.
   API-audit tools report this as "invalid value silently accepted" — it is a false positive. Strict binding would

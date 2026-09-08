@@ -11,9 +11,13 @@ namespace Janzen.Pagination.EntityFrameworkCore.Engine;
 ///     to a LEFT JOIN, where a missing row makes the whole expression NULL and the surrounding predicate simply
 ///     false; the in-memory leg compiles it to a field dereference and throws a
 ///     <see cref="NullReferenceException" />. Rewriting to the conditional form is what makes the two legs answer
-///     the same question — including for <c>$null</c>, which a row with no author *does* match on both, because the
-///     value genuinely is not there. Guarding the surrounding predicate instead would have answered "no" to that
-///     one and quietly disagreed with every database.
+///     the same question — including for <c>$null</c> on a <b>reference-typed</b> member, which a row with no author
+///     *does* match on both, because the joined column is NULL. Guarding the surrounding predicate instead would
+///     have answered "no" to that one and quietly disagreed with every database.
+///     A value-typed member is a different case: the lift to <see cref="Nullable{T}" /> exists only so the
+///     expression has somewhere to put "absent", and <c>PaginateFilterField.BuildNullExpression</c> deliberately
+///     ignores it, deciding from the field's declared type instead. Otherwise <c>$null</c> would match here and
+///     match nothing on the relational leg, which reads the same declared type.
 ///     Anything that is not a plain chain rooted at the parameter (a method call, a computed expression, a captured
 ///     variable) is returned untouched: there is nothing to guard that would not also change what it evaluates.
 /// </remarks>

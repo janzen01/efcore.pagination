@@ -22,7 +22,7 @@ public sealed class NestedPathTests {
 		.WithTieBreaker(p => p.Id)
 		.Searchable("category.name", p => p.Category!.Name)
 		.Filterable("category.name", p => p.Category!.Name)
-		.Filterable("category.id", p => p.Category!.Id)
+		.Filterable("category.id", p => p.Category!.Id, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual, PaginateFilterOperator.Null)
 		.FilterableMany("review.rating", p => p.Reviews, r => r.Rating));
 
 	[Fact]
@@ -96,6 +96,16 @@ public sealed class NestedPathTests {
 
 		Assert.Contains(meta.FilterableFields, field => field.Name == "category.name");
 		Assert.Contains(meta.SortableFields, field => field.Name == "category.name");
+
+	}
+
+	[Fact]
+	public async Task Null_on_a_value_typed_nested_member_matches_nothing_on_either_leg() {
+
+		// The lift to int? exists so the expression has somewhere to put "absent", not so $null changes meaning.
+		// A relational provider decides this from the declared type and matches no row; reading the lifted type
+		// here would have matched product 5 in memory and nothing at all against a database.
+		Assert.Empty((await Products().PageAsync<ProductDto>(Query.Filter("category.id", "$null:"), Config)).Items);
 
 	}
 

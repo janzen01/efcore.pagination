@@ -58,7 +58,7 @@ internal abstract class PaginateFilterField(
 		var expression = criterion.Operator switch {
 			PaginateFilterOperator.Eq => BuildEqualityExpression(valueExpression, criterion.Value, context),
 			PaginateFilterOperator.In => BuildInExpression(valueExpression, criterion.Value, context, maxFilterValues),
-			PaginateFilterOperator.Null => BuildNullExpression(valueExpression),
+			PaginateFilterOperator.Null => this.BuildNullExpression(valueExpression),
 			PaginateFilterOperator.ILike => BuildStringPatternExpression(valueExpression, criterion.Value, false, context),
 			PaginateFilterOperator.StartsWith => BuildStringPatternExpression(valueExpression, criterion.Value, true, context),
 			PaginateFilterOperator.Contains => BuildContainsExpression(valueExpression, criterion.Value, context, maxFilterValues),
@@ -76,8 +76,16 @@ internal abstract class PaginateFilterField(
 
 	private BinaryExpression BuildEqualityExpression(Expression valueExpression, string value, PaginateExpressionContext context) { return Expression.Equal(valueExpression, ConvertValue(value, valueExpression.Type, context)); }
 
-	private static Expression BuildNullExpression(Expression valueExpression) {
-		if (Nullable.GetUnderlyingType(valueExpression.Type) is null && valueExpression.Type.IsValueType) {
+	/// <summary>
+	///     Whether the value is null. The decision uses the <b>declared</b> type rather than the expression's,
+	///     because the in-memory leg lifts a value-typed member reached through a navigation to
+	///     <see cref="Nullable{T}" /> so it can yield null instead of throwing. Reading the lifted type here
+	///     would make <c>$null</c> match a row with no parent in memory while the relational leg — which never
+	///     lifts, and answers this from the declared type — matched none, and the two legs must agree. A field
+	///     declared non-nullable therefore reports "no row is null" on both, nested or not.
+	/// </summary>
+	private Expression BuildNullExpression(Expression valueExpression) {
+		if (Nullable.GetUnderlyingType(this.ExpressionType) is null && this.ExpressionType.IsValueType) {
 			return Expression.Constant(false);
 		}
 
