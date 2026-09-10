@@ -44,6 +44,10 @@ internal static class PaginateFilterParser {
 
 		if (string.IsNullOrWhiteSpace(raw)) throw new PaginateQueryException($"Filter '{field}' must not be empty.");
 
+		// Every filter value passes through here before an operator, a target type or a provider is chosen, which
+		// is the only place one guard covers all of them: the pattern operators never reach PaginateValueConverter.
+		PaginateInputGuard.RejectNul(raw, $"Filter '{field}'");
+
 		string remaining = raw;
 		bool not = false;
 		var connector = PaginateFilterConnector.And;
