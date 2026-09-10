@@ -17,11 +17,30 @@ internal static class PaginateValueConverter {
 
 	private readonly static string[] TimeOnlyFormats = ["HH:mm:ss.FFFFFFF", "HH:mm:ss", "HH:mm"];
 
+	// A date is mandatory and the offset optional — "K" matches nothing, "Z" or "+HH:mm". Parse completes a
+	// date-less value from the current clock, so "10:00" meant 10:00 *today* and a stored filter link changed
+	// meaning at midnight. Same reasoning as DateOnlyFormats, on the two types most requests actually use.
+	private readonly static string[] TimestampFormats = [
+		"yyyy-MM-dd",
+		"yyyy-MM-ddTHH:mmK",
+		"yyyy-MM-ddTHH:mm:ssK",
+		"yyyy-MM-ddTHH:mm:ss.FFFFFFFK"
+	];
+
+	// TimeSpan.TryParse re-reads the colon form as d.hh:mm:ss the moment the first component passes 23, so
+	// "24:00:00" selected everything within twenty-four *days* while "25:30:00" was a 400. These cap the hour
+	// instead; a day count keeps its own unambiguous spelling in the ISO leg (P5D).
+	private readonly static string[] DurationFormats = [@"h\:m", @"h\:m\:s", @"h\:m\:s\.FFFFFFF"];
+
 	// NumberStyles.Number additionally allows a group separator and a *trailing* sign, which no other numeric
 	// type here accepts: "1,5" parsed as fifteen on a money field and "1234-" as minus 1234. One grammar for the
 	// whole family, matching the invariant dot separator the reference promises.
 	private const NumberStyles DecimalStyles =
 		NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint;
+
+	// The exact forms above carry no whitespace of their own, and every other branch here tolerates padding.
+	private const DateTimeStyles TimestampStyles =
+		DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite;
 
 	private readonly static MethodInfo ParsableTemplate =
 		typeof(PaginateValueConverter).GetMethod(nameof(ParseParsable), BindingFlags.NonPublic | BindingFlags.Static)!;
@@ -76,8 +95,17 @@ internal static class PaginateValueConverter {
 			// AssumeUniversal alone reads an offsetless value as UTC and then hands back Kind=Local, which shifts the
 			// comparison by the server's zone against a UTC-kind column. AdjustToUniversal is what makes the
 			// documented "no offset means UTC" true on a machine that is not on UTC.
-			if (type == typeof(DateTimeOffset)) return DateTimeOffset.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
-			if (type == typeof(DateTime)) return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+			if (type == typeof(DateTimeOffset)) {
+				return DateTimeOffset.TryParseExact(value, TimestampFormats, CultureInfo.InvariantCulture, TimestampStyles, out var moment)
+					? moment
+					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+			}
+
+			if (type == typeof(DateTime)) {
+				return DateTime.TryParseExact(value, TimestampFormats, CultureInfo.InvariantCulture, TimestampStyles, out var instant)
+					? instant
+					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+			}
 			// Exact ISO forms rather than DateOnly.Parse/TimeOnly.Parse, which are lossy in opposite directions:
 			// the BCL reads "2026-01-03T10:00:00" as a DateOnly and throws the time away, and reads the same string
 			// as a TimeOnly and throws the date away. Answering a question the caller did not ask is the trap the
@@ -99,9 +127,20 @@ internal static class PaginateValueConverter {
 			// types 2 into a duration filter means that. Without a colon the value can only be ISO, where "2" is
 			// malformed and answers 400 like any other bad value.
 			if (type == typeof(TimeSpan)) {
-				return value.Contains(':', StringComparison.Ordinal) && TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan)
+
+				string duration = value.Trim();
+
+				if (!duration.Contains(':', StringComparison.Ordinal)) return ParseIsoDuration(value, field);
+
+				// A custom TimeSpan pattern cannot carry a sign, so the minus comes off first and TimeSpanStyles
+				// puts it back — otherwise pinning the hour would also drop every negative duration.
+				bool negative = duration.StartsWith('-');
+
+				return TimeSpan.TryParseExact(negative ? duration[1..] : duration, DurationFormats, CultureInfo.InvariantCulture,
+					negative ? TimeSpanStyles.AssumeNegative : TimeSpanStyles.None, out var timeSpan)
 					? timeSpan
-					: ParseIsoDuration(value, field);
+					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+
 			}
 			if (type == typeof(char)) return value.Length == 1 ? value[0] : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
 
