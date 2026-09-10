@@ -10,8 +10,6 @@ namespace Janzen.Pagination.EntityFrameworkCore.Engine;
 
 internal static class PaginateExpressionUtils {
 
-	// Escape character used together with ILIKE so user-supplied '%'/'_' are matched literally.
-
 	private readonly static MethodInfo IndexOfMethod = typeof(string).GetMethod(nameof(string.IndexOf), [typeof(string), typeof(StringComparison)])!;
 
 	private readonly static MethodInfo StartsWithMethod = typeof(string).GetMethod(nameof(string.StartsWith), [typeof(string), typeof(StringComparison)])!;

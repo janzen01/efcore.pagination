@@ -80,6 +80,34 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 
 	}
 
+	[Fact]
+	public async Task A_deep_page_inside_the_table_runs_the_offset_query_and_the_ceiling_still_decides_it() {
+
+		List<string> executedSql = [];
+		await using var context = fixture.CreateLoggingContext(executedSql);
+
+		// Page 4 at limit 2 skips 6 of the 8 rows, so the "skip past the last row" short-circuit does not fire and
+		// the paged query really is issued -- the branch Without_the_guard_a_deep_page_is_an_empty_page_as_before
+		// cannot reach, because it skips 4990 rows out of 8 and is answered by the count alone.
+		var request = new PaginateQuery { Page = 4, Limit = 2 };
+
+		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(request, Config(b => b.WithMaxOffset(6)));
+
+		Assertions.HasIds(page, 7, 8);
+		Assert.Equal(2, executedSql.Count);   // the count and the page
+		Assert.Contains(executedSql, sql => sql.Contains("OFFSET", StringComparison.Ordinal));
+
+		// One row shallower and the same in-table page is refused instead, still without asking the database.
+		executedSql.Clear();
+
+		string message = await Assertions.RejectsAsync(() =>
+			SqliteFixture.Products(context).PageAsync<ProductDto>(request, Config(b => b.WithMaxOffset(5))));
+
+		Assert.Equal("Query parameter 'page' exceeds the allowed offset for this resource: at most 5 rows may be skipped.", message);
+		Assert.Empty(executedSql);
+
+	}
+
 	// ---- AllowUnlimited -----------------------------------------------------------------------------
 
 	[Fact]
@@ -253,6 +281,23 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 
 		Assert.True(page.Meta.HasNextPage);
 		Assert.Equal("/products?page=4", page.Links!.Last);
+
+	}
+
+	[Fact]
+	public async Task An_offset_ceiling_at_the_int_maximum_does_not_truncate_navigation_to_one_page() {
+
+		// (maxOffset / limit) + 1 is int.MaxValue + 1 at limit 1, which wraps to int.MinValue and wins the
+		// Math.Min -- so a ceiling written as "no practical cap" clamped navigation to a single page for every
+		// client that paged one row at a time, silently and with no error anywhere.
+		var links = new PaginateLinkContext("/products", []);
+		var page = await Products().PageAsync<ProductDto>(new PaginateQuery { Page = 1, Limit = 1 }, Config(b => b.WithMaxOffset(int.MaxValue)), links);
+
+		Assert.Equal(8, page.Meta.TotalPages);
+		Assert.True(page.Meta.HasNextPage);
+		Assert.NotNull(page.Links);
+		Assert.Equal("/products?page=2", page.Links.Next);
+		Assert.Equal("/products?page=8", page.Links.Last);
 
 	}
 
