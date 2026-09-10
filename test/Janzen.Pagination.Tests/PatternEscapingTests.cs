@@ -47,12 +47,15 @@ public sealed class BackslashFixture : IAsyncLifetime {
 ///     <para>
 ///         The escape character has to be replaced <b>first</b>. Escape the wildcard before it and the emitted
 ///         pattern carries a literal backslash followed by a <i>live</i> wildcard — the caller's wildcard handed
-///         back. Deleting the escape replacement, or moving <c>_</c> or <c>[</c> ahead of it, leaves the shipped
-///         suite entirely green (measured: 1 failed of 420, and that one failure is the assertion below); the row
-///         this class seeds is what makes the difference visible. Two pre-existing tests are <i>not</i> blind to a
-///         full reversal — <c>Bracket_in_the_value_is_escaped</c> asserts the helper's output directly and
-///         <c>Underscore_in_the_value_is_escaped</c> ends in a positive <c>HasIds</c> — so the narrow reorder, not
-///         the wholesale one, is what this class exists to catch.
+///         back. Each mutation was measured against this branch, and they do not behave alike:
+///         moving <c>_</c> ahead of the escape replacement reddens <b>1 of 420</b> — the assertion below, and
+///         nothing else, so that reorder is the shipped suite's true blind spot; deleting the escape replacement
+///         reddens <b>4</b>, all of them new here; and moving <c>[</c> ahead reddens <b>2</b>, one of which is the
+///         pre-existing <c>FilterOperatorTests.Bracket_in_the_value_is_escaped</c>, so that one is <i>not</i> a
+///         blind spot at all. A full reversal is caught by two pre-existing tests —
+///         <c>Bracket_in_the_value_is_escaped</c> asserts the helper's output directly and
+///         <c>Underscore_in_the_value_is_escaped</c> ends in a positive <c>HasIds</c>. The narrow reorder, not the
+///         wholesale one, is what this class exists to catch, and the row it seeds is what makes it visible.
 ///     </para>
 /// </summary>
 public sealed class PatternEscapingTests(BackslashFixture fixture) : IClassFixture<BackslashFixture> {
