@@ -106,6 +106,43 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 	}
 
 	[Fact]
+	public async Task A_selector_narrows_the_select_to_the_columns_it_names() {
+
+		List<string> executedSql = [];
+		await using var context = fixture.CreateLoggingContext(executedSql);
+
+		await SqliteFixture.Products(context).PageSelectAsync(Query.Filter("id", "$eq:1"), p => new CategoryDto(p.Id, p.Name));
+
+		// PaginateSelectAsync's remarks promise "one query whose SELECT contains only the referenced columns
+		// (unused columns, e.g. a large jsonb, stay out)". That is a performance contract a consumer chooses
+		// this entry point for, and the materialised values are identical whether it holds or the provider
+		// falls back to fetching the whole row — so only the emitted SQL can tell.
+		string page = Assert.Single(executedSql, sql => sql.Contains("LIMIT", StringComparison.Ordinal));
+
+		Assert.Contains("\"Name\"", page, StringComparison.Ordinal);
+		Assert.DoesNotContain("\"Tags\"", page, StringComparison.Ordinal);
+		Assert.DoesNotContain("\"Warranty\"", page, StringComparison.Ordinal);
+
+	}
+
+	[Fact]
+	public async Task A_sub_collection_projection_costs_one_page_query() {
+
+		List<string> executedSql = [];
+		await using var context = fixture.CreateLoggingContext(executedSql);
+
+		await SqliteFixture.Products(context).PageSelectAsync(
+			Query.Filter("id", "$in:1,2"),
+			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count,
+				p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList()));
+
+		// The count, then the page — two commands for two rows, and the same two for two hundred. A regression
+		// to a per-row or split fetch of Reviews leaves every asserted value correct and shows up only here.
+		Assert.Equal(2, executedSql.Count(entry => entry.Contains("Executed DbCommand", StringComparison.Ordinal)));
+
+	}
+
+	[Fact]
 	public async Task Map_materializes_columns_but_not_navigations() {
 
 		await using var context = fixture.CreateContext();

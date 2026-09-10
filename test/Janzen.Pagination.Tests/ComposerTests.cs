@@ -24,6 +24,14 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 		.WithLimits(50, 50)
 		.WithTieBreaker(p => p.Id));
 
+	/// <summary>Opted into <c>limit=-1</c>, which is the branch where composer and engine compose differently.</summary>
+	private readonly static PaginateConfig<Product> Unlimited = PaginateConfig<Product>.Create(b => b
+		.WithLimits(3, 50)
+		.AllowUnlimited(100)
+		.Sortable("rank", p => p.Rank)
+		.DefaultSortBy("rank")
+		.WithTieBreaker(p => p.Id));
+
 	private static string Rejects(Action act) { return Assert.Throws<PaginateQueryException>(act).Message; }
 
 	[Fact]
@@ -40,6 +48,29 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 
 		// Two commands run: the count, then the page. Only the page carries a LIMIT.
 		string executed = Assert.Single(executedSql.Select(CommandSql), sql => sql.Contains("LIMIT", StringComparison.Ordinal));
+
+		Assert.Equal(Normalize(executed), Normalize(composed));
+
+	}
+
+	[Fact]
+	public async Task The_composed_unlimited_query_is_the_one_the_engine_executes() {
+
+		List<string> executedSql = [];
+		await using var context = fixture.CreateLoggingContext(executedSql);
+
+		var request = new PaginateQuery { Limit = PaginateQuery.UnlimitedLimit };
+
+		// The other branch of the same claim, and a different pairing: the composer runs ApplyPage over
+		// ApplyCeiling while the engine runs ApplyCeiling alone. They agree only because ApplyPage returns
+		// early for the unlimited literal and ApplyCeiling returns early for everything else — two early
+		// returns in two methods, either of which a later edit can break with nothing to notice.
+		string composed = SqliteFixture.Products(context).ApplyPagination(request, Unlimited).Query.ToQueryString();
+
+		await SqliteFixture.Products(context).PageMapAsync(request, product => product.Id, Unlimited);
+
+		// One command, not two: the unlimited path skips the count because the fetched set is the count.
+		string executed = Assert.Single(executedSql.Select(CommandSql), sql => sql.Length > 0);
 
 		Assert.Equal(Normalize(executed), Normalize(composed));
 
