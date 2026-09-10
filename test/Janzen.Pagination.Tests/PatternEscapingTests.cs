@@ -77,18 +77,6 @@ public sealed class PatternEscapingTests(BackslashFixture fixture) : IClassFixtu
 		return await Ids(context.Products.AsNoTracking(), request);
 	}
 
-	/// <summary>Reads the single quoted pattern out of <c>ToQueryString</c>'s <c>.param set</c> preamble.</summary>
-	private static string PatternParameter(string queryString) {
-
-		string line = queryString
-			.Split('\n')
-			.Select(candidate => candidate.Trim())
-			.Single(candidate => candidate.StartsWith(".param set ", StringComparison.Ordinal));
-
-		return line[(line.IndexOf('\'') + 1)..line.LastIndexOf('\'')];
-
-	}
-
 	[Fact]
 	public void The_escape_character_is_doubled_before_the_wildcards_are_escaped() {
 
@@ -140,7 +128,9 @@ public sealed class PatternEscapingTests(BackslashFixture fixture) : IClassFixtu
 		// answers a pattern ending in its escape character with "LIKE pattern must not end with escape character",
 		// an unhandled 500 on a value the caller chose. An "ends with" operator emitting the escaped value on its
 		// own, or a refactor that moved the append, would reopen it.
-		Assert.EndsWith(@"back\\%", PatternParameter(sql), StringComparison.Ordinal);
+		// The closing quote is part of the assertion: it is what makes the wildcard the pattern's last character
+		// rather than merely present, and it holds wherever the pattern is rendered.
+		Assert.Contains(@"back\\%'", sql, StringComparison.Ordinal);
 
 	}
 
