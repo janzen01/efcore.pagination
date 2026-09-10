@@ -1,8 +1,9 @@
 namespace Janzen.Pagination.Tests;
 
 /// <summary>
-///     What the engine does with caller-supplied text that is hostile rather than merely wrong. Both legs,
-///     because the guard has to sit above the provider.
+///     What the engine does with caller-supplied text that is hostile rather than merely wrong: a nul byte no
+///     text column can hold, a value long enough to dominate the error it produces, and control characters that
+///     would survive into a plain-text sink. Both legs, because the guard has to sit above the provider.
 /// </summary>
 public sealed class InputSanitisingTests(SqliteFixture fixture) : IClassFixture<SqliteFixture> {
 
@@ -69,6 +70,28 @@ public sealed class InputSanitisingTests(SqliteFixture fixture) : IClassFixture<
 		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("name", $"$ilike:wid{control}get"));
 
 		Assert.Empty(page.Items);
+
+	}
+
+	// PAR-13 — the value echoed back into the 400 detail.
+
+	[Fact]
+	public async Task An_oversized_value_does_not_dominate_the_message_it_produces() {
+
+		string message = await this.RejectsOnSqlite(Query.Filter("rank", $"$eq:{new string('9', 10_000)}"));
+
+		Assert.True(message.Length < 200, $"the 400 detail was {message.Length} characters long");
+		Assert.Contains("999...", message, StringComparison.Ordinal);
+		Assert.DoesNotContain(new string('9', 200), message, StringComparison.Ordinal);
+
+	}
+
+	[Fact]
+	public async Task Control_characters_are_stripped_from_the_echoed_value() {
+
+		string message = await this.RejectsOnSqlite(Query.Filter("rank", "$eq:12\r\n34"));
+
+		Assert.Equal("Value '1234' is not valid for 'rank'.", message);
 
 	}
 

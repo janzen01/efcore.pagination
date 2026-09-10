@@ -79,7 +79,7 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 
 		// TimeSpan.TryParse reads "2" as two *days*. Nobody typing 2 into a duration filter means that, so the
 		// colon form is required and a bare number can only be a malformed ISO duration.
-		Assert.Equal("Value '2' is not valid for type 'TimeSpan'.", await this.Rejects(Query.Filter("warranty", "$eq:2")));
+		Assert.Equal("Value '2' is not valid for 'warranty'.", await this.Rejects(Query.Filter("warranty", "$eq:2")));
 
 	}
 
@@ -92,7 +92,7 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 		// XmlConvert answers P1M with exactly thirty days and P1Y with 365 — a fixed approximation of something
 		// that has no fixed length. Better a 400 than a filter that quietly means something else.
 		Assert.Equal(
-			$"Value '{value}' is not valid for type 'TimeSpan': a duration in years or months has no fixed length.",
+			$"Value '{value}' is not valid for 'warranty': a duration in years or months has no fixed length.",
 			await this.Rejects(Query.Filter("warranty", $"$eq:{value}"))
 		);
 
@@ -107,11 +107,11 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 	}
 
 	[Theory]
-	[InlineData("releasedOn", "nope", "DateOnly")]
-	[InlineData("opensAt", "nope", "TimeOnly")]
-	[InlineData("warranty", "nope", "TimeSpan")]
-	public async Task An_unparseable_value_reports_its_type(string field, string value, string typeName) {
-		Assert.Equal($"Value '{value}' is not valid for type '{typeName}'.", await this.Rejects(Query.Filter(field, $"$eq:{value}")));
+	[InlineData("releasedOn", "nope")]
+	[InlineData("opensAt", "nope")]
+	[InlineData("warranty", "nope")]
+	public async Task An_unparseable_value_reports_the_field(string field, string value) {
+		Assert.Equal($"Value '{value}' is not valid for '{field}'.", await this.Rejects(Query.Filter(field, $"$eq:{value}")));
 	}
 
 	[Fact]
@@ -120,7 +120,7 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 		// DateOnly.Parse would accept this and silently drop the time, matching the whole day for a caller who
 		// asked about one moment of it. The parse table pins the exact ISO form instead.
 		Assert.Equal(
-			"Value '2026-01-03T10:00:00' is not valid for type 'DateOnly'.",
+			"Value '2026-01-03T10:00:00' is not valid for 'releasedOn'.",
 			await this.Rejects(Query.Filter("releasedOn", "$eq:2026-01-03T10:00:00"))
 		);
 
@@ -131,7 +131,7 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 
 		// The mirror image: TimeOnly.Parse reads the same string and throws the date away instead.
 		Assert.Equal(
-			"Value '2026-01-03T10:00:00' is not valid for type 'TimeOnly'.",
+			"Value '2026-01-03T10:00:00' is not valid for 'opensAt'.",
 			await this.Rejects(Query.Filter("opensAt", "$eq:2026-01-03T10:00:00"))
 		);
 
@@ -231,24 +231,24 @@ public sealed class ValueParsingNumericTests {
 	}
 
 	[Theory]
-	[InlineData("level", "256", "Byte")]
-	[InlineData("port", "65536", "UInt16")]
-	[InlineData("sequence", "4294967296", "UInt32")]
-	[InlineData("offset", "18446744073709551616", "UInt64")]
-	public async Task An_out_of_range_value_is_a_400_rather_than_an_overflow(string field, string value, string typeName) {
-		Assert.Equal($"Value '{value}' is not valid for type '{typeName}'.", await RejectsAsync(field, $"$eq:{value}"));
+	[InlineData("level", "256")]
+	[InlineData("port", "65536")]
+	[InlineData("sequence", "4294967296")]
+	[InlineData("offset", "18446744073709551616")]
+	public async Task An_out_of_range_value_is_a_400_rather_than_an_overflow(string field, string value) {
+		Assert.Equal($"Value '{value}' is not valid for '{field}'.", await RejectsAsync(field, $"$eq:{value}"));
 	}
 
 	[Theory]
 	[InlineData("level", "-1")]
 	[InlineData("sequence", "-1")]
 	public async Task An_unsigned_type_refuses_a_negative_value(string field, string value) {
-		Assert.Contains("is not valid for type", await RejectsAsync(field, $"$eq:{value}"));
+		Assert.Equal($"Value '{value}' is not valid for '{field}'.", await RejectsAsync(field, $"$eq:{value}"));
 	}
 
 	[Fact]
 	public async Task A_char_refuses_more_than_one_character() {
-		Assert.Equal("Value 'ab' is not valid for type 'Char'.", await RejectsAsync("grade", "$eq:ab"));
+		Assert.Equal("Value 'ab' is not valid for 'grade'.", await RejectsAsync("grade", "$eq:ab"));
 	}
 
 }
@@ -324,11 +324,11 @@ public sealed class ValueParsingRegistryTests {
 	}
 
 	[Fact]
-	public async Task A_parsable_value_object_reports_its_own_type_when_the_text_is_wrong() {
+	public async Task A_parsable_value_object_reports_the_field_when_the_text_is_wrong() {
 
 		var exception = await Assert.ThrowsAsync<PaginateQueryException>(() => PageAsync("ticket", "$eq:nope"));
 
-		Assert.Equal("Value 'nope' is not valid for type 'Ticket'.", exception.Message);
+		Assert.Equal("Value 'nope' is not valid for 'ticket'.", exception.Message);
 
 	}
 

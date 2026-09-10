@@ -34,12 +34,12 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData("-1")]
 	[InlineData("+1")]
 	public async Task Enums_reject_numeric_values(string value) {
-		Assert.Equal($"Value '{value}' is not valid for type 'ProductStatus'.", await this.Rejects(Query.Filter("status", $"$eq:{value}")));
+		Assert.Equal($"Value '{value}' is not valid for 'status'.", await this.Rejects(Query.Filter("status", $"$eq:{value}")));
 	}
 
 	[Fact]
 	public async Task Enums_reject_an_undefined_name() {
-		Assert.Equal("Value 'Nope' is not valid for type 'ProductStatus'.", await this.Rejects(Query.Filter("status", "$eq:Nope")));
+		Assert.Equal("Value 'Nope' is not valid for 'status'.", await this.Rejects(Query.Filter("status", "$eq:Nope")));
 	}
 
 	[Theory]
@@ -61,18 +61,18 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	}
 
 	[Fact]
-	public async Task Integers_report_the_target_type() {
-		Assert.Equal("Value 'abc' is not valid for type 'Int32'.", await this.Rejects(Query.Filter("id", "$eq:abc")));
+	public async Task Integers_report_the_field() {
+		Assert.Equal("Value 'abc' is not valid for 'id'.", await this.Rejects(Query.Filter("id", "$eq:abc")));
 	}
 
 	[Fact]
-	public async Task Decimals_report_the_target_type() {
-		Assert.Equal("Value 'abc' is not valid for type 'Decimal'.", await this.Rejects(Query.Filter("price", "$eq:abc")));
+	public async Task Decimals_report_the_field() {
+		Assert.Equal("Value 'abc' is not valid for 'price'.", await this.Rejects(Query.Filter("price", "$eq:abc")));
 	}
 
 	[Fact]
 	public async Task An_empty_value_is_rejected_for_a_non_nullable_target() {
-		Assert.Equal("Value for type 'Int32' must not be empty.", await this.Rejects(Query.Filter("rank", "$eq:")));
+		Assert.Equal("Value for 'rank' must not be empty.", await this.Rejects(Query.Filter("rank", "$eq:")));
 	}
 
 	[Fact]
@@ -85,7 +85,7 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public async Task An_unparseable_target_type_is_reported_as_unsupported() {
-		Assert.Equal("Filtering values of type 'List`1' is not supported.",
+		Assert.Equal("Filtering values for 'tagsEq' is not supported.",
 			await this.Rejects(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
 	}
 
@@ -100,7 +100,7 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData("2026-01-01T02:00:00+02:00")]
 	public void A_date_time_is_parsed_as_the_utc_instant(string value) {
 
-		var parsed = Assert.IsType<DateTime>(PaginateValueConverter.Convert(value, typeof(DateTime)));
+		var parsed = Assert.IsType<DateTime>(PaginateValueConverter.Convert(value, typeof(DateTime), "createdAt"));
 
 		Assert.Equal(DateTimeKind.Utc, parsed.Kind);
 		Assert.Equal(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), parsed);
@@ -109,7 +109,7 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public void A_date_time_offset_is_parsed_as_the_utc_instant() {
-		Assert.Equal(TimeSpan.Zero, Assert.IsType<DateTimeOffset>(PaginateValueConverter.Convert("2026-01-01T02:00:00+02:00", typeof(DateTimeOffset))).Offset);
+		Assert.Equal(TimeSpan.Zero, Assert.IsType<DateTimeOffset>(PaginateValueConverter.Convert("2026-01-01T02:00:00+02:00", typeof(DateTimeOffset), "createdAt")).Offset);
 	}
 
 }
