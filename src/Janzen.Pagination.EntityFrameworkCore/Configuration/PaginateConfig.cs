@@ -478,6 +478,9 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	///     There is no ceiling-free form, and the opt-in is per resource on purpose — it is a statement that
 	///     <i>this</i> collection is bounded, which is not something a global setting could know. An unlimited
 	///     request must ask for page 1; pages of an unbounded set are meaningless.
+	///     A <paramref name="maxRows" /> at or near <c>int.MaxValue</c> is accepted and means what it looks like: the
+	///     fetch of <c>maxRows + 1</c> is clamped to <c>int.MaxValue</c>, so no result can exceed the ceiling and the
+	///     400 can never be raised. Such a read is bounded only by the memory available to hold it.
 	/// </remarks>
 	public PaginateConfigBuilder<TEntity> AllowUnlimited(int maxRows) {
 		if (maxRows <= 0) throw new ArgumentOutOfRangeException(nameof(maxRows), "Max rows must be greater than zero.");

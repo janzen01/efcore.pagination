@@ -229,9 +229,9 @@ public static class PaginateQueryableExtensions {
 	/// <summary>
 	///     The shared front half of every path: validate, resolve the effective limit, then apply filters and search.
 	///     <c>PaginateAsync</c>, <c>ApplyPaginateFilters</c> and <c>ApplyPagination</c> all enter here, which is what
-	///     keeps "what the composer shows" and "what the engine runs" from drifting apart. The sort is deliberately
-	///     <b>not</b> resolved here — <c>ApplyPaginateFilters</c> never reaches ordering, so validating
-	///     <c>sortBy</c> for it would reject requests it does not act on.
+	///     keeps "what the composer shows" and "what the engine runs" from drifting apart. The sort is resolved by
+	///     each caller instead of here, because only <c>ApplyPaginateFilters</c> stops short of applying it — both
+	///     composers validate <c>sortBy</c>, only one orders by it.
 	/// </summary>
 	private static (IQueryable<TEntity> Query, int Limit, string? Search, IReadOnlyList<string> SearchBy) Compose<TEntity>(
 		IQueryable<TEntity> source,
@@ -454,6 +454,10 @@ public static class PaginateQueryableExtensions {
 		///     <c>sortBy</c> are rejected here exactly as <c>PaginateAsync</c> rejects them — the two composers
 		///     validate identically. The result's <see cref="PaginateComposedQuery{TEntity}.SortBy" /> reports the
 		///     ordering that <i>would</i> apply, even though this query carries none.
+		///     What the guards do <b>not</b> do here is bound the read: <see cref="PaginateComposedQuery{TEntity}.Query" />
+		///     is the whole match set, so <c>MaxLimit</c>, <c>MaxOffset</c> and the <c>AllowUnlimited</c> row ceiling say
+		///     nothing about how many rows enumerating it returns. Bounding that — a <c>Take</c>, a streamed export, a
+		///     background job — is the caller's, the same way the ceiling on <c>ApplyPagination</c>'s <c>limit=-1</c> is.
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
@@ -475,7 +479,8 @@ public static class PaginateQueryableExtensions {
 		///     Composes the full page query — filters, search, ordering (tie-breaker included) and
 		///     <c>Skip</c>/<c>Take</c> — and hands it back <b>unexecuted</b>, together with the request state the
 		///     engine resolved for it. This is the handle to call <c>ToQueryString()</c> on: the SQL it prints is the
-		///     SQL <c>PaginateAsync</c> would run for the same request, because both compose through one code path.
+		///     filtering, ordering and paging <c>PaginateAsync</c> would run for the same request, because both compose
+		///     through one code path. The projection is not applied, so the <c>SELECT</c> list is the entity's.
 		/// </summary>
 		/// <remarks>
 		///     No count is issued and no projection is added, and unlike <c>PaginateAsync</c> there is no
