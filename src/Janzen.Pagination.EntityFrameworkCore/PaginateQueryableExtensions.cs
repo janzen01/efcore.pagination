@@ -279,7 +279,10 @@ public static class PaginateQueryableExtensions {
 		// An unlimited read is one page and never skips, so the offset ceiling has nothing to say about it.
 		if (limit == PaginateQuery.UnlimitedLimit || config.MaxOffset is not { } maxOffset) return totalPages;
 
-		return Math.Min(totalPages, (maxOffset / limit) + 1);
+		// Long arithmetic for the same reason ApplyCeiling needs it: at limit 1 a ceiling of int.MaxValue makes
+		// the + 1 wrap to int.MinValue, which then wins the Math.Min -- so a ceiling meaning "no practical cap"
+		// clamped navigation to one page rather than leaving it alone.
+		return (int)Math.Min(totalPages, ((long)maxOffset / limit) + 1);
 
 	}
 
