@@ -47,9 +47,12 @@ public sealed class BackslashFixture : IAsyncLifetime {
 ///     <para>
 ///         The escape character has to be replaced <b>first</b>. Escape the wildcard before it and the emitted
 ///         pattern carries a literal backslash followed by a <i>live</i> wildcard — the caller's wildcard handed
-///         back. The four pre-existing escaping tests all assert <c>Assert.Empty</c> against rows that contain no
-///         backslash, so the inverted pattern matches nothing there and they stay green; the row this class seeds
-///         is what makes the difference visible.
+///         back. Deleting the escape replacement, or moving <c>_</c> or <c>[</c> ahead of it, leaves the shipped
+///         suite entirely green (measured: 1 failed of 420, and that one failure is the assertion below); the row
+///         this class seeds is what makes the difference visible. Two pre-existing tests are <i>not</i> blind to a
+///         full reversal — <c>Bracket_in_the_value_is_escaped</c> asserts the helper's output directly and
+///         <c>Underscore_in_the_value_is_escaped</c> ends in a positive <c>HasIds</c> — so the narrow reorder, not
+///         the wholesale one, is what this class exists to catch.
 ///     </para>
 /// </summary>
 public sealed class PatternEscapingTests(BackslashFixture fixture) : IClassFixture<BackslashFixture> {
@@ -80,10 +83,11 @@ public sealed class PatternEscapingTests(BackslashFixture fixture) : IClassFixtu
 	[Fact]
 	public void The_escape_character_is_doubled_before_the_wildcards_are_escaped() {
 
-		// One value carrying all four escapable characters, so the assertion fails on any reordering of the
-		// four Replace calls rather than only on the ones a seeded row happens to expose. Move the backslash
-		// out of first place and every character escaped before it acquires a second backslash, which under
-		// ESCAPE '\' reads as a literal backslash followed by the caller's live wildcard.
+		// One value carrying all four escapable characters, so the assertion fails on any reordering that does
+		// not keep the escape replacement first — rather than only on the ones a seeded row happens to expose.
+		// Swapping % with _, or _ with [, is byte-identical for every input and is correctly not caught here.
+		// Move the backslash out of first place and every character escaped before it acquires a second
+		// backslash, which under ESCAPE '\' reads as a literal backslash followed by the caller's live wildcard.
 		Assert.Equal(@"a\\b\%c\_d\[e", PaginateExpressionUtils.EscapeLikePattern(@"a\b%c_d[e"));
 
 	}
