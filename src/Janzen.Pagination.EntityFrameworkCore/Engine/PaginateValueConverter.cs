@@ -17,6 +17,12 @@ internal static class PaginateValueConverter {
 
 	private readonly static string[] TimeOnlyFormats = ["HH:mm:ss.FFFFFFF", "HH:mm:ss", "HH:mm"];
 
+	// NumberStyles.Number additionally allows a group separator and a *trailing* sign, which no other numeric
+	// type here accepts: "1,5" parsed as fifteen on a money field and "1234-" as minus 1234. One grammar for the
+	// whole family, matching the invariant dot separator the reference promises.
+	private const NumberStyles DecimalStyles =
+		NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite | NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint;
+
 	private readonly static MethodInfo ParsableTemplate =
 		typeof(PaginateValueConverter).GetMethod(nameof(ParseParsable), BindingFlags.NonPublic | BindingFlags.Static)!;
 
@@ -54,9 +60,19 @@ internal static class PaginateValueConverter {
 			if (type == typeof(uint)) return uint.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 			if (type == typeof(long)) return long.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 			if (type == typeof(ulong)) return ulong.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
-			if (type == typeof(float)) return float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
-			if (type == typeof(double)) return double.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
-			if (type == typeof(decimal)) return decimal.Parse(value, NumberStyles.Number, CultureInfo.InvariantCulture);
+			// The IEEE types saturate where the integer types throw, and NumberStyles.Float reads "NaN" and
+			// "Infinity" by name, so an out-of-range magnitude answered an empty page indistinguishable from
+			// "no rows match". A value the type cannot hold is the same 400 the integer family already gives.
+			if (type == typeof(float)) {
+				float single = float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
+				return float.IsFinite(single) ? single : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+			}
+
+			if (type == typeof(double)) {
+				double number = double.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
+				return double.IsFinite(number) ? number : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+			}
+			if (type == typeof(decimal)) return decimal.Parse(value, DecimalStyles, CultureInfo.InvariantCulture);
 			// AssumeUniversal alone reads an offsetless value as UTC and then hands back Kind=Local, which shifts the
 			// comparison by the server's zone against a UTC-kind column. AdjustToUniversal is what makes the
 			// documented "no offset means UTC" true on a machine that is not on UTC.
