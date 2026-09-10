@@ -86,6 +86,23 @@ public sealed class InputSanitisingTests(SqliteFixture fixture) : IClassFixture<
 
 	}
 
+	/// <summary>
+	///     A surrogate pair straddling the truncation point is dropped whole. Half a pair is not well-formed
+	///     text, and every sink downstream — a JSON writer, a log file, a console — has its own idea of what to
+	///     do with one.
+	/// </summary>
+	[Fact]
+	public async Task Truncation_never_cuts_a_surrogate_pair_in_half() {
+
+		// 119 characters, then an emoji whose high surrogate sits exactly on the 120-character budget.
+		string value = new string('a', 119) + "😀" + new string('b', 50);
+
+		string message = await this.RejectsOnSqlite(Query.Filter("rank", $"$eq:{value}"));
+
+		Assert.Equal($"Value '{new string('a', 119)}...' is not valid for 'rank'.", message);
+
+	}
+
 	[Fact]
 	public async Task Control_characters_are_stripped_from_the_echoed_value() {
 
