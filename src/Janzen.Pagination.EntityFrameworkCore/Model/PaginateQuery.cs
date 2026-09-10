@@ -52,6 +52,13 @@ public sealed class PaginateQuery {
 	///     <see cref="PaginatedMeta.CurrentPage" /> and <see cref="PaginatedMeta.TotalPages" /> and hand the
 	///     result straight back to the engine.
 	/// </summary>
+	/// <remarks>
+	///     "Everything else" includes a parse error the model binder recorded, so a request the binder already
+	///     rejected is still rejected after being pointed at a different page — including when it was the
+	///     <c>page</c> itself that failed to parse. Navigating off <see cref="PaginatedResponse{T}.Meta" /> cannot
+	///     reach that, because holding a response proves the request executed; a handler that normalizes the page
+	///     <b>before</b> executing should build a fresh <see cref="PaginateQuery" /> instead.
+	/// </remarks>
 	/// <param name="page">1-based page number. Non-positive values are rejected on execution, not here.</param>
 	public PaginateQuery WithPage(int page) => new() {
 		Page            = page,
