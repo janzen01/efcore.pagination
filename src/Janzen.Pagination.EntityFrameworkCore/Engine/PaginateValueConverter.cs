@@ -90,13 +90,20 @@ internal static class PaginateValueConverter {
 			if (type == typeof(char)) return value.Length == 1 ? value[0] : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
 
 			if (type.IsEnum) {
-				// Enums are addressed by name only — numeric forms are rejected so the filter contract is stable
-				// and well-defined (Enum.Parse otherwise accepts arbitrary numbers, including undefined [Flags] combinations).
-				if (char.IsAsciiDigit(value[0]) || value[0] is '-' or '+') {
+				// Enums are addressed by one declared member name only — numeric forms are rejected so the filter
+				// contract is stable and well-defined (Enum.Parse otherwise accepts arbitrary numbers, including
+				// undefined [Flags] combinations). Both guards read the *trimmed* candidate, because Enum.Parse
+				// trims before it looks at anything: reading value[0] let " 1" walk past, and a bare '+' decodes
+				// to a space on the wire. A comma list goes with them — Enum.Parse OR-combines it arithmetically,
+				// so "Draft,Active" resolved to Active and silently dropped every Draft row. $in is the operator
+				// that takes several values.
+				string member = value.Trim();
+
+				if (char.IsAsciiDigit(member[0]) || member[0] is '-' or '+' || member.Contains(',', StringComparison.Ordinal)) {
 					throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
 				}
 
-				object parsed = Enum.Parse(type, value, true);
+				object parsed = Enum.Parse(type, member, true);
 				return Enum.IsDefined(type, parsed) ? parsed : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
 			}
 
