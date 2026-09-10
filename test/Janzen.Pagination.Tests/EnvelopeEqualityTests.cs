@@ -11,20 +11,31 @@ namespace Janzen.Pagination.Tests;
 /// </summary>
 public sealed class EnvelopeEqualityTests {
 
+	/// <summary>
+	///     Every member is a parameter so each can be varied on its own. Dropping one from a hand-written
+	///     <c>Equals</c> can only ever make <b>more</b> pairs compare equal, so no <c>Assert.Equal</c> can catch
+	///     it — an inequality isolating that single member is the only guard there is.
+	/// </summary>
 	private static PaginatedMeta Meta(
 		IReadOnlyList<string>? sortBy = null,
 		string? search = null,
 		IReadOnlyList<string>? searchBy = null,
 		IReadOnlyDictionary<string, IReadOnlyList<string>>? filter = null,
-		int currentPage = 2
+		int currentPage = 2,
+		int totalItems = 37,
+		int itemCount = 2,
+		int itemsPerPage = 25,
+		int totalPages = 19,
+		bool? hasPreviousPage = null,
+		bool hasNextPage = true
 	) {
-		return new PaginatedMeta(37, 2, 25, 19, currentPage) {
+		return new PaginatedMeta(totalItems, itemCount, itemsPerPage, totalPages, currentPage) {
 			SortBy = sortBy ?? [],
 			Search = search,
 			SearchBy = searchBy ?? [],
 			Filter = filter ?? PaginateQuery.EmptyFilters,
-			HasPreviousPage = currentPage > 1,
-			HasNextPage = true
+			HasPreviousPage = hasPreviousPage ?? currentPage > 1,
+			HasNextPage = hasNextPage
 		};
 	}
 
@@ -73,6 +84,25 @@ public sealed class EnvelopeEqualityTests {
 
 		Assert.NotEqual(baseline, Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["name"],
 			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"])), currentPage: 3));
+
+	}
+
+	[Fact]
+	public void A_difference_in_any_counter_or_flag_makes_them_unequal() {
+
+		// The five members varied above are the echoed request; these six are the page arithmetic, and none of
+		// them had an assertion of its own. Drop `TotalItems == other.TotalItems` from Equals and its Add from
+		// GetHashCode and the rest of this file goes greener, not redder — including the end-to-end case, which
+		// becomes more true. A meta reporting two different pages as one value is a wrong answer for any client
+		// that caches or diffs envelopes.
+		var baseline = Meta();
+
+		Assert.NotEqual(baseline, Meta(totalItems: 38));
+		Assert.NotEqual(baseline, Meta(itemCount: 3));
+		Assert.NotEqual(baseline, Meta(itemsPerPage: 26));
+		Assert.NotEqual(baseline, Meta(totalPages: 20));
+		Assert.NotEqual(baseline, Meta(hasPreviousPage: false));
+		Assert.NotEqual(baseline, Meta(hasNextPage: false));
 
 	}
 
@@ -170,6 +200,29 @@ public sealed class EnvelopeEqualityTests {
 	}
 
 	[Fact]
+	public void The_current_link_is_part_of_the_value_too() {
+
+		// Current is the one envelope member with no equality coverage: the links are built through the 4-ary
+		// positional constructor everywhere else, which leaves it null on both sides. The compiler guarantees
+		// its participation today — the risk is conditional on anyone hand-writing PaginatedLinks.Equals the
+		// way PaginatedMeta already needed, at which point a forgotten Current makes two envelopes pointing at
+		// different pages compare equal.
+		var links = new PaginatedLinks("/p?page=1", null, null, "/p?page=3") { Current = "/p?page=2" };
+		var same = new PaginatedLinks("/p?page=1", null, null, "/p?page=3") { Current = "/p?page=2" };
+
+		Assert.Equal(links, same);
+		Assert.Equal(links.GetHashCode(), same.GetHashCode());
+		Assert.NotEqual(links, links with { Current = "/p?page=3" });
+
+		// And through the envelope, whose hand-written Equals delegates the links member.
+		var baseline = new PaginatedResponse<ProductDto>([], Meta(), links);
+
+		Assert.Equal(baseline, new PaginatedResponse<ProductDto>([], Meta(), same));
+		Assert.NotEqual(baseline, new PaginatedResponse<ProductDto>([], Meta(), links with { Current = "/p?page=3" }));
+
+	}
+
+	[Fact]
 	public void Row_order_is_part_of_the_value() {
 
 		ProductDto widget = new(1, "Widget", ProductStatus.Active, 10);
@@ -194,8 +247,12 @@ public sealed class EnvelopeEqualityTests {
 		var deserialized = JsonSerializer.Deserialize<PaginatedResponse<ProductDto>>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
 		var wellFormed = new PaginatedResponse<ProductDto>([], new PaginatedMeta(0, 0, 25, 0, 1), null);
 
+		// Only inequality is asserted, not hash inequality: the contract is equal ⇒ equal hash, and nothing
+		// promises the converse. The difference that reaches the hash here is ListHash([]) against
+		// ListHash(null), and ListHash(null) returns a literal 0 while ListHash([]) derives from HashCode's
+		// per-process randomised seed — so asserting they differ pins an accident, and would report a false
+		// regression the day a null collection is normalised to hash like an empty one.
 		Assert.NotEqual(wellFormed, deserialized);
-		Assert.NotEqual(wellFormed.GetHashCode(), deserialized.GetHashCode());
 
 		// And two equally malformed ones still answer, rather than each throwing on the way.
 		var second = JsonSerializer.Deserialize<PaginatedResponse<ProductDto>>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;

@@ -4,7 +4,16 @@ using Microsoft.AspNetCore.Http;
 
 namespace Janzen.Pagination.Tests.AspNetCore;
 
-/// <summary>Binding the six query-string inputs, and what happens to values that do not parse.</summary>
+/// <summary>
+///     Binding the six query-string inputs, and what happens to values that do not parse.
+///     <para>
+///         A claim about the <b>wire</b> grammar belongs here, reached through <c>ToPaginateQuery</c> — never
+///         through a directly constructed <see cref="PaginateQuery" />. The two spellings differ: a value the
+///         framework has already unescaped and trimmed is not the value a caller sent, so a rejection asserted
+///         on a hand-built request can be a rejection the wire never reaches. That is how <c>limit=-1</c> stayed
+///         unreachable over HTTP while every test of it passed.
+///     </para>
+/// </summary>
 public sealed class QueryParserTests {
 
 	private static PaginateQuery Parse(string queryString) {
@@ -65,7 +74,11 @@ public sealed class QueryParserTests {
 
 		var query = Parse("?filter.Status=$eq:Active&filter.status=$eq:Draft");
 
-		Assert.Single(query.Filters);
+		// Counting the entries is not enough: one entry is also what a case-sensitive query collection would
+		// produce, because the parser assigns rather than merges and the second spelling would then overwrite
+		// the first. The reference sells this as "two criteria on one field rather than two fields", so both
+		// values and their order are the assertion. Assert.Contains keeps the single-entry check implicitly.
+		Assert.Equal(["$eq:Active", "$eq:Draft"], Assert.Contains("Status", query.Filters));
 
 	}
 
