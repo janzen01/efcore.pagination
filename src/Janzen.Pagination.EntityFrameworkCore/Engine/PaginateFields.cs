@@ -16,7 +16,7 @@ internal interface IPaginateFieldTarget {
 }
 
 internal sealed record PaginateSortField(string Name, LambdaExpression Selector, Type Type) : IPaginateFieldTarget {
-	// ponytail: these settable auto-props join the record's synthesized equality, but these field records are only ever
+	// These settable auto-props join the record's synthesized equality, but these field records are only ever
 	// stored as FrozenDictionary values and never compared — harmless. Not worth converting to a class.
 	public PaginateBadge? Badge { get; set; }
 	public bool? Condition { get; set; }
