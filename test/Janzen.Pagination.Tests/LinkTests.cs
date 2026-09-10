@@ -7,9 +7,16 @@ namespace Janzen.Pagination.Tests;
 /// <summary>Navigation links, which appear only when a <see cref="PaginateLinkContext" /> is supplied.</summary>
 public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixture> {
 
+	/// <summary>
+	///     <c>utm_source</c> is here because the binder does not recognise it: the documented promise is that
+	///     <b>every</b> current parameter except <c>page</c> is carried over, unrecognised ones included, so
+	///     client-side state survives paging. Without such a key the drop predicate could be narrowed to the six
+	///     known parameters and every link assertion would still pass.
+	/// </summary>
 	private readonly static PaginateLinkContext Context = new("/products", [
 		new KeyValuePair<string, string>("limit", "3"),
 		new KeyValuePair<string, string>("filter.status", "$eq:Active"),
+		new KeyValuePair<string, string>("utm_source", "news"),
 		new KeyValuePair<string, string>("page", "2")
 	]);
 
@@ -62,7 +69,7 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	[Fact]
 	public async Task Other_query_parameters_are_carried_over_and_escaped_while_page_is_replaced() {
-		Assert.Equal("/products?limit=3&filter.status=%24eq%3AActive&page=1", (await this.LinksFor(2, Context)).First);
+		Assert.Equal("/products?limit=3&filter.status=%24eq%3AActive&utm_source=news&page=1", (await this.LinksFor(2, Context)).First);
 	}
 
 	[Fact]
