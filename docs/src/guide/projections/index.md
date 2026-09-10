@@ -178,7 +178,9 @@ genuinely needs the loaded entity — an existing hand-written mapper you cannot
 logic that calls into services.
 
 The page entities are loaded with `AsNoTracking` (applied automatically on real EF providers), so a read-only
-list does not pollute the change tracker.
+list does not pollute the change tracker. That is unconditional, and `AsNoTracking` is a query-level operator
+applied last — so it **overrides** an `AsTracking()` on the source query. An entity your `projector` reaches is
+therefore not tracked, and mutating it will not be persisted by `SaveChanges`.
 
 **Not a reason to use it:** a projection that combines sub-collections with NodaTime conversions. That is
 `PaginateSelectAsync`, which keeps the `SELECT` narrow.
@@ -198,6 +200,12 @@ For a page of 25 rows out of a million:
 
 The choice of strategy does not change the number of queries — see
 [Getting started](../getting-started/#what-the-engine-does-with-that-request) for the shape all four share.
+
+Change tracking is the one column that table cannot hold, because only one strategy decides it for you.
+`PaginateMapAsync` reads the page with `AsNoTracking` whatever the source says; the `Select` family adds
+nothing and therefore tracks whatever entity instances the selector returns — `p => p` tracks the page,
+`p => new { p.Id, p.Category }` tracks the categories, and a selector naming only scalars tracks nothing.
+That is your `IQueryable` and your call: put `AsNoTracking()` on the source when you do not want it.
 
 All four are also annotated `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`, because projection is
 exactly the part that needs reflection: see

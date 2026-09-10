@@ -424,6 +424,10 @@ public static class PaginateQueryableExtensions {
 		///     combines sub-collections with NodaTime conversions does <b>not</b> need this — use
 		///     <c>PaginateSelectAsync</c>, which keeps the <c>SELECT</c> narrow and applies such conversions in the
 		///     shaper.
+		///     On a real EF provider the page query is read with <c>AsNoTracking</c> unconditionally, which as a
+		///     query-level operator applied last <b>overrides</b> an <c>AsTracking()</c> on the source: an entity the
+		///     <paramref name="projector" /> reaches is not tracked and mutating it will not be persisted. The
+		///     <c>Select</c> family makes no such decision — it tracks whatever entity instances its selector returns.
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
