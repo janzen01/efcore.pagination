@@ -58,6 +58,62 @@ internal abstract class PaginateFilterField(
 
 	public abstract Expression BuildExpression(ParameterExpression entity, PaginateFilterCriterion criterion, PaginateExpressionContext context, int maxFilterValues);
 
+	/// <summary>
+	///     Whether the engine can build <paramref name="filterOperator" /> for this field, asked once at
+	///     <c>Build()</c> so an operator list the type cannot carry is a configuration error rather than a 400 on
+	///     every request. An operator with no arm has no type precondition to check.
+	/// <para>
+	///     Two of the three arms mirror their runtime guard exactly. The comparison arm does not, deliberately:
+	///     it asks <c>CanCompare</c>, the same <i>range</i> question
+	///     <see cref="Model.PaginateFilterOperators" /> asks when deriving an operator set, which wants all four
+	///     relational factories — while <c>BuildComparison</c>'s own guard needs only the one being built. So a
+	///     type declaring <c>&lt;</c> and <c>&gt;</c> without <c>&lt;=</c> and <c>&gt;=</c> — legal C#, since the
+	///     compiler pairs each operator only with its own opposite — can still build <c>$gt</c> at runtime and is
+	///     nevertheless refused here. That is the intended reading of "ordered": all four or none, so a shorthand
+	///     field and an explicit one answer alike.
+	/// </para>
+	/// </summary>
+	internal bool Supports(PaginateFilterOperator filterOperator) {
+		return filterOperator switch {
+			PaginateFilterOperator.LessThan or PaginateFilterOperator.LessThanOrEqual
+				or PaginateFilterOperator.GreaterThan or PaginateFilterOperator.GreaterThanOrEqual
+				or PaginateFilterOperator.Between => CanCompare(Type),
+			PaginateFilterOperator.ILike or PaginateFilterOperator.StartsWith => Type == typeof(string),
+			PaginateFilterOperator.Contains => Type == typeof(string) || GetEnumerableElementType(ExpressionType) is not null,
+			_ => true
+		};
+	}
+
+	/// <summary>
+	///     Whether <c>BuildComparison</c> can express a range over <paramref name="type" />, and the one place that
+	///     question is answered — <see cref="PaginateFilterOperators" /> asks it too, when deciding whether a
+	///     registered simple type joins the range row. The branches are the builder's own: enums compare on their
+	///     underlying integral value, <see langword="string" /> and <see cref="Guid" /> reach a <c>CompareTo</c>
+	///     stand-in, and every other type has to carry the relational operators itself. Probing all four through the
+	///     expression factory is what keeps this answer and the builder's from drifting: nothing obliges a type to
+	///     declare the four together, and the integral primitives declare none of them at all.
+	/// </summary>
+	internal static bool CanCompare(Type type) {
+
+		var core = Nullable.GetUnderlyingType(type) ?? type;
+
+		if (core.IsEnum || core == typeof(string) || core == typeof(Guid)) return true;
+
+		var operand = Expression.Default(core);
+
+		try {
+			Expression.GreaterThan(operand, operand);
+			Expression.GreaterThanOrEqual(operand, operand);
+			Expression.LessThan(operand, operand);
+			Expression.LessThanOrEqual(operand, operand);
+		} catch (InvalidOperationException) {
+			return false;
+		}
+
+		return true;
+
+	}
+
 	protected Expression BuildOperatorExpression(Expression valueExpression, PaginateFilterCriterion criterion, PaginateExpressionContext context, int maxFilterValues) {
 
 		if (!Operators.Contains(criterion.Operator)) {
@@ -166,7 +222,8 @@ internal abstract class PaginateFilterField(
 			try {
 				return comparison(valueExpression, constant);
 			} catch (InvalidOperationException exception) {
-				// bool, and anything registered through PaginateTypeSupport without operators of its own.
+				// Unreachable through a configuration since Build() refuses the pair, and kept as the backstop it
+				// now is: bool, and anything registered through PaginateTypeSupport without operators of its own.
 				throw new PaginateQueryException($"Filter '{Name}' does not support comparison operators for type '{Type.Name}'.", exception);
 			}
 		}

@@ -157,6 +157,25 @@ public sealed class ConfigDefaultsTests : IDisposable {
 	}
 
 	[Fact]
+	public void One_build_reads_the_shared_slot_once_rather_than_twice() {
+
+		// The configure callback runs between the two reads the builder used to take, which makes the race
+		// deterministic: with two reads the config mixes limits from both objects -- the first object's
+		// DefaultLimit and MaxLimit next to the second's MaxOffset, a combination neither of them describes.
+		PaginateConfigDefaults.Shared = new PaginateConfigDefaults { DefaultLimit = 20, MaxLimit = 100 };
+
+		var config = PaginateConfig<Product>.Create(b => {
+			b.Sortable("id", p => p.Id).WithTieBreaker(p => p.Id);
+			PaginateConfigDefaults.Shared = new PaginateConfigDefaults { DefaultLimit = 50, MaxLimit = 200, MaxOffset = 10_000 };
+		});
+
+		Assert.Equal(50, config.DefaultLimit);
+		Assert.Equal(200, config.MaxLimit);
+		Assert.Equal(10_000, config.MaxOffset);
+
+	}
+
+	[Fact]
 	public void The_shared_slot_refuses_null() {
 		Assert.Throws<ArgumentNullException>(() => PaginateConfigDefaults.Shared = null!);
 	}

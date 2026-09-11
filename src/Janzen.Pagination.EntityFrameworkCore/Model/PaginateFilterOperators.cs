@@ -1,3 +1,5 @@
+using Janzen.Pagination.EntityFrameworkCore.Engine;
+
 namespace Janzen.Pagination.EntityFrameworkCore.Model;
 
 /// <summary>
@@ -98,12 +100,11 @@ public static class PaginateFilterOperators {
 
 	/// <summary>
 	///     Whether <paramref name="type" /> carries an ordering the engine's comparison builder can actually use.
-	///     That means the <b>relational operators</b>, nothing else: the builder reaches for its
-	///     <c>CompareTo</c> stand-in only for enums, <see langword="string" /> and <see cref="System.Guid" />, and
-	///     sends every other type down <c>Expression.GreaterThan</c>, which needs the operator. A registered type
-	///     that implements <see cref="IComparable{T}" /> without operators would otherwise be granted the range
-	///     row here, advertise it through the metadata and OpenAPI, and answer 400 to every range request.
+	///     A registered type that implements <see cref="IComparable{T}" /> without the relational operators would
+	///     otherwise be granted the range row here, advertise it through the metadata and OpenAPI, and answer 400
+	///     to every range request. The question is the builder's, so the builder answers it — one implementation
+	///     rather than a probe here that can disagree with what the expression tree turns out to accept.
 	/// </summary>
-	private static bool IsOrdered(Type type) { return type.GetMethod("op_LessThan", [type, type]) is not null; }
+	private static bool IsOrdered(Type type) { return PaginateFilterField.CanCompare(type); }
 
 }

@@ -240,6 +240,7 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 	private readonly IReadOnlyList<PaginateSearchField<TEntity>> _defaultSearchFields;
 
 	private readonly FrozenDictionary<string, PaginateSortField> _sortableFields;
+	private readonly IReadOnlyList<PaginateSort> _enabledDefaultSorts;
 
 	internal PaginateConfig(
 		PaginateLimits limits,
@@ -281,6 +282,13 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 		FilterableFields = filterableFields.Values
 			.Select(field => new PaginateFilterFieldMetadata(field.Name, field.Type, field.Operators, field.Badge))
 			.ToArray();
+
+		// The sort side of _defaultSearchFields, and for the same reason: a default sort disabled by When(false)
+		// is skipped rather than fatal, and that filter is a pure function of the config. Built here -- after
+		// _sortableFields, which IsSortEnabled reads -- rather than once per request that omits sortBy, which is
+		// every request from a client that trusts the server's ordering. DefaultSortBy keeps reporting every
+		// declared default, disabled ones included; only the resolution result is precomputed.
+		_enabledDefaultSorts = defaultSortBy.Count == 0 ? [] : defaultSortBy.Where(sort => this.IsSortEnabled(sort.Field)).ToArray();
 
 	}
 
@@ -343,11 +351,19 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 
 	internal IReadOnlyList<PaginateSearchField<TEntity>> GetDefaultSearchFields() { return _defaultSearchFields; }
 
+	internal IReadOnlyList<PaginateSort> GetEnabledDefaultSorts() { return _enabledDefaultSorts; }
+
 	/// <summary>
 	///     Builds an immutable <see cref="PaginateConfig{TEntity}" /> for an entity using the fluent builder, falling
 	///     back to <see cref="PaginateConfigDefaults.Shared" /> for anything the builder does not set.
 	/// </summary>
-	public static PaginateConfig<TEntity> Create(Action<PaginateConfigBuilder<TEntity>> configure) { return Create(PaginateConfigDefaults.Shared, configure); }
+	public static PaginateConfig<TEntity> Create(Action<PaginateConfigBuilder<TEntity>> configure) {
+		ArgumentNullException.ThrowIfNull(configure);
+
+		var builder = new PaginateConfigBuilder<TEntity>();
+		configure(builder);
+		return builder.Build(null);
+	}
 
 	/// <summary>
 	///     Builds an immutable <see cref="PaginateConfig{TEntity}" /> against an explicit
@@ -653,15 +669,15 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
-	internal PaginateConfig<TEntity> Build() { return Build(PaginateConfigDefaults.Shared); }
-
-	internal PaginateConfig<TEntity> Build(PaginateConfigDefaults defaults) {
+	internal PaginateConfig<TEntity> Build(PaginateConfigDefaults? defaults) {
 
 		// Outward from the most specific: this builder, then the defaults object handed to Create, then the
-		// process-wide Shared one, then the engine's constant. Read once, here -- a config does not observe a
-		// later assignment to Shared, which is why that property documents itself as a startup-time setting.
+		// process-wide Shared one, then the engine's constant. Read once, here, and this is now the only reader
+		// -- Create(Action) passes no object rather than reading Shared itself, because two reads either side of
+		// the caller's configure callback can resolve one limit from each of two objects and produce a config
+		// neither describes. A config still does not observe an assignment made after its build.
 		var shared = PaginateConfigDefaults.Shared;
-		int? Resolve(int? own, Func<PaginateConfigDefaults, int?> read) { return own ?? read(defaults) ?? read(shared); }
+		int? Resolve(int? own, Func<PaginateConfigDefaults, int?> read) { return own ?? (defaults is null ? null : read(defaults)) ?? read(shared); }
 
 		if (Resolve(_defaultLimit, d => d.DefaultLimit) is not { } defaultLimit
 			|| Resolve(_maxLimit, d => d.MaxLimit) is not { } maxLimit) {
@@ -726,6 +742,18 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		var allFields = _sortableFields.Values.Cast<IPaginateFieldTarget>().Concat(_searchableFields.Values).Concat(_filterableFields.Values);
 		if (allFields.Any(field => field.Condition.HasValue && field.Badge is null)) {
 			throw new InvalidOperationException("A field configured with .When(...) must also declare .ShowBadge(...) so the condition is documented in the OpenAPI output.");
+		}
+
+		// An explicit operator list is the only way an operator the field's type cannot carry gets in -- the
+		// shorthand derives a buildable set. Left unchecked it builds fine and then answers 400 to every request
+		// that uses it, blaming a caller who cannot act on it, while the generated OpenAPI advertises the
+		// operator and may even demonstrate it. A configuration defect belongs here, not in the response.
+		foreach (var field in _filterableFields.Values) {
+			foreach (var filterOperator in field.Operators.Where(filterOperator => !field.Supports(filterOperator))) {
+				throw new InvalidOperationException(
+					$"Filter '{field.Name}' allows operator '{PaginateFilterParser.GetOperatorToken(filterOperator)}', which the engine cannot build for type '{field.Type.Name}'. Drop the operator, or declare the field without an explicit list to take the operators its type supports."
+				);
+			}
 		}
 
 		var defaultSortBy = _defaultSortBy.Count == 0 ? [] : _defaultSortBy.ToArray();

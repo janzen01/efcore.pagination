@@ -180,8 +180,9 @@ public static class PaginateQueryableExtensions {
 		IReadOnlyList<PaginateSort> sorts;
 
 		if (request.SortBy.Count == 0) {
-			// Default sort must not fail when a default field is disabled by When(false) for this caller — skip it.
-			sorts = config.DefaultSortBy.Where(sort => config.IsSortEnabled(sort.Field)).ToArray();
+			// Default sort must not fail when a default field is disabled by When(false) for this caller -- the
+			// config precomputed that filter at Build(), so this arm is a read rather than a per-request pass.
+			sorts = config.GetEnabledDefaultSorts();
 		} else {
 			if (request.SortBy.Count > config.MaxSortFields) {
 				throw new PaginateQueryException($"Too many sort fields; at most {config.MaxSortFields} are allowed.");

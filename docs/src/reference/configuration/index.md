@@ -328,16 +328,19 @@ is a `400`, because `ILike` was granted to `categoryName` and not to `price`.
 Grant operators deliberately rather than passing the full set. Each one is a query shape the database has to
 serve, and `$ilike` on an unindexed text column is a sequential scan any caller can trigger at will.
 
-`TValue` decides how raw strings are parsed and which operators are legal at run time: the string pattern
-operators need a `string` field, `$contains` needs a string or a collection.
+`TValue` decides how raw strings are parsed and which operators the engine can build at all: the string
+pattern operators need a `string` field, `$contains` needs a string or a collection, and the comparisons need
+a type that carries an ordering. Granting one the type cannot carry is a configuration error, not a request
+error, so `Build()` refuses it.
 
 **Rejects at configuration time:**
 
 - a null or whitespace `name`; a null `selector`
 - an **empty** `operators` list → `ArgumentException`, `At least one filter operator must be configured.` — this is the *explicit* signature only; omitting the argument entirely selects the shorthand below
+- an operator the field's `TValue` cannot carry → `InvalidOperationException` at `Build()`, naming the field, the operator and the type. Only the explicit signature can produce this; the shorthand below derives a buildable set
 
-**Rejects at request time:** the operator-applicability and value-conversion errors in
-[Errors](../errors/#filter-operators).
+**Rejects at request time:** an operator this field does not grant, the value-count guards and the
+value-conversion errors in [Errors](../errors/#filter-operators).
 
 ### Operator defaults by type
 
