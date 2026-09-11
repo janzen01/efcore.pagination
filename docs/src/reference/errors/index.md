@@ -5,8 +5,15 @@ ASP.NET Core integration turns into `400 Bad Request` with `title: "Invalid quer
 `detail` — see [ASP.NET Core → Errors](/integrations/aspnetcore/#errors-as-problemdetails) for the wire shape.
 
 The messages are part of the published contract and are written to be safe to show a caller: they name the
-field and the operator, never a column, a table, a CLR type or an inner exception. An echoed value is
-truncated and stripped of control characters before it reaches the message.
+field and the operator, never a column, a table or an inner exception. **One row is the exception and says
+so** — `Filter 'x' does not support operator '$eq' for type 'T'.` names the CLR type, because the type is
+the only thing that identifies which registered type is missing an equality operator.
+
+**Where a caller's own text is echoed back, only two messages sanitise it**: a value that failed conversion,
+and an unrecognised operator token. Both are truncated and stripped of control characters. Everything else —
+a malformed `sortBy` value, an unknown sort direction, a field name, and the three NodaTime conversion
+messages — interpolates the caller's text as sent. A deployment that logs `detail` should treat it as
+caller-controlled: `ProblemDetailsOptions.CustomizeProblemDetails` is where to bound or escape it.
 
 What they **do** name, deliberately, is the ceiling a request exceeded — `at most 100 values`,
 `between 1 and 50`, `at most 10000 rows may be skipped`. Telling a client the limit it just crossed is the
@@ -76,6 +83,7 @@ never retry a 4xx stop permanently.
 |---------|--------|--------------|-----|
 | `Filter for field 'x' is not configured.` | `FilterFieldNotConfigured` | `filter.x` where `x` was never declared `Filterable` / `FilterableMany` — **or** was declared and disabled for this caller by [`.When(false)`](../configuration/#when) | check the spelling; a disabled field reads the same way, so see the note below |
 | `Filter for field 'x' repeats 'y'; combine the criteria in one entry.` | `DuplicateFilterField` | two entries of a directly-constructed `PaginateQuery` resolving to the same configured field, which would silently `AND` and match nothing. Not reachable over HTTP — ASP.NET Core folds query keys case-insensitively first | put every criterion for one field in that field's single entry |
+| `Filter for field 'x' is specified more than once.` | `DuplicateFilterField` | the **binder's** counterpart to the row above, and this one **is** reachable over HTTP: the field name is trimmed, so `?filter.status=…&filter.%20status=…` folds two differently padded spellings onto one field | send one entry per field; padding inside a `filter.` key is not a second field |
 | `Too many filter conditions; at most N are allowed.` | `TooManyFilterConditions` | more `filter.*` values than `MaxFilterConditions`, **counted across every field** | combine criteria, or raise the ceiling with [`WithGuards`](../configuration/#withguards) |
 | `Filter 'x' must not begin with '$or'; a connector joins a criterion to the one before it.` | `FilterConnectorMisplaced` | a field's **first** criterion carrying `$and:` or `$or:`, which has nothing to join to — the shape a client that prefixes every criterion uniformly sends | drop the connector from the first criterion of each field; see [`$and` / `$or`](../query-string/#and-or-—-combining-criteria-on-one-field) |
 
@@ -97,6 +105,7 @@ what the folding buys. They are not free: every criterion value still counts as 
 | `Filter 'x' must not be empty.` | `FilterCriterionMalformed` | `?filter.x=` with nothing after the `=` | send `$op:value`, or drop the parameter |
 | `Filter 'x' uses unknown operator '$foo'.` | `FilterOperatorUnknown` | a `$token` that is not one of the eleven operators | see the [operator reference](../query-string/#operator-reference) |
 | `Filter 'x' must use the format '$operator:value'.` | `FilterCriterionMalformed` | no operator token at all, or an operator other than `$null` sent bare | every operator except `$null` needs a value |
+| `Filter 'x' must not contain a null character.` | `ValueInvalid` | a `filter.x` value carrying `%00`, checked before the criterion is parsed | strip it; a NUL truncates the value for some drivers and is never meaningful in a query string |
 | `Filter 'x' does not take a value for '$null'.` | `FilterCriterionMalformed` | **any colon after the token** — `$null:false`, `$null:true`, and a bare trailing `$null:` with nothing behind it | `$null` is valueless; write it as `$null`, and `$not:$null` is how you ask for the opposite |
 
 The last two are the same rule read from both ends: every operator except `$null` needs a value, and `$null`
@@ -149,6 +158,7 @@ Raised when the text after the operator cannot become the field's CLR type. See
 |---------|--------|--------------|-----|
 | `Search term must not exceed N characters.` | `SearchTermTooLong` | `search` longer than `MaxSearchLength` | checked before the query is built, so a long term costs nothing |
 | `Search term must be at least N characters.` | `SearchTermTooShort` | `search` shorter than [`WithMinSearchLength`](../configuration/#withminsearchlength) | measured **after trimming**, so padding does not get a short term past it. A term that is empty or all whitespace is **no search at all** — neither guard runs and `meta.search` is `null` |
+| `Search term must not contain a null character.` | `ValueInvalid` | a `search` value carrying `%00`, checked before the term is used | strip it; the same guard the filter values get, for the same reason |
 | `Search is not configured for this resource.` | `SearchNotConfigured` | `search` sent to a config that declares no `Searchable` field | the resource has no free-text surface; filter instead |
 | `Search for field 'x' is not configured.` | `SearchFieldNotConfigured` | a `searchBy` naming a field that is not `Searchable` | `searchBy` narrows the existing search set, it cannot add to it |
 | `Search field 'x' is specified more than once.` | `DuplicateSearchField` | the same `searchBy` value repeated | send each field once |
