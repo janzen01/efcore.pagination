@@ -77,7 +77,7 @@ internal static class PaginateValueConverter {
 				// Func<string, object?> invites it, but a parser signals bad input by throwing and null is not an
 				// answer: against a target that cannot hold one it reached Expression.Constant(null, typeof(T)).
 				return custom is null && targetType.IsValueType && Nullable.GetUnderlyingType(targetType) is null
-					? throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.")
+					? throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid }
 					: custom;
 			}
 
@@ -97,12 +97,12 @@ internal static class PaginateValueConverter {
 			// "no rows match". A value the type cannot hold is the same 400 the integer family already gives.
 			if (type == typeof(float)) {
 				float single = float.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
-				return float.IsFinite(single) ? single : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+				return float.IsFinite(single) ? single : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 			}
 
 			if (type == typeof(double)) {
 				double number = double.Parse(value, NumberStyles.Float, CultureInfo.InvariantCulture);
-				return double.IsFinite(number) ? number : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+				return double.IsFinite(number) ? number : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 			}
 			if (type == typeof(decimal)) return decimal.Parse(value, DecimalStyles, CultureInfo.InvariantCulture);
 			// AssumeUniversal alone reads an offsetless value as UTC and then hands back Kind=Local, which shifts the
@@ -111,13 +111,13 @@ internal static class PaginateValueConverter {
 			if (type == typeof(DateTimeOffset)) {
 				return DateTimeOffset.TryParseExact(value, TimestampFormats, CultureInfo.InvariantCulture, TimestampStyles, out var moment)
 					? moment
-					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 			}
 
 			if (type == typeof(DateTime)) {
 				return DateTime.TryParseExact(value, TimestampFormats, CultureInfo.InvariantCulture, TimestampStyles, out var instant)
 					? instant
-					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 			}
 			// Exact ISO forms rather than DateOnly.Parse/TimeOnly.Parse, which are lossy in opposite directions:
 			// the BCL reads "2026-01-03T10:00:00" as a DateOnly and throws the time away, and reads the same string
@@ -152,10 +152,10 @@ internal static class PaginateValueConverter {
 				return TimeSpan.TryParseExact(negative ? duration[1..] : duration, DurationFormats, CultureInfo.InvariantCulture,
 					negative ? TimeSpanStyles.AssumeNegative : TimeSpanStyles.None, out var timeSpan)
 					? timeSpan
-					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 
 			}
-			if (type == typeof(char)) return value.Length == 1 ? value[0] : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+			if (type == typeof(char)) return value.Length == 1 ? value[0] : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 
 			if (type.IsEnum) {
 				// Enums are addressed by one declared member name only — numeric forms are rejected so the filter
@@ -168,7 +168,7 @@ internal static class PaginateValueConverter {
 				string member = value.Trim();
 
 				if (char.IsAsciiDigit(member[0]) || member[0] is '-' or '+' || member.Contains(',', StringComparison.Ordinal)) {
-					throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+					throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 				}
 
 				object parsed = Enum.Parse(type, member, true);
@@ -182,7 +182,7 @@ internal static class PaginateValueConverter {
 			if (TryParseParsable(type, value, field, out var parsable)) return parsable;
 
 		} catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException) {
-			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.", ex);
+			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.", ex) { Code = PaginateQueryError.ValueInvalid };
 		}
 
 		throw new PaginateQueryException($"Filtering values for '{field}' is not supported.") { Code = PaginateQueryError.ValueInvalid };
