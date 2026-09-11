@@ -3,9 +3,10 @@
 PostgreSQL provider for [Janzen.Pagination](https://github.com/janzen01/efcore.pagination) —
 case-insensitive search via PostgreSQL's native **`ILIKE`** operator.
 
-Without a provider package the engine falls back to a portable `LIKE` whose case-sensitivity
-depends on the column collation. This package registers a strategy that emits true `ILIKE`,
-giving correct case-insensitive search on PostgreSQL.
+Without a provider package the engine falls back to a portable `LIKE`, whose case-sensitivity is
+whatever the engine underneath it does — and on PostgreSQL that is **case-sensitive**, with no
+column collation that changes it before 18.6. This package registers a strategy that emits true
+`ILIKE`, giving correct case-insensitive search on PostgreSQL on every supported major.
 
 ## Install
 

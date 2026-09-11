@@ -20,13 +20,21 @@ provider is Entity Framework Core's own `EntityQueryProvider` and takes a differ
 
 | | EF provider | plain `IQueryable` (e.g. `List<T>.AsQueryable()`) |
 |---|---|---|
-| pattern matching | `EF.Functions.Like` / `ILike` | `string.IndexOf` / `StartsWith` with `OrdinalIgnoreCase` |
+| pattern matching (`search`, `$ilike`, `$sw`, string `$contains`) | `EF.Functions.Like` / `ILike` | `string.IndexOf` / `StartsWith` with `OrdinalIgnoreCase` |
+| `$eq` and `$in` on a string | the column's collation decides | `Expression.Equal` / `Enumerable.Contains` — **ordinal, case-sensitive** |
+| `$lt` / `$gt` / `$btw` on a string | the column's collation decides | `StringComparison.InvariantCulture` |
 | filter values | wrapped in `EF.Parameter` for plan reuse | plain constants |
 | count / materialise | `CountAsync` / `ToArrayAsync` | synchronous `Count` / `ToArray`, wrapped in a completed task |
 
-So the whole pipeline — filters, search, sort, paging, projection — runs against an in-memory list, with
-case-insensitive search, which makes unit-testing a `PaginateConfig<T>` cheap. See
-[Testing your pagination](/recipes/testing/).
+So the whole pipeline — filters, search, sort, paging, projection — runs against an in-memory list, which
+makes unit-testing a `PaginateConfig<T>` cheap. See [Testing your pagination](/recipes/testing/).
+
+Read the first three rows together before relying on the leg for case behaviour: **in memory the operators
+disagree with each other.** `?filter.name=$ilike:APPLE` matches `apple pie` while `?filter.name=$eq:APPLE`
+does not, where SQL Server's usual collation matches both and PostgreSQL without the `.PostgreSql` package
+matches neither. That is not a defect being reported here — a plain list has no collation to consult, so
+each operator has to pick something — but it is the reason a case-sensitivity expectation formed against this
+leg does not survive the move to a database.
 
 There is a third case, and it is refused rather than adapted. A provider that is **asynchronous without being
 Entity Framework Core's** — what a queryable-shaped mocking library produces — is neither leg, and the engine
