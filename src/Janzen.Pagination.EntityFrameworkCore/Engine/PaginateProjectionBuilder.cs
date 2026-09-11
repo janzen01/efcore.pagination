@@ -116,12 +116,18 @@ internal static class PaginateProjectionBuilder {
 
 	private static MemberInfo FindSourceMember(Type sourceType, string name, string path) {
 
-		var candidates = sourceType.GetProperties(BindingFlags.Instance | BindingFlags.Public)
-			.Where(property => string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
-			.Select(property => (Member: (MemberInfo)property, Depth: DeclarationDepth(sourceType, property), Kind: 0))
-			.Concat(sourceType.GetFields(BindingFlags.Instance | BindingFlags.Public)
-				.Where(field => string.Equals(field.Name, name, StringComparison.OrdinalIgnoreCase))
-				.Select(field => (Member: (MemberInfo)field, Depth: DeclarationDepth(sourceType, field), Kind: 1)))
+		// Properties and fields are searched alike, so the tuple they produce is named once, here, and both
+		// sides of the Concat get their element type from this signature. Naming it once is also what keeps
+		// the concatenation legal at all: ValueTuple is a struct, so IEnumerable<T> covariance cannot bridge
+		// two sequences that differ only in the member type.
+		IEnumerable<(MemberInfo Member, int Depth, int Kind)> Matching(IEnumerable<MemberInfo> members, int kind) {
+			return members
+				.Where(member => string.Equals(member.Name, name, StringComparison.OrdinalIgnoreCase))
+				.Select(member => (member, DeclarationDepth(sourceType, member), kind));
+		}
+
+		var candidates = Matching(sourceType.GetProperties(BindingFlags.Instance | BindingFlags.Public), kind: 0)
+			.Concat(Matching(sourceType.GetFields(BindingFlags.Instance | BindingFlags.Public), kind: 1))
 			// A member hidden with `new` is returned alongside the declaration it hides and reflection promises no
 			// order between the two, so the most-derived one is picked explicitly. Property before field at the
 			// same depth keeps the tie-break the concatenation always had.
