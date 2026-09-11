@@ -61,7 +61,7 @@ public static class PaginateQueryableExtensions {
 			if (!config.TryGetFilterableField(fieldName, out var field)) throw new PaginateQueryException($"Filter for field '{fieldName}' is not configured.") { Code = PaginateQueryError.FilterFieldNotConfigured };
 
 			if (claimed is not null && !claimed.TryAdd(field.Name, fieldName)) {
-				throw new PaginateQueryException($"Filter for field '{fieldName}' repeats '{claimed[field.Name]}'; combine the criteria in one entry.");
+				throw new PaginateQueryException($"Filter for field '{fieldName}' repeats '{claimed[field.Name]}'; combine the criteria in one entry.") { Code = PaginateQueryError.DuplicateFilterField };
 			}
 
 			Expression? fieldExpression = null;
