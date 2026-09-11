@@ -28,8 +28,8 @@ public static class PaginateQueryableExtensions {
 		"Janzen.Pagination builds LINQ expression trees and uses reflection (projection mapping, MakeGenericMethod); it is not compatible with trimming or Native AOT.";
 
 	// AsNoTracking has a `where TEntity : class` constraint that the engine's unconstrained TEntity cannot satisfy,
-	// so it is applied reflectively (only on real EF providers) — the map path already does a round-trip, so the
-	// one-time reflection cost is negligible.
+	// so it is reached reflectively (only on real EF providers) — once per closed T, through NoTracking<T> below,
+	// rather than on every request.
 	private readonly static MethodInfo AsNoTrackingMethod = typeof(EntityFrameworkQueryableExtensions)
 		.GetMethods()
 		.Single(method => method is { Name: nameof(EntityFrameworkQueryableExtensions.AsNoTracking), IsGenericMethodDefinition: true } && method.GetParameters().Length == 1);
@@ -385,9 +385,21 @@ public static class PaginateQueryableExtensions {
 	}
 
 	private static IQueryable<T> AsNoTrackingIfSupported<T>(IQueryable<T> query) {
-		return query.Provider is IAsyncQueryProvider
-			? (IQueryable<T>)AsNoTrackingMethod.MakeGenericMethod(typeof(T)).Invoke(null, [query])!
-			: query;
+		return query.Provider is IAsyncQueryProvider && NoTracking<T>.Apply is { } apply ? apply(query) : query;
+	}
+
+	// AsNoTracking is constrained `where TEntity : class`, and the engine's element type is unconstrained, so
+	// closing the method over a value type threw out of MakeGenericMethod -- an unhandled 500 from the one entry
+	// point that applies no-tracking, on a queryable the other three and both composers paginate fine. The test is
+	// IsValueType rather than !IsClass: an interface is not a class either, and IQueryable<ISomething> works
+	// today. A value type is never change-tracked, so the absent delegate is the correct no-op rather than a
+	// concession. Closed once per T by the type initializer instead of per request.
+	private static class NoTracking<T> {
+
+		public readonly static Func<IQueryable<T>, IQueryable<T>>? Apply = typeof(T).IsValueType
+			? null
+			: AsNoTrackingMethod.MakeGenericMethod(typeof(T)).CreateDelegate<Func<IQueryable<T>, IQueryable<T>>>();
+
 	}
 
 	private static Task<int> CountAsync<T>(IQueryable<T> query, CancellationToken ct) {

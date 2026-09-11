@@ -89,6 +89,26 @@ public sealed class QueryCompositionTests(SqliteFixture fixture) : IClassFixture
 	}
 
 	[Fact]
+	public async Task A_value_typed_element_type_paginates_on_the_map_path() {
+
+		var request = new PaginateQuery { Limit = 50 };
+		var config = PaginateConfig<int>.Create(b => b.WithLimits(50, 50).WithTieBreaker(value => value));
+		var ct = TestContext.Current.CancellationToken;
+
+		await using var context = fixture.CreateContext();
+
+		// AsNoTracking is constrained to reference types, so the entry point that applies it used to fail here
+		// while the other three answered the same queryable. A value type is never tracked, so skipping it is the
+		// whole fix — and both legs must agree, which is what the mirror below pins.
+		var database = await context.Products.AsNoTracking().Select(p => p.Id).PaginateMapAsync(request, config, value => value, null, ct);
+		var memory = await TestData.Products().Select(p => p.Id).AsQueryable().PaginateMapAsync(request, config, value => value, null, ct);
+
+		Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8], database.Items);
+		Assert.Equal(database.Items, memory.Items);
+
+	}
+
+	[Fact]
 	public void Contains_over_a_collection_across_a_navigation_still_matches_in_memory() {
 
 		List<Holder> holders = [
