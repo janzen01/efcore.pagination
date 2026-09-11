@@ -25,7 +25,11 @@ jobs:
       # without a release carry a branch name all the way to the push step.
       TAG: ${{ github.event.release.tag_name }}
     steps:
+      # No step here runs a git operation after checkout, and this job's token would otherwise sit
+      # in the workspace while restore, build, test and pack execute third-party code.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # The tag is what people see; Directory.Build.props is what actually gets packed.
       # Publishing 0.9.0 under a v10.0.0 release cannot be undone -- nuget.org allows

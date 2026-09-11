@@ -21,7 +21,11 @@ jobs:
       run:
         working-directory: docs
     steps:
+      # No job here runs a git operation after checkout, so the token is not written into the
+      # workspace for the steps that follow to read.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # package_json_file is resolved against the REPOSITORY ROOT, which has no package.json -- the one
       # carrying `packageManager` lives in docs/. The `defaults.run.working-directory` above does not
