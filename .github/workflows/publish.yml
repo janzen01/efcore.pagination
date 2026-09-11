@@ -4,13 +4,9 @@ on:
   release:
     types: [published]
 
-# No workflow-level `permissions:` on purpose. `id-token: write` mints a live nuget.org push key,
-# and declared here it would be live for every step of every job -- including restore, build, test
-# and pack, which execute third-party code by design (MSBuild tasks, source generators and Roslyn
-# analyzers out of the restored graph, then the test assembly). Anything running there can read
-# ACTIONS_ID_TOKEN_REQUEST_URL/_TOKEN and exchange a token itself; NuGet/login is a convenience
-# wrapper, not the boundary. Each job below declares the permissions it actually needs instead --
-# omit one and the job would inherit the repository default, so both are explicit.
+# No workflow-level `permissions:` on purpose: `id-token: write` declared here would make a live
+# nuget.org push key readable from every step of every job, restore and test included. Each job
+# declares its own -- omit one and it inherits the repository default, so both are explicit.
 
 jobs:
   # Everything that runs project code, with no credential in the job worth stealing.
@@ -25,8 +21,8 @@ jobs:
       # without a release carry a branch name all the way to the push step.
       TAG: ${{ github.event.release.tag_name }}
     steps:
-      # No step here runs a git operation after checkout, and this job's token would otherwise sit
-      # in the workspace while restore, build, test and pack execute third-party code.
+      # Nothing here runs git after checkout, and the token would otherwise sit in the workspace
+      # while restore, build, test and pack execute third-party code.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -53,8 +49,6 @@ jobs:
         run: dotnet build Janzen.Pagination.slnx -c Release --no-restore -warnaserror
 
       # Publishing cannot be undone, so a red suite stops it here rather than after the push.
-      # Since the split this also runs before the environment approval is requested, so the
-      # reviewer is asked to approve a release whose suite is already green.
       - name: Test
         run: dotnet test Janzen.Pagination.slnx -c Release --no-build
 
@@ -73,8 +67,7 @@ jobs:
       - name: Pack
         run: dotnet pack Janzen.Pagination.slnx -c Release --no-build -o ./artifacts
 
-      # The hand-off to the privileged job. Artifacts preserve the bytes, so the digests attested
-      # and pushed below are the ones this job produced.
+      # The privileged job attests and pushes these exact bytes rather than rebuilding them.
       - name: Upload the packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -90,14 +83,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # The OIDC exchange below mints a live nuget.org push key, so the job waits for a manual
-    # approval on the `nuget` environment first. nuget.org unlists but never deletes -- one
-    # click is cheaper than a version that can only be withdrawn from search.
+    # The OIDC exchange below mints a live nuget.org push key, so a human approves first.
     environment: nuget
     permissions:
       contents: read
       id-token: write
-      # Lets the job record a signed provenance statement for the packages built above.
       attestations: write
     steps:
       - name: Download the packages
