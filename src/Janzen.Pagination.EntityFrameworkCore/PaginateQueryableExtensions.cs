@@ -28,8 +28,8 @@ public static class PaginateQueryableExtensions {
 		"Janzen.Pagination builds LINQ expression trees and uses reflection (projection mapping, MakeGenericMethod); it is not compatible with trimming or Native AOT.";
 
 	// AsNoTracking has a `where TEntity : class` constraint that the engine's unconstrained TEntity cannot satisfy,
-	// so it is applied reflectively (only on real EF providers) — the map path already does a round-trip, so the
-	// one-time reflection cost is negligible.
+	// so it is reached reflectively (only on real EF providers) — once per closed T, through NoTracking<T> below,
+	// rather than on every request.
 	private readonly static MethodInfo AsNoTrackingMethod = typeof(EntityFrameworkQueryableExtensions)
 		.GetMethods()
 		.Single(method => method is { Name: nameof(EntityFrameworkQueryableExtensions.AsNoTracking), IsGenericMethodDefinition: true } && method.GetParameters().Length == 1);
@@ -128,22 +128,36 @@ public static class PaginateQueryableExtensions {
 
 		var entity = Expression.Parameter(typeof(TEntity), "item");
 
-		var aggregate = (from field in fields
-			select ParameterReplaceVisitor.Replace(field.Selector.Body, field.Selector.Parameters[0], entity)
-			into spliced
-			let valueExpression = context.UseDatabaseFunctions ? spliced : PaginateNullSafeRewriter.Rewrite(spliced, entity)
-			let notNull = Expression.NotEqual(valueExpression, Expression.Constant(null, valueExpression.Type))
-			let match = context.UseDatabaseFunctions
-				? context.LikeStrategy.BuildLike(
-					valueExpression,
-					PaginateExpressionUtils.ToDatabaseParameter(Expression.Constant($"%{PaginateExpressionUtils.EscapeLikePattern(search)}%")))
-				: PaginateExpressionUtils.BuildInMemoryStringMatchExpression(valueExpression, search, false)
-			select Expression.AndAlso(notNull, match)).Aggregate<Expression, Expression?>(null, (current, fieldExpression) => current is null
-			? fieldExpression
-			: Expression.OrElse(current, fieldExpression));
+		// The pattern depends on the term alone, so it is built once and shared by every branch rather than
+		// rebuilt per field. Expression nodes are immutable, and EF already collapsed the structurally equal
+		// copies into a single parameter, so the composed command is identical either way.
+		var pattern = context.UseDatabaseFunctions
+			? PaginateExpressionUtils.ToDatabaseParameter(Expression.Constant($"%{PaginateExpressionUtils.EscapeLikePattern(search)}%"))
+			: null;
 
-		var predicate = Expression.Lambda<Func<TEntity, bool>>(aggregate!, entity);
-		return query.Where(predicate);
+		// Folded the way ApplyFilters folds rather than through a query comprehension: the two stages do the same
+		// thing and now say so, and the aggregate no longer needs a null-forgiving operator resting on a guard ten
+		// lines above it.
+		Expression? aggregate = null;
+
+		foreach (var field in fields) {
+
+			var spliced = ParameterReplaceVisitor.Replace(field.Selector.Body, field.Selector.Parameters[0], entity);
+			var valueExpression = context.UseDatabaseFunctions ? spliced : PaginateNullSafeRewriter.Rewrite(spliced, entity);
+
+			var notNull = Expression.NotEqual(valueExpression, Expression.Constant(null, valueExpression.Type));
+
+			Expression match = pattern is { } databasePattern
+				? context.LikeStrategy.BuildLike(valueExpression, databasePattern)
+				: PaginateExpressionUtils.BuildInMemoryStringMatchExpression(valueExpression, search, false);
+
+			Expression fieldExpression = Expression.AndAlso(notNull, match);
+
+			aggregate = aggregate is null ? fieldExpression : Expression.OrElse(aggregate, fieldExpression);
+
+		}
+
+		return aggregate is null ? query : query.Where(Expression.Lambda<Func<TEntity, bool>>(aggregate, entity));
 
 	}
 
@@ -371,9 +385,21 @@ public static class PaginateQueryableExtensions {
 	}
 
 	private static IQueryable<T> AsNoTrackingIfSupported<T>(IQueryable<T> query) {
-		return query.Provider is IAsyncQueryProvider
-			? (IQueryable<T>)AsNoTrackingMethod.MakeGenericMethod(typeof(T)).Invoke(null, [query])!
-			: query;
+		return query.Provider is IAsyncQueryProvider && NoTracking<T>.Apply is { } apply ? apply(query) : query;
+	}
+
+	// AsNoTracking is constrained `where TEntity : class`, and the engine's element type is unconstrained, so
+	// closing the method over a value type threw out of MakeGenericMethod -- an unhandled 500 from the one entry
+	// point that applies no-tracking, on a queryable the other three and both composers paginate fine. The test is
+	// IsValueType rather than !IsClass: an interface is not a class either, and IQueryable<ISomething> works
+	// today. A value type is never change-tracked, so the absent delegate is the correct no-op rather than a
+	// concession. Closed once per T by the type initializer instead of per request.
+	private static class NoTracking<T> {
+
+		public readonly static Func<IQueryable<T>, IQueryable<T>>? Apply = typeof(T).IsValueType
+			? null
+			: AsNoTrackingMethod.MakeGenericMethod(typeof(T)).CreateDelegate<Func<IQueryable<T>, IQueryable<T>>>();
+
 	}
 
 	private static Task<int> CountAsync<T>(IQueryable<T> query, CancellationToken ct) {

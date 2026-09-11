@@ -54,6 +54,10 @@ internal abstract class PaginateFilterField(
 
 	public Type ExpressionType { get; } = type;
 
+	// What `$contains` iterates over, resolved from the declared type at Build() rather than by walking the
+	// interface list on every criterion — it is fixed for the life of the configuration.
+	private Type? ElementType { get; } = GetEnumerableElementType(type);
+
 	public IReadOnlySet<PaginateFilterOperator> Operators { get; } = operators;
 
 	public abstract Expression BuildExpression(ParameterExpression entity, PaginateFilterCriterion criterion, PaginateExpressionContext context, int maxFilterValues);
@@ -79,7 +83,7 @@ internal abstract class PaginateFilterField(
 				or PaginateFilterOperator.GreaterThan or PaginateFilterOperator.GreaterThanOrEqual
 				or PaginateFilterOperator.Between => CanCompare(Type),
 			PaginateFilterOperator.ILike or PaginateFilterOperator.StartsWith => Type == typeof(string),
-			PaginateFilterOperator.Contains => Type == typeof(string) || GetEnumerableElementType(ExpressionType) is not null,
+			PaginateFilterOperator.Contains => Type == typeof(string) || ElementType is not null,
 			_ => true
 		};
 	}
@@ -271,7 +275,10 @@ internal abstract class PaginateFilterField(
 
 		if (Type == typeof(string)) return BuildStringPatternExpression(valueExpression, value, false, context);
 
-		var elementType = GetEnumerableElementType(valueExpression.Type);
+		// The in-memory leg rewrites the selector into its null-safe form first, which lifts a value-typed member
+		// to Nullable<T>; the walk stays for that one case so a precomputed type can never answer for a shape it
+		// was not derived from.
+		var elementType = valueExpression.Type == ExpressionType ? ElementType : GetEnumerableElementType(valueExpression.Type);
 		if (elementType is null) throw new PaginateQueryException($"Filter '{Name}' supports '$contains' only for string or collection fields.") { Code = PaginateQueryError.FilterOperatorTypeMismatch };
 
 		string[] values = SplitValueList(value, maxFilterValues);
