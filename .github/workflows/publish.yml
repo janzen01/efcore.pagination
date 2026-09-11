@@ -21,8 +21,6 @@ jobs:
       # without a release carry a branch name all the way to the push step.
       TAG: ${{ github.event.release.tag_name }}
     steps:
-      # Nothing here runs git after checkout, and the token would otherwise sit in the workspace
-      # while restore, build, test and pack execute third-party code.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
