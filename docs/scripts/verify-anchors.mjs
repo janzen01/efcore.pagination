@@ -21,6 +21,19 @@ const dist = join(root, '.dist')
 const walk = (dir) => readdirSync(dir, { withFileTypes: true })
 	.flatMap((entry) => entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)])
 
+// A page `srcExclude` keeps out of the build emits no ids, so checking a fragment link written in one is
+// guaranteed to fail -- a required-check failure on a file the config deliberately excludes. The patterns are read
+// out of config.mts rather than restated here; if that list is ever renamed away this falls back to checking
+// everything, which is the behaviour before this check existed and fails loudly rather than silently.
+const excluded = [...(readFileSync(join(root, '.vitepress', 'config.mts'), 'utf8')
+	.match(/srcExclude:\s*\[([^\]]*)\]/)?.[1]
+	.matchAll(/['"]([^'"]+)['"]/g) ?? [])].map(([, pattern]) => pattern.replace(/\*+$/, ''))
+
+const isExcluded = (file) => {
+	const path = relative(src, file).replaceAll('\\', '/')
+	return excluded.some((prefix) => path.startsWith(prefix))
+}
+
 const idCache = new Map()
 
 const idsOf = (page) => {
@@ -36,7 +49,7 @@ const idsOf = (page) => {
 const broken = []
 let checked = 0
 
-for (const file of walk(src).filter((f) => f.endsWith('.md'))) {
+for (const file of walk(src).filter((f) => f.endsWith('.md') && !isExcluded(f))) {
 
 	const dir = relative(src, dirname(file)).replaceAll('\\', '/')
 	const base = dir === '' ? '/' : `/${dir}/`
