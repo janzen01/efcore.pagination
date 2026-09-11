@@ -196,7 +196,9 @@ public static class PaginateQueryableExtensions {
 			var requested = new HashSet<string>(sorts.Count, StringComparer.OrdinalIgnoreCase);
 
 			foreach (var sort in sorts) {
-				if (!requested.Add(sort.Field)) throw new PaginateQueryException($"Sort field '{sort.Field}' is specified more than once.");
+				if (!requested.Add(sort.Field)) {
+					throw new PaginateQueryException($"Sort field '{sort.Field}' is specified more than once.") { Code = PaginateQueryError.DuplicateSortField };
+				}
 			}
 		}
 

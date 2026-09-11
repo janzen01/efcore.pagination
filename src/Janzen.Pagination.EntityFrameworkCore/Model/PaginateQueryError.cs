@@ -95,6 +95,9 @@ public enum PaginateQueryError {
 	/// <summary><c>sortBy</c> names a field the configuration does not declare sortable.</summary>
 	SortFieldNotConfigured,
 
+	/// <summary>One <c>sortBy</c> field is named more than once, so one of the orderings would be discarded.</summary>
+	DuplicateSortField,
+
 	/// <summary>The request carries more <c>sortBy</c> fields than <c>MaxSortFields</c> allows.</summary>
 	TooManySortFields
 
