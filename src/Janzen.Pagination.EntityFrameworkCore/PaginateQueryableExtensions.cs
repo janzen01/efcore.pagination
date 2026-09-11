@@ -237,6 +237,9 @@ public static class PaginateQueryableExtensions {
 		if (provider is Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryProvider) return true;
 
 		if (provider is IAsyncQueryProvider) {
+			// Deliberately left Unspecified. The codes exist so a client can branch on the cause of its 400,
+			// and no request can produce this one: it fires only for a queryable-shaped test double, which is
+			// the developer's mistake rather than the caller's, and there is nothing for a client to branch on.
 			throw new PaginateQueryException(
 				"This queryable's provider is asynchronous but is not Entity Framework Core's, so the engine can neither translate "
 				+ "the query nor evaluate it in memory. Test against a real EF Core provider, SQLite in-memory, rather than a "

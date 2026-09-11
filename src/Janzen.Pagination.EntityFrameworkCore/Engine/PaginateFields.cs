@@ -153,7 +153,7 @@ internal abstract class PaginateFilterField(
 		try {
 			return Expression.Equal(valueExpression, constant);
 		} catch (InvalidOperationException exception) {
-			throw new PaginateQueryException($"Filter '{Name}' does not support operator '$eq' for type '{Type.Name}'.", exception);
+			throw new PaginateQueryException($"Filter '{Name}' does not support operator '$eq' for type '{Type.Name}'.", exception) { Code = PaginateQueryError.FilterOperatorTypeMismatch };
 		}
 
 	}
@@ -340,7 +340,7 @@ internal abstract class PaginateFilterField(
 	private object? ConvertRawValue(string value, Type targetType) {
 
 		if (targetType != typeof(string) && string.IsNullOrWhiteSpace(value)) {
-			throw new PaginateQueryException($"Filter '{Name}' requires a value; use '$null' to match rows with no value.");
+			throw new PaginateQueryException($"Filter '{Name}' requires a value; use '$null' to match rows with no value.") { Code = PaginateQueryError.ValueEmpty };
 		}
 
 		return PaginateValueConverter.Convert(value, targetType, Name);

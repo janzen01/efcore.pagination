@@ -1,3 +1,8 @@
+using Janzen.Pagination.EntityFrameworkCore.Engine;
+using Janzen.Pagination.EntityFrameworkCore.Like;
+
+using System.Linq.Expressions;
+
 namespace Janzen.Pagination.Tests;
 
 /// <summary>
@@ -73,17 +78,24 @@ public sealed class ErrorCodeTests {
 	}
 
 	[Fact]
-	public async Task An_operator_that_does_not_fit_the_field_type_is_coded() {
+	public void An_operator_that_does_not_fit_the_field_type_is_coded() {
 
-		// Whitelisted for this field, so the allow-list passes and the expression builder is what refuses:
-		// $contains needs a string or a collection, and rank is an int.
-		var config = PaginateConfig<Product>.Create(b => b
-			.WithLimits(10, 50)
-			.Sortable("id", p => p.Id)
-			.WithTieBreaker(p => p.Id)
-			.Filterable("rank", p => p.Rank, PaginateFilterOperator.Contains));
+		// The expression builder's own type guard: $contains needs a string or a collection, and rank is an
+		// int. Build() now refuses that declaration outright, so the configuration route can no longer reach
+		// the guard -- the filter field is constructed directly instead, the same pattern FilterOperatorTests
+		// uses for the same reason. The guard is kept as defence in depth, so its code still has to be right.
+		var field = new PaginateScalarFilterField<Product, int>(
+			"rank", p => p.Rank, typeof(int), new HashSet<PaginateFilterOperator> { PaginateFilterOperator.Contains });
 
-		Assert.Equal(PaginateQueryError.FilterOperatorTypeMismatch, (await Rejects(Query.Filter("rank", "$contains:1"), config)).Code);
+		var criterion = new PaginateFilterCriterion(PaginateFilterOperator.Contains, "1", false, PaginateFilterConnector.And);
+
+		var rejection = Assert.Throws<PaginateQueryException>(() => field.BuildExpression(
+			Expression.Parameter(typeof(Product), "p"),
+			criterion,
+			new PaginateExpressionContext(true, PaginateLikeDefaults.Strategy),
+			20));
+
+		Assert.Equal(PaginateQueryError.FilterOperatorTypeMismatch, rejection.Code);
 
 	}
 
