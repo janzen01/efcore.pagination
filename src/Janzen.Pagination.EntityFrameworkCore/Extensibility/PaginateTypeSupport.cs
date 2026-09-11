@@ -17,7 +17,15 @@ public static class PaginateTypeSupport {
 	private readonly static Lock Gate = new();
 	private static Func<Expression, Type, Expression?>[] _projectionConversions = [];
 
-	/// <summary>Registers a parser converting a raw string filter value into <paramref name="type" />.</summary>
+	/// <summary>
+	///     Registers a parser converting a raw string filter value into <paramref name="type" />. Signal bad input by
+	///     throwing <see cref="Model.PaginateQueryException" /> — that is what answers <c>400</c> rather than
+	///     <c>500</c>. A <see cref="FormatException" />, <see cref="ArgumentException" /> or
+	///     <see cref="OverflowException" /> answers the same <c>400</c> under a generic message; every other
+	///     exception type is still a <c>500</c>. Return a value rather than <see langword="null" />: against a field
+	///     whose type cannot hold one it is that same <c>400</c>, but on a nullable or reference-typed field it reads
+	///     as absence and the filter becomes <c>IS NULL</c>, which is what <c>$null</c> exists for.
+	/// </summary>
 	public static void RegisterValueParser(Type type, Func<string, object?> parser) {
 		ArgumentNullException.ThrowIfNull(type);
 		ArgumentNullException.ThrowIfNull(parser);

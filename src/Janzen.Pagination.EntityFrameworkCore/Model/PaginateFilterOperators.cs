@@ -53,7 +53,7 @@ public static class PaginateFilterOperators {
 	///     operator list instead.
 	/// </summary>
 	/// <typeparam name="TValue">The filtered value's type, exactly as the field's selector returns it.</typeparam>
-	public static PaginateFilterOperator[] For<TValue>() { return For(typeof(TValue)); }
+	public static PaginateFilterOperator[] For<TValue>() { return Derive(typeof(TValue), nameof(TValue)); }
 
 	/// <summary>
 	///     The operator set for <paramref name="type" />, the reflection-typed counterpart of <see cref="For{TValue}" />
@@ -61,9 +61,14 @@ public static class PaginateFilterOperators {
 	///     engine cannot filter on.
 	/// </summary>
 	/// <param name="type">The filtered value's type, exactly as the field's selector returns it.</param>
-	public static PaginateFilterOperator[] For(Type type) {
+	public static PaginateFilterOperator[] For(Type type) { return Derive(type, nameof(type)); }
 
-		ArgumentNullException.ThrowIfNull(type);
+	// Shared so each entry point names its own input. The generic one is what the operator-less Filterable
+	// shorthand calls, and reporting its failure as "(Parameter 'type')" sent a consumer looking for an argument
+	// that call site does not have — the input there is the type argument the selector's return type inferred.
+	private static PaginateFilterOperator[] Derive(Type type, string paramName) {
+
+		ArgumentNullException.ThrowIfNull(type, paramName);
 
 		var underlying = Nullable.GetUnderlyingType(type);
 		var core = underlying ?? type;
@@ -85,7 +90,7 @@ public static class PaginateFilterOperators {
 
 		throw new ArgumentException(
 			$"Filter operators cannot be derived for type '{core.Name}'. Declare the field with an explicit operator list.",
-			nameof(type));
+			paramName);
 
 	}
 
