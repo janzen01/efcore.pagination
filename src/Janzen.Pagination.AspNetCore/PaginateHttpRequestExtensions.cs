@@ -38,10 +38,17 @@ public static class PaginateHttpRequestExtensions {
 
 			ArgumentNullException.ThrowIfNull(request);
 
-			List<KeyValuePair<string, string>> query = [];
+			// Indexed rather than LINQ: the lambda captured `key`, so a Select over StringValues allocated a
+			// display class and a delegate per query-string key — including keys the binder ignores.
+			// StringValues is an IReadOnlyList<string?>, so its indexer costs nothing.
+			List<KeyValuePair<string, string>> query = new(request.Query.Count);
 
 			foreach ((string key, var values) in request.Query) {
-				query.AddRange(values.Select(value => new KeyValuePair<string, string>(key, value ?? string.Empty)));
+
+				for (int index = 0; index < values.Count; index++) {
+					query.Add(new KeyValuePair<string, string>(key, values[index] ?? string.Empty));
+				}
+
 			}
 
 			// The path base belongs in the link: an app mounted under UsePathBase("/api") would otherwise hand clients
@@ -74,6 +81,8 @@ public static class PaginateHttpRequestExtensions {
 			HttpRequest httpRequest,
 			CancellationToken ct = default
 		) {
+			ArgumentNullException.ThrowIfNull(httpRequest);
+
 			return source.PaginateAsync<TEntity, TResult>(request, config, httpRequest.ToPaginateLinkContext(), ct);
 		}
 
@@ -95,6 +104,8 @@ public static class PaginateHttpRequestExtensions {
 			HttpRequest httpRequest,
 			CancellationToken ct = default
 		) {
+			ArgumentNullException.ThrowIfNull(httpRequest);
+
 			return source.PaginateSelectAsync(request, config, selector, httpRequest.ToPaginateLinkContext(), ct);
 		}
 
@@ -117,6 +128,8 @@ public static class PaginateHttpRequestExtensions {
 			HttpRequest httpRequest,
 			CancellationToken ct = default
 		) {
+			ArgumentNullException.ThrowIfNull(httpRequest);
+
 			return source.PaginateSelectMapAsync(request, config, selector, postMap, httpRequest.ToPaginateLinkContext(), ct);
 		}
 
@@ -137,6 +150,8 @@ public static class PaginateHttpRequestExtensions {
 			HttpRequest httpRequest,
 			CancellationToken ct = default
 		) {
+			ArgumentNullException.ThrowIfNull(httpRequest);
+
 			return source.PaginateMapAsync(request, config, projector, httpRequest.ToPaginateLinkContext(), ct);
 		}
 

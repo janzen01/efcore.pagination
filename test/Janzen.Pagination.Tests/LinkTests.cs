@@ -108,4 +108,89 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 		Assert.StartsWith("/products?", (await this.LinksFor(1, Context)).First);
 	}
 
+	[Fact]
+	public void A_path_that_was_never_escaped_is_refused() {
+
+		// "/t/x?y/products?page=1" — the query string becomes "y/products?page=1", so the link addresses a
+		// different resource with no page at all. A space produces an invalid URI-reference instead.
+		Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/t/x?y/products", []));
+		Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/t/a b/products", []));
+		Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/t/a#b/products", []));
+
+	}
+
+	[Fact]
+	public void An_escaped_path_and_raw_parameters_are_what_the_record_asks_for() {
+
+		// The path is pre-escaped, the parameters are raw: the builder percent-encodes only the latter.
+		var context = new PaginateLinkContext("/t/a%20b/products", [new KeyValuePair<string, string>("filter.status", "$eq:Active")]);
+
+		Assert.Equal("/t/a%20b/products", context.Path);
+
+	}
+
+	[Fact]
+	public void A_null_path_or_parameter_list_is_refused_at_construction() {
+
+		// Both used to fault later, inside the builder, via Uri.EscapeDataString. The ParamName is asserted
+		// too: left to CallerArgumentExpression it reports the lowercase positional parameter, while the
+		// path-character throw beside it says "Path" -- one constructor naming one argument two ways.
+		var path = Assert.Throws<ArgumentNullException>(() => new PaginateLinkContext(null!, []));
+		var parameters = Assert.Throws<ArgumentNullException>(() => new PaginateLinkContext("/products", null!));
+
+		Assert.Equal(nameof(PaginateLinkContext.Path), path.ParamName);
+		Assert.Equal(nameof(PaginateLinkContext.QueryParameters), parameters.ParamName);
+
+	}
+
+	[Fact]
+	public void Two_contexts_describing_the_same_request_compare_equal() {
+
+		// The record shape advertises value equality; the synthesized version compared QueryParameters by
+		// reference, so a consumer testing their own "request -> context" factory with Assert.Equal never matched.
+		var left = new PaginateLinkContext("/products", [
+			new KeyValuePair<string, string>("limit", "3"),
+			new KeyValuePair<string, string>("filter.status", "$eq:Active")
+		]);
+
+		var right = new PaginateLinkContext("/products", [
+			new KeyValuePair<string, string>("limit", "3"),
+			new KeyValuePair<string, string>("filter.status", "$eq:Active")
+		]);
+
+		Assert.Equal(left, right);
+		Assert.Equal(left.GetHashCode(), right.GetHashCode());
+
+	}
+
+	[Fact]
+	public void Parameter_order_is_part_of_the_value() {
+
+		// Order decides the emitted link, so two orderings really are two different contexts.
+		var left = new PaginateLinkContext("/products", [
+			new KeyValuePair<string, string>("a", "1"),
+			new KeyValuePair<string, string>("b", "2")
+		]);
+
+		var right = new PaginateLinkContext("/products", [
+			new KeyValuePair<string, string>("b", "2"),
+			new KeyValuePair<string, string>("a", "1")
+		]);
+
+		Assert.NotEqual(left, right);
+
+	}
+
+	[Fact]
+	public void A_different_path_or_a_different_value_is_a_different_context() {
+
+		var context = new PaginateLinkContext("/products", [new KeyValuePair<string, string>("limit", "3")]);
+
+		Assert.NotEqual(context, new PaginateLinkContext("/orders", [new KeyValuePair<string, string>("limit", "3")]));
+		Assert.NotEqual(context, new PaginateLinkContext("/products", [new KeyValuePair<string, string>("limit", "4")]));
+		Assert.NotEqual(context, new PaginateLinkContext("/products", [new KeyValuePair<string, string>("page", "3")]));
+		Assert.NotEqual(context, new PaginateLinkContext("/products", []));
+
+	}
+
 }

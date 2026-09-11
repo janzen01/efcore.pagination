@@ -186,15 +186,40 @@ var page = await source.PaginateAsync<Product, ProductDto>(request, config, link
 // page.Links.Next == "/api/products?limit=25&filter.status=%24eq%3AActive&page=3"
 ```
 
-Three rules, and the first one bites:
+Four rules, and the first two bite:
 
 - **Supply keys and values raw.** The builder percent-encodes both, so pre-escaping double-encodes them —
   `$eq:Active`, not `%24eq%3AActive`.
+- **Supply the path already escaped.** It is emitted verbatim before the `?`, so the opposite rule applies to
+  it: in ASP.NET Core take `PathString.ToUriComponent()`, elsewhere escape each segment with
+  `Uri.EscapeDataString` and join with `/`. A path carrying a character no URI path can hold — a space or
+  ``? # " < > \ ` ^ { | }`` — is rejected with an `ArgumentException` at construction, because emitting it
+  would produce a link to a different resource: `new PaginateLinkContext($"/t/{slug}/products", [])` with
+  `slug = "x?y"` yields `/t/x?y/products?page=1`, whose query string is `y/products?page=1`. A `null` path or
+  parameter list is rejected the same way, with `ArgumentNullException`.
 - Any `page` entry is **dropped and re-added** per link, so including one is harmless.
 - Repeat a key to carry a multi-valued parameter (`sortBy`, `filter.<field>`).
 
 Pass `null` — the default — and `Links` comes back `null`. That is a reasonable choice for an internal
 caller, which pages by `meta` instead.
+
+Two contexts holding the same path and the same parameters in the same order **compare equal** and hash
+equal, so a factory that builds one from your own transport is testable with `Assert.Equal`. Order is part of
+the value, because it is the order the parameters are emitted in.
+
+::: warning The parameter set is repeated, and the repetition is the cost
+Every parameter is carried into all five links and, if you write the header, into each of its four rels.
+Measured on a request whose query string is 8 199 bytes: **41 081 bytes of body links (×5.0) and a 32 928-byte
+`Link` header (×4.0)**; the ratios hold from a few hundred bytes upwards. Percent-encoding is round-trip
+neutral here — the repetition is the whole of it.
+
+That matters mostly for the header: a reverse proxy buffers response headers in a small fixed buffer —
+nginx's `proxy_buffer_size` defaults to one memory page, 4 or 8 KB — and a header over it becomes a
+proxy-generated `502` the application never sees. If you emit the header and your callers send long query
+strings, either cap the request line below the proxy's header buffer ÷ 4, or build the context from a
+filtered parameter list. The library carries everything by design: the binder ignores parameters it does not
+recognise precisely because they are yours, and dropping them from navigation links would lose them.
+:::
 
 ## Paging without links: `WithPage`
 
@@ -269,6 +294,13 @@ Link: </products?limit=25&page=1>; rel="first", </products?limit=25&page=3>; rel
 
 Absent links are skipped rather than emitted empty, and if none are present no header is written at all.
 Passing a `null` `Links` is a no-op, so the call is safe on a page produced without a link context.
+
+The rels are **appended** as a further `Link` header field rather than assigned, so a relation the response
+already carries — a `describedby` written by your handler or by middleware — survives; RFC 8288 §3 allows
+several `Link` fields and conforming clients read them as one set. The flip side is that calling
+`AddPaginationLinkHeader` twice for one response emits the pagination rels twice. Mind the size, too: the
+header repeats the request's whole query string once per rel — see the warning under
+[`PaginateLinkContext`](#building-links-paginatelinkcontext).
 
 ## Errors
 

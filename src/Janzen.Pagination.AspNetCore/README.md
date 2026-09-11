@@ -36,18 +36,19 @@ services.AddPagination(pagination => pagination.AddAspNetCore());
 using Janzen.Pagination.AspNetCore.OpenApi;
 services.AddOpenApi(options => options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
 
-// Controller — PaginateQuery is bound from the query string.
+// Controller — PaginateQuery is bound from the query string. MVC binds the CancellationToken to
+// HttpContext.RequestAborted for free; pass it so a disconnected client stops the database work.
 [HttpGet]
 [PaginatedQuery<ProductConfigProvider>]
-public Task<PaginatedResponse<ProductDto>> Get([FromQuery] PaginateQuery request) =>
-    _dbContext.Products.PaginateAsync<Product, ProductDto>(request, _config, HttpContext.Request);
+public Task<PaginatedResponse<ProductDto>> Get([FromQuery] PaginateQuery request, CancellationToken ct) =>
+    _dbContext.Products.PaginateAsync<Product, ProductDto>(request, _config, HttpContext.Request, ct);
 ```
 
 ### Minimal API
 
 ```csharp
-app.MapGet("/products", async (HttpContext http, AppDbContext db) =>
-        await db.Products.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), config, http.Request))
+app.MapGet("/products", async (HttpContext http, AppDbContext db, CancellationToken ct) =>
+        await db.Products.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), config, http.Request, ct))
    .WithPagination<ProductConfigProvider>();
 ```
 

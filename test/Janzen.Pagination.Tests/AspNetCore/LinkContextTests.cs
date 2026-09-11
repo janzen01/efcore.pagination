@@ -87,4 +87,70 @@ public sealed class LinkContextTests {
 
 	}
 
+	[Fact]
+	public void A_relation_the_response_already_carries_survives() {
+
+		var response = new DefaultHttpContext().Response;
+
+		// A handler that advertises its schema first, then adds pagination. Assigning Headers.Link replaces the
+		// whole header, so describedby used to disappear without a trace.
+		response.Headers.Link = "</schema.json>; rel=\"describedby\"";
+		response.AddPaginationLinkHeader(new PaginatedLinks("/products?page=1", null, null, "/products?page=9"));
+
+		string?[] values = [.. response.Headers.Link];
+
+		Assert.Equal(2, values.Length);
+		Assert.Equal("</schema.json>; rel=\"describedby\"", values[0]);
+		Assert.Equal("</products?page=1>; rel=\"first\", </products?page=9>; rel=\"last\"", values[1]);
+
+	}
+
+	[Fact]
+	public void A_null_request_names_the_argument_that_is_null() {
+
+		var source = TestData.Products().AsQueryable();
+		var request = new PaginateQuery();
+		var ct = TestContext.Current.CancellationToken;
+
+		// Typed, because `null!` alone cannot pick between the HttpRequest and PaginateLinkContext overloads.
+		HttpRequest httpRequest = null!;
+
+		// Every overload also has a parameter called `request` — the PaginateQuery — so reporting that name for a
+		// null HttpRequest sent the reader to inspect the wrong argument. The throw is synchronous: these are
+		// Task-returning wrappers, not async methods, so an argument error never reaches the returned task.
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
+			() => { _ = source.PaginateAsync<Product, ProductDto>(request, TestData.Config, httpRequest, ct); }).ParamName);
+
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
+			() => { _ = source.PaginateSelectAsync(request, TestData.Config, p => p.Name, httpRequest, ct); }).ParamName);
+
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
+			() => { _ = source.PaginateSelectMapAsync(request, TestData.Config, p => p.Name, name => name.Length, httpRequest, ct); }).ParamName);
+
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
+			() => { _ = source.PaginateMapAsync(request, TestData.Config, p => p.Name, httpRequest, ct); }).ParamName);
+
+	}
+
+	[Fact]
+	public async Task A_repeated_query_parameter_is_carried_over_once_per_value_in_order() {
+
+		// The only behaviour the allocation rewrite of the copy loop could plausibly disturb.
+		var links = (await PageAsync(Request("", "/products", "?tag=a&tag=b&limit=3"), 1)).Links!;
+
+		Assert.Equal("/products?tag=a&tag=b&limit=3&page=1", links.Current);
+
+	}
+
+	[Fact]
+	public async Task A_path_needing_escaping_reaches_the_context_already_escaped() {
+
+		// PathString.ToString() is ToUriComponent(), so the bridge never hands the context a raw path — which is
+		// what keeps the context's new path validation off every real request.
+		var links = (await PageAsync(Request("/api v2", "/a b/products", "?limit=3"), 1)).Links!;
+
+		Assert.Equal("/api%20v2/a%20b/products?limit=3&page=1", links.Current);
+
+	}
+
 }
