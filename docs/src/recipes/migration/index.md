@@ -103,14 +103,18 @@ criterion, and build the URLs yourself if you were relying on them being absolut
 
 ## Ordering is stricter
 
-nestjs-paginate lets a resource sort by whatever you configured and leaves it there. Here, if a request ends
-up with **no ordering at all** — no `sortBy`, no `DefaultSortBy`, no tie-breaker — the engine refuses it with
-a `400` rather than paging an unordered set.
+nestjs-paginate lets a resource sort by whatever you configured and leaves it there. Here a resource cannot
+be configured without an ordering at all: [`WithTieBreaker`](/reference/configuration/#withtiebreaker) is
+required, and a configuration that omits it throws `InvalidOperationException` out of `Create` — at startup,
+in your own code, not as a `400` to a caller. There is no request-time equivalent, and nothing a client sends
+can produce one.
 
-Even with a sort, offset paging over rows that tie on it can show a row twice or never. That is why
-`WithTieBreaker(p => p.Id)` is on essentially every config here; it appends a unique key as the last ordering
-column. If your NestJS resources relied on the database's incidental ordering, this is the one behavioural
-change worth planning for rather than discovering.
+The reason is the one offset paging always has: even with a sort, rows that tie on it can be shown twice or
+missed entirely, so a unique key is appended as the last ordering column. `WithTieBreaker(p => p.Id)` is
+therefore on **every** config here, without exception. If your NestJS resources relied on the database's
+incidental ordering, this is the one behavioural change worth planning for rather than discovering — and
+because it fails at build rather than per request, planning for it means running each config once at startup
+or in a test.
 
 ## Limits and page size
 

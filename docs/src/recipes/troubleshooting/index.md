@@ -35,9 +35,11 @@ worth checking:
 ## `$ilike` is not case-insensitive
 
 `$ilike` names the intent, not a guarantee. Without the `.PostgreSql` package it emits a portable `LIKE`, and
-case sensitivity is then whatever the column's collation says — which on many collations means it behaves
-exactly like `$contains`. Register [`UsePostgreSql()`](/integrations/postgresql/) for native `ILIKE`, or use a
-case-insensitive collation.
+the case behaviour is then the engine's — which is **not the same on every one of them**, and on PostgreSQL is
+case-*sensitive* with no collation that changes it before 18.6. The
+[per-leg table](/reference/query-string/#ilike-and-contains-on-a-string-—-contains) is the place to check what
+yours does. Register [`UsePostgreSql()`](/integrations/postgresql/) for native `ILIKE`, or move the column to a
+type or collation that folds case on the engine you deploy on.
 
 ## A value with a comma in it does not work
 

@@ -32,7 +32,7 @@ features:
     linkText: See the emitted SQL
   - title: Deterministic paging
     icon: 🧭
-    details: A tie-breaker key is appended to every sort, so rows cannot drift between pages. Without one, the engine refuses rather than paging an unordered set.
+    details: A tie-breaker key is appended to every sort, so rows cannot drift between pages. It is required — a configuration without one does not build.
     link: /reference/query-string/#sortby
     linkText: How sorting works
   - title: Four projection strategies
@@ -65,6 +65,14 @@ query parameters, operator names and response envelope.
 > the **10.x** line, pairing with .NET 10 and EF Core 10. Older lines are not maintained in parallel, and
 > release notes live on the [Releases](https://github.com/janzen01/efcore.pagination/releases) page.
 
+::: warning This site describes `master`, not the newest package
+It is rebuilt from the default branch on every documentation change, which is what keeps a correction
+available the day it is written — but it means a member described here may not be in the version you have
+installed yet. Nothing is removed from the site when it ships; the gap runs the other way, and it closes at
+the next release. Check the [Releases](https://github.com/janzen01/efcore.pagination/releases) page when a
+call you copied from here does not compile.
+:::
+
 ## Packages
 
 Four packages. The engine works on its own against any `IQueryable<T>`; the three add-ons build on it and are
@@ -75,7 +83,7 @@ independent of each other, so take only the ones you need.
 | `Janzen.Pagination.EntityFrameworkCore` | Provider-agnostic query engine — fluent `PaginateConfig<T>`, filtering / sorting / search, projection, `PaginateAsync`. |
 | `Janzen.Pagination.PostgreSql` | PostgreSQL provider — case-insensitive search via native `ILIKE`. |
 | `Janzen.Pagination.AspNetCore` | ASP.NET Core integration — query-string model binding, `ProblemDetails`, links, OpenAPI metadata. |
-| `Janzen.Pagination.NodaTime` | NodaTime support — filter / sort / project `Instant` and `LocalDate` (incl. `Instant` → `DateTimeOffset`). |
+| `Janzen.Pagination.NodaTime` | NodaTime support — filter / sort / project the [seven NodaTime value types](/integrations/nodatime/) (incl. `Instant` → `DateTimeOffset`). |
 
 ```mermaid
 graph BT
@@ -83,7 +91,7 @@ graph BT
 
     Pg["<b>.PostgreSql</b><br/>native ILIKE"]
     Web["<b>.AspNetCore</b><br/>binding · ProblemDetails · links · OpenAPI"]
-    Noda["<b>.NodaTime</b><br/>Instant · LocalDate"]
+    Noda["<b>.NodaTime</b><br/>Instant · LocalDate · five more"]
 
     Pg --> Core
     Web --> Core
