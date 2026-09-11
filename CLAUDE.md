@@ -53,7 +53,9 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   `/guide/query-string` but **not** at `/guide/query-string/`. `docs/scripts/verify-frozen-urls.mjs` fails the
   build when one of those paths has nothing behind it, stub or page. Its hardcoded list is *history* — what
   `10.0.0` published, never removable — and it additionally **reads the root and package READMEs** and requires
-  every site URL they advertise to exist too, because those are what the *next* release freezes. So repointing
+  every site URL they advertise to exist too. Only the **package** READMEs are what the *next* release
+  freezes — packaging is per project and the root README ships in no package at all, so its URLs are checked
+  and never promoted, and the script's closing summary counts the two sources separately. So repointing
   a README is safe: forget to publish the target and the build says so, naming the README. **A `#fragment` in a
   README URL is checked the same way**, against the ids in the built page — a README deep link is frozen exactly
   like the page it points into, and `verify-anchors.mjs` cannot see it (that one walks the markdown sources;
@@ -69,11 +71,16 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   are per package, the cookbook is task-shaped. A corollary that is easy to violate: **every fact has exactly
   one home** and the other pages link to it. A per-method enumeration inside the guide, or a second copy of
   the guards table, is the thing this rule exists to prevent.
-- **Navigation lives in `config.mts`**, not in front matter. The pages carry no front matter at all; VitePress
-  takes the title from the first `#` heading. A new page has to be added to the sidebar by hand, or it is
-  reachable only by link and search.
+- **Navigation lives in `config.mts`**, not in front matter. **Content** pages carry no front matter at all;
+  VitePress takes the title from the first `#` heading. The exceptions are structural and each has to be one:
+  `docs/src/index.md` is `layout: home` and is front matter almost end to end, the four redirect stubs carry
+  the `head` refresh plus `search: false` / `robots: noindex` described above, and `docs/src/cs/index.md` is
+  the excluded draft. A new page has to be added to the sidebar by hand, or it is reachable only by link and
+  search.
 - **`.gitignore` keeps `docs/*` deny-by-default** and re-includes the project by name (`!docs/src/`,
-  `!docs/.vitepress/`, `!docs/scripts/`, `!docs/package.json`, `!docs/pnpm-lock.yaml`). A new directory that is
+  `!docs/.vitepress/`, `!docs/scripts/`, `!docs/package.json`, `!docs/.npmrc`, `!docs/pnpm-lock.yaml`).
+  `.npmrc` is load-bearing — it holds the `shamefully-hoist=true` without which `pnpm docs:dev` renders a
+  blank page — so it is not a stale entry to tidy away. A new directory that is
   not re-included is invisible to git and therefore to the build, which then publishes a site missing that page
   without failing. Everything else under `docs/` is local planning and stays untracked.
 - **English is the root locale** (`/`) and has to stay there: the frozen URLs have no locale prefix.
@@ -221,19 +228,35 @@ independent of each other — consumers pick the extensions they need:
     `[]` unambiguously means "resolved, nothing requested". Don't re-introduce the null.
   - Both composers now also call `ResolveSorts`; only `ApplyPagination` applies the result.
   - All three paths (both composers and `PaginateCoreAsync`) go through one private `Compose`, which is what makes
-    "the composed SQL is the executed SQL" true. `ComposerTests` asserts it against a captured command — do not
-    give a composer its own copy of a stage.
+    "the composed SQL is the executed SQL" true — do not give a composer its own copy of a stage. Read the
+    assertion behind that claim precisely before quoting it anywhere: `ComposerTests` compares the composed
+    query against the command `PaginateMapAsync` executes, **modulo whitespace**, for one request shape.
+    `PaginateMapAsync` is the one entry point that adds no SQL-side projection, which is exactly why it is
+    the one the comparison can be made against; the other three replace the `SELECT` list, so their executed
+    statement is by construction not what `ApplyPagination(...).Query.ToQueryString()` prints.
 - **`PaginateFilterOperator`** — `Eq`, `In`, `Null`, `StartsWith`, `Contains`, `ILike`, `GreaterThan(OrEqual)`,
   `LessThan(OrEqual)`, `Between`. Each field whitelists its allowed operators.
-- **DI:** `services.AddPagination(b => { b.AddAspNetCore(); b.UsePostgreSql(); b.AddNodaTime(); });` — add only the
+- **DI:** `services.AddPagination(b => { b.AddAspNetCore(); b.UsePostgreSql(); b.UseNodaTime(); });` — add only the
   extensions in play. `AddAspNetCore()` wires query-string binding, the `ProblemDetails` exception filter, and OpenAPI
   metadata.
 
 ## Providers — LIKE vs ILIKE
-- Default search / `Contains` / `StartsWith` emit **portable `LIKE`** — case-sensitivity follows the column collation.
+- Default search / `Contains` / `StartsWith` emit **portable `LIKE`**, and its case behaviour is the engine's,
+  **not the column collation's**. That shorthand was wrong in the one direction that matters here: a
+  deterministic PostgreSQL collation never case-folds `LIKE` and, before 18, a nondeterministic one is
+  rejected by it, so the portable path is case-**sensitive** on PostgreSQL whatever collation is configured
+  (measured on 15.19: `$ilike:widget` matched neither `Widget` nor `WIDGET`). SQL Server folds by collation,
+  SQLite folds ASCII only, and the plain-`IQueryable` leg is `OrdinalIgnoreCase` for the pattern operators
+  while `$eq` / `$in` stay ordinal. The single home for the per-leg table is
+  `docs/src/reference/query-string/` under `$ilike`; don't restate it elsewhere.
 - `.UsePostgreSql()` registers `NpgsqlLikeStrategy` (`src/Janzen.Pagination.PostgreSql/Like/NpgsqlLikeStrategy.cs`)
   **globally**, upgrading those to native **`ILIKE`** (true case-insensitive). The provider-agnostic `PaginateConfig` is
-  unchanged — only the emitted SQL differs. The strategy resolves `NpgsqlDbFunctionsExtensions.ILike` via reflection.
+  unchanged — only the emitted SQL differs. The strategy resolves `NpgsqlDbFunctionsExtensions.ILike` through a
+  `MethodInfo` lookup, which is what `Expression.Call` needs — **not** a way of avoiding a dependency. The
+  project carries a `PackageReference` to the Npgsql provider and the packed nuspec declares it, so that
+  coupling is paid in full either way.
+- **A per-resource override exists**: `WithLikeStrategy(...)` on a config wins over the process-wide default
+  and is resolved per query, which is what makes one process talking to two providers workable.
 
 ## Conventions
 - **net10.0-only**, `Nullable=enable`, `ImplicitUsings=enable`, C# `latest` ([Directory.Build.props](Directory.Build.props)).
@@ -255,12 +278,15 @@ independent of each other — consumers pick the extensions they need:
   **Do not** introduce `<returns>`, `<exception>`, `<example>` or `<seealso>`.
 - **`<param>` is all-or-nothing per member** — document *every* parameter or none, because partial coverage raises
   CS1573 (and partial type-parameter coverage CS1712), which is an error here. **An optional parameter is not
-  exempt** (verified: omitting `Badge = null` fails the build). Ordinary methods therefore name their parameters
-  with `<paramref>` inside the summary and carry no `<param>` at all; positional records are the exception below.
-- **`<inheritdoc />` is for one thing only:** the eleven `PaginateConfig<TEntity>` members implementing
-  `IPaginateConfig`, whose prose lives once on the interface — `docs/src/reference/configuration/` teaches the metadata
+  exempt** (verified: omitting `Badge = null` fails the build). Ordinary methods normally name their parameters
+  with `<paramref>` inside the summary and carry no `<param>`; where a parameter earns its own description one
+  is permitted, provided **every** parameter of that member gets one — `Create`, `PaginateFilterOperators.For`
+  and `PaginateQuery.WithPage` are the three that do. Positional records are the separate rule below.
+- **`<inheritdoc />` is for one thing only:** the `PaginateConfig<TEntity>` members implementing
+  `IPaginateConfig`, and nowhere else — an invariant rather than a count, because the number grows with the
+  interface and a stale one stops the check working. Their prose lives once on the interface — `docs/src/reference/configuration/` teaches the metadata
   read-back path as `IPaginateConfig meta = provider.GetConfig()`, so the interface is the type a consumer holds for
-  them. Don't spread the tag elsewhere, and don't "fix" those eleven into duplicated prose. Note the compiler copies
+  them. Don't spread the tag elsewhere, and don't "fix" those members into duplicated prose. Note the compiler copies
   the tag into the `.xml` verbatim rather than expanding it (Roslyn resolves it in quick info), so it only works while
   both declarations stay in the same assembly.
 - A **positional record** takes a `<summary>` on the declaration **plus a `<param>` for every positional
@@ -274,6 +300,16 @@ independent of each other — consumers pick the extensions they need:
   in the shipped `.xml` once that property has a `<param>`, and once a record carries `<param>` tags, `CS1573`
   turns a later undocumented positional parameter into a build error. **Do not** re-declare a positional property
   in the record body to document it — that suppresses the copy and doubles the declaration.
+- **Argument errors eager, request errors faulted.** The four `Paginate*Async` entry points are non-`async`
+  `Task`-returning wrappers around one `async` body, which is the BCL's own split: a usage error (`source`,
+  `request`, `config`, `selector`, `postMap`, `projector` being `null`) throws at the call, while everything
+  the *caller of the API* sent is validated inside and arrives as a faulted task. Don't make an entry point
+  `async` — that moves every argument throw into the task and silently breaks a fan-out that builds its tasks
+  before awaiting them.
+- **Every `await` in the engine carries `ConfigureAwait(false)`**, with the one deliberate exception of
+  `PaginateExceptionEndpointFilter.cs`, which is application-level code inside the host's own pipeline. Keep
+  the split: a library await never captures a context, so a consumer's `postMap` and `projector` continue on
+  a thread-pool thread — which the projections guide now promises.
 - Build must stay clean under `-warnaserror` before any commit.
 - **Commits:** small and incremental (one logical change each).
 - **`master` takes no direct pushes.** A ruleset requires a pull request with **`ci-ok`** green, signed
@@ -289,6 +325,10 @@ independent of each other — consumers pick the extensions they need:
   required check, so never let `ci-ok` itself be skipped by an `if:`; and the ruleset has **no bypass
   actors**, so a red gate for a reason outside the PR (an npm or nuget.org outage) blocks every merge
   including the maintainer's — the only escape is editing the ruleset.
+  **A cancelled run is safe, and this was measured rather than assumed:** cancelling a run makes `ci-ok`
+  conclude **`cancelled`**, not `skipped`, and `cancelled` is not in the set a required check accepts, so
+  `mergeStateStatus` stays `BLOCKED`. That says nothing about an `if:` that skips the job on a *completed*
+  run — the rule above is unchanged.
 - **Never give the matrix job a static `name:`** to keep its context stable. GitHub does not append matrix
   values to an explicit name, so all three legs would report one context and the last to finish would win —
   a red Windows leg hidden behind a green Linux one.
@@ -426,7 +466,11 @@ ticks, so the wrong `Kind` changes nothing in memory and nothing in the SQL SQLi
 instant only on a provider that converts, on a server off UTC — a behavioural test would pass in CI either
 way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server reads it as a range).
 
-Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs a real PostgreSQL server.
+- **PostgreSQL**, in CI. Native `ILIKE` and its `ESCAPE` behaviour need a real server, so they run in a
+  dedicated `ci.yml` job against a `postgres:18.6` service container, gated on `JANZEN_TEST_POSTGRES` and
+  skipped when it is unset — which is why `dotnet test` is still green locally without one. See
+  [SETUP.md](SETUP.md) for running that leg yourself. The job is a `needs:` of `ci-ok` and carries no `if:`
+  of its own, for the reason under *Conventions*.
 
 ## Intentional decisions — do NOT "fix" these
 - **net10.0-only** — net9 is EOL and net8 lacks the EF Core 9+ surface the engine relies on (e.g. `EF.Parameter`).
@@ -443,9 +487,15 @@ Not covered: native PostgreSQL `ILIKE` and its `ESCAPE` behaviour — that needs
 - **NodaTime has no ISO-8601 duration pattern** — `DurationPattern.JsonRoundtrip` is the colon form (`2:30:00`)
   despite the name, verified against NodaTime 3.3.3. The ISO leg (`PT2H30M`) therefore goes through `XmlConvert`,
   mirroring how the engine reads a `TimeSpan`. Don't replace it with a NodaTime pattern that does not exist.
-- **`[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`** on every public `Paginate*Async` entry point — the engine
-  builds expression trees and uses reflection, so it is **not** trim/AOT-safe. The annotations give consumers accurate
-  analyzer warnings instead of silent runtime failures; keep them.
+- **`[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`** on **every public member that reaches the
+  reflective surface** — the four `Paginate*Async` entry points and the two composers, but also the
+  configuration builder, `WithPagination<T>()`, the OpenAPI transformer and the NodaTime registration. The
+  engine builds expression trees and uses reflection, so it is **not** trim/AOT-safe, and silence on an
+  unannotated member is indistinguishable from a declaration that it is safe. `EnableTrimAnalyzer`,
+  `EnableAotAnalyzer` and `EnableSingleFileAnalyzer` are on repo-wide in
+  [Directory.Build.props](Directory.Build.props) under `-warnaserror`, so a reflective path added without an
+  annotation **fails the build** — that is the mechanism, not a side effect. `IsTrimmable` / `IsAotCompatible`
+  stay absent: annotating declares the library is not trim-safe, those two would claim it is.
 - **Auto-projection maps constructor parameters** (records / positional ctors), **not** settable properties — projection
   DTOs should be records. This is by design, not a bug.
 - **`nuget.config` lists nuget.org only** and clears machine sources — deliberate, for reproducible restores. nuget.org
