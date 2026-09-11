@@ -184,6 +184,30 @@ public sealed class OrderingOverloadTests {
 
 	}
 
+	/// <summary>
+	///     The pattern operators stay two-way, deliberately, and this pins that rather than the other rule. An
+	///     unrecognised provider takes the in-memory shape — <c>string.IndexOf(value, StringComparison)</c> —
+	///     which it will refuse to translate. Narrowing here the way the ordering was narrowed would need a third
+	///     construct, and the only candidate is the two-argument <c>string.Contains</c>: translatable, but
+	///     <b>case-sensitive</b> where this is case-insensitive. That trades a loud failure for a silent change
+	///     of matching semantics, which is the worse of the two. The ordering had no such cost — narrowing
+	///     there returns a provider to exactly what it got before the comparer existed.
+	/// </summary>
+	[Fact]
+	public void A_pattern_operator_keeps_one_shape_for_every_provider_that_is_not_ef() {
+
+		var composed = new SynchronousQueryable<Product>(TestData.Products().AsQueryable())
+			.ApplyPaginateFilters(Query.Filter("name", "$contains:wid"), ByNameContains);
+
+		Assert.Contains("OrdinalIgnoreCase", composed.Query.Expression.ToString(), StringComparison.Ordinal);
+
+	}
+
+	private readonly static PaginateConfig<Product> ByNameContains = PaginateConfig<Product>.Create(b => b
+		.WithLimits(50, 50)
+		.WithTieBreaker(p => p.Id)
+		.Filterable("name", p => p.Name, PaginateFilterOperator.Contains));
+
 	[Fact]
 	public void The_in_memory_leg_still_gets_the_culture_pinned_comparer() {
 
@@ -228,11 +252,19 @@ internal sealed class SynchronousQueryable<T>(IQueryable<T> inner) : IOrderedQue
 
 	public IQueryProvider Provider => this;
 
-	public IQueryable CreateQuery(Expression expression) { return this.CreateQuery<T>(expression); }
+	// Honours the expression's own element type rather than assuming T. The engine only calls the generic
+	// overload today, so returning SynchronousQueryable<T> unconditionally would pass — until the first test
+	// that composes a projection against this double, which would then fail with an InvalidCastException thrown
+	// from inside the double rather than from the code under test.
+	public IQueryable CreateQuery(Expression expression) {
+		var element = expression.Type.GetGenericArguments().SingleOrDefault() ?? typeof(T);
+		return (IQueryable)Activator.CreateInstance(
+			typeof(SynchronousQueryable<>).MakeGenericType(element),
+			inner.Provider.CreateQuery(expression))!;
+	}
 
 	public IQueryable<TElement> CreateQuery<TElement>(Expression expression) {
-		return (IQueryable<TElement>)(object)new SynchronousQueryable<TElement>(
-			(IQueryable<TElement>)inner.Provider.CreateQuery<TElement>(expression));
+		return new SynchronousQueryable<TElement>(inner.Provider.CreateQuery<TElement>(expression));
 	}
 
 	public object? Execute(Expression expression) { return inner.Provider.Execute(expression); }

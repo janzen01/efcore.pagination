@@ -100,7 +100,7 @@ public sealed class ErrorCodeTests {
 		var rejection = Assert.Throws<PaginateQueryException>(() => field.BuildExpression(
 			Expression.Parameter(typeof(Product), "p"),
 			criterion,
-			new PaginateExpressionContext(true, PaginateLikeDefaults.Strategy, 1, 256),
+			new PaginateExpressionContext(true, false, PaginateLikeDefaults.Strategy, 1, 256),
 			20));
 
 		Assert.Equal(PaginateQueryError.FilterOperatorTypeMismatch, rejection.Code);
@@ -155,6 +155,124 @@ public sealed class ErrorCodeTests {
 	[Fact]
 	public void An_exception_constructed_outside_the_engine_is_unspecified() {
 		Assert.Equal(PaginateQueryError.Unspecified, new PaginateQueryException("hand-built").Code);
+	}
+
+	/// <summary>
+	///     The eight codes no focused test above provokes, so the coverage assertion below has a producer for
+	///     every member rather than a list that happens to be complete today.
+	/// </summary>
+	[Fact]
+	public async Task The_remaining_codes_are_reachable() {
+
+		var guards = PaginateConfig<Product>.Create(b => b
+			.WithLimits(10, 50)
+			.WithGuards(maxFilterValues: 2, maxFilterConditions: 2, maxSortFields: 1, maxSearchLength: 4)
+			.WithMinSearchLength(3)
+			.Sortable("id", p => p.Id)
+			.Sortable("rank", p => p.Rank)
+			.WithTieBreaker(p => p.Id)
+			.Searchable("name", p => p.Name)
+			.Filterable("rank", p => p.Rank, PaginateFilterOperator.In, PaginateFilterOperator.Eq));
+
+		Assert.Equal(PaginateQueryError.TooManyFilterConditions,
+			(await Rejects(Query.Filter("rank", "$eq:10", "$eq:20", "$eq:30"), guards)).Code);
+
+		Assert.Equal(PaginateQueryError.TooManyFilterValues,
+			(await Rejects(Query.Filter("rank", "$in:10,20,30"), guards)).Code);
+
+		// The switch's default arm, reachable only by an operator value that is not a declared member — a cast
+		// integer here, a member added to the enum without an arm in production. Build() refuses an unbuildable
+		// pair now, so the field is constructed directly, the same way the type-mismatch test above does.
+		var bogus = new PaginateScalarFilterField<Product, int>(
+			"rank", p => p.Rank, typeof(int), new HashSet<PaginateFilterOperator> { (PaginateFilterOperator)999 });
+
+		var unsupported = Assert.Throws<PaginateQueryException>(() => bogus.BuildExpression(
+			Expression.Parameter(typeof(Product), "p"),
+			new PaginateFilterCriterion((PaginateFilterOperator)999, "1", false, PaginateFilterConnector.And),
+			new PaginateExpressionContext(true, false, PaginateLikeDefaults.Strategy, 1, 256),
+			maxFilterValues: 100));
+
+		Assert.Equal(PaginateQueryError.FilterOperatorUnsupported, unsupported.Code);
+
+		Assert.Equal(PaginateQueryError.SearchTermTooShort, (await Rejects(new PaginateQuery { Search = "ab" }, guards)).Code);
+		Assert.Equal(PaginateQueryError.SearchTermTooLong, (await Rejects(new PaginateQuery { Search = "abcde" }, guards)).Code);
+		Assert.Equal(PaginateQueryError.TooManySortFields, (await Rejects(Query.Sort("id:ASC", "rank:DESC"), guards)).Code);
+
+		// Its own config: the ceiling of one above is counted before the duplicate is looked for, so the two
+		// cannot be provoked through the same one.
+		var twoSorts = PaginateConfig<Product>.Create(b => b
+			.WithLimits(10, 50)
+			.WithGuards(maxSortFields: 4)
+			.Sortable("id", p => p.Id)
+			.WithTieBreaker(p => p.Id));
+
+		Assert.Equal(PaginateQueryError.DuplicateSortField, (await Rejects(Query.Sort("id:ASC", "id:DESC"), twoSorts)).Code);
+
+		var searchless = PaginateConfig<Product>.Create(b => b
+			.WithLimits(10, 50)
+			.Sortable("id", p => p.Id)
+			.WithTieBreaker(p => p.Id));
+
+		Assert.Equal(PaginateQueryError.SearchNotConfigured, (await Rejects(new PaginateQuery { Search = "widget" }, searchless)).Code);
+
+	}
+
+	/// <summary>
+	///     Every member of the enum is produced by something. <c>ValueTypeNotSupported</c> was declared,
+	///     documented and assigned nowhere for a whole release line, which no test could see because no test
+	///     asked the question — the instance was fixed, the class was not. A member added without a producer
+	///     fails here rather than shipping as dead public surface that cannot be removed after the next stable
+	///     release.
+	/// </summary>
+	[Fact]
+	public void Every_code_has_a_producer() {
+
+		var provoked = typeof(ErrorCodeTests)
+			.GetMethods()
+			.SelectMany(method => method.GetCustomAttributes(typeof(FactAttribute), inherit: false).Length > 0
+				? CodesAssertedBy(method.Name)
+				: [])
+			.ToHashSet();
+
+		// Asserted elsewhere and named here, so the guard counts them rather than pretending this class is the
+		// only place a code can be pinned: the connector one in FilterGrammarTests, the unsupported-type one in
+		// ValueConversionTests, each beside the message it belongs to.
+		provoked.Add(PaginateQueryError.FilterConnectorMisplaced);
+		provoked.Add(PaginateQueryError.ValueTypeNotSupported);
+
+		var declared = Enum.GetValues<PaginateQueryError>().Where(code => code != PaginateQueryError.Unspecified);
+
+		var orphaned = declared.Except(provoked).ToArray();
+
+		Assert.True(orphaned.Length == 0,
+			$"No test provokes: {string.Join(", ", orphaned)}. A code with no producer is dead public surface.");
+
+	}
+
+	// The map the assertion above rests on: which codes each test in this class provokes. Kept beside the tests
+	// rather than derived, because a code is provoked by a *request shape* and no reflection can read that.
+	private static PaginateQueryError[] CodesAssertedBy(string test) {
+		return test switch {
+			nameof(Paging_rejections_are_coded) => [PaginateQueryError.PageOutOfRange, PaginateQueryError.LimitOutOfRange],
+			nameof(The_offset_ceiling_has_its_own_code) => [PaginateQueryError.MaxOffsetExceeded],
+			nameof(An_unlimited_read_has_its_own_two_codes) => [PaginateQueryError.UnlimitedReadRequiresFirstPage, PaginateQueryError.UnlimitedReadTooLarge],
+			nameof(Sort_rejections_are_coded) => [PaginateQueryError.SortValueMalformed, PaginateQueryError.SortDirectionUnknown, PaginateQueryError.SortFieldNotConfigured],
+			nameof(Search_rejections_are_coded) => [PaginateQueryError.SearchFieldNotConfigured, PaginateQueryError.DuplicateSearchField],
+			nameof(Filter_rejections_are_coded) => [
+				PaginateQueryError.FilterFieldNotConfigured, PaginateQueryError.FilterCriterionMalformed,
+				PaginateQueryError.FilterOperatorUnknown, PaginateQueryError.FilterOperatorNotAllowed,
+				PaginateQueryError.FilterValueCountInvalid, PaginateQueryError.DuplicateFilterField],
+			nameof(An_operator_that_does_not_fit_the_field_type_is_coded) => [PaginateQueryError.FilterOperatorTypeMismatch],
+			nameof(Value_conversion_rejections_are_coded) => [PaginateQueryError.ValueInvalid, PaginateQueryError.ValueEmpty],
+			nameof(The_pattern_length_guards_have_their_own_two_codes) => [PaginateQueryError.FilterPatternTooShort, PaginateQueryError.FilterPatternTooLong],
+			nameof(The_code_travels_with_the_message_it_belongs_to) => [PaginateQueryError.SortDirectionUnknown],
+			nameof(The_remaining_codes_are_reachable) => [
+				PaginateQueryError.TooManyFilterConditions, PaginateQueryError.TooManyFilterValues,
+				PaginateQueryError.FilterOperatorUnsupported, PaginateQueryError.SearchTermTooShort,
+				PaginateQueryError.SearchTermTooLong, PaginateQueryError.TooManySortFields,
+				PaginateQueryError.DuplicateSortField, PaginateQueryError.SearchNotConfigured],
+			_ => []
+		};
 	}
 
 }

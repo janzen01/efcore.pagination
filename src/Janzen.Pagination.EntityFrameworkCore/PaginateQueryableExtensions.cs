@@ -168,7 +168,7 @@ public static class PaginateQueryableExtensions {
 		foreach (var field in fields) {
 
 			var spliced = ParameterReplaceVisitor.Replace(field.Selector.Body, field.Selector.Parameters[0], entity);
-			var valueExpression = context.UseDatabaseFunctions ? spliced : PaginateNullSafeRewriter.Rewrite(spliced, entity);
+			var valueExpression = context.InMemory ? PaginateNullSafeRewriter.Rewrite(spliced, entity) : spliced;
 
 			var notNull = Expression.NotEqual(valueExpression, Expression.Constant(null, valueExpression.Type));
 
@@ -270,6 +270,12 @@ public static class PaginateQueryableExtensions {
 	///     translate — so it is refused here, with a message naming the way out, rather than left to surface as an
 	///     EF-internal complaint or a bare <c>NullReferenceException</c> further down.
 	/// </summary>
+	// The other half of the pair, and deliberately not the negation of the method below: EnumerableQuery is what
+	// List<T>.AsQueryable() produces and the only provider whose ordering has a culture to choose and whose
+	// navigation dereferences need the null-safe rewrite. A third-party synchronous provider answers false to
+	// both and composes the plain tree — which is the one it can translate.
+	private static bool IsInMemory(IQueryProvider provider) { return provider is EnumerableQuery; }
+
 	private static bool UseDatabaseFunctions(IQueryProvider provider) {
 
 		// Written out in full on purpose. EntityQueryProvider is an EF internal API and EF1001 reports a `typeof`
@@ -305,10 +311,11 @@ public static class PaginateQueryableExtensions {
 		// leg exactly as a filter does — ordering by a rewritten key puts the missing ones where the provider
 		// puts nulls.
 		bool useDatabaseFunctions = UseDatabaseFunctions(query.Provider);
+		bool inMemory = IsInMemory(query.Provider);
 
 		for (int index = 0; index < sorts.Count; index++) {
-			var selector = useDatabaseFunctions ? sorts[index].Selector : PaginateNullSafeRewriter.Rewrite(sorts[index].Selector);
-			query = PaginateExpressionUtils.ApplyOrder(query, selector, sorts[index].Descending, index == 0, useDatabaseFunctions);
+			var selector = inMemory ? PaginateNullSafeRewriter.Rewrite(sorts[index].Selector) : sorts[index].Selector;
+			query = PaginateExpressionUtils.ApplyOrder(query, selector, sorts[index].Descending, index == 0, inMemory);
 		}
 
 		return query;
@@ -341,8 +348,18 @@ public static class PaginateQueryableExtensions {
 		// binder that can now report either. Until a duplicated `filter.<field>` became reportable this channel
 		// held only a binder-level page/limit parse error, which the order puts first anyway; leaving the call
 		// where it was made a filter error pre-empt MaxOffsetExceeded and LimitOutOfRange for a request wrong in
-		// both ways. EnsureValid is idempotent, so the second call is the one that surfaces the filter half.
-		if (request.ValidationErrorCode != PaginateQueryError.DuplicateFilterField) request.EnsureValid();
+		// both ways. EnsureValid is idempotent, so the second call is the one that surfaces the rest.
+		//
+		// Asked as "is this a paging error?", not as "is it the one non-paging code we know about". The inverse
+		// reads the same today and silently gives the wrong precedence to the next non-paging code the binder
+		// learns to report, with nothing failing to say so.
+		bool pagingError = request.ValidationErrorCode
+			is PaginateQueryError.PageOutOfRange
+			or PaginateQueryError.LimitOutOfRange
+			or PaginateQueryError.UnlimitedReadRequiresFirstPage
+			or PaginateQueryError.MaxOffsetExceeded;
+
+		if (pagingError) request.EnsureValid();
 
 		// Mirrors the 'limit' guard: an out-of-range page is a caller bug, so surface it instead of clamping it away.
 		if (request.Page < PaginateQuery.DefaultPage) throw new PaginateQueryException("Query parameter 'page' must be a positive integer.") { Code = PaginateQueryError.PageOutOfRange };
@@ -359,7 +376,7 @@ public static class PaginateQueryableExtensions {
 		bool useDatabaseFunctions = UseDatabaseFunctions(source.Provider);
 		// Resolved per query, so a configuration naming its own strategy is unaffected by whatever the last
 		// AddPagination callback wrote to the process-wide static -- which is how one process serves two providers.
-		var context = new PaginateExpressionContext(useDatabaseFunctions, config.LikeStrategy ?? PaginateLikeDefaults.Strategy, config.MinSearchLength, config.MaxSearchLength);
+		var context = new PaginateExpressionContext(useDatabaseFunctions, IsInMemory(source.Provider), config.LikeStrategy ?? PaginateLikeDefaults.Strategy, config.MinSearchLength, config.MaxSearchLength);
 
 		var query = ApplyFilters(source, request, config, context);
 		query = ApplySearch(query, request, config, context, out var searchBy);

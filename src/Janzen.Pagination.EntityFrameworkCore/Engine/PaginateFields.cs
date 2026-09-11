@@ -261,7 +261,7 @@ internal abstract class PaginateFilterField(
 			var target = ConvertValue(value, Type, context);
 
 			compare = comparison(
-				Type == typeof(string) && !context.UseDatabaseFunctions
+				Type == typeof(string) && context.InMemory
 					? Expression.Call(StringCompareInvariantMethod, operand, target, Expression.Constant(StringComparison.InvariantCulture))
 					: Expression.Call(operand, Type == typeof(string) ? StringCompareToMethod : GuidCompareToMethod, target),
 				Expression.Constant(0));
@@ -335,6 +335,9 @@ internal abstract class PaginateFilterField(
 
 		Expression patternExpression;
 
+		// Two-way rather than three: there is no third construct to fall back to. A provider that is neither EF
+		// Core nor EnumerableQuery cannot run EF.Functions.Like, so it takes the in-memory shape and the
+		// documented contract — EF Core, or a plain IQueryable — is what says that is the supported set.
 		if (context.UseDatabaseFunctions) {
 			string escaped = PaginateExpressionUtils.EscapeLikePattern(value);
 			var pattern = PaginateExpressionUtils.ToDatabaseParameter(Expression.Constant(startsWith ? $"{escaped}%" : $"%{escaped}%"));
@@ -419,7 +422,7 @@ internal sealed class PaginateScalarFilterField<TEntity, TValue>(
 
 	public override Expression BuildExpression(ParameterExpression entity, PaginateFilterCriterion criterion, PaginateExpressionContext context, int maxFilterValues) {
 		var valueExpression = ParameterReplaceVisitor.Replace(selector.Body, selector.Parameters[0], entity);
-		if (!context.UseDatabaseFunctions) valueExpression = PaginateNullSafeRewriter.Rewrite(valueExpression, entity);
+		if (context.InMemory) valueExpression = PaginateNullSafeRewriter.Rewrite(valueExpression, entity);
 
 		return BuildOperatorExpression(valueExpression, criterion, context, maxFilterValues);
 	}
@@ -446,7 +449,7 @@ internal sealed class PaginateCollectionFilterField<TEntity, TElement>(
 		var element = Expression.Parameter(typeof(TElement), "item");
 		var valueExpression = ParameterReplaceVisitor.Replace(valueSelector.Body, valueSelector.Parameters[0], element);
 
-		if (!context.UseDatabaseFunctions) {
+		if (context.InMemory) {
 			collectionExpression = PaginateNullSafeRewriter.Rewrite(collectionExpression, entity);
 			valueExpression = PaginateNullSafeRewriter.Rewrite(valueExpression, element);
 		}
@@ -458,9 +461,9 @@ internal sealed class PaginateCollectionFilterField<TEntity, TElement>(
 
 		// Any(null, …) throws rather than answering false, so an unloaded or genuinely empty navigation would take
 		// down the in-memory leg for a request the database answers with no rows. EF never hands us a null here.
-		return context.UseDatabaseFunctions
-			? any
-			: Expression.AndAlso(Expression.NotEqual(collectionExpression, Expression.Constant(null, collectionExpression.Type)), any);
+		return context.InMemory
+			? Expression.AndAlso(Expression.NotEqual(collectionExpression, Expression.Constant(null, collectionExpression.Type)), any)
+			: any;
 
 	}
 

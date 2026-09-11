@@ -20,7 +20,7 @@ public sealed class FilterOperatorTests(SqliteFixture fixture) : IClassFixture<S
 		return Assert.Throws<PaginateQueryException>(() => field.BuildExpression(
 			Expression.Parameter(typeof(Product), "p"),
 			criterion,
-			new PaginateExpressionContext(true, PaginateLikeDefaults.Strategy, 1, 256),
+			new PaginateExpressionContext(true, false, PaginateLikeDefaults.Strategy, 1, 256),
 			20)).Message;
 
 	}

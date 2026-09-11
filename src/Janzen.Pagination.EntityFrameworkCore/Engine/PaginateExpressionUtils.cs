@@ -82,15 +82,14 @@ internal static class PaginateExpressionUtils {
 	/// </summary>
 	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
-	public static IQueryable<TEntity> ApplyOrder<TEntity>(IQueryable<TEntity> query, LambdaExpression selector, bool descending, bool first, bool useDatabaseFunctions) {
+	public static IQueryable<TEntity> ApplyOrder<TEntity>(IQueryable<TEntity> query, LambdaExpression selector, bool descending, bool first, bool inMemory) {
 
-		// EnumerableQuery, not "!useDatabaseFunctions": that flag is `Provider is IAsyncQueryProvider`, which reads
-		// "not EF Core" rather than "in memory". A synchronous provider backed by a database lands in the same
-		// branch and would be handed the three-argument overload, which essentially no relational LINQ provider
-		// translates -- turning a working string sort into a NotSupportedException on a provider that never asked
-		// for a culture. Narrowing can only return such a provider to where it was before this comparer existed;
-		// widening breaks it.
-		if (!useDatabaseFunctions && query.Provider is EnumerableQuery && selector.Body.Type == typeof(string)) {
+		// `inMemory`, not "not EF Core". The three-argument overload carries an IComparer constant into the
+		// tree and essentially no relational LINQ provider translates it, so selecting it for every non-EF
+		// provider turned a working string sort into a NotSupportedException on a synchronous provider that
+		// never asked for a culture. The caller answers this from `Provider is EnumerableQuery` — the one
+		// leg whose ordering has a culture to choose.
+		if (inMemory && selector.Body.Type == typeof(string)) {
 
 			// Rebuilt rather than cast: the null-safe rewriter returns a LambdaExpression whose delegate type is
 			// inferred, and only this form is guaranteed to be the one the overload wants.
