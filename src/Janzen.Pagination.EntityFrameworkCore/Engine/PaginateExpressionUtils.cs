@@ -53,9 +53,10 @@ internal static class PaginateExpressionUtils {
 	/// <summary>
 	///     Applies one ordering key. A <c>string</c> key on the in-memory leg is ordered with
 	///     <see cref="StringComparer.InvariantCulture" />, because <c>Comparer&lt;string&gt;.Default</c> reads
-	///     <see cref="CultureInfo.CurrentCulture" /> — which an ASP.NET Core app sets per request from
-	///     <c>Accept-Language</c>, so the page order would depend on a header. On a relational provider the
-	///     comparer is the column's collation and there is nothing here to choose.
+	///     <see cref="CultureInfo.CurrentCulture" /> — so the page order would follow the host's own culture, and
+	///     an app that opts into request localization would make it follow the caller's query string, cookie or
+	///     <c>Accept-Language</c> header instead. On a relational provider the comparer is the column's collation
+	///     and there is nothing here to choose.
 	/// </summary>
 	public static IQueryable<TEntity> ApplyOrder<TEntity>(IQueryable<TEntity> query, LambdaExpression selector, bool descending, bool first, bool useDatabaseFunctions) {
 

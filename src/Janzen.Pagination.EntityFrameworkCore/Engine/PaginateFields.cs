@@ -189,10 +189,11 @@ internal abstract class PaginateFilterField(
 		} else {
 			// On a relational provider CompareTo translates to a plain SQL comparison, so the ordering is the
 			// database's — collation for strings, byte order for Guids. In memory the call really runs, and
-			// String.CompareTo reads CultureInfo.CurrentCulture, which an ASP.NET Core app sets per request from
-			// Accept-Language: the same rows and the same filter then answer differently per caller, and a Swedish
-			// host disagrees with an American one. That arm compares invariantly instead. Guid has no culture to
-			// read, so it is the same call on both legs.
+			// String.CompareTo reads CultureInfo.CurrentCulture: the same rows and the same filter answer
+			// differently depending on the host's culture, so a Swedish deployment disagrees with an American one.
+			// An app that opts into request localization -- UseRequestLocalization, which is NOT in the default
+			// pipeline -- moves that per caller, from the query string, a cookie or Accept-Language. That arm
+			// compares invariantly instead. Guid has no culture to read, so it is the same call on both legs.
 			var target = ConvertValue(value, Type, context);
 
 			compare = comparison(
