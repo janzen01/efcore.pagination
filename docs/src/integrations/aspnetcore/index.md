@@ -193,6 +193,25 @@ What it emits parameter by parameter, how types and examples are derived, how ba
 
 ---
 
+## `PaginateQuery` always binds from the query string
+
+The provider sits at position 0 and matches on the **parameter type**, so every `PaginateQuery` action
+parameter is filled from `Request.Query` whatever binding source it carries. `[FromQuery]` is the honest
+spelling and the one every sample here uses; `[FromBody]`, `[FromHeader]` and `[FromRoute]` are accepted by
+the compiler and then ignored, and the request pages from the query string as usual.
+
+This is deliberate rather than incidental: an `[ApiController]` infers `BindingSource.Body` for a bare
+`PaginateQuery` parameter, and ASP.NET Core cannot tell that inference apart from an explicit `[FromBody]`.
+Standing down for `Body` would therefore answer a working `GET /products?page=2` with
+*"A non-empty request body is required."*
+
+The one opt-out is the framework's own per-parameter override. A parameter carrying
+`[ModelBinder(typeof(MyBinder))]` is left to `MyBinder`:
+
+```csharp
+public Task<PaginatedResponse<ProductDto>> List([ModelBinder(typeof(MyBinder))] PaginateQuery request, …)
+```
+
 ## Unknown query parameters
 
 The binder reads exactly `page`, `limit`, `sortBy`, `search`, `searchBy` and `filter.<field>`. Everything else

@@ -353,9 +353,13 @@ internal abstract class PaginateFilterField(
 		return context.UseDatabaseFunctions ? PaginateExpressionUtils.ToDatabaseParameter(constant) : constant;
 	}
 
+	/// <summary>
+	///     Splits a list criterion on commas. Entries are <b>not</b> trimmed: padding is part of the value, and
+	///     trimming here made <c>$in:x</c> and <c>$eq:x</c> mean two different things on a string field.
+	/// </summary>
 	private string[] SplitValueList(string value, int maxFilterValues) {
 
-		string[] values = value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+		string[] values = value.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
 		return values.Length > maxFilterValues ? throw new PaginateQueryException($"Filter '{Name}' accepts at most {maxFilterValues} values.") : values;
 
