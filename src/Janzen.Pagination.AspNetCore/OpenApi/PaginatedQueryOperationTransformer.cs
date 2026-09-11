@@ -121,14 +121,15 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		var registered = services.GetService(providerType) as IPaginateConfigProvider;
 		var provider = registered ?? (IPaginateConfigProvider)ActivatorUtilities.CreateInstance(services, providerType);
 
-		try {
+		// Only what this code created. `registered is null` is the whole distinction, and it cannot be expressed by
+		// a using declaration over `provider`: that would also dispose the container's own instance, which the
+		// container owns and every later consumer of it still needs. The expression is null in both of the cases
+		// that must not be disposed -- the container's instance, and a provider that is not IDisposable -- and
+		// `using` over a null does nothing, which is exactly the old finally's condition read forwards.
+		using (registered is null ? provider as IDisposable : null) {
 			var config = provider.GetConfig();
 			configs[providerType] = config;
 			return config;
-		} finally {
-			// Only what this code created. The container does not dispose what it did not create, and disposing
-			// the container's own instance here would break every later consumer of it.
-			if (registered is null && provider is IDisposable disposable) disposable.Dispose();
 		}
 
 	}
