@@ -15,6 +15,13 @@
 // the new version number, which is what turns "the READMEs still happen to point there" into a permanent guarantee.
 // Never remove an entry.
 //
+// Only the *package* READMEs earn that promotion. Packaging is per project (Directory.Build.props sets
+// PackageReadmeFile and packs each project's own README.md), so the root README ships in no package at all: it is
+// the GitHub landing page, and a page it names can move with a one-line edit. Its URLs are still checked -- a dead
+// link on the landing page is a real defect -- but promoting them would add permanent entries to a list that may
+// never shrink, on the strength of a document that is not immutable. The closing summary counts the two sources
+// separately, and the set to promote at a stable release is the package-README one.
+//
 // A README URL may also carry a `#fragment`, checked against the ids the build actually emitted. A deep link is
 // frozen exactly like the page it points into: reword the heading and every copy of that readme nuget.org has
 // already rendered lands the reader at the top of the page instead.
@@ -80,7 +87,10 @@ const readmes = [
 		.map((entry) => join(root, 'src', entry.name, 'README.md'))
 ]
 
+const LANDING = 'README.md'
+
 const advertised = new Map()
+const malformed = []
 
 // Keyed so a link that is both frozen and still advertised is checked once, and reported as frozen: that is the
 // half that cannot be fixed by editing a README.
@@ -92,12 +102,18 @@ const fragments = new Map(frozenFragments.map(([page, anchor, release]) => [
 for (const readme of readmes.filter(existsSync)) {
 	const source = relative(root, readme).replaceAll('\\', '/')
 
-	for (const [, url] of readFileSync(readme, 'utf8').matchAll(/https:\/\/janzen01\.github\.io\/efcore\.pagination\/([^)\s"']*)/g)) {
-		// Only site pages: the READMEs also link into github.com paths under the same project name.
-		if (url.startsWith('blob/') || url.startsWith('releases')) continue
-
+	// The slash after the project name is optional so the bare site root is read too, and a bare URL in running
+	// prose is allowed to end a sentence -- the address stops before the punctuation, not after it.
+	for (const [, match] of readFileSync(readme, 'utf8').matchAll(/https:\/\/janzen01\.github\.io\/efcore\.pagination\/?([^)\s"']*)/g)) {
+		const url = match.replace(/[.,;:!?]+$/, '')
 		const [path, anchor] = url.split('#')
-		if (path !== '' && !path.endsWith('/')) continue
+
+		// Not a page address. Skipping it silently is how a README ships a permanent 404: nuget.org renders that
+		// copy for its version forever, and neither VitePress nor scripts/verify-anchors.mjs reads a README.
+		if (path !== '' && !path.endsWith('/')) {
+			malformed.push({ source, url })
+			continue
+		}
 
 		const page = `${path}index.html`
 		advertised.set(page, source)
@@ -107,6 +123,16 @@ for (const readme of readmes.filter(existsSync)) {
 		// VitePress never builds.
 		if (anchor && !fragments.has(`${page}#${anchor}`)) fragments.set(`${page}#${anchor}`, { page, anchor, source, url })
 	}
+}
+
+if (malformed.length > 0) {
+	console.error('\nThese README links are not page addresses, so nothing can freeze them:\n')
+	for (const { source, url } of malformed) {
+		console.error(`  ${SITE}${url}   (${source})`)
+	}
+	console.error('\nA page is authored as <name>/index.md and published at <name>/, so every site URL a README\n' +
+		'advertises has to end with a slash -- add one, or drop the link.\n')
+	process.exit(1)
 }
 
 const required = new Map(frozen.map(([path, release]) => [path, `released in ${release}`]))
@@ -140,4 +166,17 @@ if (dangling.length > 0) {
 console.log(
 	`All ${required.size} advertised URLs are present in the build (${frozen.length} frozen by a release), ` +
 	`and all ${fragments.size} deep-linked headings exist (${frozenFragments.length} of them frozen).`
+)
+
+// The promotion list, split by where the link lives, because only one of the two sources is immutable.
+const toFreeze = (sources) => sources.filter((source) => source !== LANDING && !source.startsWith('released in')).length
+const landingOnly = (sources) => sources.filter((source) => source === LANDING).length
+
+const pageSources = [...required.values()]
+const fragmentSources = [...fragments.values()].map(({ source }) => source)
+
+console.log(
+	`Freeze at the next stable release: ${toFreeze(pageSources)} URLs and ${toFreeze(fragmentSources)} headings, ` +
+	`advertised by a package README. Checked but never frozen: ${landingOnly(pageSources)} URLs and ` +
+	`${landingOnly(fragmentSources)} headings, advertised only by the root README.`
 )
