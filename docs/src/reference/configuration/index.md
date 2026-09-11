@@ -196,7 +196,7 @@ Four things worth knowing:
 
 - **`Shared` is read at `Build()` time.** Assign it before the first configuration is built; a configuration
   does not observe a later assignment. It is process-wide mutable state, so tests that assign it want the
-  same treatment as [`PaginateLikeDefaults`](/guide/providers-and-types/) — a non-parallel collection, and
+  same treatment as [`PaginateLikeDefaults`](/recipes/testing/#watch-the-process-wide-statics) — a non-parallel collection, and
   restore it afterwards.
 - **`AllowUnlimited` is deliberately absent** from the object. An unbounded read is a claim about one
   resource's size, and a default that turned it on everywhere would be exactly the claim nobody can make.
@@ -356,7 +356,7 @@ Omit the operator list and the field is granted every operator the engine can bu
 |----------|-------------------|
 | `string` | `Eq`, `In`, `Null`, `StartsWith`, `Contains`, `ILike` |
 | `bool` | `Eq` |
-| numbers, `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly`, `TimeSpan`, and [registered types](/guide/providers-and-types/) with an ordering of their own | `Eq`, `In`, `GreaterThan`, `GreaterThanOrEqual`, `LessThan`, `LessThanOrEqual`, `Between` |
+| numbers, `DateTime`, `DateTimeOffset`, `DateOnly`, `TimeOnly`, `TimeSpan`, and [registered types](/integrations/custom-types/) with an ordering of their own | `Eq`, `In`, `GreaterThan`, `GreaterThanOrEqual`, `LessThan`, `LessThanOrEqual`, `Between` |
 | `Guid`, `char`, enums | `Eq`, `In` |
 | anything else | `ArgumentException` at configuration time — the shorthand never guesses |
 

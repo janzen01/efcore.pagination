@@ -9,6 +9,12 @@
 // becomes `keep-a-big-table-s-page-count-cheap` (the apostrophe becomes a dash, it is not dropped), and an
 // em dash survives into the id verbatim -- `paginateselectmapasync-—-sql-then-finish-in-memory`. Both of
 // those were already wrong in the site when this check was written.
+//
+// It also fails the build when a page links at a redirect stub. A stub keeps an address that already shipped
+// inside a package README answering (see scripts/verify-frozen-urls.mjs); it exists for those external copies,
+// never for navigation inside the site. Nothing else catches one: `ignoreDeadLinks` is satisfied because the stub
+// is a real page, and the frozen-URL check reads only the READMEs. The reader gets "This page has moved" and a
+// meta refresh to a section overview, from a page that is `noindex` and out of site search.
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname, relative, posix } from 'node:path'
@@ -46,19 +52,37 @@ const idsOf = (page) => {
 	return idCache.get(page)
 }
 
+const pages = walk(src).filter((f) => f.endsWith('.md') && !isExcluded(f))
+
+const addressOf = (file) => {
+	const dir = relative(src, dirname(file)).replaceAll('\\', '/')
+	return dir === '' ? '/' : `/${dir}/`
+}
+
+// A stub is a page that meta-refreshes away in its own front matter -- read only that block, so a page merely
+// quoting the meta in its prose is not one. Derived rather than listed, so a stub added later is covered without
+// anyone remembering to name it here.
+const frontMatter = (text) => text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? ''
+
+const stubs = new Set(pages
+	.filter((file) => /http-equiv:\s*refresh/.test(frontMatter(readFileSync(file, 'utf8'))))
+	.map(addressOf))
+
 const broken = []
+const atStub = []
 let checked = 0
 
-for (const file of walk(src).filter((f) => f.endsWith('.md') && !isExcluded(f))) {
+for (const file of pages) {
 
-	const dir = relative(src, dirname(file)).replaceAll('\\', '/')
-	const base = dir === '' ? '/' : `/${dir}/`
+	const text = readFileSync(file, 'utf8')
+	const base = addressOf(file)
+	const resolve = (target) => target.startsWith('/') ? target : posix.normalize(base + target)
 
 	// Markdown links carrying a fragment. Bare `#anchor` means this page.
-	for (const [, href] of readFileSync(file, 'utf8').matchAll(/\]\(([^)\s]*#[^)\s]+)\)/g)) {
+	for (const [, href] of text.matchAll(/\]\(([^)\s]*#[^)\s]+)\)/g)) {
 
 		const [target, anchor] = href.split('#')
-		const resolved = target === '' ? base : (target.startsWith('/') ? target : posix.normalize(base + target))
+		const resolved = target === '' ? base : resolve(target)
 		const page = (resolved.replace(/\/+$/, '') || '/').slice(1)
 
 		const ids = idsOf(page)
@@ -69,13 +93,34 @@ for (const file of walk(src).filter((f) => f.endsWith('.md') && !isExcluded(f)))
 
 	}
 
+	// Every in-site link, fragment or not: none of them may land on a redirect stub.
+	for (const [, href] of text.matchAll(/\]\(([^)\s]+)\)/g)) {
+
+		if (href.startsWith('#') || /^[a-z][a-z0-9+.-]*:/i.test(href)) continue
+
+		const resolved = resolve(href.split('#')[0])
+		const address = resolved.endsWith('/') ? resolved : `${resolved}/`
+
+		if (stubs.has(address) && addressOf(file) !== address) atStub.push(`${relative(root, file)} -> ${href}   (${address})`)
+
+	}
+
 }
 
 if (broken.length > 0) {
 	console.error('\nThese links point at headings that were not emitted:\n')
 	for (const line of broken) console.error(`  ${line}`)
 	console.error('\nCheck the id in .dist -- VitePress slugify is not GitHub slugify.\n')
-	process.exit(1)
 }
 
-console.log(`All ${checked} anchor links resolve to a heading.`)
+if (atStub.length > 0) {
+	console.error('\nThese links point at a redirect stub instead of at the page they mean:\n')
+	for (const line of atStub) console.error(`  ${line}`)
+	console.error('\nA stub exists so an address already published in a package README keeps answering. Link at the\n' +
+		'page that holds the content -- the stub is noindex, out of site search, and shows an interstitial.\n')
+}
+
+// Both lists are reported before exiting: a page with one of each would otherwise hide the second behind the first.
+if (broken.length > 0 || atStub.length > 0) process.exit(1)
+
+console.log(`All ${checked} anchor links resolve to a heading, and none of them lands on a redirect stub.`)
