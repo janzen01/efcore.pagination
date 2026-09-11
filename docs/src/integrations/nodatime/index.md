@@ -28,18 +28,28 @@ The package registers all three through the same public registry any application
 
 ## Supported types
 
+Every format is ISO-8601 in the invariant culture, and wherever a format carries a time, its **seconds
+component is mandatory**: `23:59` is a `400`, `23:59:59` is not. A fraction after the seconds is optional
+(`23:59:59.25`). This is stricter than the BCL siblings — a `TimeOnly` field accepts `23:59` — so the
+spelling each type refuses is named in its row.
+
 | Type | Accepted format | Projects onto |
 |------|-----------------|---------------|
-| `Instant` | `2026-01-31T23:59:59Z`, **or** an offset form such as `2026-02-01T00:59:59+01:00` | `DateTimeOffset` |
+| `Instant` | `2026-01-31T23:59:59Z`, **or** an offset form such as `2026-02-01T00:59:59+01:00`. Refuses `2026-01-31T23:59Z` and a lowercase `z`. | `DateTimeOffset` |
 | `LocalDate` | `2026-01-31` | `DateOnly` |
-| `LocalDateTime` | `2026-01-31T23:59:59` | `DateTime` (unspecified kind) |
-| `LocalTime` | `23:59:59` | `TimeOnly` |
-| `OffsetDateTime` | `2026-01-31T23:59:59+01:00` | `DateTimeOffset` |
-| `YearMonth` | `2026-01` | — |
-| `Duration` | `2:30:00` **or** ISO-8601 `PT2H30M`. `P1M` / `P1Y` are a `400`: a month has no fixed length, and 30 days is an approximation, not an answer. | — |
+| `LocalDateTime` | `2026-01-31T23:59:59`. Refuses `2026-01-31T23:59`. | `DateTime` (unspecified kind) |
+| `LocalTime` | `23:59:59`. Refuses `23:59`. | `TimeOnly` |
+| `OffsetDateTime` | `2026-01-31T23:59:59+01:00`. Refuses `2026-01-31T23:59+01:00`, and an offset written without its colon (`+0100`). | `DateTimeOffset` |
+| `YearMonth` | `2026-01` | — (no BCL counterpart) |
+| `Duration` | `2:30:00` **or** ISO-8601 `PT2H30M`. The colon form refuses `2:30`; the ISO form needs no seconds. `P1M` / `P1Y` are a `400`: a month has no fixed length, and 30 days is an approximation, not an answer. | `TimeSpan` |
 
 Every conversion also carries the nullable pair (`Instant?` → `DateTimeOffset?`). There are no reverse
 conversions: entities hold NodaTime, DTOs hold BCL types.
+
+The two `Duration` spellings do not share a resolution. The colon form is parsed natively and resolves to a
+nanosecond; the ISO form is read as a `TimeSpan` and therefore resolves to 100 ns, so
+`$eq:PT0.000000001S` filters for `Duration.Zero`. It only matters on a store that keeps better than 100 ns —
+PostgreSQL `interval`, what Npgsql maps `Duration` to, stores microseconds.
 
 `Instant` accepts an offset form because `2026-02-01T00:59:59+01:00` names exactly one instant — there is
 nothing ambiguous to refuse. A **bare date** is still a `400`: it would silently mean midnight, and which

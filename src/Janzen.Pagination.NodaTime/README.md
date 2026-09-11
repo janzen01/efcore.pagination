@@ -18,7 +18,8 @@ Requires [`Janzen.Pagination.EntityFrameworkCore`](https://www.nuget.org/package
 
 ## Usage
 
-Register once at startup, before serving requests:
+Register once at startup, before the first `PaginateConfig<T>` is built — the operator-less `Filterable`
+shorthand derives its operator set while the builder runs, so a registration that lands later is too late:
 
 ```csharp
 services.AddPagination(pagination => pagination.UseNodaTime());
@@ -58,15 +59,19 @@ query string:
 ?filter.birthDate=$lte:2008-01-31
 ```
 
+Wherever a format carries a time, its **seconds component is mandatory** — `23:59` is a `400`, `23:59:59`
+is not, and a fraction after the seconds is optional. That is stricter than the BCL siblings, so each row
+names the spelling it refuses.
+
 | Type | Accepted format | Projects onto |
 |------|-----------------|---------------|
-| `Instant` | `2026-01-31T23:59:59Z`, or an offset form such as `2026-02-01T00:59:59+01:00` | `DateTimeOffset` |
+| `Instant` | `2026-01-31T23:59:59Z`, or an offset form such as `2026-02-01T00:59:59+01:00`. Refuses `2026-01-31T23:59Z` and a lowercase `z`. | `DateTimeOffset` |
 | `LocalDate` | `2026-01-31` | `DateOnly` |
-| `LocalDateTime` | `2026-01-31T23:59:59` | `DateTime` |
-| `LocalTime` | `23:59:59` | `TimeOnly` |
-| `OffsetDateTime` | `2026-01-31T23:59:59+01:00` | `DateTimeOffset` |
-| `YearMonth` | `2026-01` | — |
-| `Duration` | `2:30:00` or ISO-8601 `PT2H30M` | — |
+| `LocalDateTime` | `2026-01-31T23:59:59`. Refuses `2026-01-31T23:59`. | `DateTime` |
+| `LocalTime` | `23:59:59`. Refuses `23:59`. | `TimeOnly` |
+| `OffsetDateTime` | `2026-01-31T23:59:59+01:00`. Refuses `2026-01-31T23:59+01:00` and an offset without its colon (`+0100`). | `DateTimeOffset` |
+| `YearMonth` | `2026-01` | — (no BCL counterpart) |
+| `Duration` | `2:30:00` or ISO-8601 `PT2H30M`. The colon form refuses `2:30`; the ISO form needs no seconds. | `TimeSpan` |
 
 An unparseable value is a `400 Value 'x' is not a valid instant.` All of them are also registered as
 projection leaf types, so the automatic projection copies them across instead of trying to recurse into them.

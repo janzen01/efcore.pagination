@@ -2,6 +2,9 @@ using Janzen.Pagination.NodaTime;
 
 using NodaTime;
 
+using System.Reflection;
+using System.Runtime.CompilerServices;
+
 namespace Janzen.Pagination.Tests;
 
 /// <summary>
@@ -40,7 +43,7 @@ public sealed class NodaTimeTests {
 	public sealed record EventDto(int Id);
 
 	/// <summary>Every non-nullable NodaTime → BCL pair the package registers, in one projection.</summary>
-	public sealed record EventConvertedDto(int Id, DateTimeOffset OccurredAt, DateOnly Day, DateTime DayTime, TimeOnly OpensAt, DateTimeOffset Scheduled);
+	public sealed record EventConvertedDto(int Id, DateTimeOffset OccurredAt, DateOnly Day, DateTime DayTime, TimeOnly OpensAt, DateTimeOffset Scheduled, TimeSpan Length);
 
 	/// <summary>Non-nullable source onto a nullable target — the second of the three legal combinations.</summary>
 	public sealed record EventWidenedDto(int Id, DateTimeOffset? OccurredAt);
@@ -133,6 +136,33 @@ public sealed class NodaTimeTests {
 		Assert.Equal($"Value 'nope' is not a valid {displayName}.", await RejectsAsync(field, "$eq:nope"));
 	}
 
+	/// <summary>The seconds component is mandatory, the fraction after it is not — the documented pair.</summary>
+	[Theory]
+	[InlineData("occurredAt", "2026-08-02T10:00:00.000Z")]
+	[InlineData("dayTime", "2026-08-02T10:00:00.0")]
+	[InlineData("opensAt", "10:00:00.000")]
+	[InlineData("scheduled", "2026-08-02T10:00:00.000+02:00")]
+	public async Task A_fractional_second_is_accepted_wherever_seconds_are_required(string field, string value) {
+		Assert.Equal([2], (await FilterAsync(field, $"$eq:{value}")).Items.Select(item => item.Id));
+	}
+
+	/// <summary>
+	///     The NodaTime patterns require a seconds component where the BCL siblings do not, and the offset form
+	///     requires its colon. Documented on the integration page and in the package README; pinned here so a
+	///     later pattern swap cannot loosen the wire contract unnoticed.
+	/// </summary>
+	[Theory]
+	[InlineData("opensAt", "23:59", "local time")]
+	[InlineData("dayTime", "2026-08-02T10:00", "local date-time")]
+	[InlineData("occurredAt", "2026-08-02T10:00Z", "instant")]
+	[InlineData("occurredAt", "2026-08-02T10:00:00z", "instant")]
+	[InlineData("scheduled", "2026-08-02T10:00+02:00", "offset date-time")]
+	[InlineData("scheduled", "2026-08-02T10:00:00+0200", "offset date-time")]
+	[InlineData("length", "2:30", "duration")]
+	public async Task Each_documented_refusal_answers_a_400_naming_the_type(string field, string value, string displayName) {
+		Assert.Equal($"Value '{value}' is not a valid {displayName}.", await RejectsAsync(field, $"$eq:{value}"));
+	}
+
 	[Fact]
 	public async Task An_instant_also_accepts_an_offset_form() {
 
@@ -154,6 +184,43 @@ public sealed class NodaTimeTests {
 	[InlineData("PT2H30M")]
 	public async Task A_duration_reads_both_the_roundtrip_and_the_iso_form(string value) {
 		Assert.Equal([1], (await FilterAsync("length", $"$eq:{value}")).Items.Select(item => item.Id));
+	}
+
+	/// <summary>
+	///     The calendar-designator rule is the engine's own, shared with the <c>TimeSpan</c> leg, but each leg
+	///     keeps its own wording: this text and the engine's are both a documented <c>400</c> <c>detail</c>, so
+	///     sharing the implementation must not move either. The minute designator lives in the time part and is
+	///     unaffected, which is the half a naive <c>'M'</c> test breaks.
+	/// </summary>
+	[Theory]
+	[InlineData("P1M")]
+	[InlineData("P1Y")]
+	[InlineData("P1Y2M")]
+	public async Task A_duration_refuses_calendar_designators(string value) {
+
+		Assert.Equal(
+			$"Value '{value}' is not a valid duration: a duration in years or months has no fixed length.",
+			await RejectsAsync("length", $"$eq:{value}"));
+
+	}
+
+	/// <summary>
+	///     The 400 text stays client-safe and says nothing new, but the parser's own exception is the only
+	///     record of <b>why</b> the value was refused — dropping it leaves a consumer's log with the message
+	///     alone.
+	/// </summary>
+	[Fact]
+	public async Task A_malformed_duration_keeps_its_cause() {
+
+		var exception = await Assert.ThrowsAsync<PaginateQueryException>(() => FilterAsync("length", "$eq:nope"));
+
+		Assert.IsType<FormatException>(exception.InnerException);
+
+	}
+
+	[Fact]
+	public async Task A_duration_still_reads_a_minute_in_the_time_part() {
+		Assert.Equal([3], (await FilterAsync("length", "$eq:PT30M")).Items.Select(item => item.Id));
 	}
 
 	[Fact]
@@ -178,6 +245,7 @@ public sealed class NodaTimeTests {
 		Assert.Equal(new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Unspecified), first.DayTime);
 		Assert.Equal(new TimeOnly(9, 0), first.OpensAt);
 		Assert.Equal(new DateTimeOffset(2026, 8, 1, 10, 0, 0, TimeSpan.FromHours(2)), first.Scheduled);
+		Assert.Equal(TimeSpan.FromMinutes(150), first.Length);
 
 	}
 
@@ -207,6 +275,39 @@ public sealed class NodaTimeTests {
 
 		// The engine renders an open generic by its CLR name, so 'Nullable`1' is what a reader sees here.
 		Assert.Equal("Cannot automatically project 'Event.ArchivedAt' from 'Nullable`1' to 'DateTimeOffset'.", exception.Message);
+
+	}
+
+	/// <summary>
+	///     The operator-less <c>Filterable</c> shorthand derives "all applicable operators" or nothing at all.
+	///     <see cref="OffsetDateTime" /> has no single natural order — NodaTime ships <c>Comparer.Local</c> and
+	///     <c>Comparer.Instant</c> precisely because of that — so it is refused rather than silently dropping to
+	///     equality alone, while a registered type that does order derives the full range set.
+	/// </summary>
+	[Fact]
+	public void An_unorderable_registered_type_is_refused_by_the_shorthand_rather_than_narrowed() {
+
+		var exception = Assert.Throws<ArgumentException>(PaginateFilterOperators.For<OffsetDateTime>);
+
+		Assert.StartsWith("Filter operators cannot be derived for type 'OffsetDateTime'.", exception.Message);
+		Assert.Contains(PaginateFilterOperator.Between, PaginateFilterOperators.For<Instant>());
+
+	}
+
+	/// <summary>
+	///     The idempotence guard is read once outside the lock, so it is the publication point for everything
+	///     <see cref="PaginateNodaTime.Register" /> writes before setting it. The runtime's safe-publication
+	///     clause covers publishing a <b>reference</b>, not a <c>bool</c> guarding earlier writes — a second
+	///     thread could otherwise take the fast path and find a registry that is not there yet. No interleaving
+	///     can be forced deterministically, so the invariant is asserted where it lives, in the metadata.
+	/// </summary>
+	[Fact]
+	public void The_registration_guard_is_volatile() {
+
+		var field = typeof(PaginateNodaTime).GetField("_registered", BindingFlags.NonPublic | BindingFlags.Static);
+
+		Assert.NotNull(field);
+		Assert.Contains(typeof(IsVolatile), field.GetRequiredCustomModifiers());
 
 	}
 

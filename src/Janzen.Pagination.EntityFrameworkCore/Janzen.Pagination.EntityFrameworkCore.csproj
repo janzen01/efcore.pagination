@@ -13,6 +13,10 @@
     <ItemGroup>
         <InternalsVisibleTo Include="Janzen.Pagination.AspNetCore"/>
         <InternalsVisibleTo Include="Janzen.Pagination.PostgreSql"/>
+        <!-- The NodaTime package reads an ISO-8601 duration through the same rule the engine applies to a
+             TimeSpan, and a duration in years or months has no fixed length on either. One implementation,
+             two messages: each leg keeps its own 400 detail text. -->
+        <InternalsVisibleTo Include="Janzen.Pagination.NodaTime"/>
         <!-- Value conversion is the one engine detail with no observable behaviour to assert against: a parsed
              DateTime's Kind changes no comparison in memory and no SQL SQLite emits, yet it shifts the instant on a
              provider that converts to UTC. The test project reaches PaginateValueConverter directly for that. -->

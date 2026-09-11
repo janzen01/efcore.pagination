@@ -143,7 +143,7 @@ internal static class PaginateValueConverter {
 
 				string duration = value.Trim();
 
-				if (!duration.Contains(':', StringComparison.Ordinal)) return ParseIsoDuration(value, field);
+				if (!duration.Contains(':', StringComparison.Ordinal)) return ParseIsoDuration(value, $"is not valid for '{field}'");
 
 				// A custom TimeSpan pattern cannot carry a sign, so the minus comes off first and TimeSpanStyles
 				// puts it back — otherwise pinning the hour would also drop every negative duration.
@@ -230,15 +230,17 @@ internal static class PaginateValueConverter {
 	/// <summary>
 	///     Reads an ISO-8601 duration, refusing the calendar-dependent designators. <c>XmlConvert</c> answers
 	///     <c>P1M</c> with exactly thirty days and <c>P1Y</c> with 365 — a fixed approximation of something that has
-	///     no fixed length — so a filter for "a month" would silently be a filter for thirty days.
+	///     no fixed length — so a filter for "a month" would silently be a filter for thirty days. Shared with the
+	///     NodaTime package's <c>Duration</c> leg, which is why the rejection's middle clause arrives as
+	///     <paramref name="invalidClause" />: one rule, and each leg keeps the <c>400</c> wording it already ships.
 	/// </summary>
-	internal static TimeSpan ParseIsoDuration(string value, string field) {
+	internal static TimeSpan ParseIsoDuration(string value, string invalidClause) {
 
 		int time = value.IndexOf('T', StringComparison.Ordinal);
 		var datePart = time < 0 ? value.AsSpan() : value.AsSpan(0, time);
 
 		if (datePart.ContainsAny('Y', 'M')) {
-			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}': a duration in years or months has no fixed length.");
+			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' {invalidClause}: a duration in years or months has no fixed length.");
 		}
 
 		return XmlConvert.ToTimeSpan(value);
