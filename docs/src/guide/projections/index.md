@@ -226,3 +226,34 @@ That is your `IQueryable` and your call: put `AsNoTracking()` on the source when
 All four are also annotated `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`, because projection is
 exactly the part that needs reflection: see
 [Requirements](../getting-started/#requirements).
+
+## Threading and cancellation
+
+The four entry points and the two composers split their errors the way the .NET task pattern asks them to, and
+this is the contract, not an implementation detail:
+
+- **An argument error is raised at the call.** A `null` `source`, `request`, `config`, `selector`, `postMap` or
+  `projector` throws `ArgumentNullException` from the call itself, before a task exists. Code that builds a
+  batch of pages — `tenants.Select(t => t.Products.PaginateSelectAsync(…)).ToArray()` and then a `Task.WhenAll`
+  — therefore fails at the `ToArray()`, with the sibling tasks already created and not awaited. Validate the
+  arguments before the fan-out, or build it one page at a time.
+- **A request error is delivered through the task.** Everything the caller sent — `page`, `limit`, `sortBy`,
+  `search`, `searchBy`, every `filter.…` — becomes a faulted task carrying `PaginateQueryException`, which is
+  what the [ASP.NET Core](/integrations/aspnetcore/) filters translate into a `400`.
+- **The cancellation token is read first and read again.** It is checked before the request is even validated,
+  so a cancelled caller gets `OperationCanceledException` rather than a `400` for a request nobody is waiting
+  for, and again once the rows are in memory — so a `postMap` or a `projector` does not run over a page whose
+  client has gone away. Pass the token: in MVC and in Minimal APIs a `CancellationToken` parameter binds to
+  `HttpContext.RequestAborted` for free, and the engine has no other way to learn the request was abandoned.
+- **Which thread `postMap` and `projector` run on follows the leg.** On the Entity Framework Core leg the
+  engine awaits with `ConfigureAwait(false)`, so they continue on a thread-pool thread with no synchronization
+  context — do not touch UI-affine state in them. On the in-memory leg there is no await at all, because
+  `ToArray()` is synchronous, so they run inline on the calling thread with whatever context it carries.
+  `AsyncLocal` values reach them on both legs: `ConfigureAwait(false)` suppresses the synchronization context,
+  not the execution context that `AsyncLocal` flows on. Do not block in them either way.
+- **A source that is not an EF Core queryable executes synchronously.** The engine has two legs: Entity
+  Framework Core's, and an in-memory one for a plain `IQueryable` such as `List<T>.AsQueryable()`. On the
+  in-memory leg the terminal operators are `Count()` and `ToArray()`, which run on the calling thread — fine for
+  a test, not something to put on a request path. A provider that is asynchronous *without* being EF Core's —
+  what a queryable-shaped mocking library produces — is neither leg and is refused with a `PaginateQueryException`
+  saying so; test against a real provider instead, as [Testing](/recipes/testing/) shows.

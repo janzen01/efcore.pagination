@@ -159,7 +159,10 @@ public interface IPaginateConfigProvider<TEntity> : IPaginateConfigProvider {
 	///     Building a config validates the declared fields and freezes three dictionaries, so build it once and return
 	///     the same instance — a static field or a DI singleton. Rebuilding per request works but is wasted allocation;
 	///     the exception is per-user gating with <see cref="PaginateConfigBuilder{TEntity}.When" />, where one cached
-	///     config per role is the cheap route.
+	///     config per role is the cheap route. Take that exception seriously when the condition is an authorization
+	///     outcome: a single cached instance is shared by every caller, so the first caller to build it decides which
+	///     fields everyone else may sort, search and filter on. Key the cache by whatever the condition reads, or
+	///     build per request — never cache one config across callers the condition can tell apart.
 	/// </remarks>
 	new PaginateConfig<TEntity> GetConfig();
 
@@ -231,7 +234,10 @@ public sealed record PaginateFilterFieldMetadata(string Name, Type Type, IReadOn
 /// </summary>
 /// <remarks>
 ///     Building freezes the field dictionaries and projects the metadata lists, so build it once — a static field or a
-///     DI singleton (typically behind an <see cref="IPaginateConfigProvider{TEntity}" />) is the intended home.
+///     DI singleton (typically behind an <see cref="IPaginateConfigProvider{TEntity}" />) is the intended home. One
+///     exception, and it is the one that matters: a config whose fields are gated with
+///     <see cref="PaginateConfigBuilder{TEntity}.When" /> on something caller-specific must not be shared across
+///     callers — see <see cref="IPaginateConfigProvider{TEntity}.GetConfig" />.
 /// </remarks>
 public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 

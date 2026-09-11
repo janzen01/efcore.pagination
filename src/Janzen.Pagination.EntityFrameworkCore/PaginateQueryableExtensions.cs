@@ -212,6 +212,32 @@ public static class PaginateQueryableExtensions {
 
 	}
 
+	/// <summary>
+	///     Which of the engine's two legs this queryable takes: Entity Framework Core's translated one, or the
+	///     in-memory one a plain <c>IQueryable</c> gets. A provider that is asynchronous <b>without</b> being EF
+	///     Core's is neither — the engine would emit <c>EF.Functions</c> and <c>EF.Parameter</c> calls nothing can
+	///     translate — so it is refused here, with a message naming the way out, rather than left to surface as an
+	///     EF-internal complaint or a bare <c>NullReferenceException</c> further down.
+	/// </summary>
+	private static bool UseDatabaseFunctions(IQueryProvider provider) {
+
+		// Written out in full on purpose. EntityQueryProvider is an EF internal API and EF1001 reports a `typeof`
+		// or an `as` against it; the `is`-pattern form is the one the analyzer leaves alone, so do not "tidy"
+		// this into a using plus a cast. Narrower than IAsyncQueryProvider, which any test double can satisfy.
+		if (provider is Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryProvider) return true;
+
+		if (provider is IAsyncQueryProvider) {
+			throw new PaginateQueryException(
+				"This queryable's provider is asynchronous but is not Entity Framework Core's, so the engine can neither translate "
+				+ "the query nor evaluate it in memory. Test against a real EF Core provider, SQLite in-memory, rather than a "
+				+ "queryable-shaped double."
+			);
+		}
+
+		return false;
+
+	}
+
 	private static IQueryable<TEntity> ApplySorts<TEntity>(IQueryable<TEntity> query, IReadOnlyList<(LambdaExpression Selector, bool Descending)> sorts) {
 
 		// The same provider test the filter and search stages make, asked here rather than threaded down from
@@ -219,7 +245,7 @@ public static class PaginateQueryableExtensions {
 		// context object to carry. A sort key crossing a navigation needs the null-safe form on the in-memory
 		// leg exactly as a filter does — ordering by a rewritten key puts the missing ones where the provider
 		// puts nulls.
-		bool useDatabaseFunctions = query.Provider is IAsyncQueryProvider;
+		bool useDatabaseFunctions = UseDatabaseFunctions(query.Provider);
 
 		for (int index = 0; index < sorts.Count; index++) {
 			var selector = useDatabaseFunctions ? sorts[index].Selector : PaginateNullSafeRewriter.Rewrite(sorts[index].Selector);
@@ -243,6 +269,9 @@ public static class PaginateQueryableExtensions {
 		PaginateConfig<TEntity> config
 	) {
 
+		// Kept here as well as on the four entry points: the two composers are synchronous and enter through this
+		// method directly, so this is where their argument validation happens. For the async entry points these
+		// are defence in depth -- the eager copy up there is the one that runs.
 		ArgumentNullException.ThrowIfNull(source);
 		ArgumentNullException.ThrowIfNull(request);
 		ArgumentNullException.ThrowIfNull(config);
@@ -259,7 +288,7 @@ public static class PaginateQueryableExtensions {
 		// every entry point, the filtered composer included -- which already validates page and limit the same way.
 		PaginateExpressionUtils.ValidateOffset(request.Page, limit, config);
 
-		bool useDatabaseFunctions = source.Provider is IAsyncQueryProvider;
+		bool useDatabaseFunctions = UseDatabaseFunctions(source.Provider);
 		var context = new PaginateExpressionContext(useDatabaseFunctions, PaginateLikeDefaults.Strategy);
 
 		var query = ApplyFilters(source, request, config, context);
@@ -337,11 +366,21 @@ public static class PaginateQueryableExtensions {
 		return Task.FromResult(query.Count());
 	}
 
-	private static Task<T[]> ToArrayAsync<T>(IQueryable<T> query, CancellationToken ct) {
-		if (query.Provider is IAsyncQueryProvider) return query.ToArrayAsync(ct);
+	private static async Task<T[]> ToArrayAsync<T>(IQueryable<T> query, CancellationToken ct) {
 
 		ct.ThrowIfCancellationRequested();
-		return Task.FromResult(query.ToArray());
+
+		var items = query.Provider is IAsyncQueryProvider
+			? await query.ToArrayAsync(ct).ConfigureAwait(false)
+			: query.ToArray();
+
+		// The only await in the engine with consumer code on its far side: PaginateSelectMapAsync's postMap and
+		// PaginateMapAsync's projector both run over what this returns. Checking again here is what stops them
+		// walking a whole page -- up to the unlimited row ceiling of one -- after the client has gone away.
+		ct.ThrowIfCancellationRequested();
+
+		return items;
+
 	}
 
 	extension<TEntity>(IQueryable<TEntity> source) {
@@ -358,8 +397,19 @@ public static class PaginateQueryableExtensions {
 			PaginateLinkContext? linkContext = null,
 			CancellationToken ct = default
 		) {
+
+			// Argument errors eager, request errors faulted: these three are usage bugs, and TAP says a usage bug is
+			// raised at the call rather than delivered through the returned task. They live here rather than only in
+			// Compose because a fan-out that builds its tasks before awaiting them -- Select(...).ToArray() then
+			// Task.WhenAll -- otherwise loses every sibling task when one of them faults late.
+			ArgumentNullException.ThrowIfNull(source);
+			ArgumentNullException.ThrowIfNull(request);
+			ArgumentNullException.ThrowIfNull(config);
+
 			var selector = PaginateProjectionBuilder.Build<TEntity, TResult>();
+
 			return source.PaginateCoreAsync(request, config, (query, token) => ToArrayAsync(query.Select(selector), token), linkContext, ct);
+
 		}
 
 		/// <summary>
@@ -385,8 +435,14 @@ public static class PaginateQueryableExtensions {
 			PaginateLinkContext? linkContext = null,
 			CancellationToken ct = default
 		) {
+
+			ArgumentNullException.ThrowIfNull(source);
+			ArgumentNullException.ThrowIfNull(request);
+			ArgumentNullException.ThrowIfNull(config);
 			ArgumentNullException.ThrowIfNull(selector);
+
 			return source.PaginateCoreAsync(request, config, (query, token) => ToArrayAsync(query.Select(selector), token), linkContext, ct);
+
 		}
 
 		/// <summary>
@@ -411,11 +467,17 @@ public static class PaginateQueryableExtensions {
 			PaginateLinkContext? linkContext = null,
 			CancellationToken ct = default
 		) {
+
+			ArgumentNullException.ThrowIfNull(source);
+			ArgumentNullException.ThrowIfNull(request);
+			ArgumentNullException.ThrowIfNull(config);
 			ArgumentNullException.ThrowIfNull(selector);
 			ArgumentNullException.ThrowIfNull(postMap);
+
 			return source.PaginateCoreAsync(request, config,
 				async (query, token) => (await ToArrayAsync(query.Select(selector), token).ConfigureAwait(false)).Select(postMap).ToArray(),
 				linkContext, ct);
+
 		}
 
 		/// <summary>
@@ -441,7 +503,12 @@ public static class PaginateQueryableExtensions {
 			PaginateLinkContext? linkContext = null,
 			CancellationToken ct = default
 		) {
+
+			ArgumentNullException.ThrowIfNull(source);
+			ArgumentNullException.ThrowIfNull(request);
+			ArgumentNullException.ThrowIfNull(config);
 			ArgumentNullException.ThrowIfNull(projector);
+
 			return source.PaginateCoreAsync(request, config, async (query, token) => {
 				// Read-only list path: do not track the materialized entities (avoids change-tracker pollution + snapshots).
 				var entities = await ToArrayAsync(AsNoTrackingIfSupported(query), token).ConfigureAwait(false);
@@ -528,6 +595,11 @@ public static class PaginateQueryableExtensions {
 			PaginateLinkContext? linkContext,
 			CancellationToken ct
 		) {
+
+			// Before the composer, which is what makes cancellation win over request validation: an already
+			// cancelled caller was being answered with a 400 for a request nobody is left to read. Every other
+			// .NET data API answers the token first.
+			ct.ThrowIfCancellationRequested();
 
 			var (query, limit, search, searchBy) = Compose(source, request, config);
 
