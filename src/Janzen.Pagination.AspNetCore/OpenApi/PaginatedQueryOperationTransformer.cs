@@ -369,12 +369,22 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		// with a 400. Repeating the sample keeps it recognisably a sample and keeps the document truthful.
 		string exampleValue = value.Example;
 		if (field.Type == typeof(string) && IsLengthGuarded(exampleOperator)) {
-			while (exampleValue.Length < config.MinSearchLength) exampleValue += value.Example;
 
-			// The ceiling as well as the floor. Repeating a four-character sample overshoots a tight MaxSearchLength
-			// — Min 5 / Max 6 documents `$ilike:texttext`, which the engine answers with FilterPatternTooLong —
-			// which is the defect this padding exists to remove, pointing the other way.
+			// The repeat count is computed, not reached by appending in a loop. Ceiling division, one allocation
+			// instead of one per round — and, more to the point, a loop conditioned on a growing length cannot
+			// terminate if the sample is ever the empty string. Every sample in the table is a non-empty literal
+			// today, so the guard is the kind that has to be written before it is needed rather than after.
+			if (exampleValue.Length > 0 && exampleValue.Length < config.MinSearchLength) {
+				int repeats = ((config.MinSearchLength - 1) / exampleValue.Length) + 1;
+				exampleValue = string.Concat(Enumerable.Repeat(exampleValue, repeats));
+			}
+
+			// The ceiling as well as the floor, and applied whether or not the sample was padded: a sample longer
+			// than a tight MaxSearchLength documents a 400 on its own. Repeating a four-character one overshoots
+			// too — Min 5 / Max 6 would document `$ilike:texttext`, which the engine answers with
+			// FilterPatternTooLong, the defect this padding exists to remove pointing the other way.
 			if (exampleValue.Length > config.MaxSearchLength) exampleValue = exampleValue[..config.MaxSearchLength];
+
 		}
 
 		// Not every operator is spelled "$op:one scalar", and rendering them all that way documented requests the

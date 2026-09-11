@@ -82,6 +82,20 @@ public sealed class PerConfigStrategyProvider : IPaginateConfigProvider<Product>
 ///     sample value's length and the ceiling is below the padded one, so both halves of the example rule are
 ///     exercised by the same config.
 /// </summary>
+/// <summary>A ceiling tighter than the sample value itself, which no padding path reaches.</summary>
+public sealed class TightCeilingConfigProvider : IPaginateConfigProvider<Product> {
+
+	public PaginateConfig<Product> GetConfig() {
+		return PaginateConfig<Product>.Create(b => b
+			.WithLimits(defaultLimit: 15, maxLimit: 60)
+			.WithTieBreaker(p => p.Id)
+			.WithGuards(maxSearchLength: 2)
+			.Sortable("rank", p => p.Rank)
+			.Filterable("name", p => p.Name, PaginateFilterOperator.ILike));
+	}
+
+}
+
 public sealed class PatternGuardedConfigProvider : IPaginateConfigProvider<Product> {
 
 	public PaginateConfig<Product> GetConfig() {
@@ -316,6 +330,7 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 		app.MapGet("/searchless", () => Results.Ok()).WithPagination<SearchlessConfigProvider>();
 		app.MapGet("/guarded", () => Results.Ok()).WithPagination<GuardedConfigProvider>();
 		app.MapGet("/pattern-guarded", () => Results.Ok()).WithPagination<PatternGuardedConfigProvider>();
+		app.MapGet("/tight-ceiling", () => Results.Ok()).WithPagination<TightCeilingConfigProvider>();
 		app.MapGet("/per-config-strategy", () => Results.Ok()).WithPagination<PerConfigStrategyProvider>();
 		app.MapGet("/every-type", () => Results.Ok()).WithPagination<EveryValueTypeConfigProvider>();
 		app.MapGet("/registered", () => Results.Ok()).WithPagination<RegisteredConfigProvider>();
@@ -381,6 +396,22 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 			.GetProperty("schema").GetProperty("items").GetProperty("examples")[0].GetString()!;
 
 		Assert.Equal("$ilike:textte", sample);
+
+	}
+
+	/// <summary>
+	///     A ceiling below the sample's own length truncates it even though no padding ran. Without that the
+	///     document advertises `$ilike:text` on a resource whose ceiling is two — a 400 the reader would have
+	///     to discover by sending it.
+	/// </summary>
+	[Fact]
+	public void A_ceiling_below_the_sample_truncates_it_without_any_padding() {
+
+		string sample = this.Parameters("/tight-ceiling").EnumerateArray()
+			.Single(parameter => parameter.GetProperty("name").GetString() == "filter.name")
+			.GetProperty("schema").GetProperty("items").GetProperty("examples")[0].GetString()!;
+
+		Assert.Equal("$ilike:te", sample);
 
 	}
 
