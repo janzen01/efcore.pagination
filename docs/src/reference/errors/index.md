@@ -136,6 +136,7 @@ messages can occur.
 | `Sort direction 'x' is not supported.` | a direction that is neither `ASC` nor `DESC` (case-insensitive) | no `asc nulls last` or similar |
 | `Too many sort fields; at most N are allowed.` | more `sortBy` values than `MaxSortFields` | only request-supplied sorts count — defaults and the tie-breaker do not |
 | `Sort for field 'x' is not configured.` | a name that was never declared `Sortable`, or is disabled by `.When(false)` | same non-disclosure rule as filters |
+| `Sort field 'x' is specified more than once.` | the same `sortBy` field repeated, whatever the directions | send each field once; the same rule as `searchBy`, so a typo cannot silently order by nothing |
 
 There is no longer an error for "this resource cannot be ordered". `WithTieBreaker` is required at
 configuration time (see [`WithTieBreaker`](../configuration/#withtiebreaker)), so a config that could not

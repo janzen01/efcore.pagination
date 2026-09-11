@@ -184,6 +184,15 @@ public static class PaginateQueryableExtensions {
 			}
 
 			sorts = request.SortBy.Select(PaginateExpressionUtils.ParseSort).ToArray();
+
+			// Symmetric with searchBy, whose published reason is "so a client cannot ship a typo that silently
+			// does nothing". A repeated field used to be accepted: the second key ordered nothing, consumed a
+			// MaxSortFields slot and was echoed back in meta.sortBy as if it had.
+			var requested = new HashSet<string>(sorts.Count, StringComparer.OrdinalIgnoreCase);
+
+			foreach (var sort in sorts) {
+				if (!requested.Add(sort.Field)) throw new PaginateQueryException($"Sort field '{sort.Field}' is specified more than once.");
+			}
 		}
 
 		List<(LambdaExpression Selector, bool Descending)> keys = [];

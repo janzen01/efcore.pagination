@@ -130,6 +130,24 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 		Assert.Equal("Sort for field 'nope' is not configured.", await this.Rejects(new PaginateQuery { Page = 999, SortBy = ["nope:ASC"] }));
 	}
 
+	[Theory]
+	[InlineData("rank:ASC", "rank:DESC")]
+	[InlineData("rank:ASC", "RANK:ASC")]
+	public async Task A_repeated_sort_field_is_rejected(string first, string second) {
+
+		// Symmetric with searchBy, whose published reason is "so a client cannot ship a typo that silently
+		// does nothing": the second key was dead, consumed a MaxSortFields slot and was echoed in meta.sortBy.
+		Assert.Equal($"Sort field '{second.Split(':')[0]}' is specified more than once.",
+			await this.Rejects(Query.Sort(first, second)));
+
+	}
+
+	[Fact]
+	public async Task A_repeated_sort_field_is_rejected_before_the_query_runs() {
+		// Resolution happens before the count, so the refusal does not depend on rows matching.
+		Assert.Equal("Sort field 'rank' is specified more than once.", await this.Rejects(MatchingNothing("rank:ASC", "rank:DESC")));
+	}
+
 	[Fact]
 	public async Task A_config_with_only_a_tie_breaker_orders_by_it_even_when_nothing_matches() {
 

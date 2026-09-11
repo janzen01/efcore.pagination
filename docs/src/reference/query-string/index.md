@@ -461,9 +461,10 @@ overrides a built-in one, which is what makes the table above a default rather t
 An empty value (`?filter.price=$eq:`) is `null` for a nullable target and a `400` for a non-nullable one. Use
 `$null` rather than relying on that.
 
-**No escaping inside value lists.** `$in`, `$btw` and `$contains`-on-a-collection split on `,` and trim; a
-value that itself contains a comma cannot be expressed. Single-value operators take the value whole, commas
-included.
+**No escaping inside value lists.** `$in`, `$btw` and `$contains`-on-a-collection split on `,`; a value that
+itself contains a comma cannot be expressed. Single-value operators take the value whole, commas included.
+Entries are **not** trimmed: the padding in `$in:a, b` is part of the second value, exactly as it would be
+after `$eq:`. One spelling, one value, whichever operator asks for it.
 
 Values are emitted as SQL **parameters** (`EF.Parameter`), never inlined literals — every `@p` on this page is
 that at work. The database can reuse one plan across every value your callers send, and a value can never be

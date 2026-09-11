@@ -41,8 +41,8 @@ case-insensitive collation.
 
 ## A value with a comma in it does not work
 
-It cannot be expressed. `$in`, `$btw` and `$contains`-on-a-collection split on `,` and trim, with **no
-escaping**. Single-value operators take everything after the operator's colon verbatim, commas included, so
+It cannot be expressed. `$in`, `$btw` and `$contains`-on-a-collection split on `,` with **no escaping**.
+Single-value operators take everything after the operator's colon verbatim, commas included, so
 `$eq:Smith, John` is fine — it is only the list operators that have no way through.
 
 ## The links are `null`, or doubly escaped

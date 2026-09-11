@@ -92,6 +92,35 @@ public sealed class QueryParserTests {
 	public void The_first_value_wins_for_the_single_valued_inputs() { Assert.Equal(2, Parse("?page=2&page=5").Page); }
 
 	[Theory]
+	[InlineData("?page=&page=2")]
+	[InlineData("?page=%20&page=2")]
+	public void A_blank_first_occurrence_does_not_shadow_a_real_page(string queryString) {
+		// An HTML GET form emits every empty input, so the blank arrives first and a real value second.
+		// sortBy and searchBy have always skipped blanks; the three single-valued readers now agree.
+		Assert.Equal(2, Parse(queryString).Page);
+	}
+
+	[Fact]
+	public void A_blank_first_occurrence_does_not_shadow_a_real_limit() { Assert.Equal(25, Parse("?limit=&limit=25").Limit); }
+
+	[Fact]
+	public void A_blank_first_occurrence_does_not_shadow_a_real_search_term() { Assert.Equal("widget", Parse("?search=&search=widget").Search); }
+
+	[Fact]
+	public void A_blank_first_occurrence_does_not_shadow_the_unlimited_literal() { Assert.Equal(-1, Parse("?limit=%20&limit=-1").Limit); }
+
+	[Fact]
+	public void A_padded_searchBy_field_name_is_trimmed() { Assert.Equal(["name"], Parse("?searchBy=%20name%20").SearchBy); }
+
+	[Fact]
+	public void A_padded_filter_field_name_is_trimmed() {
+		Assert.Equal(["$eq:Active"], Assert.Contains("status", Parse("?filter.%20status%20=$eq:Active").Filters));
+	}
+
+	[Fact]
+	public void A_filter_key_that_is_only_padding_is_skipped() { Assert.Empty(Parse("?filter.%20=$eq:x").Filters); }
+
+	[Theory]
 	[InlineData("?page=0")]
 	[InlineData("?page=-1")]
 	[InlineData("?page=abc")]
@@ -172,6 +201,31 @@ public sealed class QueryParserTests {
 		// would also have started accepting "+5" on limit while page went on rejecting it.
 		Assert.Equal("Query parameter 'limit' must be a positive integer.", await Rejects(Parse("?limit=%2B5")));
 		Assert.Equal("Query parameter 'page' must be a positive integer.", await Rejects(Parse("?page=%2B5")));
+
+	}
+
+	[Fact]
+	public async Task Two_spellings_of_one_filter_field_are_refused_rather_than_one_being_dropped() {
+
+		// Trimming the field name is what makes this reachable: the raw remainders were already unique under
+		// IQueryCollection's own OrdinalIgnoreCase comparer, so nothing could collide before. Writing the
+		// second over the first would answer 200 while silently discarding $eq:Active -- worse than the 400
+		// the unconfigured ' status' used to get, because the caller is told nothing.
+		var request = Parse("?filter.status=$eq:Active&filter.%20status=$eq:Draft");
+
+		Assert.Equal("Filter for field 'status' is specified more than once.", await Rejects(request));
+
+	}
+
+	[Fact]
+	public async Task A_page_error_still_outranks_a_duplicated_filter() {
+
+		// The published order is page/limit, then filters, then search, then sortBy. The duplicate is held in
+		// its own local for exactly this reason: sharing `error` would have let whichever ran first win.
+		// A guard, not a fail-before case -- under the old last-wins there was no filter error to outrank.
+		Assert.Equal(
+			"Query parameter 'page' must be a positive integer.",
+			await Rejects(Parse("?page=0&filter.status=$eq:Active&filter.%20status=$eq:Draft")));
 
 	}
 

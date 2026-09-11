@@ -107,4 +107,30 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 		Assertions.HasIds(await this.Page(Query.Filters(("status", "$eq:Active"), ("rank", "$gt:50"))), 7, 8);
 	}
 
+	[Fact]
+	public async Task A_list_operator_no_longer_trims_its_entries() {
+
+		// One padding character used to mean two different values: $in trimmed its entries and $eq did not,
+		// so the same text matched through one operator and not the other. They now agree.
+		var listed = await this.Page(Query.Filter("name", "$in: Widget"));
+		var single = await this.Page(Query.Filter("name", "$eq: Widget"));
+
+		Assert.Empty(single.Items);
+		Assert.Equal(single.Items.Count, listed.Items.Count);
+
+	}
+
+	[Fact]
+	public async Task An_unpadded_entry_beside_a_padded_one_still_matches() {
+		// Only the padded entry stops matching; the separator itself is unchanged.
+		Assertions.HasIds(await this.Page(Query.Filter("name", "$in:Widget, Gizmo")), 1);
+	}
+
+	[Fact]
+	public async Task A_padded_entry_on_a_numeric_field_still_parses() {
+		// Not a regression — a guard. Dropping the split's trim leaves the padding on the entry, and it is the
+		// numeric styles (AllowLeadingWhite / AllowTrailingWhite) that absorb it. Narrow those and this breaks.
+		Assertions.HasIds(await this.Page(Query.Filter("rank", "$btw:20 , 40")), 2, 3, 4);
+	}
+
 }
