@@ -102,9 +102,13 @@ const fragments = new Map(frozenFragments.map(([page, anchor, release]) => [
 for (const readme of readmes.filter(existsSync)) {
 	const source = relative(root, readme).replaceAll('\\', '/')
 
-	// The slash after the project name is optional so the bare site root is read too, and a bare URL in running
-	// prose is allowed to end a sentence -- the address stops before the punctuation, not after it.
-	for (const [, match] of readFileSync(readme, 'utf8').matchAll(/https:\/\/janzen01\.github\.io\/efcore\.pagination\/?([^)\s"']*)/g)) {
+	// The slash after the project name is optional so the bare site root is read too. The excluded characters are
+	// the ones markdown wraps a bare URL in -- <autolink>, *emphasis*, `code span` -- none of which can occur in a
+	// site URL, and all of which the address would otherwise swallow. That over-capture was harmless while the
+	// outcome was a silent skip; it fails the build now, so a correct link written in any of those forms would
+	// redden a required check with a message naming a fix that cannot work. A trailing sentence mark is stripped
+	// after the match instead, because a period can legitimately sit inside a path.
+	for (const [, match] of readFileSync(readme, 'utf8').matchAll(/https:\/\/janzen01\.github\.io\/efcore\.pagination\/?([^)\s"'<>*`]*)/g)) {
 		const url = match.replace(/[.,;:!?]+$/, '')
 		const [path, anchor] = url.split('#')
 
@@ -121,7 +125,13 @@ for (const readme of readmes.filter(existsSync)) {
 		// A README link that names a section is frozen the same way the page is. Nothing else checks these:
 		// scripts/verify-anchors.mjs walks the markdown sources, and these are absolute URLs sitting in files
 		// VitePress never builds.
-		if (anchor && !fragments.has(`${page}#${anchor}`)) fragments.set(`${page}#${anchor}`, { page, anchor, source, url })
+		// A package README wins over the landing page, the same way the page half above resolves it: the landing
+		// page is read first and ships in no package, so first-wins here would report a heading that nuget.org
+		// renders forever as one that must never be frozen. An entry already attributed to a release stays.
+		const key = `${page}#${anchor}`
+		if (anchor && (!fragments.has(key) || fragments.get(key).source === LANDING)) {
+			fragments.set(key, { page, anchor, source, url })
+		}
 	}
 }
 
