@@ -18,7 +18,13 @@ public sealed class PaginateQuery {
 	///     called <c>AllowUnlimited(maxRows)</c>, and only together with <see cref="DefaultPage" />; anywhere else
 	///     it is rejected like any other out-of-range limit.
 	/// </summary>
-	public const int UnlimitedLimit = -1;
+	/// <remarks>
+	///     A field rather than a <see langword="const" />, deliberately: a constant is copied into the consuming
+	///     assembly at <b>its</b> compile time, so a later change to the sentinel would be a binary break that
+	///     neither package validation nor the public-API analyzer reports. <see cref="DefaultPage" /> is already
+	///     shipped as a constant and stays one.
+	/// </remarks>
+	public readonly static int UnlimitedLimit = -1;
 
 	internal readonly static IReadOnlyDictionary<string, IReadOnlyList<string>> EmptyFilters =
 		new ReadOnlyDictionary<string, IReadOnlyList<string>>(

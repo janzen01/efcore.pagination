@@ -111,6 +111,21 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 	// ---- AllowUnlimited -----------------------------------------------------------------------------
 
 	[Fact]
+	public void The_unlimited_sentinel_is_not_a_compile_time_constant() {
+
+		// A const is copied into the consumer's own assembly at THEIR compile time, so changing its value later
+		// would be a binary break that nothing in this repository reports -- neither ApiCompat nor RS0016 has a
+		// diagnostic for it. UnlimitedLimit is still Unshipped, which is the only window in which reading it
+		// through a field access instead costs nothing. DefaultPage is already shipped and stays a const.
+		var sentinel = typeof(PaginateQuery).GetField(nameof(PaginateQuery.UnlimitedLimit))!;
+
+		Assert.False(sentinel.IsLiteral);
+		Assert.True(sentinel.IsInitOnly);
+		Assert.Equal(-1, sentinel.GetValue(null));
+
+	}
+
+	[Fact]
 	public async Task Unlimited_returns_every_row_as_one_page() {
 
 		var page = await Products().PageAsync<ProductDto>(new PaginateQuery { Limit = -1 }, Config(b => b.AllowUnlimited(100)));

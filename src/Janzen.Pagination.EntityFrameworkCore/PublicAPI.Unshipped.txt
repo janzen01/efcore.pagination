@@ -87,3 +87,4 @@ static Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeDefaults.EscapeCha
 static Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeDefaults.Portable.get -> Janzen.Pagination.EntityFrameworkCore.Like.IPaginateLikeStrategy!
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators.For(System.Type! type) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]!
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators.For<TValue>() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]!
+static readonly Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery.UnlimitedLimit -> int
