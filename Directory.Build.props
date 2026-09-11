@@ -84,6 +84,13 @@
     <PropertyGroup>
         <EnablePackageValidation>true</EnablePackageValidation>
         <PackageValidationBaselineVersion>10.0.3</PackageValidationBaselineVersion>
+        <!-- Attribute changes are invisible to the other guard: the PublicAPI.*.txt grammar records
+             accessibility, signature, default values and nullability, and has no slot for an attribute
+             at all. Ten members carry [RequiresUnreferencedCode] and [RequiresDynamicCode] as part of
+             the contract, so losing a pair in a refactor would ship a package that stops warning a
+             trimming consumer, and adding an [Obsolete] would break one on upgrade with nothing in the
+             repository having recorded it. ApiCompat can express both; it is simply opt-in. -->
+        <ApiCompatEnableRuleAttributesMustMatch>true</ApiCompatEnableRuleAttributesMustMatch>
     </PropertyGroup>
 
     <!-- Package output (symbols) -->
