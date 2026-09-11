@@ -8,8 +8,10 @@ PostgreSQL; if you only want the engine, everything below except step 4 and step
 
 - **.NET 10** and **EF Core 10**. The packages are `net10.0`-only, and the major version tracks the framework
   they pair with: a `10.x` package goes with .NET 10.
-- **Not trim-safe or Native-AOT-safe.** The engine builds expression trees and uses reflection, so every
-  `Paginate*Async` entry point carries `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`. Publishing a
+- **Not trim-safe or Native-AOT-safe.** The engine builds expression trees and uses reflection, so every public
+  entry point that reaches it carries `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`: the
+  `Paginate*Async` methods and both composers, `WithPagination<TProvider>()`, `UseNodaTime()` /
+  `PaginateNodaTime.Register()`, and the `Filterable` / `FilterableMany` builder overloads. Publishing a
   trimmed or AOT app produces analyzer warnings, and those warnings are accurate — the annotations are there
   so you find out at build time rather than at run time.
 - No database is required to *use* it: the engine works against any `IQueryable<T>`.

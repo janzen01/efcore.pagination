@@ -80,10 +80,16 @@ or a member the provider cannot translate, fails here. Either fix the DTO or swi
 
 ## A trimmed or AOT publish warns
 
-Those warnings are accurate. The engine builds expression trees and uses reflection, so every entry point is
-annotated `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]` — see
-[Requirements](/guide/getting-started/#requirements). Suppressing them converts a build warning into a
-runtime failure; there is no trim-safe mode to switch on.
+Those warnings are accurate. The engine builds expression trees and uses reflection, so every entry point that
+reaches it is annotated `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]` — see
+[Requirements](/guide/getting-started/#requirements) for the list. Suppressing them converts a build warning
+into a runtime failure; there is no trim-safe mode to switch on.
+
+A `[PaginatedQuery<TProvider>]` endpoint has one more requirement the annotations cannot express, so the
+provider type carries `[DynamicallyAccessedMembers(PublicConstructors)]` instead: the OpenAPI transformer
+activates an unregistered provider with `ActivatorUtilities.CreateInstance`, and `typeof(TProvider)` roots the
+type but not its constructor. Without that annotation the document request answered `500` in a trimmed publish
+while working in development.
 
 ## An audit tool says unknown parameters are silently accepted
 
