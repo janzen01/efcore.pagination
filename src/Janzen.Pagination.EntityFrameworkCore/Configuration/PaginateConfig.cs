@@ -3,6 +3,7 @@ using Janzen.Pagination.EntityFrameworkCore.Like;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 
 namespace Janzen.Pagination.EntityFrameworkCore.Configuration;
@@ -653,6 +654,8 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	///     for the derivation and its limits. Throws when the type has no derivation; such a field takes the overload
 	///     with an explicit operator list.
 	/// </summary>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public PaginateConfigBuilder<TEntity> Filterable<TValue>(string name, Expression<Func<TEntity, TValue>> selector) {
 		// Guarded here as well as in the target overload: the derivation is an *argument* to that overload, so it
 		// runs first, and Filterable<Category>(null!, …) reported the derivation failure instead of the null name.
@@ -667,6 +670,8 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	///     <typeparamref name="TValue" /> — the <see cref="PaginateFilterOperators.For{TValue}" /> derivation, exactly as
 	///     the scalar shorthand above. Throws when the type has no derivation.
 	/// </summary>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public PaginateConfigBuilder<TEntity> FilterableMany<TElement, TValue>(
 		string name,
 		Expression<Func<TEntity, IEnumerable<TElement>>> collectionSelector,
@@ -684,6 +689,8 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	///     Declares a scalar field as filterable via <c>filter.&lt;name&gt;=$op:value</c>, restricted to the supplied
 	///     <paramref name="operators" /> (at least one is required).
 	/// </summary>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public PaginateConfigBuilder<TEntity> Filterable<TValue>(
 		string name,
 		Expression<Func<TEntity, TValue>> selector,
@@ -702,6 +709,8 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	///     Declares a collection/navigation field as filterable: the operator is matched against the value selected
 	///     from any element (translated to an <c>Any(...)</c> predicate), e.g. filter orders by any line's product id.
 	/// </summary>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public PaginateConfigBuilder<TEntity> FilterableMany<TElement, TValue>(
 		string name,
 		Expression<Func<TEntity, IEnumerable<TElement>>> collectionSelector,

@@ -34,6 +34,8 @@ public static class PaginateQueryableExtensions {
 		.GetMethods()
 		.Single(method => method is { Name: nameof(EntityFrameworkQueryableExtensions.AsNoTracking), IsGenericMethodDefinition: true } && method.GetParameters().Length == 1);
 
+	[RequiresUnreferencedCode(AotIncompatibleMessage)]
+	[RequiresDynamicCode(AotIncompatibleMessage)]
 	private static IQueryable<TEntity> ApplyFilters<TEntity>(
 		IQueryable<TEntity> query,
 		PaginateQuery request,
@@ -108,6 +110,8 @@ public static class PaginateQueryableExtensions {
 	///     resolution is the half a client cannot perform, so it is what <c>meta.searchBy</c> carries; empty when no
 	///     search ran.
 	/// </summary>
+	[RequiresUnreferencedCode(AotIncompatibleMessage)]
+	[RequiresDynamicCode(AotIncompatibleMessage)]
 	private static IQueryable<TEntity> ApplySearch<TEntity>(
 		IQueryable<TEntity> query,
 		PaginateQuery request,
@@ -288,6 +292,8 @@ public static class PaginateQueryableExtensions {
 
 	}
 
+	[RequiresUnreferencedCode(AotIncompatibleMessage)]
+	[RequiresDynamicCode(AotIncompatibleMessage)]
 	private static IQueryable<TEntity> ApplySorts<TEntity>(IQueryable<TEntity> query, IReadOnlyList<(LambdaExpression Selector, bool Descending)> sorts) {
 
 		// The same provider test the filter and search stages make, asked here rather than threaded down from
@@ -313,6 +319,8 @@ public static class PaginateQueryableExtensions {
 	///     each caller instead of here, because only <c>ApplyPaginateFilters</c> stops short of applying it — both
 	///     composers validate <c>sortBy</c>, only one orders by it.
 	/// </summary>
+	[RequiresUnreferencedCode(AotIncompatibleMessage)]
+	[RequiresDynamicCode(AotIncompatibleMessage)]
 	private static (IQueryable<TEntity> Query, int Limit, string? Search, IReadOnlyList<string> SearchBy) Compose<TEntity>(
 		IQueryable<TEntity> source,
 		PaginateQuery request,
@@ -405,6 +413,8 @@ public static class PaginateQueryableExtensions {
 		return query.Skip((int)Math.Min(skip, int.MaxValue)).Take(limit);
 	}
 
+	[RequiresUnreferencedCode(AotIncompatibleMessage)]
+	[RequiresDynamicCode(AotIncompatibleMessage)]
 	private static IQueryable<T> AsNoTrackingIfSupported<T>(IQueryable<T> query) {
 		return query.Provider is IAsyncQueryProvider && NoTracking<T>.Apply is { } apply ? apply(query) : query;
 	}
@@ -415,6 +425,8 @@ public static class PaginateQueryableExtensions {
 	// IsValueType rather than !IsClass: an interface is not a class either, and IQueryable<ISomething> works
 	// today. A value type is never change-tracked, so the absent delegate is the correct no-op rather than a
 	// concession. Closed once per T by the type initializer instead of per request.
+	[RequiresUnreferencedCode(AotIncompatibleMessage)]
+	[RequiresDynamicCode(AotIncompatibleMessage)]
 	private static class NoTracking<T> {
 
 		public readonly static Func<IQueryable<T>, IQueryable<T>>? Apply = typeof(T).IsValueType
@@ -653,6 +665,8 @@ public static class PaginateQueryableExtensions {
 
 		}
 
+		[RequiresUnreferencedCode(AotIncompatibleMessage)]
+		[RequiresDynamicCode(AotIncompatibleMessage)]
 		private async Task<PaginatedResponse<TResult>> PaginateCoreAsync<TResult>(PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Func<IQueryable<TEntity>, CancellationToken, Task<TResult[]>> project,

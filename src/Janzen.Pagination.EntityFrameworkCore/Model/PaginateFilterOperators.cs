@@ -1,5 +1,7 @@
 using Janzen.Pagination.EntityFrameworkCore.Engine;
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace Janzen.Pagination.EntityFrameworkCore.Model;
 
 /// <summary>
@@ -55,6 +57,8 @@ public static class PaginateFilterOperators {
 	///     operator list instead.
 	/// </summary>
 	/// <typeparam name="TValue">The filtered value's type, exactly as the field's selector returns it.</typeparam>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static PaginateFilterOperator[] For<TValue>() { return Derive(typeof(TValue), nameof(TValue)); }
 
 	/// <summary>
@@ -63,11 +67,15 @@ public static class PaginateFilterOperators {
 	///     engine cannot filter on.
 	/// </summary>
 	/// <param name="type">The filtered value's type, exactly as the field's selector returns it.</param>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static PaginateFilterOperator[] For(Type type) { return Derive(type, nameof(type)); }
 
 	// Shared so each entry point names its own input. The generic one is what the operator-less Filterable
 	// shorthand calls, and reporting its failure as "(Parameter 'type')" sent a consumer looking for an argument
 	// that call site does not have — the input there is the type argument the selector's return type inferred.
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	private static PaginateFilterOperator[] Derive(Type type, string paramName) {
 
 		ArgumentNullException.ThrowIfNull(type, paramName);
@@ -110,6 +118,8 @@ public static class PaginateFilterOperators {
 	///     to every range request. The question is the builder's, so the builder answers it — one implementation
 	///     rather than a probe here that can disagree with what the expression tree turns out to accept.
 	/// </summary>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	private static bool IsOrdered(Type type) { return PaginateFilterField.CanCompare(type); }
 
 }
