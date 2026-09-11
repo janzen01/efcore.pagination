@@ -75,6 +75,54 @@ jobs:
   docs:
     uses: ./.github/workflows/docs-build.yml
 
+  # A public member can be removed from PublicAPI.Shipped.txt with no diagnostic from anything, and it
+  # has happened here: f905e6e deleted the WithGuards(int, int, int, int) line in place, which the
+  # analyzers accept (the declaration went with it, so nothing is orphaned) and which package
+  # validation caught only because that particular break also changed the CLR signature. A break that
+  # only flips a nullable annotation changes no signature at all, so this file is the only record of
+  # it. Comparing against the newest stable tag is what turns "someone noticed" into a gate.
+  #
+  # The escape hatch is for the release PR, not for convenience: promotion legitimately deletes a line
+  # from Shipped and consumes its *REMOVED* entry at the same time, while the newest tag is still the
+  # previous release -- so a deletion is also accepted when some commit since that tag recorded it.
+  # Without that, the one PR that must merge to cut a release could not, and the ruleset has no bypass
+  # actors.
+  api-tracking:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The comparison needs the tags and the commits back to the last release.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check no shipped API line was deleted instead of recorded
+        run: |
+          set -u
+          TAG=$(git tag -l 'v*' --sort=-v:refname | grep -v -- '-' | head -n 1)
+          if [ -z "$TAG" ]; then echo "no stable v* tag to compare against yet"; exit 0; fi
+          echo "comparing PublicAPI.Shipped.txt against $TAG"
+          REVS=$(git rev-list "$TAG..HEAD")
+          status=0
+          for shipped in src/*/PublicAPI.Shipped.txt; do
+            unshipped="${shipped%Shipped.txt}Unshipped.txt"
+            git cat-file -e "$TAG:$shipped" 2>/dev/null || continue
+            git show "$TAG:$shipped" | grep -vxF -f "$shipped" > "$RUNNER_TEMP/gone" || true
+            while IFS= read -r line; do
+              case "$line" in ''|'#'*) continue ;; esac
+              if grep -qxF "*REMOVED*$line" "$unshipped"; then continue; fi
+              hit=
+              for rev in $REVS; do
+                if git show "$rev:$unshipped" 2>/dev/null | grep -qxF "*REMOVED*$line"; then hit=1; break; fi
+              done
+              [ -n "$hit" ] && continue
+              echo "::error file=$shipped::deleted from PublicAPI.Shipped.txt with no *REMOVED* entry recording it: $line"
+              status=1
+            done < "$RUNNER_TEMP/gone"
+          done
+          exit $status
+
   # The PR title becomes the squash commit on master, and master takes no other kind of merge -- a typo
   # there is permanent history. Dependabot is exempt: its titles are its own.
   pr-lint:
@@ -107,7 +155,7 @@ jobs:
   # real failure or a cancellation is a failure here. `needs.build-test.result` is one aggregate for the
   # whole matrix, so with fail-fast disabled a single red leg still surfaces as `failure`.
   ci-ok:
-    needs: [ build-test, docs, pr-lint ]
+    needs: [ build-test, docs, api-tracking, pr-lint ]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
