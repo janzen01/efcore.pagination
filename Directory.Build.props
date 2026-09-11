@@ -30,6 +30,20 @@
              roughly 85 % false positives here, largely CA1062 made redundant by Nullable=enable and a
              CA1034 that misfires on C# 14 extension blocks. -->
         <AnalysisModeSecurity>All</AnalysisModeSecurity>
+        <!-- Trim/AOT analysis. Ten public members carry [RequiresUnreferencedCode] and [RequiresDynamicCode], and
+             until these were set nothing checked that the set was complete: a new reflective public entry point
+             compiled clean, so silence meant "declared unsafe" on the annotated members and "never analysed" on
+             the rest, indistinguishably. With the analyzers on, an unannotated reflective path is a build error
+             like any other warning here.
+             NOT IsTrimmable / IsAotCompatible: those write assembly metadata claiming the package IS
+             trim-compatible, which this library is not and does not claim. These three only produce diagnostics -
+             no shipped metadata, no package change.
+             Not conditioned on IsPackable for the same reason as CS1591 above: a PropertyGroup here is evaluated
+             before the project body sets it, so the non-packable test project opts out in its own csproj. It has
+             to: every test calls an annotated entry point, which is the whole point of the annotation. -->
+        <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+        <EnableAotAnalyzer>true</EnableAotAnalyzer>
+        <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
     </PropertyGroup>
 
     <!-- Package identity (PackageId and Description are set per project) -->
