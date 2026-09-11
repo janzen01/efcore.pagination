@@ -1,25 +1,27 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
 <!--
   The breaking-change inventory for this release. Generated, never hand-written
   (dotnet pack -p:ApiCompatGenerateSuppressionFile=true), which also means a regeneration drops this
-  comment and the CRLF it writes needs normalising back to LF. Five entries, all deliberate:
+  comment and the CRLF it writes needs normalising back to LF. Six entries, all deliberate:
 
   CP0002 x1 WithGuards(int, int, int, int): the all-int overload went when the four guards became
   int?, so naming one stopped silently resetting the other three to the engine constants.
 
   CP0014 x2 PaginateComposedQuery<TEntity>.SortBy: the property and its getter lost their nullable
-  annotation when a tie-breaker became mandatory at Build(), so an empty list now unambiguously means
-  "resolved, nothing requested".
+  annotation when a tie-breaker became mandatory at Build().
 
-  CP0014 x2 PaginateLinkContext.Equals / GetHashCode: both were synthesized by the record and are now
-  hand-written, so they no longer carry CompilerGeneratedAttribute. The members and their behaviour
-  are what changed on purpose — the attribute is a side effect of writing them out.
+  CP0014 x2 PaginateLinkContext.Equals / GetHashCode: synthesized by the record, now hand-written,
+  so they no longer carry CompilerGeneratedAttribute.
 
-  All four CP0014 appear only because the ApiCompat attribute rule is now on: annotations and
-  compiler-generated markers live in metadata the signature comparison does not read, and
-  PublicAPI.Shipped.txt records a member only as line text. Each of these went in with no diagnostic
-  from anything before that rule was enabled.
+  CP0014 x1 PaginateLikeDefaults.Strategy.set: the auto-property setter gained a body that rejects
+  null at the assignment instead of deferring a NullReferenceException into query composition.
+
+  Every CP0014 here is a member whose BEHAVIOUR changed on purpose; losing the compiler-generated
+  marker is a side effect of writing it out. They are visible only because the ApiCompat attribute
+  rule is now on — annotations and those markers live in metadata the signature comparison does not
+  read, and PublicAPI.Shipped.txt records a member only as line text, so each of these went in with
+  no diagnostic from anything before the rule was enabled.
 
   Delete this file when PackageValidationBaselineVersion moves past 10.0.3: every entry exists only
   against that baseline, and a stale suppression hides the next accidental break behind the same target.
@@ -28,6 +30,13 @@
   <Suppression>
     <DiagnosticId>CP0002</DiagnosticId>
     <Target>M:Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder`1.WithGuards(System.Int32,System.Int32,System.Int32,System.Int32)</Target>
+    <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
+    <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0014</DiagnosticId>
+    <Target>M:Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeDefaults.set_Strategy(Janzen.Pagination.EntityFrameworkCore.Like.IPaginateLikeStrategy):[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
     <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
     <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>
