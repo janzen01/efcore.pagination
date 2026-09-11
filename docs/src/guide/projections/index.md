@@ -70,17 +70,27 @@ var page = await db.Products.PaginateAsync<Product, ProductDto>(request, config,
 
 1. It takes the DTO's **public constructor with the most parameters** — so records and positional constructors.
    **Settable properties are not used.** This is by design, not an omission: a constructor is a complete,
-   compiler-checked description of the shape.
+   compiler-checked description of the shape. Exactly one constructor may carry that many parameters, and it
+   must carry at least one: a tie is **refused** rather than broken by declaration order, and a parameterless
+   target has nothing to project into.
 2. Each constructor parameter name is matched against a public **property or field** on the source type,
-   case-insensitively.
+   case-insensitively. Where a derived type hides a member with `new`, the **most-derived** declaration wins.
 3. If the types are assignable (including `T` → `T?`), the member is used directly.
 4. Otherwise a registered conversion is tried — that is how `Instant` → `DateTimeOffset` works when the
    [`.NodaTime`](/integrations/nodatime/) package is installed.
 5. Otherwise, if the target is a *simple* type (primitive, `string`, `enum`, `Guid`, `decimal`, `DateTime`,
    `DateTimeOffset`, or a registered one) it fails — there is nothing sensible to do.
 6. Otherwise it recurses: the target is treated as a nested DTO and built from the source member the same way.
-   A nullable source member becomes a null-propagating conditional; a nullable source into a **non-nullable**
-   target parameter fails.
+   A **collection** target is refused here, and so is a DTO that recurses into itself.
+7. The nested value becomes a **null-propagating conditional whenever the target parameter is nullable**; a
+   nullable source into a **non-nullable** target parameter fails.
+
+Rule 7 reads the *target*, not the navigation, and that is deliberate. EF's own scaffolding writes an optional
+relationship as a nullable FK behind a **non-nullable** navigation — `int? CategoryId` alongside
+`Category Category = null!` — so the CLR annotation claims "never null" for a row the database is free to leave
+without a parent. The engine cannot ask EF, because the projection is cached per `(TEntity, TResult)` pair
+rather than per model. Declaring the DTO member nullable is what says "this row may have no parent", and it is
+enough on its own.
 
 ### What it cannot do
 
@@ -90,6 +100,8 @@ of those are `PaginateSelectAsync` territory.
 Failures are `InvalidOperationException` with the path that broke, e.g.:
 
 > Cannot automatically project 'Product.Sku' from 'String' to 'Int32'.
+>
+> Cannot automatically project 'Product.Reviews' into a collection. Use PaginateSelectAsync for sub-collections.
 
 The projection is built lazily and cached per `(TEntity, TResult)` pair, so a mismatch surfaces the **first
 time the endpoint is called**, not at startup. Worth one smoke test per DTO.
@@ -199,7 +211,11 @@ For a page of 25 rows out of a million:
 | `PaginateMapAsync` | 25 | **all** | `projector` × 25 |
 
 The choice of strategy does not change the number of queries — see
-[Getting started](../getting-started/#what-the-engine-does-with-that-request) for the shape all four share.
+[Getting started](../getting-started/#what-the-engine-does-with-that-request) for the shape all four share. One
+exception: a selector pulling a **sub-collection** on a context configured with
+`QuerySplittingBehavior.SplitQuery` costs a third command, because EF loads the collection separately. That
+split command re-runs the paging subquery, so it is only safe over a deterministic order — which is exactly
+what the mandatory tie-breaker guarantees.
 
 Change tracking is the one column that table cannot hold, because only one strategy decides it for you.
 `PaginateMapAsync` reads the page with `AsNoTracking` whatever the source says; the `Select` family adds
