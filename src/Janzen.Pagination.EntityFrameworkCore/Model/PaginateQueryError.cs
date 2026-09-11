@@ -62,6 +62,12 @@ public enum PaginateQueryError {
 	/// <summary>One criterion carries more values than <c>MaxFilterValues</c> allows.</summary>
 	TooManyFilterValues,
 
+	/// <summary>A <c>$ilike</c> / <c>$sw</c> / <c>$contains</c> pattern on a string field is shorter than <c>MinSearchLength</c> allows.</summary>
+	FilterPatternTooShort,
+
+	/// <summary>A <c>$ilike</c> / <c>$sw</c> / <c>$contains</c> pattern on a string field is longer than <c>MaxSearchLength</c> allows.</summary>
+	FilterPatternTooLong,
+
 	/// <summary>An empty value was sent for a target that cannot be empty.</summary>
 	ValueEmpty,
 

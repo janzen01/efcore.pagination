@@ -50,14 +50,16 @@ public interface IPaginateConfig {
 	int MaxSortFields { get; }
 
 	/// <summary>
-	///     Maximum number of characters in the <c>search</c> term; a longer term is a 400 before the query runs.
-	///     Defaults to 256, set by <see cref="PaginateConfigBuilder{TEntity}.WithGuards" />.
+	///     Maximum number of characters in the <c>search</c> term, and in a <c>$ilike</c> / <c>$sw</c> /
+	///     <c>$contains</c> pattern on a string field; a longer value is a 400 before the query runs. Defaults to
+	///     256, set by <see cref="PaginateConfigBuilder{TEntity}.WithGuards" />.
 	/// </summary>
 	int MaxSearchLength { get; }
 
 	/// <summary>
-	///     Minimum number of characters in the <c>search</c> term, measured after trimming; a shorter term is a 400
-	///     before the query runs. Defaults to 1 — any non-blank term runs. Set by
+	///     Minimum number of characters in the <c>search</c> term, measured after trimming, and in a <c>$ilike</c> /
+	///     <c>$sw</c> / <c>$contains</c> pattern on a string field, measured as sent; a shorter value is a 400
+	///     before the query runs. Defaults to 1 — any non-blank term runs, and an empty pattern never does. Set by
 	///     <see cref="PaginateConfigBuilder{TEntity}.WithMinSearchLength" />.
 	/// </summary>
 	/// <remarks>A default interface member so an existing external implementation of this interface keeps compiling.</remarks>
@@ -492,8 +494,10 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 	/// <summary>
 	///     Sets DoS guard limits: maximum values per filter, maximum total filter conditions, maximum sort fields,
-	///     and maximum search-term length. An argument left out is not set here at all, so it falls through to the
-	///     shared defaults and then to the engine's own value — naming one guard never resets the others.
+	///     and maximum search length — which bounds the <c>search</c> term and a <c>$ilike</c> / <c>$sw</c> /
+	///     <c>$contains</c> pattern alike, because the two emit the same <c>LIKE</c>. An argument left out is not
+	///     set here at all, so it falls through to the shared defaults and then to the engine's own value — naming
+	///     one guard never resets the others.
 	/// </summary>
 	public PaginateConfigBuilder<TEntity> WithGuards(
 		int? maxFilterValues = null,
@@ -519,6 +523,12 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	///     runs. Worth raising on a resource whose search spans several unindexed text columns, where a
 	///     one-character term is the cheapest way to make the database read every row.
 	/// </summary>
+	/// <remarks>
+	///     It bounds the <c>$ilike</c> / <c>$sw</c> / <c>$contains</c> pattern on a string field too: those emit the
+	///     identical <c>LIKE</c>, so guarding only the <c>search</c> term would leave the same scan reachable
+	///     through any field the configuration whitelists for them. A filter value is never trimmed, so a pattern is
+	///     measured as sent.
+	/// </remarks>
 	public PaginateConfigBuilder<TEntity> WithMinSearchLength(int minSearchLength) {
 		if (minSearchLength <= 0) throw new ArgumentOutOfRangeException(nameof(minSearchLength), "Min search length must be greater than zero.");
 

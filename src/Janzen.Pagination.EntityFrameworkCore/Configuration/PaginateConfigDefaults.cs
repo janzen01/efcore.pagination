@@ -53,10 +53,10 @@ public sealed record PaginateConfigDefaults {
 	/// <summary>Maximum <c>sortBy</c> values one request may send. The engine's own default is 5.</summary>
 	public int? MaxSortFields { get; init; }
 
-	/// <summary>Maximum characters in the <c>search</c> term. The engine's own default is 256.</summary>
+	/// <summary>Maximum characters in the <c>search</c> term, and in a string field's pattern filter. The engine's own default is 256.</summary>
 	public int? MaxSearchLength { get; init; }
 
-	/// <summary>Minimum characters in the <c>search</c> term. The engine's own default is 1 — any non-blank term runs.</summary>
+	/// <summary>Minimum characters in the <c>search</c> term, and in a string field's pattern filter. The engine's own default is 1.</summary>
 	public int? MinSearchLength { get; init; }
 
 	/// <summary>Maximum rows a request may skip. The engine's own default is no ceiling at all.</summary>

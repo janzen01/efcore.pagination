@@ -100,7 +100,7 @@ public sealed class ErrorCodeTests {
 		var rejection = Assert.Throws<PaginateQueryException>(() => field.BuildExpression(
 			Expression.Parameter(typeof(Product), "p"),
 			criterion,
-			new PaginateExpressionContext(true, PaginateLikeDefaults.Strategy),
+			new PaginateExpressionContext(true, PaginateLikeDefaults.Strategy, 1, 256),
 			20));
 
 		Assert.Equal(PaginateQueryError.FilterOperatorTypeMismatch, rejection.Code);
@@ -120,6 +120,24 @@ public sealed class ErrorCodeTests {
 
 		Assert.Equal(PaginateQueryError.SearchFieldNotConfigured, (await Rejects(Query.Search("widget", "nope"))).Code);
 		Assert.Equal(PaginateQueryError.DuplicateSearchField, (await Rejects(Query.Search("widget", "name", "name"))).Code);
+
+	}
+
+	[Fact]
+	public async Task The_pattern_length_guards_have_their_own_two_codes() {
+
+		// The same two numbers as the search term, but a different parameter and a different message, so a client
+		// can tell which of the two paths to LIKE '%...%' it tripped.
+		var config = PaginateConfig<Product>.Create(b => b
+			.WithLimits(10, 50)
+			.WithGuards(maxSearchLength: 4)
+			.WithMinSearchLength(2)
+			.Sortable("id", p => p.Id)
+			.WithTieBreaker(p => p.Id)
+			.Filterable("name", p => p.Name));
+
+		Assert.Equal(PaginateQueryError.FilterPatternTooShort, (await Rejects(Query.Filter("name", "$ilike:a"), config)).Code);
+		Assert.Equal(PaginateQueryError.FilterPatternTooLong, (await Rejects(Query.Filter("name", "$ilike:widget"), config)).Code);
 
 	}
 

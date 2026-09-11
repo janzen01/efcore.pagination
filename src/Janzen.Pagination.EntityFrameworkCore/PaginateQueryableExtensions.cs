@@ -341,7 +341,7 @@ public static class PaginateQueryableExtensions {
 		bool useDatabaseFunctions = UseDatabaseFunctions(source.Provider);
 		// Resolved per query, so a configuration naming its own strategy is unaffected by whatever the last
 		// AddPagination callback wrote to the process-wide static -- which is how one process serves two providers.
-		var context = new PaginateExpressionContext(useDatabaseFunctions, config.LikeStrategy ?? PaginateLikeDefaults.Strategy);
+		var context = new PaginateExpressionContext(useDatabaseFunctions, config.LikeStrategy ?? PaginateLikeDefaults.Strategy, config.MinSearchLength, config.MaxSearchLength);
 
 		var query = ApplyFilters(source, request, config, context);
 		query = ApplySearch(query, request, config, context, out var searchBy);

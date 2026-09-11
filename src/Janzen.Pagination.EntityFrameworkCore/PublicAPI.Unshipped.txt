@@ -42,9 +42,9 @@ Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeStrategyBase.PaginateLike
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.DuplicateFilterField = 22 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.DuplicateSearchField = 21 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.DuplicateSortField = 28 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.DuplicateFilterField = 24 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.DuplicateSearchField = 23 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.DuplicateSortField = 30 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.FilterConnectorMisplaced = 9 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.FilterCriterionMalformed = 8 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.FilterFieldNotConfigured = 6 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
@@ -52,26 +52,28 @@ Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.FilterOperatorNot
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.FilterOperatorTypeMismatch = 13 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.FilterOperatorUnknown = 10 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.FilterOperatorUnsupported = 12 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.FilterPatternTooLong = 17 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.FilterPatternTooShort = 16 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.FilterValueCountInvalid = 14 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.LimitOutOfRange = 2 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.MaxOffsetExceeded = 3 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.PageOutOfRange = 1 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SearchFieldNotConfigured = 20 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SearchNotConfigured = 19 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SearchTermTooLong = 24 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SearchTermTooShort = 23 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SortDirectionUnknown = 26 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SortFieldNotConfigured = 27 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SortValueMalformed = 25 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SearchFieldNotConfigured = 22 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SearchNotConfigured = 21 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SearchTermTooLong = 26 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SearchTermTooShort = 25 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SortDirectionUnknown = 28 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SortFieldNotConfigured = 29 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.SortValueMalformed = 27 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.TooManyFilterConditions = 7 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.TooManyFilterValues = 15 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.TooManySortFields = 29 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.TooManySortFields = 31 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.UnlimitedReadRequiresFirstPage = 4 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.UnlimitedReadTooLarge = 5 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.Unspecified = 0 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.ValueEmpty = 16 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.ValueInvalid = 17 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
-Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.ValueTypeNotSupported = 18 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.ValueEmpty = 18 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.ValueInvalid = 19 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
+Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.ValueTypeNotSupported = 20 -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryException.Code.get -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryException.Code.init -> void
 abstract Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeStrategyBase.PreferredExampleOperator.get -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator?

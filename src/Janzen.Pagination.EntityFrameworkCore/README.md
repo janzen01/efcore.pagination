@@ -80,8 +80,8 @@ var next = response.Meta.HasNextPage
 | `.Filterable(name, expr)` | `filter.name=$op:value` | Every operator the engine can build for `TValue` — see *Operator defaults* below. |
 | `.FilterableMany(name, coll, expr, ops…)` | `filter.name=$op:value` | Matches any element of a child collection (`Any(...)`). |
 | `.FilterableMany(name, coll, expr)` | `filter.name=$op:value` | The same derivation, from the value selector's type. |
-| `.WithGuards(…)` | — | Ceilings on filter values / conditions / sort fields / search length. |
-| `.WithMinSearchLength(n)` | — | Rejects a `search` term shorter than `n`, measured after trimming. |
+| `.WithGuards(…)` | — | Ceilings on filter values / conditions / sort fields / search length — the last bounds `$ilike` / `$sw` / `$contains` patterns too. |
+| `.WithMinSearchLength(n)` | — | Rejects a `search` term shorter than `n`, measured after trimming, and a shorter `$ilike` / `$sw` / `$contains` pattern, measured as sent. |
 | `.WithMaxOffset(n)` | — | Rejects a request that would skip more than `n` rows, before the count runs. |
 | `.AllowUnlimited(maxRows)` | `limit=-1` | Opts into one-page-everything, with a mandatory row ceiling. |
 | `.ShowBadge(name, cssClass?)` | — | Labels the preceding field in the OpenAPI output. |
