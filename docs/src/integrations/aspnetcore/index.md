@@ -114,6 +114,16 @@ app.MapGet("/products", async (HttpContext http, AppDbContext db, CancellationTo
 - `WithPagination<TProvider>()` does two things: attaches the `[PaginatedQuery]` metadata so the operation
   transformer documents the parameters and the `400`, and adds `PaginateExceptionEndpointFilter` so a
   `PaginateQueryException` becomes a Problem Details response instead of a `500`.
+- **It also takes a route group**, so a set of endpoints is marked once rather than per handler. Applying it to
+  the group is not optional decoration: an endpoint mapped inside a group that was never marked carries neither
+  the metadata nor the filter, so its `?page=0` escapes as a `500`.
+
+  ```csharp
+  var products = app.MapGroup("/products").WithPagination<ProductPaginateConfigProvider>();
+
+  products.MapGet("/", /* … */);
+  products.MapGet("/archived", /* … */);
+  ```
 
 ---
 

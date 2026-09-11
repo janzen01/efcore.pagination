@@ -13,7 +13,13 @@ public static class PaginateLikeDefaults {
 	///     to a strategy. A strategy must declare it as the explicit <c>ESCAPE</c> argument of the call it builds,
 	///     or the escaping is read as literal text — see <see cref="IPaginateLikeStrategy.BuildLike" />.
 	/// </summary>
-	public static string EscapeCharacter { get; } = "\\";
+	// Expression-bodied, not an initialized auto-property, and that is not style. Constructing
+	// PortableLikeStrategy below runs PaginateLikeStrategyBase's type initializer, which reads this member back —
+	// a cycle between the two classes. With a backing field the CLR breaks that cycle by handing out whatever the
+	// field holds at that moment, so the correctness rested on this member being declared *above* Portable and a
+	// reviewer-invisible reorder would have shipped a null ESCAPE on every escaped LIKE. With no field there is
+	// nothing to observe half-initialized. Same metadata, same shipped API; don't "tidy" it back.
+	public static string EscapeCharacter => "\\";
 
 	/// <summary>
 	///     The library's own portable <c>LIKE</c> strategy — what <see cref="Strategy" /> holds until something

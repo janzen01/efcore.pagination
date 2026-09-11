@@ -38,7 +38,8 @@ leg does not survive the move to a database.
 
 There is a third case, and it is refused rather than adapted. A provider that is **asynchronous without being
 Entity Framework Core's** — what a queryable-shaped mocking library produces — is neither leg, and the engine
-answers it with a `PaginateQueryException` that says so. Sending it down the in-memory leg would have been the
+answers it with a `NotSupportedException` that says so — not a `PaginateQueryException`, because that type is
+the `400` contract and this is the server's own wiring, so it reaches the client as a `500`. Sending it down the in-memory leg would have been the
 friendlier answer and the wrong one: the two legs disagree on a substantial share of requests, so a test that
 passed that way would prove nothing about the database. [Testing your pagination](/recipes/testing/) shows the
 SQLite in-memory setup to use instead — a real provider, and it costs no more.

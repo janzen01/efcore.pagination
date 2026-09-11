@@ -146,7 +146,10 @@ internal static class PaginateValueConverter {
 
 				string duration = value.Trim();
 
-				if (!duration.Contains(':', StringComparison.Ordinal)) return ParseIsoDuration(value, $"is not valid for '{field}'");
+				// The trimmed value on both legs. Handing the raw one to the ISO reader made the two spellings
+				// disagree about padding: " 2:30:00" parsed and " PT2H30M" was a 400, for no reason a caller
+				// could see in the contract.
+				if (!duration.Contains(':', StringComparison.Ordinal)) return ParseIsoDuration(duration, $"is not valid for '{field}'");
 
 				// A custom TimeSpan pattern cannot carry a sign, so the minus comes off first and TimeSpanStyles
 				// puts it back — otherwise pinning the hour would also drop every negative duration.
@@ -188,7 +191,11 @@ internal static class PaginateValueConverter {
 			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.", ex) { Code = PaginateQueryError.ValueInvalid };
 		}
 
-		throw new PaginateQueryException($"Filtering values for '{field}' is not supported.") { Code = PaginateQueryError.ValueInvalid };
+		// ValueTypeNotSupported, not ValueInvalid: the value was never read. Every route above -- the registry, the
+		// built-in table, IParsable -- declined the field's *type*, so no value could have been converted for it,
+		// which is what that member's own summary describes. It was left unassigned when the unit that introduced
+		// the codes rebased over the unit that rewrote this throw, and the two facts stopped meeting.
+		throw new PaginateQueryException($"Filtering values for '{field}' is not supported.") { Code = PaginateQueryError.ValueTypeNotSupported };
 
 	}
 

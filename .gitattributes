@@ -24,3 +24,29 @@
 * text=auto eol=lf
 *.bat text eol=crlf
 *.cmd text eol=crlf
+
+# `text=auto` above hands the text/binary decision to git, and git decides by content: one NUL byte in the
+# first 8 kB and the whole file is binary. Not hypothetical here — a `'\0'` written as a raw NUL rather than as
+# the escape made a new security-guard source file binary, so it had no diff, no blame and no LF pinning, and
+# every reviewer of the change that added it saw "Binary file differs" and moved on. Naming these types
+# explicitly is what keeps that from being silent: `text` normalises the line endings whatever the content, and
+# `diff` forces a textual diff, so the offending byte shows up in the review instead of hiding the file around
+# it. A source file is never legitimately binary.
+*.cs text diff
+*.csproj text diff
+*.json text diff
+*.md text diff
+*.mjs text diff
+*.mts text diff
+*.props text diff
+*.slnx text diff
+*.ts text diff
+*.txt text diff
+*.xml text diff
+*.yaml text diff
+*.yml text diff
+nuget.config text diff
+.npmrc text diff
+
+# The one tracked binary, named so the rule above can stay a list of everything else.
+*.png -text -diff

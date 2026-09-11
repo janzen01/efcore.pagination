@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
 
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -108,7 +109,12 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	// cannot see each other's entry, and a transformer registered as a shared instance does not carry one
 	// document's answer into the next. That matters for When(...), which exists so a config can vary per caller.
 	// Weak keys, so a finished scope takes its entry with it.
-	private readonly ConditionalWeakTable<IServiceProvider, Dictionary<Type, IPaginateConfig>> _configsPerDocument = new();
+	//
+	// ConcurrentDictionary rather than Dictionary: the safety of a plain one rests on ASP.NET Core running this
+	// transformer sequentially within a document, which holds for the framework's own endpoint but not for a
+	// consumer calling GetOpenApiDocumentAsync itself — and the failure there is a corrupted dictionary, not a
+	// stale read. The cost is one interlocked read on a path that runs per documented operation.
+	private readonly ConditionalWeakTable<IServiceProvider, ConcurrentDictionary<Type, IPaginateConfig>> _configsPerDocument = new();
 
 	private IPaginateConfig GetConfig(
 		IServiceProvider services,
@@ -331,6 +337,12 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		};
 	}
 
+	// The three operators the search-length guards bound on a string field, alongside `search` itself.
+	private static bool IsLengthGuarded(PaginateFilterOperator filterOperator) {
+		return filterOperator is PaginateFilterOperator.ILike or PaginateFilterOperator.StartsWith
+			or PaginateFilterOperator.Contains;
+	}
+
 	private static OpenApiParameter CreateFilterParameter(IPaginateConfig config, PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
 		string operators = string.Join('\n', BuildOperatorTokens(field).Select(token => $"- `{token}`"));
 		var value = DescribeValueType(field.Type);
@@ -352,14 +364,50 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 		string token = PaginateFilterParser.GetOperatorToken(exampleOperator);
 
+		// A pattern operator's value is length-guarded on a string field, so the sample has to clear the floor:
+		// with WithMinSearchLength(8) the plain sample would document `$ilike:text`, which the engine answers
+		// with a 400. Repeating the sample keeps it recognisably a sample and keeps the document truthful.
+		string exampleValue = value.Example;
+		if (field.Type == typeof(string) && IsLengthGuarded(exampleOperator)) {
+
+			// The repeat count is computed, not reached by appending in a loop. Ceiling division, one allocation
+			// instead of one per round — and, more to the point, a loop conditioned on a growing length cannot
+			// terminate if the sample is ever the empty string. Every sample in the table is a non-empty literal
+			// today, so the guard is the kind that has to be written before it is needed rather than after.
+			if (exampleValue.Length > 0 && exampleValue.Length < config.MinSearchLength) {
+				int repeats = ((config.MinSearchLength - 1) / exampleValue.Length) + 1;
+				exampleValue = string.Concat(Enumerable.Repeat(exampleValue, repeats));
+			}
+
+			// The ceiling as well as the floor, and applied whether or not the sample was padded: a sample longer
+			// than a tight MaxSearchLength documents a 400 on its own. Repeating a four-character one overshoots
+			// too — Min 5 / Max 6 would document `$ilike:texttext`, which the engine answers with
+			// FilterPatternTooLong, the defect this padding exists to remove pointing the other way.
+			if (exampleValue.Length > config.MaxSearchLength) exampleValue = exampleValue[..config.MaxSearchLength];
+
+		}
+
 		// Not every operator is spelled "$op:one scalar", and rendering them all that way documented requests the
 		// engine refuses: "$null:42" is a 400 because $null takes no value, and "$btw:9.99" is a 400 because $btw
 		// takes exactly two.
 		string example = exampleOperator switch {
 			PaginateFilterOperator.Null => token,
 			PaginateFilterOperator.Between => $"{token}:{value.Example},{value.Upper ?? value.Example}",
-			_ => $"{token}:{value.Example}"
+			_ => $"{token}:{exampleValue}"
 		};
+
+		// The search guards bound these three as well as `search` itself, and a guard that is enforced but
+		// undocumented is the shape this transformer exists to remove. The floor is named only when it refuses
+		// something: at the default MinSearchLength of 1, "between 1 and 256" is a sentence that rules nothing
+		// out, and these descriptions land in a consumer's committed OpenAPI artefact — so every such repository
+		// would take a diff carrying no information. The ceiling always refuses something and is always stated.
+		string patternGuards = field.Type == typeof(string) && field.Operators.Any(IsLengthGuarded)
+			? "\n\n`$ilike`, `$sw` and `$contains` values are measured as sent — not trimmed — and "
+				+ (config.MinSearchLength > 1
+					? $"must be between {config.MinSearchLength} and {config.MaxSearchLength} characters"
+					: $"must not exceed {config.MaxSearchLength} characters")
+				+ "; outside that the request returns 400."
+			: string.Empty;
 
 		return new OpenApiParameter {
 			Name = $"{PaginateQueryParams.FilterPrefix}{field.Name}",
@@ -371,7 +419,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 			                Format: `{{PaginateQueryParams.FilterPrefix}}{{field.Name}}=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`
 
-			                At most {{config.MaxFilterValues}} comma-separated values in one criterion, and at most {{config.MaxFilterConditions}} filter criteria across the whole request; beyond either the request returns 400.
+			                At most {{config.MaxFilterValues}} comma-separated values in one criterion, and at most {{config.MaxFilterConditions}} filter criteria across the whole request; beyond either the request returns 400.{{patternGuards}}
 
 			                Available operations:
 

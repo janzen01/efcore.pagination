@@ -1,3 +1,6 @@
+using System.Collections;
+using System.Linq.Expressions;
+
 namespace Janzen.Pagination.Tests;
 
 /// <summary>Ordering: the wire format, the defaults, and the tie-breaker every configuration must declare.</summary>
@@ -159,5 +162,117 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 		Assert.Empty(page.Meta.SortBy);
 
 	}
+
+}
+
+/// <summary>
+///     The culture-pinned string comparer is for the <b>in-memory</b> leg, and the flag that used to select it
+///     reads "not Entity Framework Core" rather than "in memory". A synchronous provider backed by a database
+///     falls into the same branch, and the three-argument <c>OrderBy</c> is an overload essentially no relational
+///     LINQ provider translates — so the fix for an ordering inconsistency turned a working string sort into a
+///     <c>NotSupportedException</c> on a provider that never asked for a culture.
+/// </summary>
+public sealed class OrderingOverloadTests {
+
+	[Fact]
+	public void A_synchronous_custom_provider_keeps_the_plain_OrderBy_overload() {
+
+		var composed = new SynchronousQueryable<Product>(TestData.Products().AsQueryable())
+			.ApplyPagination(new PaginateQuery { SortBy = ["name:ASC"] }, ByName);
+
+		Assert.Equal(2, ArgumentCountOfOutermostOrder(composed.Query.Expression));
+
+	}
+
+	/// <summary>
+	///     The pattern operators stay two-way, deliberately, and this pins that rather than the other rule. An
+	///     unrecognised provider takes the in-memory shape — <c>string.IndexOf(value, StringComparison)</c> —
+	///     which it will refuse to translate. Narrowing here the way the ordering was narrowed would need a third
+	///     construct, and the only candidate is the two-argument <c>string.Contains</c>: translatable, but
+	///     <b>case-sensitive</b> where this is case-insensitive. That trades a loud failure for a silent change
+	///     of matching semantics, which is the worse of the two. The ordering had no such cost — narrowing
+	///     there returns a provider to exactly what it got before the comparer existed.
+	/// </summary>
+	[Fact]
+	public void A_pattern_operator_keeps_one_shape_for_every_provider_that_is_not_ef() {
+
+		var composed = new SynchronousQueryable<Product>(TestData.Products().AsQueryable())
+			.ApplyPaginateFilters(Query.Filter("name", "$contains:wid"), ByNameContains);
+
+		Assert.Contains("OrdinalIgnoreCase", composed.Query.Expression.ToString(), StringComparison.Ordinal);
+
+	}
+
+	private readonly static PaginateConfig<Product> ByNameContains = PaginateConfig<Product>.Create(b => b
+		.WithLimits(50, 50)
+		.WithTieBreaker(p => p.Id)
+		.Filterable("name", p => p.Name, PaginateFilterOperator.Contains));
+
+	[Fact]
+	public void The_in_memory_leg_still_gets_the_culture_pinned_comparer() {
+
+		// EnumerableQuery is what List<T>.AsQueryable() returns, and the only leg whose ordering has a culture
+		// to choose: Comparer<string>.Default reads CurrentCulture, so the page order would follow the host's —
+		// or, under request localization, the caller's Accept-Language.
+		var composed = TestData.Products().AsQueryable()
+			.ApplyPagination(new PaginateQuery { SortBy = ["name:ASC"] }, ByName);
+
+		Assert.Equal(3, ArgumentCountOfOutermostOrder(composed.Query.Expression));
+
+	}
+
+	private readonly static PaginateConfig<Product> ByName = PaginateConfig<Product>.Create(b => b
+		.WithLimits(50, 50)
+		.Sortable("name", p => p.Name)
+		.WithTieBreaker(p => p.Id));
+
+	/// <summary>The composed tree is ThenBy(OrderBy(...)), so the first ordering call found going down is the one.</summary>
+	private static int ArgumentCountOfOutermostOrder(Expression expression) {
+
+		for (var node = expression as MethodCallExpression; node is not null; node = node.Arguments[0] as MethodCallExpression) {
+			if (node.Method.Name is "OrderBy" or "OrderByDescending") return node.Arguments.Count;
+		}
+
+		throw new InvalidOperationException("no ordering call in the composed tree");
+
+	}
+
+}
+
+/// <summary>
+///     A queryable whose provider is neither Entity Framework Core's nor <see cref="EnumerableQuery{T}" /> — the
+///     shape of a synchronous LINQ provider over a database. Composition is what is under test, so execution just
+///     delegates to the wrapped in-memory queryable.
+/// </summary>
+internal sealed class SynchronousQueryable<T>(IQueryable<T> inner) : IOrderedQueryable<T>, IQueryProvider {
+
+	public Type ElementType => inner.ElementType;
+
+	public Expression Expression => inner.Expression;
+
+	public IQueryProvider Provider => this;
+
+	// Honours the expression's own element type rather than assuming T. The engine only calls the generic
+	// overload today, so returning SynchronousQueryable<T> unconditionally would pass — until the first test
+	// that composes a projection against this double, which would then fail with an InvalidCastException thrown
+	// from inside the double rather than from the code under test.
+	public IQueryable CreateQuery(Expression expression) {
+		var element = expression.Type.GetGenericArguments().SingleOrDefault() ?? typeof(T);
+		return (IQueryable)Activator.CreateInstance(
+			typeof(SynchronousQueryable<>).MakeGenericType(element),
+			inner.Provider.CreateQuery(expression))!;
+	}
+
+	public IQueryable<TElement> CreateQuery<TElement>(Expression expression) {
+		return new SynchronousQueryable<TElement>(inner.Provider.CreateQuery<TElement>(expression));
+	}
+
+	public object? Execute(Expression expression) { return inner.Provider.Execute(expression); }
+
+	public TResult Execute<TResult>(Expression expression) { return inner.Provider.Execute<TResult>(expression); }
+
+	public IEnumerator<T> GetEnumerator() { return inner.GetEnumerator(); }
+
+	IEnumerator IEnumerable.GetEnumerator() { return this.GetEnumerator(); }
 
 }

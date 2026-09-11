@@ -229,4 +229,40 @@ public sealed class QueryParserTests {
 
 	}
 
+	/// <summary>
+	///     The <b>engine's</b> paging guards outrank it too, which the binder alone cannot arrange: they run
+	///     inside <c>Compose</c>, and the call that surfaces a binder error used to sit in front of all of them.
+	///     Harmless while this channel could only hold a page or limit parse error — itself a paging error — and
+	///     not harmless the moment a duplicated filter key could travel in it.
+	/// </summary>
+	[Fact]
+	public async Task The_engine_s_paging_guards_outrank_a_duplicated_filter_too() {
+
+		var guarded = PaginateConfig<Product>.Create(b => b
+			.WithLimits(defaultLimit: 10, maxLimit: 50)
+			.WithMaxOffset(100)
+			.Sortable("id", p => p.Id)
+			.WithTieBreaker(p => p.Id)
+			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+
+		const string Duplicated = "&filter.status=$eq:Active&filter.%20status=$eq:Draft";
+
+		Assert.Equal(
+			"Query parameter 'page' exceeds the allowed offset for this resource: at most 100 rows may be skipped.",
+			await Assertions.RejectsAsync(() => TestData.Products().AsQueryable()
+				.PageAsync<ProductDto>(Parse($"?page=1000&limit=10{Duplicated}"), guarded)));
+
+		Assert.Equal(
+			"Query parameter 'limit' must be between 1 and 50.",
+			await Assertions.RejectsAsync(() => TestData.Products().AsQueryable()
+				.PageAsync<ProductDto>(Parse($"?limit=9999{Duplicated}"), guarded)));
+
+		// And the filter error is still reported once the paging ones are gone, rather than swallowed.
+		Assert.Equal(
+			"Filter for field 'status' is specified more than once.",
+			await Assertions.RejectsAsync(() => TestData.Products().AsQueryable()
+				.PageAsync<ProductDto>(Parse($"?page=1&limit=10{Duplicated}"), guarded)));
+
+	}
+
 }

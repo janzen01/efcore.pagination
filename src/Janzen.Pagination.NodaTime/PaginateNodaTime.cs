@@ -97,7 +97,7 @@ public static class PaginateNodaTime {
 		var offset = OffsetDateTimePattern.ExtendedIso.Parse(value);
 		if (offset.Success) return offset.Value.ToInstant();
 
-		throw new PaginateQueryException($"Value '{value}' is not a valid instant.") { Code = PaginateQueryError.ValueInvalid };
+		throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not a valid instant.") { Code = PaginateQueryError.ValueInvalid };
 
 	}
 
@@ -110,23 +110,30 @@ public static class PaginateNodaTime {
 	/// </summary>
 	private static object ParseDuration(string value) {
 
-		var roundtrip = DurationPattern.JsonRoundtrip.Parse(value);
+		// Trimmed for both spellings, the way the engine's TimeSpan branch does it. Reading the raw value here
+		// made padding decide the answer — " PT2H " was a 400 on a Duration field while the same value on a
+		// TimeSpan field paged — which is nothing the contract mentions.
+		string duration = value.Trim();
+
+		var roundtrip = DurationPattern.JsonRoundtrip.Parse(duration);
 		if (roundtrip.Success) return roundtrip.Value;
 
 		// The ISO leg is the engine's own: years and months are calendar-dependent and XmlConvert answers them
 		// with fixed approximations, so the same refusal applies to a Duration as to a TimeSpan. One
 		// implementation, and the clause below keeps this package's own 400 wording.
 		try {
-			return Duration.FromTimeSpan(PaginateValueConverter.ParseIsoDuration(value, "is not a valid duration"));
+			return Duration.FromTimeSpan(PaginateValueConverter.ParseIsoDuration(duration, "is not a valid duration"));
 		} catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException) {
-			throw new PaginateQueryException($"Value '{value}' is not a valid duration.", ex) { Code = PaginateQueryError.ValueInvalid };
+			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not a valid duration.", ex) { Code = PaginateQueryError.ValueInvalid };
 		}
 
 	}
 
 	private static object ParseNodaTime<T>(string value, IPattern<T> pattern, string displayName) {
 		var result = pattern.Parse(value);
-		return result.Success ? result.Value! : throw new PaginateQueryException($"Value '{value}' is not a valid {displayName}.") { Code = PaginateQueryError.ValueInvalid };
+		// Echo, like every other message the engine builds from caller text: this one is interpolated straight
+		// into a ProblemDetails `detail`, so an unbounded value or an embedded CR/LF reaches a log sink verbatim.
+		return result.Success ? result.Value! : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not a valid {displayName}.") { Code = PaginateQueryError.ValueInvalid };
 	}
 
 	/// <summary>

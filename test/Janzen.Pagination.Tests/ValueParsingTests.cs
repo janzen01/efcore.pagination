@@ -74,6 +74,19 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 
 	}
 
+	/// <summary>
+	///     Both spellings are trimmed, so padding is not the difference between a page and a 400. The colon leg
+	///     was handed the trimmed value and the ISO leg the raw one, which made <c>" 02:00:00 "</c> a page and
+	///     <c>" PT2H "</c> a rejection, for a reason nothing in the contract mentions.
+	/// </summary>
+	[Fact]
+	public async Task Padding_is_trimmed_on_both_duration_spellings() {
+
+		Assertions.HasIds(await this.Page(Query.Filter("warranty", "$eq: 02:00:00 ")), 2);
+		Assertions.HasIds(await this.Page(Query.Filter("warranty", "$eq: PT2H ")), 2);
+
+	}
+
 	[Fact]
 	public async Task A_time_span_refuses_a_bare_number() {
 

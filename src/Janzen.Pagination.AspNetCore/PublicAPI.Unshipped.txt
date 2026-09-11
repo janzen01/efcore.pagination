@@ -1,1 +1,2 @@
 #nullable enable
+static Microsoft.AspNetCore.Builder.PaginationRouteHandlerBuilderExtensions.WithPagination<TConfigProvider>(this Microsoft.AspNetCore.Routing.RouteGroupBuilder! builder) -> Microsoft.AspNetCore.Routing.RouteGroupBuilder!

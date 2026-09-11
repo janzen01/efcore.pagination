@@ -169,8 +169,9 @@ independent of each other — consumers pick the extensions they need:
   config never observes a later assignment. `AllowUnlimited` is deliberately **not** on it: an unbounded read is a
   claim about one resource's size. Its arrival is why `WithGuards`' four parameters became `int?` — with the old
   `int` defaults, naming one guard silently reset the other three to the constants, discarding shared values the
-  caller never mentioned. Source-compatible, binary-breaking, and the one entry in
-  `CompatibilitySuppressions.xml`.
+  caller never mentioned. Source-compatible, binary-breaking, and the only **signature** entry in
+  `CompatibilitySuppressions.xml` — the other **eleven** are `CP0014`s the attribute rule surfaced, nine in the
+  core file and two in the AspNetCore one, and every one of them is baseline-only against `10.0.3`.
   Both `Filterable` overloads have an **operator-less sibling** (`.Filterable(name, expr)`) whitelisting
   `PaginateFilterOperators.For<TValue>()` — the public derivation, and the single place a later release widens a
   row (which then widens every shorthand field on rebuild: release-note it). Ranges are deliberately withheld
@@ -300,6 +301,13 @@ independent of each other — consumers pick the extensions they need:
   in the shipped `.xml` once that property has a `<param>`, and once a record carries `<param>` tags, `CS1573`
   turns a later undocumented positional parameter into a build error. **Do not** re-declare a positional property
   in the record body to document it — that suppresses the copy and doubles the declaration.
+  **Re-declaring one to *validate* is the exception, and `PaginateLinkContext` is it.** A guard held in a field
+  initializer runs at construction and **not** on `with`: a record's synthesized copy constructor copies every
+  field verbatim, so the guard's own "already validated" field is carried across and the member the caller
+  actually changed is never looked at. An `init` accessor is the only place that runs on both paths, and having
+  one means declaring the property. Where that happens the prose moves **onto the property**, because the
+  `<param>` → summary copy is gone by construction; the `<param>` tags stay anyway, because `CS1573` still wants
+  them, and they shrink to a pointer rather than a second copy that can drift.
 - **Argument errors eager, request errors faulted.** The four `Paginate*Async` entry points are non-`async`
   `Task`-returning wrappers around one `async` body, which is the BCL's own split: a usage error (`source`,
   `request`, `config`, `selector`, `postMap`, `projector` being `null`) throws at the call, while everything

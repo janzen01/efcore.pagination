@@ -77,6 +77,39 @@ public sealed class PerConfigStrategyProvider : IPaginateConfigProvider<Product>
 }
 
 /// <summary>A resource with every guard that changes what the document says, all on non-default values.</summary>
+/// <summary>
+///     A string field granting a pattern operator under guards tight enough to bind it: the floor is above the
+///     sample value's length and the ceiling is below the padded one, so both halves of the example rule are
+///     exercised by the same config.
+/// </summary>
+/// <summary>A ceiling tighter than the sample value itself, which no padding path reaches.</summary>
+public sealed class TightCeilingConfigProvider : IPaginateConfigProvider<Product> {
+
+	public PaginateConfig<Product> GetConfig() {
+		return PaginateConfig<Product>.Create(b => b
+			.WithLimits(defaultLimit: 15, maxLimit: 60)
+			.WithTieBreaker(p => p.Id)
+			.WithGuards(maxSearchLength: 2)
+			.Sortable("rank", p => p.Rank)
+			.Filterable("name", p => p.Name, PaginateFilterOperator.ILike));
+	}
+
+}
+
+public sealed class PatternGuardedConfigProvider : IPaginateConfigProvider<Product> {
+
+	public PaginateConfig<Product> GetConfig() {
+		return PaginateConfig<Product>.Create(b => b
+			.WithLimits(defaultLimit: 15, maxLimit: 60)
+			.WithTieBreaker(p => p.Id)
+			.WithMinSearchLength(5)
+			.WithGuards(maxSearchLength: 6)
+			.Sortable("rank", p => p.Rank)
+			.Filterable("name", p => p.Name, PaginateFilterOperator.ILike));
+	}
+
+}
+
 public sealed class GuardedConfigProvider : IPaginateConfigProvider<Product> {
 
 	public PaginateConfig<Product> GetConfig() {
@@ -296,6 +329,8 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 		app.MapGet("/products", () => Results.Ok()).WithPagination<DocumentedConfigProvider>();
 		app.MapGet("/searchless", () => Results.Ok()).WithPagination<SearchlessConfigProvider>();
 		app.MapGet("/guarded", () => Results.Ok()).WithPagination<GuardedConfigProvider>();
+		app.MapGet("/pattern-guarded", () => Results.Ok()).WithPagination<PatternGuardedConfigProvider>();
+		app.MapGet("/tight-ceiling", () => Results.Ok()).WithPagination<TightCeilingConfigProvider>();
 		app.MapGet("/per-config-strategy", () => Results.Ok()).WithPagination<PerConfigStrategyProvider>();
 		app.MapGet("/every-type", () => Results.Ok()).WithPagination<EveryValueTypeConfigProvider>();
 		app.MapGet("/registered", () => Results.Ok()).WithPagination<RegisteredConfigProvider>();
@@ -339,6 +374,60 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		return this.Parameters(path).EnumerateArray()
 			.Single(p => p.GetProperty("name").GetString() == name)
 			.GetProperty("description").GetString()!;
+	}
+
+	/// <summary>
+	///     The search-length guards bound the three pattern operators as well as `search`, and the document has to
+	///     say so — and has to demonstrate a value the engine accepts. Both halves were unasserted: the existing
+	///     checks are substring matches that pass whether or not the sentence renders.
+	/// </summary>
+	[Fact]
+	public void A_pattern_operator_is_documented_within_the_guards_it_is_bound_by() {
+
+		string description = this.Description("/pattern-guarded", "filter.name");
+
+		Assert.Contains("must be between 5 and 6 characters", description, StringComparison.Ordinal);
+
+		// The sample is "text": four characters, below the floor of five. Padding repeats it, and the ceiling of
+		// six then truncates -- without that, the document advertises `$ilike:texttext`, which is a 400. The
+		// example lives on the item schema, not in the prose.
+		string sample = this.Parameters("/pattern-guarded").EnumerateArray()
+			.Single(parameter => parameter.GetProperty("name").GetString() == "filter.name")
+			.GetProperty("schema").GetProperty("items").GetProperty("examples")[0].GetString()!;
+
+		Assert.Equal("$ilike:textte", sample);
+
+	}
+
+	/// <summary>
+	///     A ceiling below the sample's own length truncates it even though no padding ran. Without that the
+	///     document advertises `$ilike:text` on a resource whose ceiling is two — a 400 the reader would have
+	///     to discover by sending it.
+	/// </summary>
+	[Fact]
+	public void A_ceiling_below_the_sample_truncates_it_without_any_padding() {
+
+		string sample = this.Parameters("/tight-ceiling").EnumerateArray()
+			.Single(parameter => parameter.GetProperty("name").GetString() == "filter.name")
+			.GetProperty("schema").GetProperty("items").GetProperty("examples")[0].GetString()!;
+
+		Assert.Equal("$ilike:te", sample);
+
+	}
+
+	/// <summary>
+	///     At the default floor of one the sentence names the ceiling only. "Between 1 and 256" rules nothing out,
+	///     and these descriptions land in a consumer's committed OpenAPI artefact, so a sentence carrying no
+	///     information is a diff every such repository takes for nothing.
+	/// </summary>
+	[Fact]
+	public void An_unbound_floor_is_not_advertised_as_a_guard() {
+
+		string description = this.Description("/per-config-strategy", "filter.name");
+
+		Assert.Contains("must not exceed", description, StringComparison.Ordinal);
+		Assert.DoesNotContain("must be between 1 and", description, StringComparison.Ordinal);
+
 	}
 
 	[Fact]

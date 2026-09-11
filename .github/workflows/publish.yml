@@ -88,6 +88,15 @@ jobs:
       id-token: write
       attestations: write
     steps:
+      # This job holds no checkout, so nothing here pins an SDK: without it the push below runs on whatever
+      # the runner image happens to ship. That is the one step in the repository that cannot be dry-run —
+      # `release: published` is the only trigger — so a missing SDK would surface with the tag already cut
+      # and a human already through the approval gate.
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
       - name: Download the packages
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
