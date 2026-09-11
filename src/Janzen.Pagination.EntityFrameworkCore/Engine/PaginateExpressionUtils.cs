@@ -31,8 +31,16 @@ internal static class PaginateExpressionUtils {
 	/// <summary>
 	///     Escapes LIKE/ILIKE wildcard characters so user input is matched literally (used together with
 	///     <c>ESCAPE '\'</c>). <c>[</c> is escaped unconditionally even though only SQL Server reads it as a range
-	///     opener: PostgreSQL and SQLite treat any escaped character as a literal, so one pattern stays portable.
+	///     opener: PostgreSQL, SQLite and SQL Server — the three engines this was verified against — treat any
+	///     escaped character as a literal, so one pattern serves all three.
 	/// </summary>
+	/// <remarks>
+	///     That is a guarantee about those three, not about every provider. One pattern stays portable wherever
+	///     the provider reads <c>escape + any character</c> as that character; a provider that instead requires
+	///     the escape to be followed by <c>%</c>, <c>_</c> or itself rejects an escaped <c>[</c> — Oracle raises
+	///     <c>ORA-01424</c> — and one that does not support an <c>ESCAPE</c> clause at all rejects every pattern
+	///     the shipped strategies build. Neither is reachable in process here, so neither is covered by tests.
+	/// </remarks>
 	public static string EscapeLikePattern(string value) {
 		return value
 			.Replace("\\", @"\\", StringComparison.Ordinal)

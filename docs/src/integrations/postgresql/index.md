@@ -79,22 +79,38 @@ You almost certainly do not need one. `UsePostgreSql()` is the reason this exten
 already covers the case it was built for; write your own only for a provider with a pattern-match function of
 its own, or a PostgreSQL setup where `ILIKE` is the wrong call — a `citext` column, or a custom collation.
 
+Derive from `PaginateLikeStrategyBase` and hand it the `EF.Functions` overload to call. That is the whole
+implementation both shipped strategies are, and it is what passes the `ESCAPE` argument for you:
+
 ```csharp
-internal sealed class CitextLikeStrategy : IPaginateLikeStrategy {
+internal sealed class CitextLikeStrategy() : PaginateLikeStrategyBase(ILikeMethod) {
+
+    private static readonly MethodInfo ILikeMethod =
+        ((MethodCallExpression)((Expression<Func<string, string, bool>>)
+            ((v, p) => EF.Functions.ILike(v, p, PaginateLikeDefaults.EscapeCharacter))).Body).Method;
 
     // Which operator best represents this strategy in generated docs; null = use the field's first operator.
-    public PaginateFilterOperator? PreferredExampleOperator => PaginateFilterOperator.ILike;
-
-    // `value` is the column expression, `pattern` the already-escaped and parameterised LIKE pattern.
-    public Expression BuildLike(Expression value, Expression pattern) => /* your EF.Functions call */;
+    public override PaginateFilterOperator? PreferredExampleOperator => PaginateFilterOperator.ILike;
 
 }
 
 builder.Services.AddPagination(p => p.UseLikeStrategy(new CitextLikeStrategy()));
 ```
 
-Call it once at startup, before serving requests. It sets a static, so the last call wins — do not switch it
-per request.
+::: danger Declare the escape character
+The pattern you are handed is **already escaped**, with `PaginateLikeDefaults.EscapeCharacter` — a single
+backslash. Whatever call you build has to declare that character as its explicit `ESCAPE` argument. Implement
+`IPaginateLikeStrategy` directly and omit it, and the escape characters stay in the pattern as literal text the
+data would have to contain: every search for a value containing `%`, `_`, `[` or `\` silently stops matching.
+The match set only narrows, never widens — nothing can be smuggled through — but it narrows on every provider
+with no default escape character, SQLite and SQL Server among them. PostgreSQL and MySQL take `\` as their
+default escape and keep working by accident, which is what makes this easy to ship and not notice. Deriving from
+`PaginateLikeStrategyBase` is the way not to get it wrong.
+:::
+
+Call it once at startup, before serving requests. `UseLikeStrategy` sets a static, so the last call wins — do
+not switch it per request. To give one resource its own strategy instead, use
+[`WithLikeStrategy`](/reference/configuration/#withlikestrategy) on its configuration.
 
 ### The static behind it
 
@@ -106,17 +122,37 @@ test host with no service collection:
 PaginateLikeDefaults.Strategy = new CitextLikeStrategy();
 ```
 
-It defaults to the portable `LIKE` strategy, so nothing has to be registered for the engine to work. Because
-it is mutable and shared, a test that swaps it changes behaviour for everything running alongside it — see
-[Testing your pagination](/recipes/testing/#watch-the-process-wide-statics).
+It defaults to `PaginateLikeDefaults.Portable`, the library's own portable `LIKE` strategy, so nothing has to
+be registered for the engine to work. That property is also how you put the process **back**:
 
-## One process, one strategy
+```csharp
+PaginateLikeDefaults.Strategy = PaginateLikeDefaults.Portable;   // undo a UsePostgreSql() for this process
+```
 
-Because the strategy is process-wide, an application that talks to **PostgreSQL and something else** in the
-same process cannot have both. Registering `UsePostgreSql()` makes every pattern match emit `ILIKE`, including
-the ones aimed at the other provider, which will reject the keyword at execution time rather than at startup.
+Because the setter is mutable and shared, a test that swaps it changes behaviour for everything running
+alongside it — see [Testing your pagination](/recipes/testing/#watch-the-process-wide-statics). Assigning
+`null` throws rather than leaving the engine with nothing to call.
 
-If that is your shape, leave the default portable strategy in place and get case-insensitivity from the
+## One process, two providers
+
+`UsePostgreSql()` is process-wide, so on its own it makes **every** pattern match emit `ILIKE` — including the
+ones aimed at another provider, which rejects the keyword at execution time rather than at startup. The
+strategy itself cannot tell the two apart: `BuildLike(value, pattern)` is handed no provider and no context.
+
+The configuration decides instead. `WithLikeStrategy(...)` overrides the process-wide default for one
+resource, and is resolved per query:
+
+```csharp
+// PostgreSQL stays on native ILIKE via the registration above; this resource is backed by SQL Server.
+var invoices = PaginateConfig<Invoice>.Create(b => b
+    .WithLimits(25, 100)
+    .WithTieBreaker(i => i.Id)
+    .WithLikeStrategy(PaginateLikeDefaults.Portable)
+    .Filterable("reference", i => i.Reference));
+```
+
+See [`WithLikeStrategy`](/reference/configuration/#withlikestrategy) for the full rules. The other route is
+still open: leave the default portable strategy in place everywhere and get case-insensitivity from the
 column collation instead.
 
 ## Testing it

@@ -1,4 +1,5 @@
 using Janzen.Pagination.EntityFrameworkCore.Engine;
+using Janzen.Pagination.EntityFrameworkCore.Like;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using System.Collections.Frozen;
@@ -118,6 +119,15 @@ public interface IPaginateConfig {
 	///     <see cref="PaginateConfigBuilder{TEntity}.IgnoreSearchByInQueryParam" />.
 	/// </summary>
 	bool IgnoreSearchByInQueryParam { get; }
+
+	/// <summary>
+	///     The pattern-match strategy this configuration uses, or <see langword="null" /> — the default — to follow
+	///     <see cref="PaginateLikeDefaults.Strategy" />. Set by
+	///     <see cref="PaginateConfigBuilder{TEntity}.WithLikeStrategy" />, which is what lets one process serve two
+	///     database providers.
+	/// </summary>
+	/// <remarks>A default interface member so an existing external implementation of this interface keeps compiling.</remarks>
+	IPaginateLikeStrategy? LikeStrategy => null;
 
 }
 
@@ -256,7 +266,8 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 		FrozenDictionary<string, PaginateFilterField> filterableFields,
 		bool ignoreSearchByInQueryParam,
 		LambdaExpression? tieBreakerSelector,
-		PaginateSortDirection tieBreakerDirection
+		PaginateSortDirection tieBreakerDirection,
+		IPaginateLikeStrategy? likeStrategy
 	) {
 
 		DefaultLimit = limits.DefaultLimit;
@@ -276,6 +287,7 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 		IgnoreSearchByInQueryParam = ignoreSearchByInQueryParam;
 		TieBreakerSelector = tieBreakerSelector;
 		TieBreakerDirection = tieBreakerDirection;
+		LikeStrategy = likeStrategy;
 
 		SortableFields = sortableFields.Values
 			.Select(field => new PaginateFieldMetadata(field.Name, field.Type, field.Badge))
@@ -339,6 +351,9 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 
 	/// <inheritdoc />
 	public bool IgnoreSearchByInQueryParam { get; }
+
+	/// <inheritdoc />
+	public IPaginateLikeStrategy? LikeStrategy { get; }
 
 	/// <summary>Optional unique key appended as the final ordering so offset paging is deterministic.</summary>
 	internal LambdaExpression? TieBreakerSelector { get; }
@@ -426,6 +441,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	private int? _unlimitedMaxRows;
 	private LambdaExpression? _tieBreakerSelector;
 	private PaginateSortDirection _tieBreakerDirection = PaginateSortDirection.Asc;
+	private IPaginateLikeStrategy? _likeStrategy;
 	private IPaginateFieldTarget? _lastField;
 
 	/// <summary>Sets the default and maximum page size. Required — <c>Build()</c> throws if limits are not configured.</summary>
@@ -552,6 +568,25 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	/// <summary>When enabled, the <c>searchBy</c> query parameter is ignored and search always spans all searchable fields.</summary>
 	public PaginateConfigBuilder<TEntity> IgnoreSearchByInQueryParam(bool ignore = true) {
 		_ignoreSearchByInQueryParam = ignore;
+		return this;
+	}
+
+	/// <summary>
+	///     Gives this configuration its own pattern-match strategy, overriding
+	///     <see cref="PaginateLikeDefaults.Strategy" /> for every <c>search</c> and pattern filter built from it.
+	///     Unset by default, in which case the process-wide strategy applies as before.
+	/// </summary>
+	/// <remarks>
+	///     What it is for: <c>UseLikeStrategy(...)</c> and <c>UsePostgreSql()</c> assign a process-wide static, so a
+	///     host holding two <c>DbContext</c>s on different providers cannot have both — and
+	///     <see cref="IPaginateLikeStrategy.BuildLike" /> is handed no provider to dispatch on, so a strategy cannot
+	///     decide for itself either. Naming the strategy on the configuration that targets a given provider is the
+	///     way out; it is resolved per query, so nothing else has to know which one is registered.
+	/// </remarks>
+	public PaginateConfigBuilder<TEntity> WithLikeStrategy(IPaginateLikeStrategy strategy) {
+		ArgumentNullException.ThrowIfNull(strategy);
+
+		_likeStrategy = strategy;
 		return this;
 	}
 
@@ -772,7 +807,8 @@ public sealed class PaginateConfigBuilder<TEntity> {
 			_filterableFields.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
 			_ignoreSearchByInQueryParam,
 			_tieBreakerSelector,
-			_tieBreakerDirection
+			_tieBreakerDirection,
+			_likeStrategy
 		);
 
 	}
