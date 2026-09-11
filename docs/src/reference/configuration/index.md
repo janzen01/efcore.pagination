@@ -497,6 +497,42 @@ than one per request. See [Recipes → role-based configurations](/recipes/#role
 
 ---
 
+## Pattern matching
+
+### `WithLikeStrategy`
+
+```csharp
+.WithLikeStrategy(PaginateLikeDefaults.Portable)
+```
+
+Gives this configuration its own `IPaginateLikeStrategy`, used for every `search` and every `$ilike` / `$sw` /
+`$contains` filter built from it. Unset by default, in which case the process-wide
+`PaginateLikeDefaults.Strategy` applies — so nothing changes for a configuration that does not call this.
+
+It exists because `UseLikeStrategy(...)` and `UsePostgreSql()` assign a **process-wide static**. A host holding
+two `DbContext`s on different providers cannot have both, and a strategy cannot decide for itself either:
+`BuildLike(value, pattern)` is handed no provider and no context to dispatch on. Naming the strategy on the
+configuration that targets a given provider is the way out, and it is resolved per query, so the composed SQL
+for a configuration that sets none is unchanged.
+
+```csharp
+// The PostgreSQL-backed resource follows the process-wide ILIKE; the SQL Server one keeps portable LIKE.
+var invoices = PaginateConfig<Invoice>.Create(b => b
+    .WithLimits(25, 100)
+    .WithTieBreaker(i => i.Id)
+    .WithLikeStrategy(PaginateLikeDefaults.Portable)
+    .Filterable("reference", i => i.Reference));
+```
+
+The same strategy also decides the `$op:` example the OpenAPI transformer publishes for that resource's filter
+parameters, so the document follows the configuration rather than the static.
+
+**Rejects at configuration time:** a null `strategy` → `ArgumentNullException`.
+
+See [PostgreSQL → A strategy of your own](/integrations/postgresql/#a-strategy-of-your-own) for writing one.
+
+---
+
 ## Providers
 
 `IPaginateConfigProvider<TEntity>` is how the ASP.NET Core integration finds a config to document. You

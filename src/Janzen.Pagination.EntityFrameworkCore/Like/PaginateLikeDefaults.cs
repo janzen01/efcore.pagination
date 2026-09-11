@@ -8,7 +8,33 @@ namespace Janzen.Pagination.EntityFrameworkCore.Like;
 /// <remarks>Intended to be assigned once during startup (before requests) and read concurrently thereafter.</remarks>
 public static class PaginateLikeDefaults {
 
-	/// <summary>The strategy the engine uses to build case-insensitive pattern matches. Never <see langword="null" />.</summary>
-	public static IPaginateLikeStrategy Strategy { get; set; } = new PortableLikeStrategy();
+	/// <summary>
+	///     The character the engine escapes <c>\</c>, <c>%</c>, <c>_</c> and <c>[</c> with before handing a pattern
+	///     to a strategy. A strategy must declare it as the explicit <c>ESCAPE</c> argument of the call it builds,
+	///     or the escaping is read as literal text — see <see cref="IPaginateLikeStrategy.BuildLike" />.
+	/// </summary>
+	public static string EscapeCharacter { get; } = "\\";
+
+	/// <summary>
+	///     The library's own portable <c>LIKE</c> strategy — what <see cref="Strategy" /> holds until something
+	///     replaces it. Published so a composition root that called <c>UsePostgreSql()</c> can put a single
+	///     resource, a test host or the whole process back on portable <c>LIKE</c>; the type itself stays internal,
+	///     so this instance is the one way to name it.
+	/// </summary>
+	public static IPaginateLikeStrategy Portable { get; } = new PortableLikeStrategy();
+
+	/// <summary>
+	///     The strategy the engine uses to build case-insensitive pattern matches. Never <see langword="null" />:
+	///     assigning <see langword="null" /> throws, because the engine dereferences this while composing a query
+	///     and would otherwise fail on the next request rather than at the assignment. Assign
+	///     <see cref="Portable" /> to go back to the library's own default.
+	/// </summary>
+	public static IPaginateLikeStrategy Strategy {
+		get;
+		set {
+			ArgumentNullException.ThrowIfNull(value);
+			field = value;
+		}
+	} = Portable;
 
 }

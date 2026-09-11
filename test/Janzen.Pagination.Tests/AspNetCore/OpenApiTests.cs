@@ -1,5 +1,6 @@
 using Janzen.Pagination.AspNetCore.OpenApi;
 using Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
+using Janzen.Pagination.EntityFrameworkCore.Like;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using System.Linq.Expressions;
 using System.Text.Json;
 
 namespace Janzen.Pagination.Tests.AspNetCore;
@@ -37,6 +39,30 @@ public sealed class SearchlessConfigProvider : IPaginateConfigProvider<Product> 
 			.WithLimits(defaultLimit: 15, maxLimit: 60)
 			.WithTieBreaker(p => p.Id)
 			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+	}
+
+}
+
+/// <summary>
+///     A resource whose configuration carries its own <see cref="IPaginateLikeStrategy" />, so the document has to
+///     be built from that one rather than from the process-wide default this host never sets.
+/// </summary>
+public sealed class PerConfigStrategyProvider : IPaginateConfigProvider<Product> {
+
+	private sealed class ILikePreferringStrategy : IPaginateLikeStrategy {
+
+		public PaginateFilterOperator? PreferredExampleOperator => PaginateFilterOperator.ILike;
+
+		public Expression BuildLike(Expression value, Expression pattern) { return Expression.Constant(true); }
+
+	}
+
+	public PaginateConfig<Product> GetConfig() {
+		return PaginateConfig<Product>.Create(b => b
+			.WithLimits(defaultLimit: 15, maxLimit: 60)
+			.WithTieBreaker(p => p.Id)
+			.WithLikeStrategy(new ILikePreferringStrategy())
+			.Filterable("name", p => p.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.ILike));
 	}
 
 }
@@ -79,6 +105,7 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 		app.MapGet("/products", () => Results.Ok()).WithPagination<DocumentedConfigProvider>();
 		app.MapGet("/searchless", () => Results.Ok()).WithPagination<SearchlessConfigProvider>();
 		app.MapGet("/guarded", () => Results.Ok()).WithPagination<GuardedConfigProvider>();
+		app.MapGet("/per-config-strategy", () => Results.Ok()).WithPagination<PerConfigStrategyProvider>();
 		app.MapGet("/plain", () => Results.Ok());
 
 		await app.StartAsync();
@@ -171,6 +198,21 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 		// The operator comes from the field's own allow-list, so it is one a caller may actually send.
 		Assert.StartsWith("$eq:", example);
+
+	}
+
+	[Fact]
+	public void A_configurations_own_like_strategy_decides_its_filter_examples() {
+
+		// The process-wide default is never touched by this host, so before the config could carry a strategy the
+		// example fell back to the field's first operator -- documenting $eq for a resource that serves ILIKE.
+		var parameter = this.Parameters("/per-config-strategy").EnumerateArray()
+			.Single(p => p.GetProperty("name").GetString() == "filter.name");
+
+		string example = parameter.GetProperty("schema").GetProperty("items")
+			.GetProperty("examples").EnumerateArray().First().GetString()!;
+
+		Assert.StartsWith("$ilike:", example);
 
 	}
 

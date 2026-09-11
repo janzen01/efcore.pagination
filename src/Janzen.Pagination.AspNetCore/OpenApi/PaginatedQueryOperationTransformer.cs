@@ -69,8 +69,12 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			}
 		}
 
+		// Read once rather than per field: it is loop-invariant, and a configuration carrying its own strategy must
+		// be documented with that one rather than with whatever the process-wide static happens to hold.
+		var likeStrategy = config.LikeStrategy ?? PaginateLikeDefaults.Strategy;
+
 		foreach (var field in config.FilterableFields.OrderBy(field => field.Name, StringComparer.Ordinal)) {
-			operation.Parameters.Add(CreateFilterParameter(field, PaginateLikeDefaults.Strategy));
+			operation.Parameters.Add(CreateFilterParameter(field, likeStrategy));
 		}
 
 		AddValidationErrorResponse(operation);

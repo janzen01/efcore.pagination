@@ -46,3 +46,12 @@ const Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery.UnlimitedLimit =
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>!
 *REMOVED*Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.WithGuards(int maxFilterValues = 100, int maxFilterConditions = 20, int maxSortFields = 5, int maxSearchLength = 256) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
 *REMOVED*Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery<TEntity>.SortBy.get -> System.Collections.Generic.IReadOnlyList<string!>?
+Janzen.Pagination.EntityFrameworkCore.Configuration.IPaginateConfig.LikeStrategy.get -> Janzen.Pagination.EntityFrameworkCore.Like.IPaginateLikeStrategy?
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfig<TEntity>.LikeStrategy.get -> Janzen.Pagination.EntityFrameworkCore.Like.IPaginateLikeStrategy?
+Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>.WithLikeStrategy(Janzen.Pagination.EntityFrameworkCore.Like.IPaginateLikeStrategy! strategy) -> Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder<TEntity>!
+Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeStrategyBase
+Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeStrategyBase.BuildLike(System.Linq.Expressions.Expression! value, System.Linq.Expressions.Expression! pattern) -> System.Linq.Expressions.Expression!
+Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeStrategyBase.PaginateLikeStrategyBase(System.Reflection.MethodInfo! likeMethod) -> void
+abstract Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeStrategyBase.PreferredExampleOperator.get -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator?
+static Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeDefaults.EscapeCharacter.get -> string!
+static Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeDefaults.Portable.get -> Janzen.Pagination.EntityFrameworkCore.Like.IPaginateLikeStrategy!
