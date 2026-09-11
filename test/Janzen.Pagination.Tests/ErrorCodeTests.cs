@@ -71,6 +71,8 @@ public sealed class ErrorCodeTests {
 		Assert.Equal(PaginateQueryError.FilterFieldNotConfigured, (await Rejects(Query.Filter("nope", "$eq:1"))).Code);
 		Assert.Equal(PaginateQueryError.FilterCriterionMalformed, (await Rejects(Query.Filter("rank", "$eq"))).Code);
 		Assert.Equal(PaginateQueryError.FilterCriterionMalformed, (await Rejects(Query.Filter("rank", "$null:false"))).Code);
+		Assert.Equal(PaginateQueryError.FilterCriterionMalformed, (await Rejects(Query.Filter("rank", "$null:"))).Code);
+		Assert.Equal(PaginateQueryError.FilterConnectorMisplaced, (await Rejects(Query.Filter("rank", "$or:$eq:1"))).Code);
 		Assert.Equal(PaginateQueryError.FilterOperatorUnknown, (await Rejects(Query.Filter("rank", "$nope:1"))).Code);
 		Assert.Equal(PaginateQueryError.FilterOperatorNotAllowed, (await Rejects(Query.Filter("rank", "$ilike:x"))).Code);
 		Assert.Equal(PaginateQueryError.FilterValueCountInvalid, (await Rejects(Query.Filter("id", "$btw:1"))).Code);

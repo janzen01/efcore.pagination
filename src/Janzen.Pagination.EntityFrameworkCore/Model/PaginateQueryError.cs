@@ -41,6 +41,9 @@ public enum PaginateQueryError {
 	/// <summary>A filter criterion is not in the <c>$operator:value</c> form — empty, unterminated, or carrying a value where none is taken.</summary>
 	FilterCriterionMalformed,
 
+	/// <summary>A filter criterion begins with <c>$and</c> or <c>$or</c>, which has no criterion before it to join to.</summary>
+	FilterConnectorMisplaced,
+
 	/// <summary>A filter criterion names an operator token the grammar has no member for.</summary>
 	FilterOperatorUnknown,
 

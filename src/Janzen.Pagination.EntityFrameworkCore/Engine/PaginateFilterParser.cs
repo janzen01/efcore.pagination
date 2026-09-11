@@ -11,11 +11,14 @@ internal enum PaginateFilterConnector {
 
 }
 
+// Connector is null when the criterion carried no $and / $or token. The distinction is the whole point: a
+// connector says how this criterion joins the one before it, so on a field's first criterion there is nothing
+// for it to join to and the engine rejects it rather than reading and discarding it.
 internal sealed record PaginateFilterCriterion(
 	PaginateFilterOperator Operator,
 	string Value,
 	bool Not,
-	PaginateFilterConnector Connector
+	PaginateFilterConnector? Connector
 );
 
 internal static class PaginateFilterParser {
@@ -50,7 +53,7 @@ internal static class PaginateFilterParser {
 
 		string remaining = raw;
 		bool not = false;
-		var connector = PaginateFilterConnector.And;
+		PaginateFilterConnector? connector = null;
 
 		while (TryReadToken(remaining, out string token, out string afterToken)) {
 
@@ -77,8 +80,10 @@ internal static class PaginateFilterParser {
 			}
 
 			// $null is documented as valueless and PaginateFilterField drops whatever follows it, so `$null:false`
-			// used to behave as a bare `$null` — the opposite of what the caller wrote.
-			if (filterOperator == PaginateFilterOperator.Null && afterToken.Length > 0) {
+			// used to behave as a bare `$null` — the opposite of what the caller wrote. Reaching here at all means
+			// a colon followed the token, so a bare `$null:` is refused on the same condition: tolerating it while
+			// refusing `$null:false` was an inconsistency the library invented for itself.
+			if (filterOperator == PaginateFilterOperator.Null) {
 				throw new PaginateQueryException($"Filter '{field}' does not take a value for '$null'.") { Code = PaginateQueryError.FilterCriterionMalformed };
 			}
 
@@ -95,6 +100,8 @@ internal static class PaginateFilterParser {
 		throw new PaginateQueryException($"Filter '{field}' must use the format '$operator:value'.") { Code = PaginateQueryError.FilterCriterionMalformed };
 
 	}
+
+	public static string GetConnectorToken(PaginateFilterConnector connector) { return connector == PaginateFilterConnector.Or ? "$or" : "$and"; }
 
 	public static string GetOperatorToken(PaginateFilterOperator filterOperator) {
 		return OperatorTokens.TryGetValue(filterOperator, out string? token)

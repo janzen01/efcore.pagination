@@ -54,8 +54,10 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 	[Theory]
 	[InlineData("$null:false")]
 	[InlineData("$null:true")]
+	[InlineData("$null:")]
 	public async Task Null_is_also_the_one_operator_that_refuses_a_value(string criterion) {
 		// The value used to be parsed and then dropped, so `$null:false` selected the rows it says it excludes.
+		// The bare trailing colon was tolerated beside it, which is the same mistake read one character earlier.
 		Assert.Equal("Filter 'discontinuedAt' does not take a value for '$null'.", await this.Rejects(Query.Filter("discontinuedAt", criterion)));
 	}
 
@@ -105,6 +107,45 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 	[Fact]
 	public async Task Different_fields_are_always_joined_with_and() {
 		Assertions.HasIds(await this.Page(Query.Filters(("status", "$eq:Active"), ("rank", "$gt:50"))), 7, 8);
+	}
+
+	[Theory]
+	[InlineData("$or")]
+	[InlineData("$and")]
+	public async Task A_connector_on_the_first_criterion_is_rejected(string connector) {
+
+		// A connector says how a criterion joins the one before it, so on the first one it has nothing to join
+		// to. It used to be read and then discarded.
+		Assert.Equal($"Filter 'status' must not begin with '{connector}'; a connector joins a criterion to the one before it.",
+			await this.Rejects(Query.Filter("status", $"{connector}:$eq:Draft")));
+
+	}
+
+	[Fact]
+	public async Task A_uniformly_or_prefixed_filter_no_longer_ands_silently() {
+
+		// The shape a client that always prefixes $or: sends. Every field's leading connector was discarded and
+		// fields are always joined with AND, so two criteria a caller meant as alternatives answered an empty
+		// page -- a wrong result set, with nothing in the response to say why.
+		Assert.Equal("Filter 'status' must not begin with '$or'; a connector joins a criterion to the one before it.",
+			await this.Rejects(Query.Filters(("status", "$or:$eq:Draft"), ("name", "$or:$eq:Widget"))));
+
+	}
+
+	[Fact]
+	public async Task A_connector_is_rejected_on_every_field_it_leads() {
+
+		// Cross-field too: each field's criteria are read from their own first criterion, and the second field's
+		// leading connector was discarded just as silently.
+		Assert.Equal("Filter 'rank' must not begin with '$or'; a connector joins a criterion to the one before it.",
+			await this.Rejects(Query.Filters(("status", "$eq:Active"), ("rank", "$or:$gt:50"))));
+
+	}
+
+	[Fact]
+	public async Task A_connector_still_reads_after_a_negation_on_a_later_criterion() {
+		// Guard for the rejection above: it must fire on position, not on the modifier appearing at all.
+		Assertions.HasIds(await this.Page(Query.Filter("status", "$eq:Draft", "$not:$or:$eq:Active")), 3, 5, 6);
 	}
 
 	[Fact]

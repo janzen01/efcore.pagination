@@ -76,7 +76,7 @@ public sealed class NestedPathTests(SqliteFixture fixture) : IClassFixture<Sqlit
 		// on: a relational provider LEFT JOINs and reports the joined column as NULL, so `category.name IS NULL`
 		// is true for a product with no category. Asserting it on the database leg is what makes "the in-memory
 		// leg now agrees" a measurement rather than a belief.
-		await this.BothLegs(Query.Filter("category.name", "$null:"), 5);
+		await this.BothLegs(Query.Filter("category.name", "$null"), 5);
 
 	}
 
@@ -141,7 +141,7 @@ public sealed class NestedPathTests(SqliteFixture fixture) : IClassFixture<Sqlit
 		// The lift to int? exists so the expression has somewhere to put "absent", not so $null changes meaning.
 		// A relational provider decides this from the declared type and matches no row; reading the lifted type
 		// here would have matched product 5 in memory and nothing at all against a database.
-		await this.BothLegs(Query.Filter("category.id", "$null:"));
+		await this.BothLegs(Query.Filter("category.id", "$null"));
 
 	}
 

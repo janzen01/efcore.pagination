@@ -255,9 +255,10 @@ granted for that field is a `400`.
 ?filter.status=$eq:Active&filter.status=$or:$eq:Draft
 ```
 
-Criteria on different fields are always ANDed; there is no cross-field `OR` or grouping. Enums are addressed
-**by name** (`Active`), numbers and dates use the invariant culture, and values are emitted as SQL parameters
-rather than inlined literals.
+Criteria on different fields are always ANDed; there is no cross-field `OR` or grouping. `$and` / `$or` say how a
+criterion joins the **one before it**, so a field's first criterion cannot carry one — `filter.status=$or:$eq:Draft`
+is a `400`. Enums are addressed **by name** (`Active`), numbers and dates use the invariant culture, and values are
+emitted as SQL parameters rather than inlined literals.
 
 Any type implementing **`IParsable<TSelf>`** is filterable with no registration at all, so a strongly-typed id
 of your own works as a filter value as it stands. Register a parser only to accept a different format from the

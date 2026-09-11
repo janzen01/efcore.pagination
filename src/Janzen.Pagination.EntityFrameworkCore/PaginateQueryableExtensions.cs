@@ -73,6 +73,15 @@ public static class PaginateQueryableExtensions {
 				}
 
 				var criterion = PaginateFilterParser.Parse(fieldName, rawValue);
+
+				// A connector says how this criterion joins the one before it, so on the first one it has nothing
+				// to join to. It used to be read and discarded, which is silent for a single field -- and wrong
+				// across fields, which are always ANDed: a caller prefixing every criterion with $or: meant them
+				// as alternatives and got an empty page instead.
+				if (fieldExpression is null && criterion.Connector is { } leading) {
+					throw new PaginateQueryException($"Filter '{fieldName}' must not begin with '{PaginateFilterParser.GetConnectorToken(leading)}'; a connector joins a criterion to the one before it.") { Code = PaginateQueryError.FilterConnectorMisplaced };
+				}
+
 				var criterionExpression = field.BuildExpression(entity, criterion, context, config.MaxFilterValues);
 
 				fieldExpression = fieldExpression is null
