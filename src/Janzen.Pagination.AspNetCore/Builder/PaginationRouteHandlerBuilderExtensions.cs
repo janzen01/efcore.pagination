@@ -1,8 +1,11 @@
 using Janzen.Pagination.AspNetCore.Filters;
 using Janzen.Pagination.AspNetCore.OpenApi;
+using Janzen.Pagination.EntityFrameworkCore;
 using Janzen.Pagination.EntityFrameworkCore.Configuration;
 
 using Microsoft.AspNetCore.Http;
+
+using System.Diagnostics.CodeAnalysis;
 
 // Declared in Microsoft.AspNetCore.Builder so `.WithPagination<T>()` is discoverable next to MapGet/MapPost
 // without an extra using directive.
@@ -19,7 +22,14 @@ public static class PaginationRouteHandlerBuilderExtensions {
 	///     operation transformer documents the pagination query parameters and the 400 response, and adds the
 	///     <see cref="PaginateExceptionEndpointFilter" /> so invalid input becomes a 400 Problem Details.
 	/// </summary>
-	public static RouteHandlerBuilder WithPagination<TConfigProvider>(this RouteHandlerBuilder builder)
+	// The pair the query entry points carry, for the same reason one level out: the marked endpoint's OpenAPI
+	// document is generated from a config the transformer builds reflectively. Without it, silence here read as
+	// "analysed and safe" beside the ten members that do warn.
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	public static RouteHandlerBuilder WithPagination<
+		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TConfigProvider>(
+		this RouteHandlerBuilder builder)
 		where TConfigProvider : IPaginateConfigProvider {
 		ArgumentNullException.ThrowIfNull(builder);
 
