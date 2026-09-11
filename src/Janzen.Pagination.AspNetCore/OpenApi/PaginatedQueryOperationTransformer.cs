@@ -35,6 +35,12 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		PaginateQueryParams.Search, PaginateQueryParams.SearchBy
 	}.ToFrozenSet(StringComparer.Ordinal);
 
+	// The site's grammar reference calls these modifiers rather than operators, and they are available on every
+	// field regardless of its operator set -- so they are a list of their own rather than three entries appended
+	// to the field's, where the emitted document offered no way to learn where they go. '\n', not
+	// Environment.NewLine: this text lands in a consumer's committed OpenAPI artefact.
+	private readonly static string Modifiers = string.Join('\n', new[] { "$not", "$and", "$or" }.Select(token => $"- `{token}`"));
+
 	/// <summary>
 	///     Rewrites one operation: a no-op unless the endpoint carries <see cref="PaginatedQueryAttribute" />, otherwise
 	///     it drops the generated <see cref="PaginateQuery" /> parameters and adds documented <c>page</c>, <c>limit</c>,
@@ -318,13 +324,17 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 			                Value type: `{{value.Name}}`
 
-			                Format: `{{PaginateQueryParams.FilterPrefix}}{{field.Name}}={$not:}OPERATION:VALUE`
+			                Format: `{{PaginateQueryParams.FilterPrefix}}{{field.Name}}=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`
 
 			                At most {{config.MaxFilterValues}} comma-separated values in one criterion, and at most {{config.MaxFilterConditions}} filter criteria across the whole request; beyond either the request returns 400.
 
 			                Available operations:
 
 			                {{operators}}
+
+			                Modifiers, available on every field:
+
+			                {{Modifiers}}
 			                """,
 			Required = false,
 			Style = ParameterStyle.Form,
@@ -373,10 +383,6 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		foreach (var filterOperator in field.Operators.Order()) {
 			yield return PaginateFilterParser.GetOperatorToken(filterOperator);
 		}
-
-		yield return "$not";
-		yield return "$and";
-		yield return "$or";
 
 	}
 

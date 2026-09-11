@@ -107,19 +107,28 @@ filterable decimal and `status` as an enum:
 >
 > Value type: `Draft | Active | Discontinued`
 >
-> Format: `filter.status={$not:}OPERATION:VALUE`
+> Format: `filter.status=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`
+>
+> At most 100 comma-separated values in one criterion, and at most 20 filter criteria across the whole
+> request; beyond either the request returns 400.
 >
 > Available operations:
 >
 > - `$eq`
 > - `$in`
+>
+> Modifiers, available on every field:
+>
 > - `$not`
 > - `$and`
 > - `$or`
 
 An enum field documents its members as the value type, which is how a caller learns that enums are matched
-**by name**. `$not`, `$and` and `$or` are appended to every filter field, because they are modifiers rather
-than operators and are always available.
+**by name**. The grammar line is the one the
+[query-string reference](/reference/query-string/#grammar) publishes, down to the brackets: everything in it
+is optional except the operator, which is why `$null` — an operator that takes no value — is a legal
+criterion on its own. `$not`, `$and` and `$or` are listed separately because they are modifiers rather than
+operators, and are available on every field whatever its operator set.
 
 ## Types and examples
 

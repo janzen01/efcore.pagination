@@ -348,6 +348,25 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	}
 
 	[Fact]
+	public void The_filter_description_states_the_grammar_the_reference_publishes() {
+
+		// The emitted line read "{$not:}OPERATION:VALUE": braces conventionally mark a *required* placeholder, the
+		// two connectives were advertised under "Available operations" with no position in the grammar at all, and
+		// a value was made mandatory although $null takes none and $in takes a list.
+		string description = this.Description("filter.status");
+
+		Assert.Contains("Format: `filter.status=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`", description, StringComparison.Ordinal);
+		Assert.DoesNotContain("{$not:}", description, StringComparison.Ordinal);
+
+		// The site calls them modifiers rather than operators, and says so in the one place it defines the grammar.
+		Assert.Contains("Modifiers", description, StringComparison.Ordinal);
+		Assert.True(
+			description.IndexOf("Available operations", StringComparison.Ordinal) < description.IndexOf("Modifiers", StringComparison.Ordinal),
+			"the field's own operators come before the always-available modifiers");
+
+	}
+
+	[Fact]
 	public void A_badge_renders_as_a_code_chip_carrying_its_class() {
 		Assert.Contains("<code class=\"language-admin\">Admin only</code>", this.Description("filter.isFeatured"));
 	}
