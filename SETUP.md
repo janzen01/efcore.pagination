@@ -44,6 +44,22 @@ dotnet test Janzen.Pagination.slnx -c Release
 plain `IQueryable` for the engine's non-EF path. **No database server and no Docker are needed.** See *Testing* in
 [CLAUDE.md](CLAUDE.md) for what each leg covers and which assertions SQLite cannot support.
 
+### Optional — the PostgreSQL leg
+
+One test class asserts what neither leg above can reach: native `ILIKE`, its case semantics against the portable
+`LIKE` on the same server, a caller's wildcard against a genuine `ESCAPE '\'`, and the nul byte PostgreSQL refuses at
+the protocol boundary. It is gated on a connection string, so it runs only where one is supplied:
+
+```powershell
+$env:JANZEN_TEST_POSTGRES = "Host=localhost;Port=5432;Database=janzen_pagination_dev;Username=postgres;Password=..."
+dotnet test Janzen.Pagination.slnx -c Release
+```
+
+**The database it names is dropped and recreated**, so point it at a throwaway one. CI supplies the variable from a
+`postgres:18.6` service container on the Ubuntu runner — service containers are Linux-only on GitHub-hosted runners,
+which is why that leg is not on the three-OS matrix — and the job is part of `ci-ok`, so the assertions are never
+skipped anywhere that decides whether code merges.
+
 ## 4. Graphify — code knowledge graph (for AI agents)
 
 The repo uses a `graphify` knowledge graph; [CLAUDE.md](CLAUDE.md) routes codebase questions through it first. The graph in [graphify-out/](graphify-out/) is **not committed** (reproducible from source, no API
