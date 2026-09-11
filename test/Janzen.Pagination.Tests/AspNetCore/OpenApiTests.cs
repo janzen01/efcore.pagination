@@ -306,6 +306,10 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 		await app.StartAsync();
 
 		using var client = new HttpClient { BaseAddress = new Uri(app.Urls.First()) };
+		// Twice on purpose. The document is regenerated per request, and the transformer memoises a config only
+		// for the duration of one document -- never for the process, which would freeze the first document's
+		// answer. The construction counts below are what prove the scope of that memo.
+		await client.GetStringAsync("/openapi/v1.json");
 		string json = await client.GetStringAsync("/openapi/v1.json");
 
 		await app.StopAsync();
@@ -669,13 +673,14 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	[Fact]
 	public void An_activated_provider_is_built_once_per_document_and_disposed() {
 
-		// One construction for two operations: the document is regenerated on every request to the OpenAPI
-		// endpoint, so "once per operation per request" is what a Swagger UI page load paid.
-		Assert.Equal(1, CountingConfigProvider.Constructions);
+		// Two documents were fetched and the provider type is on two operations, so four constructions before,
+		// two now: one per document. The second half of that is as important as the first -- a process-wide cache
+		// would say one, and would then be serving the first document's answer for the life of the app.
+		Assert.Equal(2, CountingConfigProvider.Constructions);
 
-		// And this library created it, so this library disposes it: the container does not dispose what it did
-		// not create, which is exactly what ActivatorUtilities produces.
-		Assert.Equal(1, CountingConfigProvider.Disposals);
+		// And this library created them, so this library disposes them: the container does not dispose what it
+		// did not create, which is exactly what ActivatorUtilities produces.
+		Assert.Equal(2, CountingConfigProvider.Disposals);
 
 	}
 
