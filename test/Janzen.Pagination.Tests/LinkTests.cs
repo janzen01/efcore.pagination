@@ -119,6 +119,46 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	}
 
+	/// <summary>
+	///     A control character is refused for the reason the engine strips them out of a 400's message: the links
+	///     are written into an opt-in <c>Link</c> response header, and a CR or LF there splits the header. The
+	///     guard rejected a space but not a newline, which is the inconsistent half of the same rule.
+	/// </summary>
+	[Fact]
+	public void A_path_carrying_a_control_character_is_refused() {
+
+		Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/t/a\rb/products", []));
+		Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/t/a\nb/products", []));
+		Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/t/a\u007Fb/products", []));
+
+		// The offending character is named by code point rather than echoed: a message carrying a raw CR is the
+		// thing the guard exists to stop.
+		var refused = Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/t/a\rb/products", []));
+		Assert.Contains("U+000D", refused.Message, StringComparison.Ordinal);
+		Assert.DoesNotContain("\r", refused.Message, StringComparison.Ordinal);
+
+	}
+
+	/// <summary>
+	///     <c>with</c> runs the same guard construction does. A record's synthesized copy constructor copies every
+	///     field verbatim, so a guard kept in a field initializer is carried across as "already validated" and the
+	///     member the caller actually changed is never looked at — the shape that let an unescaped path through.
+	/// </summary>
+	[Fact]
+	public void A_with_expression_cannot_walk_past_the_path_guard() {
+
+		var context = new PaginateLinkContext("/products", []);
+
+		Assert.Throws<ArgumentException>(() => context with { Path = "/t/a b/products" });
+		Assert.Throws<ArgumentException>(() => context with { Path = "/t/x?y/products" });
+		Assert.Throws<ArgumentException>(() => context with { Path = "/t/a\nb/products" });
+		Assert.Throws<ArgumentNullException>(() => context with { QueryParameters = null! });
+
+		// A valid one still copies, so the guard did not cost the record its `with`.
+		Assert.Equal("/other", (context with { Path = "/other" }).Path);
+
+	}
+
 	[Fact]
 	public void An_escaped_path_and_raw_parameters_are_what_the_record_asks_for() {
 

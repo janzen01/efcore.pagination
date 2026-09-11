@@ -1,5 +1,32 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
+<!--
+  The breaking-change inventory for this package. Generated, never hand-written
+  (dotnet pack -p:ApiCompatGenerateSuppressionFile=true), which also drops this comment and writes
+  CRLF, so both are restored afterwards. Ten entries:
+
+  CP0002 x1 PaginateConfigBuilder.WithGuards: its four parameters became int? so that naming one
+  guard stops silently resetting the other three to the engine constants. Source-compatible,
+  binary-breaking, and the only signature change in the set.
+
+  CP0014 x9, one shape: a member that used to be compiler-generated is hand-written now, so an
+  attribute the compiler had put there is gone. PaginateLinkContext and PaginateFilterFieldMetadata
+  hand-write Equals/GetHashCode because the synthesized versions compare a collection member by
+  reference; PaginateLikeDefaults.set_Strategy gained a null guard; PaginateComposedQuery.SortBy went
+  back to non-nullable when the tie-breaker became mandatory at Build().
+
+  Two of those nine are the newest and are this change's own: declaring PaginateLinkContext's two
+  positional properties takes CompilerGeneratedAttribute off their init accessors. That declaration
+  IS the fix — a guard held in a field initializer is skipped by `with`, because a record's copy
+  constructor copies fields verbatim, and an init accessor is the only place that runs on both paths.
+
+  Most of them are visible only because the ApiCompat attribute rule is now on: nullable context and
+  CompilerGeneratedAttribute live in metadata the signature comparison does not read, so they would
+  have shipped silently before.
+
+  Delete this file when PackageValidationBaselineVersion moves past 10.0.3: every entry exists only
+  against that baseline, and a stale suppression hides the next accidental break behind it.
+-->
 <Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Suppression>
     <DiagnosticId>CP0002</DiagnosticId>
@@ -39,6 +66,20 @@
   <Suppression>
     <DiagnosticId>CP0014</DiagnosticId>
     <Target>M:Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.GetHashCode:[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
+    <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
+    <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0014</DiagnosticId>
+    <Target>M:Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.set_Path(System.String):[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
+    <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
+    <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0014</DiagnosticId>
+    <Target>M:Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.set_QueryParameters(System.Collections.Generic.IReadOnlyList{System.Collections.Generic.KeyValuePair{System.String,System.String}}):[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
     <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
     <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>

@@ -84,7 +84,13 @@ internal static class PaginateExpressionUtils {
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static IQueryable<TEntity> ApplyOrder<TEntity>(IQueryable<TEntity> query, LambdaExpression selector, bool descending, bool first, bool useDatabaseFunctions) {
 
-		if (!useDatabaseFunctions && selector.Body.Type == typeof(string)) {
+		// EnumerableQuery, not "!useDatabaseFunctions": that flag is `Provider is IAsyncQueryProvider`, which reads
+		// "not EF Core" rather than "in memory". A synchronous provider backed by a database lands in the same
+		// branch and would be handed the three-argument overload, which essentially no relational LINQ provider
+		// translates -- turning a working string sort into a NotSupportedException on a provider that never asked
+		// for a culture. Narrowing can only return such a provider to where it was before this comparer existed;
+		// widening breaks it.
+		if (!useDatabaseFunctions && query.Provider is EnumerableQuery && selector.Body.Type == typeof(string)) {
 
 			// Rebuilt rather than cast: the null-safe rewriter returns a LambdaExpression whose delegate type is
 			// inferred, and only this form is guaranteed to be the one the overload wants.

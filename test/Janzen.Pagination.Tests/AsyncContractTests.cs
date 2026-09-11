@@ -47,21 +47,31 @@ public sealed class AsyncContractTests {
 
 	}
 
+	/// <summary>
+	///     NOT a <c>PaginateQueryException</c>, and that is the assertion: this is a server wiring mistake, not
+	///     something a caller sent, so answering it as a <c>400</c> would blame the client for the server's
+	///     configuration and put an internal diagnostic in a response body. A plain
+	///     <see cref="NotSupportedException" /> leaves the ASP.NET Core filters alone and surfaces as a 500.
+	/// </summary>
 	[Fact]
 	public async Task An_async_provider_that_is_not_ef_is_refused_with_a_clear_message() {
 
 		var source = new NonEfAsyncQueryable<Product>(Source());
 
-		var bare = await Assert.ThrowsAsync<PaginateQueryException>(
+		var bare = await Assert.ThrowsAsync<NotSupportedException>(
 			() => source.PaginateAsync<Product, ProductDto>(new PaginateQuery(), TestData.Config, null, TestContext.Current.CancellationToken));
 
-		var filtered = await Assert.ThrowsAsync<PaginateQueryException>(
+		var filtered = await Assert.ThrowsAsync<NotSupportedException>(
 			() => source.PaginateAsync<Product, ProductDto>(Query.Filter("rank", "$eq:30"), TestData.Config, null, TestContext.Current.CancellationToken));
 
 		foreach (var message in new[] { bare.Message, filtered.Message }) {
 			Assert.Contains("Entity Framework Core", message, StringComparison.Ordinal);
 			Assert.Contains("SQLite", message, StringComparison.Ordinal);
 		}
+
+		// The type is the contract here: PaginateQueryException is what the filters turn into a 400.
+		Assert.IsNotType<PaginateQueryException>(bare);
+		Assert.IsNotType<PaginateQueryException>(filtered);
 
 	}
 
@@ -72,8 +82,8 @@ public sealed class AsyncContractTests {
 
 		// ApplyPaginateFilters never reaches ApplySorts, so the probe inside Compose is the one that has to
 		// answer for it -- narrowing only the sorting probe would leave the filtered composer on the old path.
-		Assert.Throws<PaginateQueryException>(() => source.ApplyPaginateFilters(new PaginateQuery(), TestData.Config));
-		Assert.Throws<PaginateQueryException>(() => source.ApplyPagination(new PaginateQuery(), TestData.Config));
+		Assert.Throws<NotSupportedException>(() => source.ApplyPaginateFilters(new PaginateQuery(), TestData.Config));
+		Assert.Throws<NotSupportedException>(() => source.ApplyPagination(new PaginateQuery(), TestData.Config));
 
 	}
 
@@ -108,6 +118,37 @@ public sealed class AsyncContractTests {
 		public TResult ExecuteAsync<TResult>(Expression expression, CancellationToken cancellationToken = default) {
 			throw new NotSupportedException("This double has no asynchronous execution path.");
 		}
+
+	}
+
+}
+
+/// <summary>
+///     Leg selection rests on <c>EntityQueryProvider</c>, which EF Core marks <c>[EntityFrameworkInternal]</c>.
+///     A type an upstream package is free to move is a runtime <c>TypeLoadException</c> in a consumer's process,
+///     not a compile error in ours — the engine names it in an <c>is</c>-pattern, which binds late. Pinning it
+///     here moves that discovery to an EF Core bump on our own CI, where Dependabot opens the PR.
+/// </summary>
+public sealed class EfInternalCouplingTests : IClassFixture<SqliteFixture> {
+
+	private readonly SqliteFixture fixture;
+
+	public EfInternalCouplingTests(SqliteFixture fixture) { this.fixture = fixture; }
+
+	[Fact]
+	public async Task The_ef_provider_type_the_engine_probes_for_still_exists_and_still_matches() {
+
+		var probed = typeof(Microsoft.EntityFrameworkCore.DbContext).Assembly
+			.GetType("Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryProvider", throwOnError: false);
+
+		Assert.True(probed is not null,
+			"EntityQueryProvider has moved or been renamed; PaginateQueryableExtensions.UseDatabaseFunctions no longer "
+			+ "recognises EF Core and every query would take the in-memory leg.");
+
+		await using var context = this.fixture.CreateContext();
+
+		Assert.True(probed!.IsInstanceOfType(SqliteFixture.Products(context).Provider),
+			"an EF Core queryable's provider is no longer an EntityQueryProvider.");
 
 	}
 

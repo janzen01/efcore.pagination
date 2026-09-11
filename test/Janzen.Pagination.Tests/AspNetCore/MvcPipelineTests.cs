@@ -76,6 +76,14 @@ public sealed class PaginationHostFixture : IAsyncLifetime {
 					.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), DocumentedConfigProvider.Config, http.Request, ct))
 			.WithPagination<DocumentedConfigProvider>();
 
+		// A route group, which is what MapGroup returns and what the second overload exists for. Before it this
+		// line did not compile: WithPagination only accepted a RouteHandlerBuilder, so a grouped endpoint could
+		// carry neither the metadata nor the filter and answered ?page=0 with an unhandled 500.
+		var group = this.app.MapGroup("/grouped").WithPagination<DocumentedConfigProvider>();
+		group.MapGet("/products", async (HttpContext http, CancellationToken ct) =>
+			await TestData.Products().AsQueryable()
+				.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), DocumentedConfigProvider.Config, http.Request, ct));
+
 		await this.app.StartAsync();
 
 		this.Client = new HttpClient { BaseAddress = new Uri(this.app.Urls.First()) };
@@ -148,6 +156,29 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 		Assert.Equal("application/problem+json", mvc.Content.Headers.ContentType?.MediaType);
 		Assert.Equal(HttpStatusCode.BadRequest, minimal.StatusCode);
 		Assert.Equal("application/problem+json", minimal.Content.Headers.ContentType?.MediaType);
+
+	}
+
+	/// <summary>
+	///     A grouped endpoint is paginated the same way a mapped one is. <c>MapGroup</c> returns an
+	///     <see cref="IEndpointConventionBuilder" />, which <c>WithPagination</c> did not accept, so a group could
+	///     carry neither the metadata nor the exception filter: the decision to add the overload was taken and
+	///     then never implemented by any unit, and invalid input on such an endpoint escaped as a 500.
+	/// </summary>
+	[Fact]
+	public async Task A_route_group_carries_pagination_to_every_endpoint_under_it() {
+
+		(var invalid, string body) = await this.GetAsync("/grouped/products?page=0");
+
+		Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+		Assert.Equal("application/problem+json", invalid.Content.Headers.ContentType?.MediaType);
+		Assert.Equal("Query parameter 'page' must be a positive integer.", Json(body).GetProperty("detail").GetString());
+
+		// The filter is attached, and so is the page itself: the group is a working endpoint, not just a guarded one.
+		(var valid, string page) = await this.GetAsync("/grouped/products?page=1&limit=2");
+
+		Assert.Equal(HttpStatusCode.OK, valid.StatusCode);
+		Assert.Equal(2, Json(page).GetProperty("items").GetArrayLength());
 
 	}
 

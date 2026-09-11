@@ -278,10 +278,13 @@ public static class PaginateQueryableExtensions {
 		if (provider is Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryProvider) return true;
 
 		if (provider is IAsyncQueryProvider) {
-			// Deliberately left Unspecified. The codes exist so a client can branch on the cause of its 400,
-			// and no request can produce this one: it fires only for a queryable-shaped test double, which is
-			// the developer's mistake rather than the caller's, and there is nothing for a client to branch on.
-			throw new PaginateQueryException(
+			// NOT a PaginateQueryException: that type is the 400 contract, and the ASP.NET Core filters turn it
+			// into a ProblemDetails whose `detail` is the message below. Nothing a caller sent can produce this —
+			// it fires only for a queryable-shaped double, which is a wiring mistake on the server — so a 400
+			// would blame the client for the server's configuration and hand whoever asked an internal
+			// diagnostic. NotSupportedException leaves the filters alone and surfaces as a 500, which is what a
+			// misconfigured server should answer.
+			throw new NotSupportedException(
 				"This queryable's provider is asynchronous but is not Entity Framework Core's, so the engine can neither translate "
 				+ "the query nor evaluate it in memory. Test against a real EF Core provider, SQLite in-memory, rather than a "
 				+ "queryable-shaped double."
@@ -334,7 +337,17 @@ public static class PaginateQueryableExtensions {
 		ArgumentNullException.ThrowIfNull(request);
 		ArgumentNullException.ThrowIfNull(config);
 
-		request.EnsureValid();
+		// Split around the paging checks so the published precedence — page and limit, then filters — survives a
+		// binder that can now report either. Until a duplicated `filter.<field>` became reportable this channel
+		// held only a binder-level page/limit parse error, which the order puts first anyway; leaving the call
+		// where it was made a filter error pre-empt MaxOffsetExceeded and LimitOutOfRange for a request wrong in
+		// both ways. EnsureValid is idempotent, so the second call is the one that surfaces the filter half.
+		// Split around the paging checks so the published precedence -- page and limit, then filters -- survives a
+		// binder that can now report either. Until a duplicated `filter.<field>` became reportable this channel
+		// held only a binder-level page/limit parse error, which the order puts first anyway; leaving the call
+		// where it was made a filter error pre-empt MaxOffsetExceeded and LimitOutOfRange for a request wrong in
+		// both ways. EnsureValid is idempotent, so the second call is the one that surfaces the filter half.
+		if (request.ValidationErrorCode != PaginateQueryError.DuplicateFilterField) request.EnsureValid();
 
 		// Mirrors the 'limit' guard: an out-of-range page is a caller bug, so surface it instead of clamping it away.
 		if (request.Page < PaginateQuery.DefaultPage) throw new PaginateQueryException("Query parameter 'page' must be a positive integer.") { Code = PaginateQueryError.PageOutOfRange };
@@ -345,6 +358,8 @@ public static class PaginateQueryableExtensions {
 		// the database being asked anything at all. Applied here rather than at the paging stage so it holds for
 		// every entry point, the filtered composer included -- which already validates page and limit the same way.
 		PaginateExpressionUtils.ValidateOffset(request.Page, limit, config);
+
+		request.EnsureValid();
 
 		bool useDatabaseFunctions = UseDatabaseFunctions(source.Provider);
 		// Resolved per query, so a configuration naming its own strategy is unaffected by whatever the last

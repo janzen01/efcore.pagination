@@ -60,9 +60,16 @@ public sealed class TrimAnnotationTests {
 
 		AssertPublicConstructors(typeof(PaginatedQueryAttribute<>).GetGenericArguments()[0]);
 
-		AssertPublicConstructors(typeof(PaginationRouteHandlerBuilderExtensions)
-			.GetMethod(nameof(PaginationRouteHandlerBuilderExtensions.WithPagination))!
-			.GetGenericArguments()[0]);
+		// Every overload, not one by name. The MapGroup overload arrived later, and GetMethod(name) went from
+		// returning the only candidate to throwing AmbiguousMatchException — a test that stops compiling the
+		// moment a second overload exists checks the first one and nothing else.
+		var overloads = typeof(PaginationRouteHandlerBuilderExtensions)
+			.GetMethods()
+			.Where(method => method.Name == nameof(PaginationRouteHandlerBuilderExtensions.WithPagination))
+			.ToList();
+
+		Assert.Equal(2, overloads.Count);
+		foreach (var overload in overloads) AssertPublicConstructors(overload.GetGenericArguments()[0]);
 
 	}
 

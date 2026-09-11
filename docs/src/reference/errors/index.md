@@ -148,7 +148,7 @@ Raised when the text after the operator cannot become the field's CLR type. See
 | `Value 'v' is not a valid duration: a duration in years or months has no fixed length.` | `ValueInvalid` | the same `Y`/`M` refusal on a NodaTime `Duration` field | as above — one rule, two packages, each keeping its own wording |
 | `Value for 'x' must not be empty.` | `ValueEmpty` | an empty or whitespace-only value against a **non-nullable** target that is not `string`. A nullable target reads it as `null` instead, and `string` takes it verbatim | send a value, or use `$null` |
 | `Filter 'x' requires a value; use '$null' to match rows with no value.` | `ValueEmpty` | an empty or whitespace-only value on a filter criterion (`?filter.price=$eq:`), before conversion runs | send a value, or `$null` — which the field has to whitelist, exactly as any other operator does |
-| `Filtering values for 'x' is not supported.` | `ValueInvalid` | a field whose CLR type has no registered parser, no built-in arm and no `IParsable<TSelf>` | register one with [`PaginateTypeSupport`](/integrations/custom-types/) |
+| `Filtering values for 'x' is not supported.` | `ValueTypeNotSupported` | a field whose CLR type has no registered parser, no built-in arm and no `IParsable<TSelf>`. The **type** was refused, so the value was never read — which is what separates this code from `ValueInvalid` | register one with [`PaginateTypeSupport`](/integrations/custom-types/) |
 
 ---
 

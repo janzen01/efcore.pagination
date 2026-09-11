@@ -90,6 +90,21 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	}
 
 	/// <summary>
+	///     ValueTypeNotSupported, not ValueInvalid: the value was never read — every route declined the field's
+	///     <b>type</b>. The member is published and documented for exactly this cause and was assigned nowhere,
+	///     which no test could see while the catalogue documented the code the throw actually carried.
+	/// </summary>
+	[Fact]
+	public async Task An_unparseable_target_type_carries_its_own_code() {
+
+		var refused = await Assert.ThrowsAsync<PaginateQueryException>(
+			() => TestData.Products().AsQueryable().PageAsync<ProductDto>(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
+
+		Assert.Equal(PaginateQueryError.ValueTypeNotSupported, refused.Code);
+
+	}
+
+	/// <summary>
 	///     Asserted on the converter rather than through a query: a <see cref="DateTime" /> compares by ticks alone,
 	///     so a wrong <see cref="DateTimeKind" /> changes nothing in memory and nothing in the SQL SQLite emits — it
 	///     shifts the instant only once a provider converts the parameter to UTC, and only on a server that is not on

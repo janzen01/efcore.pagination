@@ -13,6 +13,11 @@ public static class PaginateLikeDefaults {
 	///     to a strategy. A strategy must declare it as the explicit <c>ESCAPE</c> argument of the call it builds,
 	///     or the escaping is read as literal text — see <see cref="IPaginateLikeStrategy.BuildLike" />.
 	/// </summary>
+	// Declared before Portable, and that ordering is load-bearing. Constructing PortableLikeStrategy runs
+	// PaginateLikeStrategyBase's type initializer, which reads this member back — a cycle between the two
+	// classes. The CLR breaks such a cycle by handing out whatever the field holds at that moment, so a
+	// declaration order that put Portable first would silently give the shared Escape node a null escape
+	// character instead of "\". Keep this member above it.
 	public static string EscapeCharacter { get; } = "\\";
 
 	/// <summary>

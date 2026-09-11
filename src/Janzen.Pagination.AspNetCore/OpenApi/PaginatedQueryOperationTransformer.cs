@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
 
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -108,7 +109,12 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	// cannot see each other's entry, and a transformer registered as a shared instance does not carry one
 	// document's answer into the next. That matters for When(...), which exists so a config can vary per caller.
 	// Weak keys, so a finished scope takes its entry with it.
-	private readonly ConditionalWeakTable<IServiceProvider, Dictionary<Type, IPaginateConfig>> _configsPerDocument = new();
+	//
+	// ConcurrentDictionary rather than Dictionary: the safety of a plain one rests on ASP.NET Core running this
+	// transformer sequentially within a document, which holds for the framework's own endpoint but not for a
+	// consumer calling GetOpenApiDocumentAsync itself — and the failure there is a corrupted dictionary, not a
+	// stale read. The cost is one interlocked read on a path that runs per documented operation.
+	private readonly ConditionalWeakTable<IServiceProvider, ConcurrentDictionary<Type, IPaginateConfig>> _configsPerDocument = new();
 
 	private IPaginateConfig GetConfig(
 		IServiceProvider services,
@@ -331,6 +337,12 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		};
 	}
 
+	// The three operators the search-length guards bound on a string field, alongside `search` itself.
+	private static bool IsLengthGuarded(PaginateFilterOperator filterOperator) {
+		return filterOperator is PaginateFilterOperator.ILike or PaginateFilterOperator.StartsWith
+			or PaginateFilterOperator.Contains;
+	}
+
 	private static OpenApiParameter CreateFilterParameter(IPaginateConfig config, PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
 		string operators = string.Join('\n', BuildOperatorTokens(field).Select(token => $"- `{token}`"));
 		var value = DescribeValueType(field.Type);
@@ -352,14 +364,29 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 		string token = PaginateFilterParser.GetOperatorToken(exampleOperator);
 
+		// A pattern operator's value is length-guarded on a string field, so the sample has to clear the floor:
+		// with WithMinSearchLength(8) the plain sample would document `$ilike:text`, which the engine answers
+		// with a 400. Repeating the sample keeps it recognisably a sample and keeps the document truthful.
+		string exampleValue = value.Example;
+		if (field.Type == typeof(string) && IsLengthGuarded(exampleOperator)) {
+			while (exampleValue.Length < config.MinSearchLength) exampleValue += value.Example;
+		}
+
 		// Not every operator is spelled "$op:one scalar", and rendering them all that way documented requests the
 		// engine refuses: "$null:42" is a 400 because $null takes no value, and "$btw:9.99" is a 400 because $btw
 		// takes exactly two.
 		string example = exampleOperator switch {
 			PaginateFilterOperator.Null => token,
 			PaginateFilterOperator.Between => $"{token}:{value.Example},{value.Upper ?? value.Example}",
-			_ => $"{token}:{value.Example}"
+			_ => $"{token}:{exampleValue}"
 		};
+
+		// The search guards bound these three as well as `search` itself, and a guard that is enforced but
+		// undocumented is the shape this transformer exists to remove.
+		string patternGuards = field.Type == typeof(string) && field.Operators.Any(IsLengthGuarded)
+			? $"\n\n`$ilike`, `$sw` and `$contains` values are measured as sent — not trimmed — and must be between "
+				+ $"{config.MinSearchLength} and {config.MaxSearchLength} characters; outside that the request returns 400."
+			: string.Empty;
 
 		return new OpenApiParameter {
 			Name = $"{PaginateQueryParams.FilterPrefix}{field.Name}",
@@ -371,7 +398,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 			                Format: `{{PaginateQueryParams.FilterPrefix}}{{field.Name}}=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`
 
-			                At most {{config.MaxFilterValues}} comma-separated values in one criterion, and at most {{config.MaxFilterConditions}} filter criteria across the whole request; beyond either the request returns 400.
+			                At most {{config.MaxFilterValues}} comma-separated values in one criterion, and at most {{config.MaxFilterConditions}} filter criteria across the whole request; beyond either the request returns 400.{{patternGuards}}
 
 			                Available operations:
 
