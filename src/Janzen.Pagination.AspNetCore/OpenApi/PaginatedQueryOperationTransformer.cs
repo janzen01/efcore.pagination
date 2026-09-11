@@ -256,15 +256,33 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private static OpenApiParameter CreateFilterParameter(PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
 		string operators = string.Join('\n', BuildOperatorTokens(field).Select(token => $"- `{token}`"));
+		var value = DescribeValueType(field.Type);
 		var preferred = likeStrategy.PreferredExampleOperator;
 
 		// Min(), not First(): Operators is a set and guarantees no enumeration order, so First() made the example
 		// depend on the backing collection and on the order the field happened to declare its operators in -- and
 		// this example lands in a consumer's committed OpenAPI document, which CI regenerates and diffs. Eq is the
 		// lowest member, so the rule reads as "$eq where the field grants it, otherwise its lowest operator".
-		string exampleOperator = preferred.HasValue && field.Operators.Contains(preferred.Value)
-			? PaginateFilterParser.GetOperatorToken(preferred.Value)
-			: PaginateFilterParser.GetOperatorToken(field.Operators.Min());
+		// $null is excluded from that choice rather than ranked: it carries no value, so a field granting it
+		// alongside anything else is better exemplified by the operator that does. It stays the answer when it is
+		// the only operator there is.
+		var exampleOperator = preferred.HasValue && field.Operators.Contains(preferred.Value)
+			? preferred.Value
+			: field.Operators
+				.Where(filterOperator => filterOperator != PaginateFilterOperator.Null)
+				.DefaultIfEmpty(PaginateFilterOperator.Null)
+				.Min();
+
+		string token = PaginateFilterParser.GetOperatorToken(exampleOperator);
+
+		// Not every operator is spelled "$op:one scalar", and rendering them all that way documented requests the
+		// engine refuses: "$null:42" is a 400 because $null takes no value, and "$btw:9.99" is a 400 because $btw
+		// takes exactly two.
+		string example = exampleOperator switch {
+			PaginateFilterOperator.Null => token,
+			PaginateFilterOperator.Between => $"{token}:{value.Example},{value.Upper ?? value.Example}",
+			_ => $"{token}:{value.Example}"
+		};
 
 		return new OpenApiParameter {
 			Name = $"{PaginateQueryParams.FilterPrefix}{field.Name}",
@@ -272,7 +290,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			Description = $$"""
 			                Filter by `{{field.Name}}`.{{RenderBadge(field.Badge)}}
 
-			                Value type: `{{GetValueTypeName(field.Type)}}`
+			                Value type: `{{value.Name}}`
 
 			                Format: `{{PaginateQueryParams.FilterPrefix}}{{field.Name}}={$not:}OPERATION:VALUE`
 
@@ -287,7 +305,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				Type = JsonSchemaType.Array,
 				Items = new OpenApiSchema {
 					Type = JsonSchemaType.String,
-					Examples = [JsonValue.Create($"{exampleOperator}:{GetExampleValue(field.Type)}")]
+					Examples = [JsonValue.Create(example)]
 				}
 			}
 		};
@@ -317,7 +335,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	private static string BuildFieldDescription(IEnumerable<PaginateFieldMetadata> fields) {
 		return string.Join('\n', fields
 			.OrderBy(field => field.Name, StringComparer.Ordinal)
-			.Select(field => $"- `{field.Name}` (`{GetValueTypeName(field.Type)}`){RenderBadge(field.Badge)}"));
+			.Select(field => $"- `{field.Name}` (`{DescribeValueType(field.Type).Name}`){RenderBadge(field.Badge)}"));
 	}
 
 	private static IEnumerable<string> BuildOperatorTokens(PaginateFilterFieldMetadata field) {
@@ -334,51 +352,55 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	}
 
+	// One row per documented value type: what the description calls it, an example value its parser accepts, and
+	// the upper bound for the two-valued $btw example. Both halves come from one table on purpose -- as two
+	// switches over the same domain they drifted by fourteen rows, and the document ended up naming a type
+	// precisely beside an example that answered 400. Upper is null where a range over the type is arbitrary
+	// rather than meaningful; the single example then serves as both bounds.
 	// NodaTime ships as a separate add-on package, so this assembly holds no reference to it and cannot use
 	// typeof(). Resolving the name against the candidate's *own* assembly keeps these type-identity checks: a
 	// same-named type from any other assembly can never match, and there is nothing to cache or preload.
-	private static string GetValueTypeName(Type type) {
+	private static (string Name, string Example, string? Upper) DescribeValueType(Type type) {
+
 		var t = Nullable.GetUnderlyingType(type) ?? type;
+
 		return t switch {
-			_ when t == typeof(string) => "string",
-			_ when t == typeof(Guid) => "uuid",
-			_ when t == typeof(bool) => "boolean",
-			_ when t == typeof(byte) || t == typeof(sbyte) || t == typeof(short) || t == typeof(ushort) => "integer",
-			_ when t == typeof(int) || t == typeof(uint) || t == typeof(long) || t == typeof(ulong) => "integer",
-			_ when t == typeof(float) || t == typeof(double) || t == typeof(decimal) => "number",
-			_ when t == typeof(DateTimeOffset) || t == typeof(DateTime) => "date-time",
-			_ when t == typeof(DateOnly) => "date",
-			_ when t == typeof(TimeOnly) => "time",
-			_ when t == typeof(TimeSpan) => "duration",
-			_ when t == typeof(char) => "character",
+			_ when t == typeof(string) => ("string", "text", null),
+			_ when t == typeof(Guid) => ("uuid", "00000000-0000-0000-0000-000000000000", null),
+			_ when t == typeof(bool) => ("boolean", "true", null),
+			_ when t == typeof(byte) || t == typeof(sbyte) || t == typeof(short) || t == typeof(ushort) => ("integer", "42", "99"),
+			_ when t == typeof(int) || t == typeof(uint) || t == typeof(long) || t == typeof(ulong) => ("integer", "42", "99"),
+			_ when t == typeof(float) || t == typeof(double) || t == typeof(decimal) => ("number", "9.99", "99.99"),
+			_ when t == typeof(DateTimeOffset) || t == typeof(DateTime) => ("date-time", "2025-01-01T00:00:00Z", "2025-12-31T23:59:59Z"),
+			_ when t == typeof(DateOnly) => ("date", "2025-01-01", "2025-12-31"),
+			_ when t == typeof(TimeOnly) => ("time", "09:00:00", "17:00:00"),
+			// The ISO spelling rather than the colon one: both parse, and this is the form that survives a URL
+			// without percent-encoded colons, which is what a reader copying the example out of the document does.
+			_ when t == typeof(TimeSpan) => ("duration", "PT2H30M", "PT8H"),
+			_ when t == typeof(char) => ("character", "a", "z"),
 			// Above the probes below on purpose: no NodaTime type is an enum, and this way an enum field does not
-			// pay five resolve-by-name lookups against its own assembly before reaching its arm.
-			_ when t.IsEnum => string.Join(" | ", Enum.GetNames(t)),
-			_ when t == t.Assembly.GetType("NodaTime.Instant") => "date-time (UTC)",
-			_ when t == t.Assembly.GetType("NodaTime.LocalDate") => "date",
-			_ when t == t.Assembly.GetType("NodaTime.LocalDateTime") => "date-time (local)",
-			_ when t == t.Assembly.GetType("NodaTime.LocalTime") => "time",
-			_ when t == t.Assembly.GetType("NodaTime.OffsetDateTime") => "date-time (offset)",
-			_ when t == t.Assembly.GetType("NodaTime.Duration") => "duration",
-			_ when t == t.Assembly.GetType("NodaTime.YearMonth") => "year-month",
-			_ => t.Name
+			// pay a resolve-by-name lookup for every NodaTime type before reaching its arm.
+			_ when t.IsEnum => DescribeEnum(t),
+			_ when t == t.Assembly.GetType("NodaTime.Instant") => ("date-time (UTC)", "2025-01-01T00:00:00Z", "2025-12-31T23:59:59Z"),
+			_ when t == t.Assembly.GetType("NodaTime.LocalDate") => ("date", "2025-01-01", "2025-12-31"),
+			_ when t == t.Assembly.GetType("NodaTime.LocalDateTime") => ("date-time (local)", "2025-01-01T00:00:00", "2025-12-31T23:59:59"),
+			_ when t == t.Assembly.GetType("NodaTime.LocalTime") => ("time", "09:00:00", "17:00:00"),
+			// A negative offset, because a literal '+' in a query string decodes to a space: the example is there to
+			// be copied into a URL, and "+02:00" would arrive as " 02:00".
+			_ when t == t.Assembly.GetType("NodaTime.OffsetDateTime") => ("date-time (offset)", "2025-01-01T00:00:00-05:00", "2025-12-31T23:59:59-05:00"),
+			_ when t == t.Assembly.GetType("NodaTime.Duration") => ("duration", "PT2H30M", "PT8H"),
+			_ when t == t.Assembly.GetType("NodaTime.YearMonth") => ("year-month", "2025-01", "2025-12"),
+			// A consumer-registered type: the parser is the consumer's, so there is no form this package can name.
+			_ => (t.Name, "value", null)
 		};
+
 	}
 
-	private static string GetExampleValue(Type type) {
-		var t = Nullable.GetUnderlyingType(type) ?? type;
-		return t switch {
-			_ when t == typeof(string) => "text",
-			_ when t == typeof(Guid) => "00000000-0000-0000-0000-000000000000",
-			_ when t == typeof(bool) => "true",
-			_ when t == typeof(short) || t == typeof(int) || t == typeof(long) => "42",
-			_ when t == typeof(float) || t == typeof(double) || t == typeof(decimal) => "9.99",
-			_ when t == typeof(DateTimeOffset) || t == typeof(DateTime) => "2025-01-01T00:00:00Z",
-			_ when t == t.Assembly.GetType("NodaTime.Instant") => "2025-01-01T00:00:00Z",
-			_ when t == t.Assembly.GetType("NodaTime.LocalDate") => "2025-01-01",
-			_ when t.IsEnum => Enum.GetNames(t).FirstOrDefault() ?? "value",
-			_ => "value"
-		};
+	private static (string Name, string Example, string? Upper) DescribeEnum(Type type) {
+		string[] members = Enum.GetNames(type);
+		return members.Length == 0
+			? (type.Name, "value", null)
+			: (string.Join(" | ", members), members[0], members[^1]);
 	}
 
 	// Renders an optional field badge as a <code> chip appended to the parameter description. The API reference

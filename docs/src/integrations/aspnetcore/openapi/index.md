@@ -116,22 +116,37 @@ The CLR type of the selector decides both the documented type name and the gener
 | `string` | `string` | `text` |
 | `Guid` | `uuid` | `00000000-0000-0000-0000-000000000000` |
 | `bool` | `boolean` | `true` |
-| `short`, `int`, `long` | `integer` | `42` |
+| `byte`, `sbyte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong` | `integer` | `42` |
 | `float`, `double`, `decimal` | `number` | `9.99` |
 | `DateTime`, `DateTimeOffset` | `date-time` | `2025-01-01T00:00:00Z` |
+| `DateOnly` | `date` | `2025-01-01` |
+| `TimeOnly` | `time` | `09:00:00` |
+| `TimeSpan` | `duration` | `PT2H30M` |
+| `char` | `character` | `a` |
+| an enum | its members, joined by a pipe | the first member |
 | `Instant` ([NodaTime](../../nodatime/)) | `date-time (UTC)` | `2025-01-01T00:00:00Z` |
 | `LocalDate` ([NodaTime](../../nodatime/)) | `date` | `2025-01-01` |
-| an enum | its members, joined by a pipe | the first member |
-| anything else | the type's name | `value` |
+| `LocalDateTime` ([NodaTime](../../nodatime/)) | `date-time (local)` | `2025-01-01T00:00:00` |
+| `LocalTime` ([NodaTime](../../nodatime/)) | `time` | `09:00:00` |
+| `OffsetDateTime` ([NodaTime](../../nodatime/)) | `date-time (offset)` | `2025-01-01T00:00:00-05:00` |
+| `Duration` ([NodaTime](../../nodatime/)) | `duration` | `PT2H30M` |
+| `YearMonth` ([NodaTime](../../nodatime/)) | `year-month` | `2025-01` |
+| anything else (a type you registered yourself) | the type's name | `value` |
 
-Nullable types document as their underlying type.
+Nullable types document as their underlying type. A duration is exemplified in its ISO-8601 spelling and an
+offset date-time with a negative offset, because both forms survive being pasted into a URL unencoded: a
+literal `+` decodes to a space.
 
 The example's **operator** is `$eq` wherever the field grants it, and otherwise the lowest operator it does
-grant — except that when a [LIKE strategy](../../postgresql/) advertises a preferred operator and the field
-allows it, that one wins. So the same config documents `$eq:text` normally and `$ilike:text` once
-`UsePostgreSql()` is registered: the example follows what the deployment can actually do. The rule is
-deliberately independent of the order the operators were declared in, because this example lands in a
-consumer's committed OpenAPI document and a regenerated one is diffed against it.
+grant, `$null` last of all — except that when a [LIKE strategy](../../postgresql/) advertises a preferred
+operator and the field allows it, that one wins. So the same config documents `$eq:text` normally and
+`$ilike:text` once `UsePostgreSql()` is registered: the example follows what the deployment can actually do.
+The rule is deliberately independent of the order the operators were declared in, because this example lands
+in a consumer's committed OpenAPI document and a regenerated one is diffed against it.
+
+Two operators are not spelled `$operator:value`, because the engine does not accept them that way. `$null`
+carries no value and is exemplified bare; `$btw` takes exactly two comma-separated bounds and is exemplified
+with both.
 
 ## Badges
 

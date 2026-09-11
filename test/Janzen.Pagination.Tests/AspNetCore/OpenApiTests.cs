@@ -1,6 +1,7 @@
 using Janzen.Pagination.AspNetCore.OpenApi;
 using Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
 using Janzen.Pagination.EntityFrameworkCore.Like;
+using Janzen.Pagination.NodaTime;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -8,6 +9,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+
+using NodaTime;
 
 using System.Linq.Expressions;
 using System.Text.Json;
@@ -85,6 +88,133 @@ public sealed class GuardedConfigProvider : IPaginateConfigProvider<Product> {
 }
 
 /// <summary>
+///     One property per value type the transformer documents by name, so a config can declare one filterable
+///     field for each and the emitted examples can be fed straight back into the engine.
+/// </summary>
+public sealed class EveryValueType {
+
+	public int Id { get; set; }
+
+	public byte ByteValue { get; set; }
+
+	public sbyte SByteValue { get; set; }
+
+	public short ShortValue { get; set; }
+
+	public ushort UShortValue { get; set; }
+
+	public int IntValue { get; set; }
+
+	public uint UIntValue { get; set; }
+
+	public long LongValue { get; set; }
+
+	public ulong ULongValue { get; set; }
+
+	public float FloatValue { get; set; }
+
+	public double DoubleValue { get; set; }
+
+	public decimal DecimalValue { get; set; }
+
+	public string Text { get; set; } = "";
+
+	public string? OptionalText { get; set; }
+
+	public Guid Uuid { get; set; }
+
+	public bool Flag { get; set; }
+
+	public char Letter { get; set; }
+
+	public ProductStatus Status { get; set; }
+
+	public DateTime Timestamp { get; set; }
+
+	public DateTimeOffset Moment { get; set; }
+
+	public DateOnly Day { get; set; }
+
+	public TimeOnly TimeOfDay { get; set; }
+
+	public TimeSpan Length { get; set; }
+
+	public Instant Instant { get; set; }
+
+	public LocalDate LocalDate { get; set; }
+
+	public LocalDateTime LocalDateTime { get; set; }
+
+	public LocalTime LocalTime { get; set; }
+
+	public OffsetDateTime OffsetDateTime { get; set; }
+
+	public Duration Duration { get; set; }
+
+	public YearMonth YearMonth { get; set; }
+
+}
+
+/// <summary>
+///     A resource declaring one filterable field per documented value type, plus the two operator shapes whose
+///     example is not a single scalar. Every field takes an explicit operator list, so the emitted example is
+///     decided by the operator under test rather than by whatever the type derives.
+/// </summary>
+public sealed class EveryValueTypeConfigProvider : IPaginateConfigProvider<EveryValueType> {
+
+	// Lazy because NodaTime's registration has to land before the builder runs, and a static field initializer
+	// would order itself against the rest of the assembly rather than against Register().
+	private readonly static Lazy<PaginateConfig<EveryValueType>> Configuration = new(Build);
+
+	public static PaginateConfig<EveryValueType> Config => Configuration.Value;
+
+	public PaginateConfig<EveryValueType> GetConfig() { return Config; }
+
+	private static PaginateConfig<EveryValueType> Build() {
+
+		PaginateNodaTime.Register();
+
+		return PaginateConfig<EveryValueType>.Create(b => b
+			.WithLimits(defaultLimit: 15, maxLimit: 60)
+			.WithTieBreaker(x => x.Id)
+			.Filterable("byteValue", x => x.ByteValue, PaginateFilterOperator.Eq)
+			.Filterable("sbyteValue", x => x.SByteValue, PaginateFilterOperator.Eq)
+			.Filterable("shortValue", x => x.ShortValue, PaginateFilterOperator.Eq)
+			.Filterable("ushortValue", x => x.UShortValue, PaginateFilterOperator.Eq)
+			.Filterable("intValue", x => x.IntValue, PaginateFilterOperator.Eq)
+			.Filterable("uintValue", x => x.UIntValue, PaginateFilterOperator.Eq)
+			.Filterable("longValue", x => x.LongValue, PaginateFilterOperator.Eq)
+			.Filterable("ulongValue", x => x.ULongValue, PaginateFilterOperator.Eq)
+			.Filterable("floatValue", x => x.FloatValue, PaginateFilterOperator.Eq)
+			.Filterable("doubleValue", x => x.DoubleValue, PaginateFilterOperator.Eq)
+			.Filterable("decimalValue", x => x.DecimalValue, PaginateFilterOperator.Eq)
+			.Filterable("text", x => x.Text, PaginateFilterOperator.Eq)
+			.Filterable("uuid", x => x.Uuid, PaginateFilterOperator.Eq)
+			.Filterable("flag", x => x.Flag, PaginateFilterOperator.Eq)
+			.Filterable("letter", x => x.Letter, PaginateFilterOperator.Eq)
+			.Filterable("status", x => x.Status, PaginateFilterOperator.Eq)
+			.Filterable("timestamp", x => x.Timestamp, PaginateFilterOperator.Eq)
+			.Filterable("moment", x => x.Moment, PaginateFilterOperator.Eq)
+			.Filterable("day", x => x.Day, PaginateFilterOperator.Eq)
+			.Filterable("timeOfDay", x => x.TimeOfDay, PaginateFilterOperator.Eq)
+			.Filterable("length", x => x.Length, PaginateFilterOperator.Eq)
+			.Filterable("instant", x => x.Instant, PaginateFilterOperator.Eq)
+			.Filterable("localDate", x => x.LocalDate, PaginateFilterOperator.Eq)
+			.Filterable("localDateTime", x => x.LocalDateTime, PaginateFilterOperator.Eq)
+			.Filterable("localTime", x => x.LocalTime, PaginateFilterOperator.Eq)
+			.Filterable("offsetDateTime", x => x.OffsetDateTime, PaginateFilterOperator.Eq)
+			.Filterable("duration", x => x.Duration, PaginateFilterOperator.Eq)
+			.Filterable("yearMonth", x => x.YearMonth, PaginateFilterOperator.Eq)
+			// The two operators whose example is not "$op:one scalar": $null takes no value at all, and $btw takes
+			// exactly two. Each is its field's only operator, so it is the one the example has to be written for.
+			.Filterable("nullOnly", x => x.OptionalText, PaginateFilterOperator.Null)
+			.Filterable("betweenOnly", x => x.IntValue, PaginateFilterOperator.Between));
+
+	}
+
+}
+
+/// <summary>
 ///     Starts a real application once and captures its OpenAPI document. Constructing an
 ///     <c>OpenApiOperationTransformerContext</c> by hand would test the transformer in isolation; running the
 ///     host also proves <c>WithPagination</c> attaches the metadata the transformer looks for.
@@ -114,6 +244,7 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 		app.MapGet("/searchless", () => Results.Ok()).WithPagination<SearchlessConfigProvider>();
 		app.MapGet("/guarded", () => Results.Ok()).WithPagination<GuardedConfigProvider>();
 		app.MapGet("/per-config-strategy", () => Results.Ok()).WithPagination<PerConfigStrategyProvider>();
+		app.MapGet("/every-type", () => Results.Ok()).WithPagination<EveryValueTypeConfigProvider>();
 		app.MapGet("/plain", () => Results.Ok());
 
 		await app.StartAsync();
@@ -335,6 +466,67 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		Assert.DoesNotContain("-1", this.Description("limit"), StringComparison.Ordinal);
 		Assert.DoesNotContain("at least", this.Description("search"), StringComparison.Ordinal);
 
+	}
+
+	private (string Name, string Example)[] FilterExamples(string path) {
+		return [.. this.Parameters(path).EnumerateArray()
+			.Where(parameter => parameter.GetProperty("name").GetString()!.StartsWith("filter.", StringComparison.Ordinal))
+			.Select(parameter => (
+				parameter.GetProperty("name").GetString()!,
+				parameter.GetProperty("schema").GetProperty("items").GetProperty("examples").EnumerateArray().First().GetString()!
+			))];
+	}
+
+	[Fact]
+	public void No_filter_example_falls_back_to_the_placeholder() {
+
+		// The documented type name and the example beside it were produced by two switches enumerating the same
+		// domain, and they had drifted by fourteen rows: the description named `date`, `duration`, `character` or
+		// a NodaTime type precisely, and the example beside it was the literal "value".
+		string[] placeholders = [.. this.FilterExamples("/every-type")
+			.Where(entry => entry.Example.EndsWith(":value", StringComparison.Ordinal))
+			.Select(entry => entry.Name)];
+
+		Assert.Empty(placeholders);
+
+	}
+
+	[Fact]
+	public void A_valueless_or_two_valued_operator_is_exemplified_in_its_own_shape() {
+
+		// "$op:one scalar" is not the shape of every operator, and writing it that way documented requests the
+		// engine answers 400: $null takes no value at all and $btw takes exactly two.
+		var examples = this.FilterExamples("/every-type").ToDictionary(entry => entry.Name, entry => entry.Example, StringComparer.Ordinal);
+
+		Assert.Equal("$null", examples["filter.nullOnly"]);
+		Assert.Equal("$btw:42,99", examples["filter.betweenOnly"]);
+
+	}
+
+	[Fact]
+	public void Every_emitted_filter_example_is_a_value_the_engine_accepts() {
+
+		// The property the document is actually claiming: the example beside a parameter is a request that
+		// resource answers. Feeding every one back through the engine is what stops the emitted examples and the
+		// value grammar drifting apart again -- neither can move without this going red.
+		var source = new List<EveryValueType>().AsQueryable();
+
+		string[] refused = [.. this.FilterExamples("/every-type")
+			.Select(entry => (entry.Name, entry.Example, Error: Refuses(source, entry.Name, entry.Example)))
+			.Where(entry => entry.Error is not null)
+			.Select(entry => $"{entry.Name}={entry.Example} -> {entry.Error}")];
+
+		Assert.Empty(refused);
+
+	}
+
+	private static string? Refuses(IQueryable<EveryValueType> source, string parameterName, string example) {
+		try {
+			source.ApplyPaginateFilters(Query.Filter(parameterName["filter.".Length..], example), EveryValueTypeConfigProvider.Config);
+			return null;
+		} catch (PaginateQueryException exception) {
+			return exception.Message;
+		}
 	}
 
 }
