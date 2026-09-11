@@ -121,6 +121,19 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 	}
 
 	[Fact]
+	public async Task Two_keys_resolving_to_one_field_are_rejected() {
+
+		// Field lookup is case-insensitive but a hand-built Filters map need not be: an ordinal dictionary --
+		// the type's own default, and what the documented non-web construction path produces -- carries both
+		// 'status' and 'Status'. They then AND two criteria on one field and the page comes back empty with no
+		// error at all. Unreachable over HTTP, where the binder collapses the keys before the engine sees them.
+		var request = Query.Filters(("status", "$eq:Active"), ("Status", "$eq:Draft"));
+
+		Assert.Equal("Filter for field 'Status' repeats 'status'; combine the criteria in one entry.", await this.Rejects(request));
+
+	}
+
+	[Fact]
 	public async Task An_unpadded_entry_beside_a_padded_one_still_matches() {
 		// Only the padded entry stops matching; the separator itself is unchanged.
 		Assertions.HasIds(await this.Page(Query.Filter("name", "$in:Widget, Gizmo")), 1);
@@ -131,6 +144,12 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 		// Not a regression — a guard. Dropping the split's trim leaves the padding on the entry, and it is the
 		// numeric styles (AllowLeadingWhite / AllowTrailingWhite) that absorb it. Narrow those and this breaks.
 		Assertions.HasIds(await this.Page(Query.Filter("rank", "$btw:20 , 40")), 2, 3, 4);
+	}
+
+	[Fact]
+	public async Task One_key_per_field_is_still_how_several_criteria_are_expressed() {
+		// The migration the rejection above points at, and proof it rejects duplicates rather than repetition.
+		Assertions.HasIds(await this.Page(Query.Filter("status", "$eq:Draft", "$or:$eq:Discontinued")), 3, 5, 6);
 	}
 
 }

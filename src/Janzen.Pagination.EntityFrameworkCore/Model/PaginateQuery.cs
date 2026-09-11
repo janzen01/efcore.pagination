@@ -18,7 +18,13 @@ public sealed class PaginateQuery {
 	///     called <c>AllowUnlimited(maxRows)</c>, and only together with <see cref="DefaultPage" />; anywhere else
 	///     it is rejected like any other out-of-range limit.
 	/// </summary>
-	public const int UnlimitedLimit = -1;
+	/// <remarks>
+	///     A field rather than a <see langword="const" />, deliberately: a constant is copied into the consuming
+	///     assembly at <b>its</b> compile time, so a later change to the sentinel would be a binary break that
+	///     neither package validation nor the public-API analyzer reports. <see cref="DefaultPage" /> is already
+	///     shipped as a constant and stays one.
+	/// </remarks>
+	public readonly static int UnlimitedLimit = -1;
 
 	internal readonly static IReadOnlyDictionary<string, IReadOnlyList<string>> EmptyFilters =
 		new ReadOnlyDictionary<string, IReadOnlyList<string>>(
@@ -42,7 +48,13 @@ public sealed class PaginateQuery {
 	/// <summary>Subset of searchable fields to search; empty uses the configured defaults. Ignored when the config sets <c>IgnoreSearchByInQueryParam()</c>.</summary>
 	public IReadOnlyList<string> SearchBy { get; init; } = [];
 
-	/// <summary>Filter criteria per field; each value uses the <c>"$op:value"</c> form (e.g. <c>"$eq:42"</c>).</summary>
+	/// <summary>
+	///     Filter criteria per field; each value uses the <c>"$op:value"</c> form (e.g. <c>"$eq:42"</c>). <b>One
+	///     entry per field</b> — several criteria on one field are the several values of its entry. Field names
+	///     are matched case-insensitively, so two keys differing only in case resolve to the same field and are
+	///     rejected; use <see cref="StringComparer.OrdinalIgnoreCase" /> when building the map by hand and the
+	///     collision cannot arise in the first place.
+	/// </summary>
 	public IReadOnlyDictionary<string, IReadOnlyList<string>> Filters { get; init; } = EmptyFilters;
 
 	/// <summary>

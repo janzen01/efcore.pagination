@@ -23,7 +23,9 @@ public sealed class DocumentedConfigProvider : IPaginateConfigProvider<Product> 
 		.Sortable("name", p => p.Name)
 		.WithTieBreaker(p => p.Id)
 		.Searchable("name", p => p.Name)
-		.Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
+		// Declared widest-first on purpose: the emitted example and the operator bullet list are both pinned
+		// to an explicit rule, so neither may follow the order the operators happen to be declared in.
+		.Filterable("status", p => p.Status, PaginateFilterOperator.In, PaginateFilterOperator.Eq)
 		.Filterable("isFeatured", p => p.IsFeatured, PaginateFilterOperator.Eq)
 			.When(true).ShowBadge("Admin only", "language-admin"));
 
@@ -203,6 +205,10 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		Assert.Contains("$in", description);
 		Assert.DoesNotContain("$btw", description);
 
+		// Listed in operator order, not in declaration order -- the backing collection is a set and guarantees
+		// none, so an arbitrary one would rewrite this line in a consumer's committed document on a rebuild.
+		Assert.True(description.IndexOf("$eq", StringComparison.Ordinal) < description.IndexOf("$in", StringComparison.Ordinal));
+
 	}
 
 	[Fact]
@@ -219,7 +225,9 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		string example = parameter.GetProperty("schema").GetProperty("items")
 			.GetProperty("examples").EnumerateArray().First().GetString()!;
 
-		// The operator comes from the field's own allow-list, so it is one a caller may actually send.
+		// The operator comes from the field's own allow-list, so it is one a caller may actually send -- and it
+		// is chosen by an explicit rule ($eq when granted, otherwise the lowest operator), not by whichever the
+		// set happens to enumerate first. This field declares $in before $eq to keep that honest.
 		Assert.StartsWith("$eq:", example);
 
 	}

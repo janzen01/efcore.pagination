@@ -75,6 +75,12 @@ public sealed class ErrorCodeTests {
 		Assert.Equal(PaginateQueryError.FilterOperatorNotAllowed, (await Rejects(Query.Filter("rank", "$ilike:x"))).Code);
 		Assert.Equal(PaginateQueryError.FilterValueCountInvalid, (await Rejects(Query.Filter("id", "$btw:1"))).Code);
 
+		// Two spellings of one field in an ordinal Filters map. Field lookup is case-insensitive, so both keys
+		// resolve to 'rank' and one criterion would be lost; the code is what tells a client which of the two
+		// keys to drop. Unreachable over HTTP, where the binder collapses the keys before the engine sees them.
+		Assert.Equal(PaginateQueryError.DuplicateFilterField,
+			(await Rejects(Query.Filters(("rank", "$eq:1"), ("Rank", "$eq:2")))).Code);
+
 	}
 
 	[Fact]

@@ -74,7 +74,6 @@ Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError.ValueTypeNotSuppo
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryException.Code.get -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryError
 Janzen.Pagination.EntityFrameworkCore.Model.PaginateQueryException.Code.init -> void
 abstract Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeStrategyBase.PreferredExampleOperator.get -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator?
-const Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery.UnlimitedLimit = -1 -> int
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.Equals(object? obj) -> bool
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.GetHashCode() -> int
 override Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigDefaults.ToString() -> string!
@@ -87,3 +86,4 @@ static Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeDefaults.EscapeCha
 static Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeDefaults.Portable.get -> Janzen.Pagination.EntityFrameworkCore.Like.IPaginateLikeStrategy!
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators.For(System.Type! type) -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]!
 static Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperators.For<TValue>() -> Janzen.Pagination.EntityFrameworkCore.Model.PaginateFilterOperator[]!
+static readonly Janzen.Pagination.EntityFrameworkCore.Model.PaginateQuery.UnlimitedLimit -> int

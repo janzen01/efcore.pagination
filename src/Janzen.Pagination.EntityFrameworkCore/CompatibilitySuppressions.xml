@@ -10,6 +10,20 @@
   </Suppression>
   <Suppression>
     <DiagnosticId>CP0014</DiagnosticId>
+    <Target>M:Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFilterFieldMetadata.Equals(Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFilterFieldMetadata):[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
+    <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
+    <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0014</DiagnosticId>
+    <Target>M:Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateFilterFieldMetadata.GetHashCode:[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
+    <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
+    <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0014</DiagnosticId>
     <Target>M:Janzen.Pagination.EntityFrameworkCore.Like.PaginateLikeDefaults.set_Strategy(Janzen.Pagination.EntityFrameworkCore.Like.IPaginateLikeStrategy):[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
     <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
     <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>

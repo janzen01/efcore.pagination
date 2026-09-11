@@ -234,7 +234,42 @@ public sealed record PaginateFieldMetadata(string Name, Type Type, PaginateBadge
 /// <param name="Type">The filtered value's type; a nullable column reports its <b>underlying</b> type (<c>int?</c> is reported as <c>int</c>).</param>
 /// <param name="Operators">The operators granted for this field — any other operator in a request is a 400.</param>
 /// <param name="Badge">Optional presentation chip for the generated docs, or <see langword="null" />.</param>
-public sealed record PaginateFilterFieldMetadata(string Name, Type Type, IReadOnlySet<PaginateFilterOperator> Operators, PaginateBadge? Badge = null);
+public sealed record PaginateFilterFieldMetadata(string Name, Type Type, IReadOnlySet<PaginateFilterOperator> Operators, PaginateBadge? Badge = null) {
+
+	/// <summary>
+	///     Compares two field descriptions by value, <see cref="Operators" /> included and as a <b>set</b>, so the
+	///     order it was declared in does not decide the answer. Written by hand because the synthesized version
+	///     compares that member by <b>reference</b>: the set is materialised afresh on every <c>Build()</c>, so a
+	///     consumer snapshotting <see cref="IPaginateConfig.FilterableFields" /> saw every filterable field report
+	///     itself changed on every rebuild, while the sibling <see cref="PaginateFieldMetadata" /> compared equal.
+	/// </summary>
+	/// <remarks>
+	///     <b>A member added to this record has to be added here and to <see cref="GetHashCode" /> too</b> — that is
+	///     what a hand-written equality costs, and the compiler will not remind you.
+	/// </remarks>
+	public bool Equals(PaginateFilterFieldMetadata? other) {
+		if (ReferenceEquals(this, other)) return true;
+
+		return other is not null
+			&& Name == other.Name
+			&& Type == other.Type
+			&& Badge == other.Badge
+			&& PaginateStructuralEquality.SetEquals(Operators, other.Operators);
+	}
+
+	/// <summary>Hashes the same members <see cref="Equals(PaginateFilterFieldMetadata)" /> compares, so equal descriptions hash equal.</summary>
+	public override int GetHashCode() {
+		var hash = new HashCode();
+
+		hash.Add(Name);
+		hash.Add(Type);
+		hash.Add(Badge);
+		hash.Add(PaginateStructuralEquality.SetHash(Operators));
+
+		return hash.ToHashCode();
+	}
+
+}
 
 /// <summary>
 ///     The immutable, per-entity pagination contract: page-size and guard limits, the sortable, searchable and
@@ -817,8 +852,12 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		if (value <= 0) throw new InvalidOperationException($"{name} must be greater than zero.");
 	}
 
-	private static HashSet<PaginateFilterOperator> BuildOperatorSet(PaginateFilterOperator[] operators) {
-		return operators.Length > 0 ? operators.ToHashSet() : throw new ArgumentException("At least one filter operator must be configured.", nameof(operators));
+	// Frozen rather than a HashSet: the set is built once per field at Build() and then only read -- once per
+	// filter criterion by the engine's allow-list check, and again per field by the OpenAPI transformer.
+	// Enumeration order is not part of the bargain either way, which is why the transformer picks its example
+	// operator and orders its token list by an explicit rule rather than by whatever comes out first.
+	private static FrozenSet<PaginateFilterOperator> BuildOperatorSet(PaginateFilterOperator[] operators) {
+		return operators.Length > 0 ? operators.ToFrozenSet() : throw new ArgumentException("At least one filter operator must be configured.", nameof(operators));
 	}
 
 }

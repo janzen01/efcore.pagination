@@ -126,10 +126,12 @@ The CLR type of the selector decides both the documented type name and the gener
 
 Nullable types document as their underlying type.
 
-The example's **operator** is the field's first declared one — except that when a
-[LIKE strategy](../../postgresql/) advertises a preferred operator and the field allows it, that one wins. So
-the same config documents `$eq:text` normally and `$ilike:text` once `UsePostgreSql()` is registered: the
-example follows what the deployment can actually do.
+The example's **operator** is `$eq` wherever the field grants it, and otherwise the lowest operator it does
+grant — except that when a [LIKE strategy](../../postgresql/) advertises a preferred operator and the field
+allows it, that one wins. So the same config documents `$eq:text` normally and `$ilike:text` once
+`UsePostgreSql()` is registered: the example follows what the deployment can actually do. The rule is
+deliberately independent of the order the operators were declared in, because this example lands in a
+consumer's committed OpenAPI document and a regenerated one is diffed against it.
 
 ## Badges
 

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Janzen.Pagination.EntityFrameworkCore.Model;
 
 /// <summary>
@@ -9,9 +11,9 @@ namespace Janzen.Pagination.EntityFrameworkCore.Model;
 /// <param name="Meta">Paging counters for this page, plus the effective request echoed back: see <see cref="PaginatedMeta" />.</param>
 /// <param name="Links">Hypermedia links, or <see langword="null" /> as a whole when the call supplied no link context. Serialized as <c>null</c>, never omitted.</param>
 public sealed record PaginatedResponse<T>(
-	IReadOnlyList<T> Items,
-	PaginatedMeta Meta,
-	PaginatedLinks? Links
+	[property: JsonPropertyName("items")] IReadOnlyList<T> Items,
+	[property: JsonPropertyName("meta")] PaginatedMeta Meta,
+	[property: JsonPropertyName("links")] PaginatedLinks? Links
 ) {
 
 	/// <summary>
@@ -62,11 +64,11 @@ public sealed record PaginatedResponse<T>(
 /// <param name="TotalPages">Number of pages at this page size, or <c>0</c> when nothing matched.</param>
 /// <param name="CurrentPage">The 1-based page that was <b>requested</b>. Not clamped, so it can exceed <paramref name="TotalPages" /> — that page is simply empty.</param>
 public sealed record PaginatedMeta(
-	int TotalItems,
-	int ItemCount,
-	int ItemsPerPage,
-	int TotalPages,
-	int CurrentPage
+	[property: JsonPropertyName("totalItems")] int TotalItems,
+	[property: JsonPropertyName("itemCount")] int ItemCount,
+	[property: JsonPropertyName("itemsPerPage")] int ItemsPerPage,
+	[property: JsonPropertyName("totalPages")] int TotalPages,
+	[property: JsonPropertyName("currentPage")] int CurrentPage
 ) {
 
 	/// <summary>
@@ -75,9 +77,11 @@ public sealed record PaginatedMeta(
 	///     <c>DefaultSortBy</c>, which is the only way a client rendering sort arrows can know where they belong. The
 	///     tie-breaker is not listed — it is an implementation detail of deterministic paging, not requested order.
 	/// </summary>
+	[JsonPropertyName("sortBy")]
 	public IReadOnlyList<string> SortBy { get; init; } = [];
 
 	/// <summary>The search term that was applied, or <see langword="null" /> when the request carried none. Serialized as <c>null</c> rather than dropped.</summary>
+	[JsonPropertyName("search")]
 	public string? Search { get; init; }
 
 	/// <summary>
@@ -85,15 +89,19 @@ public sealed record PaginatedMeta(
 	///     every configured searchable field instead of an empty list the client would have to interpret. Empty when
 	///     no search ran.
 	/// </summary>
+	[JsonPropertyName("searchBy")]
 	public IReadOnlyList<string> SearchBy { get; init; } = [];
 
 	/// <summary>The request's filters, echoed verbatim per field, for a client rendering filter chips. Empty when the request carried none.</summary>
+	[JsonPropertyName("filter")]
 	public IReadOnlyDictionary<string, IReadOnlyList<string>> Filter { get; init; } = PaginateQuery.EmptyFilters;
 
 	/// <summary>Whether a page precedes this one — <see cref="CurrentPage" /> is above 1. Saves every client re-deriving it from the counters.</summary>
+	[JsonPropertyName("hasPreviousPage")]
 	public bool HasPreviousPage { get; init; }
 
 	/// <summary>Whether a page follows this one — <see cref="CurrentPage" /> is below <see cref="TotalPages" />. <see langword="false" /> past the last page, where nothing follows either.</summary>
+	[JsonPropertyName("hasNextPage")]
 	public bool HasNextPage { get; init; }
 
 	/// <summary>
@@ -154,10 +162,10 @@ public sealed record PaginatedMeta(
 /// <param name="Next">Link to the following page, or <see langword="null" /> on the last page and whenever nothing matched.</param>
 /// <param name="Last">Link to the final page. Always present, and points at page 1 when nothing matched.</param>
 public sealed record PaginatedLinks(
-	string? First,
-	string? Previous,
-	string? Next,
-	string? Last
+	[property: JsonPropertyName("first")] string? First,
+	[property: JsonPropertyName("previous")] string? Previous,
+	[property: JsonPropertyName("next")] string? Next,
+	[property: JsonPropertyName("last")] string? Last
 ) {
 
 	/// <summary>
@@ -168,15 +176,17 @@ public sealed record PaginatedLinks(
 	///     Declared outside the positional list on purpose: the constructor, <c>Deconstruct</c> and <c>with</c> keep
 	///     their shape, and it serializes after the four positional members.
 	/// </summary>
+	[JsonPropertyName("current")]
 	public string? Current { get; init; }
 
 }
 
 /// <summary>
-///     Structural comparison for the envelope records' collection members. A record's synthesized equality runs
-///     every field through <c>EqualityComparer&lt;T&gt;.Default</c>, which for a list or a dictionary is reference
-///     equality — so two envelopes describing the same page would compare unequal. These restore what the record
-///     shape advertises.
+///     Structural comparison for the collection members of the public records — the envelope's, and the
+///     configuration metadata's. A record's synthesized equality runs every field through
+///     <c>EqualityComparer&lt;T&gt;.Default</c>, which for a list, a dictionary or a set is reference equality —
+///     so two envelopes describing the same page would compare unequal. These restore what the record shape
+///     advertises.
 /// </summary>
 internal static class PaginateStructuralEquality {
 
@@ -267,6 +277,54 @@ internal static class PaginateStructuralEquality {
 		}
 
 		return true;
+
+	}
+
+	// Not left.SetEquals(right): that answers through the LEFT set's own comparer, so two sets built with
+	// different ones would compare equal in one direction and not the other -- the asymmetry FilterEquals
+	// documents just above. EqualityComparer<T>.Default is what SetHash combines, so it is the comparer
+	// equality has to agree with. Quadratic, over sets the configuration keeps in single digits.
+	public static bool SetEquals<T>(IReadOnlySet<T>? left, IReadOnlySet<T>? right) {
+
+		if (ReferenceEquals(left, right)) return true;
+		if (left is null || right is null) return false;
+		if (left.Count != right.Count) return false;
+
+		var comparer = EqualityComparer<T>.Default;
+
+		foreach (var item in left) {
+
+			bool matched = false;
+
+			foreach (var other in right) {
+				if (!comparer.Equals(item, other)) continue;
+
+				matched = true;
+				break;
+			}
+
+			if (!matched) return false;
+
+		}
+
+		return true;
+
+	}
+
+	/// <summary>
+	///     Hashes a set <b>commutatively</b>, for the same reason <see cref="FilterHash" /> does: a set has no
+	///     order, so two sets holding the same items must hash the same however they were built.
+	/// </summary>
+	public static int SetHash<T>(IReadOnlySet<T>? set) {
+
+		if (set is null) return 0;
+
+		var comparer = EqualityComparer<T>.Default;
+		int hash = set.Count;
+
+		foreach (var item in set) hash ^= item is null ? 0 : comparer.GetHashCode(item);
+
+		return hash;
 
 	}
 

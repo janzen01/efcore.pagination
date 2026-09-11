@@ -55,9 +55,11 @@ sealed record PaginatedLinks(string? First, string? Previous, string? Next, stri
 Those init-only members sit outside the positional lists on purpose, so each record's constructor,
 `Deconstruct` and `with` keep the shape they had; the engine sets them, a caller never does.
 
-Nothing here is serializer-specific: the JSON above is what ASP.NET Core's default camelCase settings
-produce from those records. The tables below use the JSON names; the CLR members are the same names in
-PascalCase.
+The JSON names above are **pinned by the library**, with `[JsonPropertyName]` on every member of the three
+records, so the shape is the same whatever the host's `JsonSerializerOptions.PropertyNamingPolicy` says. They
+match what ASP.NET Core's default camelCase settings would have produced anyway, which is why the common case
+looks unchanged — but an application serving `snake_case` everywhere else still serves this envelope as it is
+documented here. The tables below use the JSON names; the CLR members are the same names in PascalCase.
 
 ## `items`
 
@@ -261,7 +263,9 @@ first == second   // true
 That needs saying because it is not what the record shape gives you for free. A record's synthesized equality
 runs every member through `EqualityComparer<T>.Default`, which is reference equality for a list or a
 dictionary — so `items`, `sortBy`, `searchBy` and `filter` would have made two envelopes describing the same
-page compare unequal. These three records hand-write `Equals` and `GetHashCode` instead. The rules:
+page compare unequal. `PaginatedResponse<T>` and `PaginatedMeta` therefore hand-write `Equals` and
+`GetHashCode`; `PaginatedLinks` holds nothing but strings, so the synthesized pair is already right for it.
+The rules:
 
 - **`items` compares element by element**, each through `T`'s own equality. A projection record compares by
   value; a projection declared as a class compares by reference, because that is its contract, not the
