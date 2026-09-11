@@ -94,7 +94,7 @@ What each one actually counts is where the surprises live:
 | `MaxFilterValues` | 100 | **one comma-separated list, per criterion.** `$in`, `$btw` and `$contains`-on-a-collection are the operators that take lists. Two criteria of 80 values each pass. | `400 Filter 'x' accepts at most N values.` |
 | `MaxFilterConditions` | 20 | **every `filter.*` value across every field**, added together — 20 in total, not 20 per field. | `400 Too many filter conditions; at most N are allowed.` |
 | `MaxSortFields` | 5 | **only `sortBy` values sent by the request.** `DefaultSortBy` entries and the tie-breaker are appended afterwards and are never measured against it. | `400 Too many sort fields; at most N are allowed.` |
-| `MaxSearchLength` | 256 | characters of `search`, checked before the query is built. | `400 Search term must not exceed N characters.` |
+| `MaxSearchLength` | 256 | characters of `search`, **and** of a `$ilike` / `$sw` / `$contains` pattern on a string field — the two emit the same `LIKE`. Checked before the query is built. | `400 Search term must not exceed N characters.` / `400 Filter 'x' pattern must not exceed N characters.` |
 
 `MaxLimit` belongs to the same family but is set by [`WithLimits`](#withlimits), not here.
 
@@ -119,6 +119,13 @@ any non-blank term runs.
 The term is measured **after trimming**, and trimming happens before the search is built either way, so
 `?search=%20%20a%20%20` is a three-character term that searches for `a` — not a five-character one that
 searches for the spaces.
+
+It bounds the three pattern operators too. `$ilike`, `$sw` and `$contains`-on-a-string emit the identical
+`LIKE '%…%'`, and the derived operator set puts all three within reach of the `Filterable("name", x => x.Name)`
+shorthand, so guarding only `search` would leave the same scan reachable through any field whitelisted for them
+— down to `?filter.name=$ilike:`, a zero-length value that matched every non-`NULL` row. A filter value is never
+trimmed, so a pattern is measured **as sent**, and the rejection reads
+`400 Filter 'x' pattern must be at least N characters.`
 
 **Rejects at configuration time:** a value below 1 → `ArgumentOutOfRangeException`; a value above
 `MaxSearchLength` → `InvalidOperationException` at `Build()`, naming both numbers.

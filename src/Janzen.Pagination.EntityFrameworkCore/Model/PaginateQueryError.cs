@@ -41,6 +41,9 @@ public enum PaginateQueryError {
 	/// <summary>A filter criterion is not in the <c>$operator:value</c> form — empty, unterminated, or carrying a value where none is taken.</summary>
 	FilterCriterionMalformed,
 
+	/// <summary>A filter criterion begins with <c>$and</c> or <c>$or</c>, which has no criterion before it to join to.</summary>
+	FilterConnectorMisplaced,
+
 	/// <summary>A filter criterion names an operator token the grammar has no member for.</summary>
 	FilterOperatorUnknown,
 
@@ -58,6 +61,12 @@ public enum PaginateQueryError {
 
 	/// <summary>One criterion carries more values than <c>MaxFilterValues</c> allows.</summary>
 	TooManyFilterValues,
+
+	/// <summary>A <c>$ilike</c> / <c>$sw</c> / <c>$contains</c> pattern on a string field is shorter than <c>MinSearchLength</c> allows.</summary>
+	FilterPatternTooShort,
+
+	/// <summary>A <c>$ilike</c> / <c>$sw</c> / <c>$contains</c> pattern on a string field is longer than <c>MaxSearchLength</c> allows.</summary>
+	FilterPatternTooLong,
 
 	/// <summary>An empty value was sent for a target that cannot be empty.</summary>
 	ValueEmpty,

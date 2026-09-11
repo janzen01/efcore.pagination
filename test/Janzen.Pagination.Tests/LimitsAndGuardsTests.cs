@@ -263,6 +263,64 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 		Assertions.HasIds(await Products().PageAsync<ProductDto>(Query.Search("a"), Config(_ => { })), 2, 5, 6, 7, 8);
 	}
 
+	// ---- the same two guards over the pattern operators ---------------------------------------------
+
+	private static PaginateConfig<Product> PatternConfig(Action<PaginateConfigBuilder<Product>> extra) {
+		return Config(b => {
+			b.Filterable("name", p => p.Name);
+			extra(b);
+		});
+	}
+
+	[Theory]
+	[InlineData("$ilike:a")]
+	[InlineData("$sw:a")]
+	[InlineData("$contains:a")]
+	public async Task A_pattern_value_below_the_minimum_is_rejected(string criterion) {
+
+		// The three pattern operators emit the same LIKE '%...%' as search does, so the guard that exists to stop
+		// a one-character scan has to cover both paths to it.
+		string message = await Assertions.RejectsAsync(() =>
+			Products().PageAsync<ProductDto>(Query.Filter("name", criterion), PatternConfig(b => b.WithMinSearchLength(3))));
+
+		Assert.Equal("Filter 'name' pattern must be at least 3 characters.", message);
+
+	}
+
+	[Fact]
+	public async Task A_zero_length_pattern_is_rejected() {
+
+		// The cheapest scan of all: an empty value escapes to the empty string, emits %% and matches every
+		// non-NULL row. It cleared the default minimum of 1 because nothing measured it.
+		string message = await Assertions.RejectsAsync(() =>
+			Products().PageAsync<ProductDto>(Query.Filter("name", "$ilike:"), PatternConfig(_ => { })));
+
+		Assert.Equal("Filter 'name' pattern must be at least 1 characters.", message);
+
+	}
+
+	[Fact]
+	public async Task A_pattern_value_at_the_minimum_runs() {
+		Assertions.HasIds(await Products().PageAsync<ProductDto>(Query.Filter("name", "$ilike:wid"), PatternConfig(b => b.WithMinSearchLength(3))), 1, 2);
+	}
+
+	[Fact]
+	public async Task A_pattern_value_above_the_maximum_is_rejected() {
+
+		string message = await Assertions.RejectsAsync(() =>
+			Products().PageAsync<ProductDto>(Query.Filter("name", "$ilike:widget"), PatternConfig(b => b.WithGuards(maxSearchLength: 3))));
+
+		Assert.Equal("Filter 'name' pattern must not exceed 3 characters.", message);
+
+	}
+
+	[Fact]
+	public async Task A_pattern_value_is_measured_as_sent() {
+		// Filter values are not trimmed -- the padding is part of the pattern the database is asked for, so it is
+		// part of what the guard measures. The search term is the other way round, and trims before it measures.
+		Assertions.HasIds(await Products().PageAsync<ProductDto>(Query.Filter("name", "$ilike: wid"), PatternConfig(b => b.WithMinSearchLength(4))));
+	}
+
 	[Fact]
 	public void A_minimum_above_the_maximum_is_a_configuration_error() {
 

@@ -309,9 +309,24 @@ internal abstract class PaginateFilterField(
 
 	}
 
+	/// <summary>
+	///     Builds the <c>$ilike</c> / <c>$sw</c> / <c>$contains</c> predicate on a string field, and applies the same
+	///     two length guards the search term passes. They emit the identical <c>LIKE '%…%'</c>, so a guard on only
+	///     one of the two paths to it reads as protection the resource does not have — a zero-length value escaped
+	///     to the empty string, emitted <c>%%</c> and matched every non-NULL row. The value is measured as sent,
+	///     because a filter value is never trimmed: the padding is part of the pattern the database is asked for.
+	/// </summary>
 	private BinaryExpression BuildStringPatternExpression(Expression valueExpression, string value, bool startsWith, PaginateExpressionContext context) {
 
 		if (Type != typeof(string)) throw new PaginateQueryException($"Filter '{Name}' supports string pattern operators only for string fields.") { Code = PaginateQueryError.FilterOperatorTypeMismatch };
+
+		if (value.Length > context.MaxSearchLength) {
+			throw new PaginateQueryException($"Filter '{Name}' pattern must not exceed {context.MaxSearchLength} characters.") { Code = PaginateQueryError.FilterPatternTooLong };
+		}
+
+		if (value.Length < context.MinSearchLength) {
+			throw new PaginateQueryException($"Filter '{Name}' pattern must be at least {context.MinSearchLength} characters.") { Code = PaginateQueryError.FilterPatternTooShort };
+		}
 
 		var notNull = Expression.NotEqual(valueExpression, Expression.Constant(null, valueExpression.Type));
 
