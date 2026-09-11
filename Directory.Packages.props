@@ -5,6 +5,14 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <!-- Nothing in the tree references Relational directly, so without this entry it settles on
+         Npgsql.EntityFrameworkCore.PostgreSQL's [10.0.4, 11.0.0) floor while the core project raises
+         Microsoft.EntityFrameworkCore itself - a Core 10.0.11+ / Relational 10.0.4 pairing EF Core's
+         own packages never produce, and one nothing warns about because every declared range is
+         satisfied. Transitive pinning only applies to packages that have an entry here, which is why
+         the split has to be closed by naming it. It is promoted to a visible dependency of the
+         PostgreSql package as a result; that is the cost of holding the family together. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
     <PackageVersion Include="NodaTime" Version="3.3.3" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
