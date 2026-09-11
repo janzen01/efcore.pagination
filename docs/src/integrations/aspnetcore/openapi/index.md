@@ -32,7 +32,7 @@ Six parameters plus a `400`, in this order:
 | Parameter | Shape | Built from |
 |-----------|-------|------------|
 | `page` | `integer`, minimum `1`, default `1` | fixed |
-| `limit` | `integer`, minimum `1`, **maximum `MaxLimit`**, default `DefaultLimit` | `WithLimits` |
+| `limit` | `integer`, minimum `1`, **maximum `MaxLimit`**, default `DefaultLimit` — or a `oneOf` of that range and `-1` where the resource called `AllowUnlimited` | `WithLimits`, `AllowUnlimited` |
 | `sortBy` | `array` of `string`, exploded, **enum of every `field:ASC` / `field:DESC`**, maximum `MaxSortFields` items | `Sortable`, `DefaultSortBy`, `WithGuards` |
 | `search` | `string`, maximum `MaxSearchLength` characters | `Searchable`, `WithGuards` |
 | `searchBy` | `array` of `string`, exploded, enum of the searchable names | `Searchable` |
@@ -49,6 +49,11 @@ Three conditions worth knowing:
   run time, so advertising it would be a lie.
 - **`filter.` parameters are ordered by field name** (ordinal), not by declaration order, so the document is
   stable across config edits that only move lines around.
+
+The `limit` schema only grows a `oneOf` on a resource that called
+[`AllowUnlimited`](/reference/configuration/#allowunlimited), and it is the whole reason it grows one: the
+description advertises `-1` and a flat `minimum: 1` beside it is a contradiction a gateway acts on. Everywhere
+else the parameter keeps the single range it always had, because `-1` really is a `400` there.
 
 All nine [guards](/reference/configuration/#withguards) reach the document. Five of them are expressible as
 JSON Schema and are published that way — `MaxLimit` as `maximum`, `MaxSortFields` as `maxItems` and

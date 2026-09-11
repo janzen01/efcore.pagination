@@ -483,6 +483,28 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	}
 
 	[Fact]
+	public void Only_an_unlimited_resource_admits_minus_one_in_its_limit_schema() {
+
+		// The description said "Send -1 with page=1" while the schema beside it said minimum 1, so a gateway doing
+		// request validation against the published document (APIM, Kong, a generated client's range check) refused
+		// -1 at the edge and made AllowUnlimited unreachable over HTTP for that deployment.
+		var guarded = this.Schema("/guarded", "limit");
+		var branches = guarded.GetProperty("oneOf").EnumerateArray().ToArray();
+
+		Assert.Equal(2, branches.Length);
+		Assert.Contains(branches, branch => branch.TryGetProperty("maximum", out _));
+		Assert.Contains(branches, branch => branch.TryGetProperty("enum", out var members) && members.EnumerateArray().Any(member => member.GetInt32() == -1));
+		Assert.False(guarded.TryGetProperty("minimum", out _));
+
+		// A resource that never opted in keeps the single honest range: -1 is a 400 there, so the schema says so.
+		var plain = this.Schema("/products", "limit");
+
+		Assert.False(plain.TryGetProperty("oneOf", out _));
+		Assert.True(plain.TryGetProperty("minimum", out _));
+
+	}
+
+	[Fact]
 	public void The_filter_list_and_request_ceilings_reach_the_description() {
 
 		// Neither has a JSON Schema keyword that fits -- one bounds the elements inside a single string value,

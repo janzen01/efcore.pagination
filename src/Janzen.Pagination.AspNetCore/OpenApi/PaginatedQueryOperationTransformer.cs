@@ -170,24 +170,42 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private static OpenApiParameter CreateLimitParameter(IPaginateConfig config) {
 
-		// -1 stays outside the schema's minimum on purpose. Expressing "1..max, or exactly -1" needs a oneOf,
-		// which several generators render worse than one honest sentence; the description is the contract here.
 		string unlimited = config.UnlimitedMaxRows is { } maxRows
 			? $" Send -1 with page=1 to receive every matching row as one page, up to {maxRows} of them; more than that returns 400."
 			: string.Empty;
+
+		string maximum = config.MaxLimit.ToString(CultureInfo.InvariantCulture);
+
+		// A flat "minimum 1" contradicted the sentence above on any resource that opted in, and the artefact is
+		// read by validators as well as by renderers: a gateway doing OpenAPI request validation refused -1 at the
+		// edge, making AllowUnlimited unreachable over HTTP. Expressing "1..max, or exactly -1" needs a oneOf, and
+		// the objection to one was its rendering quality -- so it is emitted only where the resource opted in, and
+		// every other resource keeps the single range it always had. Dropping `minimum` instead would widen the
+		// schema to 0 and every other negative, which the engine still answers with 400.
+		var schema = config.UnlimitedMaxRows is null
+			? new OpenApiSchema {
+				Type = JsonSchemaType.Integer,
+				Format = "int32",
+				Minimum = "1",
+				Maximum = maximum,
+				Default = JsonValue.Create(config.DefaultLimit)
+			}
+			: new OpenApiSchema {
+				Type = JsonSchemaType.Integer,
+				Format = "int32",
+				Default = JsonValue.Create(config.DefaultLimit),
+				OneOf = [
+					new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32", Minimum = "1", Maximum = maximum },
+					new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32", Enum = [JsonValue.Create(PaginateQuery.UnlimitedLimit)] }
+				]
+			};
 
 		return new OpenApiParameter {
 			Name = PaginateQueryParams.Limit,
 			In = ParameterLocation.Query,
 			Description = $"Number of records per page. Must be between 1 and {config.MaxLimit}; out-of-range values return 400. Defaults to {config.DefaultLimit} when omitted.{unlimited}",
 			Required = false,
-			Schema = new OpenApiSchema {
-				Type = JsonSchemaType.Integer,
-				Format = "int32",
-				Minimum = "1",
-				Maximum = config.MaxLimit.ToString(CultureInfo.InvariantCulture),
-				Default = JsonValue.Create(config.DefaultLimit)
-			}
+			Schema = schema
 		};
 	}
 
