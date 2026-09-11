@@ -69,11 +69,13 @@ The `limit` schema only grows a `oneOf` on a resource that called
 description advertises `-1` and a flat `minimum: 1` beside it is a contradiction a gateway acts on. Everywhere
 else the parameter keeps the single range it always had, because `-1` really is a `400` there.
 
-All nine [guards](/reference/configuration/#withguards) reach the document. Five of them are expressible as
+All nine [guards](/reference/configuration/#guards) reach the document. Five of them are expressible as
 JSON Schema and are published that way — `MaxLimit` as `maximum`, `MaxSortFields` as `maxItems` and
-`MaxSearchLength` as `maxLength`, alongside `DefaultLimit` and the `page` minimum. The rest have no keyword
-that fits and are published as a sentence instead: `MaxOffset` on `page`, `MinSearchLength` on `search`, and
-`MaxFilterValues` / `MaxFilterConditions` on every `filter.<field>`. A validating gateway therefore turns away
+`MaxSearchLength` as `maxLength`, alongside `DefaultLimit` as the `default` and `UnlimitedMaxRows` as the
+`-1` branch of the `oneOf` above. The rest have no keyword that fits and are published as a sentence
+instead: `MaxOffset` on `page`, `MinSearchLength` on `search`, and `MaxFilterValues` /
+`MaxFilterConditions` on every `filter.<field>`. The `page` minimum is not on either list: it is a hard 1
+the engine does not let a resource move, so there is no guard behind it to publish. A validating gateway therefore turns away
 at the edge only what the engine already answers with a `400` — with one caveat: the engine measures the
 **trimmed** search term, so a padded one can be inside `MaxSearchLength` for the engine and outside
 `maxLength` for the validator.
