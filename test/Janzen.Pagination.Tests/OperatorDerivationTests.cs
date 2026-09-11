@@ -159,4 +159,29 @@ public sealed class OperatorDerivationTests {
 
 	}
 
+	[Fact]
+	public void The_shorthand_names_the_type_argument_when_nothing_can_be_derived() {
+
+		// For(Type) names its own parameter, and the shorthand has none: a consumer reading "(Parameter 'type')"
+		// against .Filterable(name, selector) goes looking for an argument that is not there. The input is the
+		// type argument the selector's return type inferred.
+		var exception = Assert.Throws<ArgumentException>(() =>
+			PaginateConfig<Product>.Create(b => b.Filterable("category", p => p.Category)));
+
+		Assert.Equal("TValue", exception.ParamName);
+
+	}
+
+	[Fact]
+	public void The_shorthand_checks_its_own_arguments_before_deriving() {
+
+		// The derivation is an *argument* to the explicit overload, so it ran before that overload's guards and a
+		// null name was reported as a derivation failure on an unrelated type.
+		var exception = Assert.Throws<ArgumentNullException>(() =>
+			PaginateConfig<Product>.Create(b => b.Filterable(null!, p => p.Category)));
+
+		Assert.Equal("name", exception.ParamName);
+
+	}
+
 }

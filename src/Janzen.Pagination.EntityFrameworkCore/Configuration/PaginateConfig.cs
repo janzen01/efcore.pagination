@@ -550,7 +550,14 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	///     for the derivation and its limits. Throws when the type has no derivation; such a field takes the overload
 	///     with an explicit operator list.
 	/// </summary>
-	public PaginateConfigBuilder<TEntity> Filterable<TValue>(string name, Expression<Func<TEntity, TValue>> selector) { return Filterable(name, selector, PaginateFilterOperators.For<TValue>()); }
+	public PaginateConfigBuilder<TEntity> Filterable<TValue>(string name, Expression<Func<TEntity, TValue>> selector) {
+		// Guarded here as well as in the target overload: the derivation is an *argument* to that overload, so it
+		// runs first, and Filterable<Category>(null!, …) reported the derivation failure instead of the null name.
+		ArgumentException.ThrowIfNullOrWhiteSpace(name);
+		ArgumentNullException.ThrowIfNull(selector);
+
+		return Filterable(name, selector, PaginateFilterOperators.For<TValue>());
+	}
 
 	/// <summary>
 	///     Declares a collection/navigation field as filterable, whitelisting every operator the engine can build for
@@ -561,7 +568,14 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		string name,
 		Expression<Func<TEntity, IEnumerable<TElement>>> collectionSelector,
 		Expression<Func<TElement, TValue>> valueSelector
-	) { return FilterableMany(name, collectionSelector, valueSelector, PaginateFilterOperators.For<TValue>()); }
+	) {
+		// Same ordering as the scalar shorthand above.
+		ArgumentException.ThrowIfNullOrWhiteSpace(name);
+		ArgumentNullException.ThrowIfNull(collectionSelector);
+		ArgumentNullException.ThrowIfNull(valueSelector);
+
+		return FilterableMany(name, collectionSelector, valueSelector, PaginateFilterOperators.For<TValue>());
+	}
 
 	/// <summary>
 	///     Declares a scalar field as filterable via <c>filter.&lt;name&gt;=$op:value</c>, restricted to the supplied
