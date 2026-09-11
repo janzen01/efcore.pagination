@@ -94,7 +94,7 @@ public static class PaginateNodaTime {
 		var offset = OffsetDateTimePattern.ExtendedIso.Parse(value);
 		if (offset.Success) return offset.Value.ToInstant();
 
-		throw new PaginateQueryException($"Value '{value}' is not a valid instant.");
+		throw new PaginateQueryException($"Value '{value}' is not a valid instant.") { Code = PaginateQueryError.ValueInvalid };
 
 	}
 
@@ -116,14 +116,14 @@ public static class PaginateNodaTime {
 		try {
 			return Duration.FromTimeSpan(PaginateValueConverter.ParseIsoDuration(value, "is not a valid duration"));
 		} catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException) {
-			throw new PaginateQueryException($"Value '{value}' is not a valid duration.", ex);
+			throw new PaginateQueryException($"Value '{value}' is not a valid duration.", ex) { Code = PaginateQueryError.ValueInvalid };
 		}
 
 	}
 
 	private static object ParseNodaTime<T>(string value, IPattern<T> pattern, string displayName) {
 		var result = pattern.Parse(value);
-		return result.Success ? result.Value! : throw new PaginateQueryException($"Value '{value}' is not a valid {displayName}.");
+		return result.Success ? result.Value! : throw new PaginateQueryException($"Value '{value}' is not a valid {displayName}.") { Code = PaginateQueryError.ValueInvalid };
 	}
 
 	/// <summary>

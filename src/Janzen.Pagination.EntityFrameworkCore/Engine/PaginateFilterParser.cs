@@ -42,7 +42,7 @@ internal static class PaginateFilterParser {
 
 	public static PaginateFilterCriterion Parse(string field, string raw) {
 
-		if (string.IsNullOrWhiteSpace(raw)) throw new PaginateQueryException($"Filter '{field}' must not be empty.");
+		if (string.IsNullOrWhiteSpace(raw)) throw new PaginateQueryException($"Filter '{field}' must not be empty.") { Code = PaginateQueryError.FilterCriterionMalformed };
 
 		// Every filter value passes through here before an operator, a target type or a provider is chosen, which
 		// is the only place one guard covers all of them: the pattern operators never reach PaginateValueConverter.
@@ -73,13 +73,13 @@ internal static class PaginateFilterParser {
 			}
 
 			if (!Operators.TryGetValue(token, out var filterOperator)) {
-				throw new PaginateQueryException($"Filter '{field}' uses unknown operator '{PaginateInputGuard.Echo(token)}'.");
+				throw new PaginateQueryException($"Filter '{field}' uses unknown operator '{PaginateInputGuard.Echo(token)}'.") { Code = PaginateQueryError.FilterOperatorUnknown };
 			}
 
 			// $null is documented as valueless and PaginateFilterField drops whatever follows it, so `$null:false`
 			// used to behave as a bare `$null` — the opposite of what the caller wrote.
 			if (filterOperator == PaginateFilterOperator.Null && afterToken.Length > 0) {
-				throw new PaginateQueryException($"Filter '{field}' does not take a value for '$null'.");
+				throw new PaginateQueryException($"Filter '{field}' does not take a value for '$null'.") { Code = PaginateQueryError.FilterCriterionMalformed };
 			}
 
 			return new PaginateFilterCriterion(filterOperator, afterToken, not, connector);
@@ -88,11 +88,11 @@ internal static class PaginateFilterParser {
 
 		if (Operators.TryGetValue(remaining, out var terminalOperator)) {
 			return terminalOperator != PaginateFilterOperator.Null
-				? throw new PaginateQueryException($"Filter '{field}' must use the format '$operator:value'.")
+				? throw new PaginateQueryException($"Filter '{field}' must use the format '$operator:value'.") { Code = PaginateQueryError.FilterCriterionMalformed }
 				: new PaginateFilterCriterion(terminalOperator, string.Empty, not, connector);
 		}
 
-		throw new PaginateQueryException($"Filter '{field}' must use the format '$operator:value'.");
+		throw new PaginateQueryException($"Filter '{field}' must use the format '$operator:value'.") { Code = PaginateQueryError.FilterCriterionMalformed };
 
 	}
 

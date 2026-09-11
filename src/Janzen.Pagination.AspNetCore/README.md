@@ -99,9 +99,14 @@ cases. See
 Any invalid query becomes [`400 Bad Request` with `title: "Invalid
 query"`](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/#errors-as-problemdetails) and the
 specific message as `detail` — via `PaginateExceptionFilter` for controllers (registered by `AddAspNetCore()`) or
-`PaginateExceptionEndpointFilter` for Minimal APIs (registered by `WithPagination<T>()`). Both build the payload
-through the app's `ProblemDetailsFactory` when one is registered, so the two pipelines answer with the same
-members. No per-action `try`/`catch` needed.
+`PaginateExceptionEndpointFilter` for Minimal APIs (registered by `WithPagination<T>()`). Both answer
+`application/problem+json` and each is enriched exactly once by its own framework half, so an
+`AddProblemDetails` customisation applies on either. The members match where the framework halves do:
+`type`, `title`, `status`, `detail` and `code` come from this library on both legs, while `traceId` is the
+framework's and reaches a Minimal API response only when the app registered `AddProblemDetails()`. No per-action `try`/`catch` needed.
+
+The payload carries a `code` member — the `PaginateQueryException.Code` member name, such as
+`SortFieldNotConfigured` — so a client can branch on the cause instead of matching the `detail` prose.
 
 Unknown query parameters are ignored, so clients keep their own tracking parameters; `page` and `limit` are
 validated.

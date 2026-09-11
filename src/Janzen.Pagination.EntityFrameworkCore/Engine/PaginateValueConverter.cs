@@ -61,7 +61,7 @@ internal static class PaginateValueConverter {
 		if (type == typeof(string)) return value;
 
 		if (string.IsNullOrWhiteSpace(value)) {
-			return Nullable.GetUnderlyingType(targetType) is not null ? null : throw new PaginateQueryException($"Value for '{field}' must not be empty.");
+			return Nullable.GetUnderlyingType(targetType) is not null ? null : throw new PaginateQueryException($"Value for '{field}' must not be empty.") { Code = PaginateQueryError.ValueEmpty };
 		}
 
 		// Everything below is reachable by consumer code — a registered parser, or an IParsable<TSelf>.TryParse the
@@ -126,13 +126,13 @@ internal static class PaginateValueConverter {
 			if (type == typeof(DateOnly)) {
 				return DateOnly.TryParseExact(value, DateOnlyFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
 					? date
-					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 			}
 
 			if (type == typeof(TimeOnly)) {
 				return TimeOnly.TryParseExact(value, TimeOnlyFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)
 					? time
-					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 			}
 			// Two accepted spellings: .NET's own "c" (2:30:00) because that is what a .NET caller types, and ISO-8601
 			// (PT2H30M) because it survives a URL without percent-encoded colons.
@@ -172,7 +172,7 @@ internal static class PaginateValueConverter {
 				}
 
 				object parsed = Enum.Parse(type, member, true);
-				return Enum.IsDefined(type, parsed) ? parsed : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+				return Enum.IsDefined(type, parsed) ? parsed : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 			}
 
 			// Last: anything that can parse itself invariantly. This is what makes a consumer's strongly-typed id work
@@ -185,7 +185,7 @@ internal static class PaginateValueConverter {
 			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.", ex);
 		}
 
-		throw new PaginateQueryException($"Filtering values for '{field}' is not supported.");
+		throw new PaginateQueryException($"Filtering values for '{field}' is not supported.") { Code = PaginateQueryError.ValueInvalid };
 
 	}
 
@@ -224,7 +224,7 @@ internal static class PaginateValueConverter {
 		// target the caller declared non-nullable. Only reachable for a class-based T; a struct boxes.
 		return T.TryParse(value, CultureInfo.InvariantCulture, out var parsed) && parsed is not null
 			? parsed
-			: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
+			: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 	}
 
 	/// <summary>
@@ -240,7 +240,7 @@ internal static class PaginateValueConverter {
 		var datePart = time < 0 ? value.AsSpan() : value.AsSpan(0, time);
 
 		if (datePart.ContainsAny('Y', 'M')) {
-			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' {invalidClause}: a duration in years or months has no fixed length.");
+			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' {invalidClause}: a duration in years or months has no fixed length.") { Code = PaginateQueryError.ValueInvalid };
 		}
 
 		return XmlConvert.ToTimeSpan(value);
@@ -250,7 +250,7 @@ internal static class PaginateValueConverter {
 	private static T Parse<T>(string value, TryParse<T> parser, string displayName) {
 		return parser(value, out var parsed)
 			? parsed
-			: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not a valid {displayName}.");
+			: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not a valid {displayName}.") { Code = PaginateQueryError.ValueInvalid };
 	}
 
 	private delegate bool TryParse<T>(string value, out T result);

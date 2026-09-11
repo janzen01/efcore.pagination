@@ -1,9 +1,12 @@
+using Janzen.Pagination.AspNetCore.Filters;
 using Janzen.Pagination.EntityFrameworkCore;
 using Janzen.Pagination.EntityFrameworkCore.Configuration;
 using Janzen.Pagination.EntityFrameworkCore.Engine;
 using Janzen.Pagination.EntityFrameworkCore.Like;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
@@ -77,35 +80,53 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			operation.Parameters.Add(CreateFilterParameter(field, likeStrategy));
 		}
 
-		AddValidationErrorResponse(operation);
+		AddValidationErrorResponse(operation, context);
 
 		return Task.CompletedTask;
 
 	}
 
-	// Invalid pagination input is translated to a 400 ProblemDetails by PaginateExceptionFilter, so advertise it.
-	private static void AddValidationErrorResponse(OpenApiOperation operation) {
+	// Invalid pagination input is translated to a 400 ProblemDetails by PaginateExceptionFilter on the controller
+	// leg and PaginateExceptionEndpointFilter on the Minimal API leg, so advertise it — with the members that leg
+	// actually sends and no others. `instance` is on neither: no producer passes one and the framework synthesises
+	// none, so documenting it only taught generated clients an always-null member.
+	private static void AddValidationErrorResponse(OpenApiOperation operation, OpenApiOperationTransformerContext context) {
 
 		operation.Responses ??= new OpenApiResponses();
 
 		if (operation.Responses.ContainsKey("400")) return;
 
+		var properties = new Dictionary<string, IOpenApiSchema> {
+			["type"] = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uri" },
+			["title"] = new OpenApiSchema { Type = JsonSchemaType.String },
+			["status"] = new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
+			["detail"] = new OpenApiSchema { Type = JsonSchemaType.String },
+			// Both filters set it from PaginateQueryException.Code, so it is unconditional. Enumerating the
+			// members here would freeze the set into every consumer's committed document and break it on the
+			// next member added, so it is documented as the string it is.
+			[PaginateExceptionFilter.CodeExtension] = new OpenApiSchema {
+				Type = JsonSchemaType.String,
+				Description = "Machine-readable cause, for branching without matching the 'detail' prose."
+			}
+		};
+
+		// traceId has two producers and only one of them is unconditional. A controller action gets it from
+		// ProblemDetailsFactory, which the MVC services always bring; a Minimal API endpoint gets it from the
+		// problem-details writer, which only AddProblemDetails() registers. A Minimal-API-only app is a supported
+		// configuration and sends none, so publishing it there was the document promising a member the runtime
+		// does not send.
+		if (context.Description.ActionDescriptor is ControllerActionDescriptor
+			|| context.ApplicationServices.GetService<IProblemDetailsService>() is not null) {
+			properties["traceId"] = new OpenApiSchema { Type = JsonSchemaType.String };
+		}
+
 		operation.Responses["400"] = new OpenApiResponse {
 			Description = "The pagination query parameters were invalid.",
 			Content = new Dictionary<string, OpenApiMediaType> {
-				["application/problem+json"] = new OpenApiMediaType {
+				[PaginateExceptionFilter.ProblemJson] = new OpenApiMediaType {
 					Schema = new OpenApiSchema {
 						Type = JsonSchemaType.Object,
-						Properties = new Dictionary<string, IOpenApiSchema> {
-							["type"] = new OpenApiSchema { Type = JsonSchemaType.String, Format = "uri" },
-							["title"] = new OpenApiSchema { Type = JsonSchemaType.String },
-							["status"] = new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
-							["detail"] = new OpenApiSchema { Type = JsonSchemaType.String },
-							["instance"] = new OpenApiSchema { Type = JsonSchemaType.String },
-							// ProblemDetailsFactory adds traceId to every payload it builds, which both pipelines now
-							// go through — documenting only the standard members would understate what clients receive.
-							["traceId"] = new OpenApiSchema { Type = JsonSchemaType.String }
-						}
+						Properties = properties
 					}
 				}
 			}

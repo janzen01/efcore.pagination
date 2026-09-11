@@ -45,17 +45,21 @@ internal static class PaginateQueryParser {
 		}
 
 		string? error = null;
+		var errorCode = PaginateQueryError.Unspecified;
 
 		return new PaginateQuery {
-			Page = ParsePositiveInt(FirstNonBlank(query[PaginateQueryParams.Page]), PaginateQueryParams.Page, PaginateQuery.DefaultPage, ref error) ?? PaginateQuery.DefaultPage,
-			Limit = ParseLimit(FirstNonBlank(query[PaginateQueryParams.Limit]), ref error),
+			Page = ParsePositiveInt(FirstNonBlank(query[PaginateQueryParams.Page]), PaginateQueryParams.Page, PaginateQueryError.PageOutOfRange, PaginateQuery.DefaultPage, ref error, ref errorCode) ?? PaginateQuery.DefaultPage,
+			Limit = ParseLimit(FirstNonBlank(query[PaginateQueryParams.Limit]), ref error, ref errorCode),
 			SortBy = ReadValues(query[PaginateQueryParams.SortBy]),
 			Search = FirstNonBlank(query[PaginateQueryParams.Search]),
 			SearchBy = ReadValues(query[PaginateQueryParams.SearchBy]),
 			Filters = filters is null
 				? PaginateQuery.EmptyFilters
 				: new ReadOnlyDictionary<string, IReadOnlyList<string>>(filters),
-			ValidationError = error ?? duplicateFilter
+			ValidationError = error ?? duplicateFilter,
+			ValidationErrorCode = error is not null ? errorCode
+				: duplicateFilter is not null ? PaginateQueryError.DuplicateFilterField
+				: PaginateQueryError.Unspecified
 		};
 
 	}
@@ -81,12 +85,18 @@ internal static class PaginateQueryParser {
 
 	}
 
-	private static int? ParsePositiveInt(string? value, string name, int? fallback, ref string? error) {
+	private static int? ParsePositiveInt(string? value, string name, PaginateQueryError code, int? fallback, ref string? error, ref PaginateQueryError errorCode) {
 
 		if (value is null) return fallback;
 		if (int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int parsed) && parsed > 0) return parsed;
 
-		error ??= $"Query parameter '{name}' must be a positive integer.";
+		// First problem wins, and its code travels with it: the message and the code must describe the same
+		// parameter, so neither is assigned without the other.
+		if (error is null) {
+			error = $"Query parameter '{name}' must be a positive integer.";
+			errorCode = code;
+		}
+
 		return fallback;
 
 	}
@@ -97,7 +107,7 @@ internal static class PaginateQueryParser {
 	///     — the binder has no configuration — so <c>-1</c> is carried through and answered there, with the
 	///     ordinary range message when the resource never opted in.
 	/// </summary>
-	private static int? ParseLimit(string? value, ref string? error) {
+	private static int? ParseLimit(string? value, ref string? error, ref PaginateQueryError errorCode) {
 
 		if (value is null) return null;
 
@@ -105,7 +115,7 @@ internal static class PaginateQueryParser {
 		// have started accepting "+5", which page still rejects -- one contract quietly forking into two.
 		if (value == UnlimitedLiteral) return PaginateQuery.UnlimitedLimit;
 
-		return ParsePositiveInt(value, PaginateQueryParams.Limit, null, ref error);
+		return ParsePositiveInt(value, PaginateQueryParams.Limit, PaginateQueryError.LimitOutOfRange, null, ref error, ref errorCode);
 
 	}
 

@@ -49,6 +49,11 @@ public sealed class ProblemDetailsTests {
 		Assert.Equal("Filter 'price' does not support operator '$ilike'.", problem.Detail);
 		Assert.True(context.ExceptionHandled);
 
+		// The media type is declared on the result rather than left to content negotiation, matching what the
+		// framework's own ProblemDetailsClientErrorFactory does with the identical construction, what the
+		// OpenAPI document this package emits advertises, and what RFC 9457 reserves for this payload.
+		Assert.Equal(["application/problem+json"], result.ContentTypes);
+
 	}
 
 	[Fact]
@@ -81,10 +86,14 @@ public sealed class ProblemDetailsTests {
 	}
 
 	[Fact]
-	public async Task The_two_pipelines_produce_the_same_payload_when_the_factory_is_registered() {
+	public async Task The_endpoint_filter_leaves_enrichment_to_the_framework() {
 
-		// The endpoint filter used to call Results.Problem directly, so the same error came back with a different set
-		// of members depending on whether the endpoint was a controller action or a Minimal API handler.
+		// The filter used to pre-build the payload through ProblemDetailsFactory even when it was going to hand it
+		// to Results.Problem, and ProblemHttpResult routes that through IProblemDetailsService -- so
+		// CustomizeProblemDetails ran twice, and Microsoft's own canonical sample (Extensions.Add) threw on the
+		// second pass, turning the documented 400 into a 500. The payload now carries only what this library
+		// decides; everything the host adds (traceId, its own customizer) is applied once, by the writer, at
+		// execution. MvcPipelineTests asserts the resulting wire parity between the two pipelines.
 		const string Message = "Sort direction 'UP' is not supported.";
 
 		var mvc = MvcContext(new PaginateQueryException(Message));
@@ -102,7 +111,9 @@ public sealed class ProblemDetailsTests {
 		Assert.Equal(expected.Title, actual.Title);
 		Assert.Equal(expected.Status, actual.Status);
 		Assert.Equal(expected.Detail, actual.Detail);
-		Assert.Equal(expected.Extensions.Keys, actual.Extensions.Keys);
+
+		// The factory's own contribution -- traceId -- must NOT be here: its presence is the double enrichment.
+		Assert.DoesNotContain("traceId", actual.Extensions.Keys);
 
 	}
 
