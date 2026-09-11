@@ -109,6 +109,10 @@ public static class PaginateQueryableExtensions {
 		// three-space-padded "a" satisfied a minimum of 3 and then went looking for the spaces.
 		string search = request.Search.Trim();
 
+		// The search term takes its own path to the provider — it is never converted, so PaginateFilterParser's
+		// guard cannot see it.
+		PaginateInputGuard.RejectNul(search, "Search term");
+
 		if (search.Length > config.MaxSearchLength) {
 			throw new PaginateQueryException($"Search term must not exceed {config.MaxSearchLength} characters.");
 		}

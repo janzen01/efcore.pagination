@@ -101,7 +101,7 @@ internal abstract class PaginateFilterField(
 		var converted = Array.CreateInstance(valueType, values.Length);
 
 		for (int i = 0; i < values.Length; i++) {
-			converted.SetValue(PaginateValueConverter.Convert(values[i], valueType), i);
+			converted.SetValue(PaginateValueConverter.Convert(values[i], valueType, Name), i);
 		}
 
 		Expression valuesExpression = Expression.Constant(converted, converted.GetType());
@@ -157,7 +157,7 @@ internal abstract class PaginateFilterField(
 			// Compare on the underlying integral type, which is also what the column stores unless the model maps the
 			// enum to text — in which case this filter does not translate, exactly as it did not before.
 			var underlying = Enum.GetUnderlyingType(Type);
-			object? ordinal = Convert.ChangeType(PaginateValueConverter.Convert(value, Type), underlying, CultureInfo.InvariantCulture);
+			object? ordinal = Convert.ChangeType(PaginateValueConverter.Convert(value, Type, Name), underlying, CultureInfo.InvariantCulture);
 
 			compare = comparison(Expression.Convert(operand, underlying), ToConstant(ordinal, underlying, context));
 		} else {
@@ -234,7 +234,7 @@ internal abstract class PaginateFilterField(
 	///     Converts a raw string value to a constant of the target type, optionally wrapped in
 	///     <see cref="EF.Parameter{T}" /> for plan reuse.
 	/// </summary>
-	private static Expression ConvertValue(string value, Type targetType, PaginateExpressionContext context) { return ToConstant(PaginateValueConverter.Convert(value, targetType), targetType, context); }
+	private Expression ConvertValue(string value, Type targetType, PaginateExpressionContext context) { return ToConstant(PaginateValueConverter.Convert(value, targetType, Name), targetType, context); }
 
 	/// <summary>Wraps an already-converted value as a constant of <paramref name="targetType" />, parameterised as above.</summary>
 	private static Expression ToConstant(object? value, Type targetType, PaginateExpressionContext context) {

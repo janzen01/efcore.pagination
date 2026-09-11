@@ -14,7 +14,8 @@ PaginateTypeSupport.RegisterValueParser(typeof(Ulid), raw =>
 ```
 
 Throw `PaginateQueryException` for bad input — that is what turns into a `400` rather than a `500`. Without a
-parser, filtering on that type is `400 Filtering values of type 'Ulid' is not supported.`
+parser, filtering on a field of that type is `400 Filtering values for 'id' is not supported.` — the message names
+the field, never the CLR type behind it.
 
 ### You may not need this at all
 
@@ -86,7 +87,7 @@ The three calls answer three different questions, and a type usually needs more 
 
 Registering only the parser leaves projection trying to build a nested DTO out of your value type;
 registering only the simple type leaves `?filter.id=$eq:…` returning
-`400 Filtering values of type 'Ulid' is not supported.` One startup block covers all of it:
+`400 Filtering values for 'id' is not supported.` One startup block covers all of it:
 
 ```csharp
 public static class UlidPaginationSupport {
