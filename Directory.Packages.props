@@ -3,6 +3,13 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
+  <!-- The EF Core version here becomes the floor all four packages advertise, because transitive
+       pinning propagates it into every nuspec. Tracking the latest 10.x servicing release is
+       deliberate, not an artefact of whatever the last build used: the 10.x line pairs with .NET 10
+       and EF Core 10 by design, so a consumer of these packages is on that line already. The cost is
+       real and accepted - someone pinned to an earlier 10.0.x patch for their own reasons has to move
+       their whole EF Core closure - and the alternative, flooring at the engine's true minimum, means
+       establishing that minimum empirically and holding a CI leg on it. -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
     <!-- Nothing in the tree references Relational directly, so without this entry it settles on
