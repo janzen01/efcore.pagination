@@ -261,7 +261,9 @@ first == second   // true
 That needs saying because it is not what the record shape gives you for free. A record's synthesized equality
 runs every member through `EqualityComparer<T>.Default`, which is reference equality for a list or a
 dictionary — so `items`, `sortBy`, `searchBy` and `filter` would have made two envelopes describing the same
-page compare unequal. These three records hand-write `Equals` and `GetHashCode` instead. The rules:
+page compare unequal. `PaginatedResponse<T>` and `PaginatedMeta` therefore hand-write `Equals` and
+`GetHashCode`; `PaginatedLinks` holds nothing but strings, so the synthesized pair is already right for it.
+The rules:
 
 - **`items` compares element by element**, each through `T`'s own equality. A projection record compares by
   value; a projection declared as a class compares by reference, because that is its contract, not the

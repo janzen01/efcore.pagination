@@ -257,9 +257,14 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	private static OpenApiParameter CreateFilterParameter(PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
 		string operators = string.Join('\n', BuildOperatorTokens(field).Select(token => $"- `{token}`"));
 		var preferred = likeStrategy.PreferredExampleOperator;
+
+		// Min(), not First(): Operators is a set and guarantees no enumeration order, so First() made the example
+		// depend on the backing collection and on the order the field happened to declare its operators in -- and
+		// this example lands in a consumer's committed OpenAPI document, which CI regenerates and diffs. Eq is the
+		// lowest member, so the rule reads as "$eq where the field grants it, otherwise its lowest operator".
 		string exampleOperator = preferred.HasValue && field.Operators.Contains(preferred.Value)
 			? PaginateFilterParser.GetOperatorToken(preferred.Value)
-			: PaginateFilterParser.GetOperatorToken(field.Operators.First());
+			: PaginateFilterParser.GetOperatorToken(field.Operators.Min());
 
 		return new OpenApiParameter {
 			Name = $"{PaginateQueryParams.FilterPrefix}{field.Name}",
@@ -317,7 +322,9 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private static IEnumerable<string> BuildOperatorTokens(PaginateFilterFieldMetadata field) {
 
-		foreach (var filterOperator in field.Operators) {
+		// Ordered for the same reason the example is pinned: a set has no order, so an unordered list would
+		// rewrite this bullet list in a consumer's committed document whenever the backing collection changes.
+		foreach (var filterOperator in field.Operators.Order()) {
 			yield return PaginateFilterParser.GetOperatorToken(filterOperator);
 		}
 

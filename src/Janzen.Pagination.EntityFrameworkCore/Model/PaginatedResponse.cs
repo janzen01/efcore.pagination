@@ -173,10 +173,11 @@ public sealed record PaginatedLinks(
 }
 
 /// <summary>
-///     Structural comparison for the envelope records' collection members. A record's synthesized equality runs
-///     every field through <c>EqualityComparer&lt;T&gt;.Default</c>, which for a list or a dictionary is reference
-///     equality — so two envelopes describing the same page would compare unequal. These restore what the record
-///     shape advertises.
+///     Structural comparison for the collection members of the public records — the envelope's, and the
+///     configuration metadata's. A record's synthesized equality runs every field through
+///     <c>EqualityComparer&lt;T&gt;.Default</c>, which for a list, a dictionary or a set is reference equality —
+///     so two envelopes describing the same page would compare unequal. These restore what the record shape
+///     advertises.
 /// </summary>
 internal static class PaginateStructuralEquality {
 
@@ -267,6 +268,54 @@ internal static class PaginateStructuralEquality {
 		}
 
 		return true;
+
+	}
+
+	// Not left.SetEquals(right): that answers through the LEFT set's own comparer, so two sets built with
+	// different ones would compare equal in one direction and not the other -- the asymmetry FilterEquals
+	// documents just above. EqualityComparer<T>.Default is what SetHash combines, so it is the comparer
+	// equality has to agree with. Quadratic, over sets the configuration keeps in single digits.
+	public static bool SetEquals<T>(IReadOnlySet<T>? left, IReadOnlySet<T>? right) {
+
+		if (ReferenceEquals(left, right)) return true;
+		if (left is null || right is null) return false;
+		if (left.Count != right.Count) return false;
+
+		var comparer = EqualityComparer<T>.Default;
+
+		foreach (var item in left) {
+
+			bool matched = false;
+
+			foreach (var other in right) {
+				if (!comparer.Equals(item, other)) continue;
+
+				matched = true;
+				break;
+			}
+
+			if (!matched) return false;
+
+		}
+
+		return true;
+
+	}
+
+	/// <summary>
+	///     Hashes a set <b>commutatively</b>, for the same reason <see cref="FilterHash" /> does: a set has no
+	///     order, so two sets holding the same items must hash the same however they were built.
+	/// </summary>
+	public static int SetHash<T>(IReadOnlySet<T>? set) {
+
+		if (set is null) return 0;
+
+		var comparer = EqualityComparer<T>.Default;
+		int hash = set.Count;
+
+		foreach (var item in set) hash ^= item is null ? 0 : comparer.GetHashCode(item);
+
+		return hash;
 
 	}
 

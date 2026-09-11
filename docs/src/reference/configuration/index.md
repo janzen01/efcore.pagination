@@ -582,7 +582,7 @@ Four small records carry that metadata, and you will hold them if you build anyt
 |------|---------|------------|
 | `PaginateSort` | `Field`, `Direction` | One entry of `DefaultSortBy`. `Direction` is a `PaginateSortDirection` (`Asc` / `Desc`). |
 | `PaginateFieldMetadata` | `Name`, `Type`, `Badge?` | A sortable or searchable field. `Type` is the selector's CLR type, which is what decides the documented type name and the example value. |
-| `PaginateFilterFieldMetadata` | the same three, plus `Operators` | A filterable field. `Operators` is that field's allow-list, in declaration order. |
+| `PaginateFilterFieldMetadata` | the same three, plus `Operators` | A filterable field. `Operators` is that field's allow-list, as a **set** — it carries no order, so sort it yourself if you are rendering it. |
 | `PaginateBadge` | `Name`, `CssClass?` | What [`ShowBadge`](#showbadge) attached. `CssClass` is `null` for a badge declared without one. |
 
 `Type` is the raw CLR type, not a display name — a nullable field reports `Nullable<int>`, and it is up to
