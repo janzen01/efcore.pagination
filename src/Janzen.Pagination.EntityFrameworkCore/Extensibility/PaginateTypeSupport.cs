@@ -17,7 +17,12 @@ public static class PaginateTypeSupport {
 	private readonly static Lock Gate = new();
 	private static Func<Expression, Type, Expression?>[] _projectionConversions = [];
 
-	/// <summary>Registers a parser converting a raw string filter value into <paramref name="type" />.</summary>
+	/// <summary>
+	///     Registers a parser converting a raw string filter value into <paramref name="type" />. Signal bad input by
+	///     throwing <see cref="Model.PaginateQueryException" /> — that is what answers <c>400</c> rather than
+	///     <c>500</c>. Returning <see langword="null" /> is not an answer: the engine rejects it the same way, because
+	///     the caller sent a value and <c>$null</c> is the operator that asks about absence.
+	/// </summary>
 	public static void RegisterValueParser(Type type, Func<string, object?> parser) {
 		ArgumentNullException.ThrowIfNull(type);
 		ArgumentNullException.ThrowIfNull(parser);

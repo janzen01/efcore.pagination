@@ -12,11 +12,21 @@ public sealed class TypeSupportTests {
 
 	public readonly record struct Sku(int Number);
 
+	/// <summary>Filtered through a parser that signals bad input the documented way — by throwing.</summary>
+	public readonly record struct Batch(int Number);
+
+	/// <summary>Filtered through a parser that answers <see langword="null" />, which the contract never allows.</summary>
+	public readonly record struct Lot(int Number);
+
 	public sealed class Part {
 
 		public int Id { get; set; }
 
 		public Sku Sku { get; set; }
+
+		public Batch Batch { get; set; }
+
+		public Lot Lot { get; set; }
 
 		public string Code { get; set; } = "";
 
@@ -31,7 +41,9 @@ public sealed class TypeSupportTests {
 	private readonly static PaginateConfig<Part> Config = PaginateConfig<Part>.Create(b => b
 		.WithLimits(10, 10)
 		.WithTieBreaker(p => p.Id)
-		.Filterable("sku", p => p.Sku, PaginateFilterOperator.Eq));
+		.Filterable("sku", p => p.Sku, PaginateFilterOperator.Eq)
+		.Filterable("batch", p => p.Batch, PaginateFilterOperator.Eq)
+		.Filterable("lot", p => p.Lot, PaginateFilterOperator.Eq));
 
 	private static IQueryable<Part> Parts() {
 		return new List<Part> {
@@ -42,6 +54,10 @@ public sealed class TypeSupportTests {
 
 	private static Task<PaginatedResponse<TResult>> PageAsync<TResult>(PaginateQuery request) {
 		return Parts().PaginateAsync<Part, TResult>(request, Config, null, TestContext.Current.CancellationToken);
+	}
+
+	private static PaginateQuery Filter(string field, string criterion) {
+		return new PaginateQuery { Filters = new Dictionary<string, IReadOnlyList<string>> { [field] = [criterion] } };
 	}
 
 	[Fact]
@@ -79,6 +95,34 @@ public sealed class TypeSupportTests {
 		var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => PageAsync<LeafPartDto>(new PaginateQuery()));
 
 		Assert.Equal("Cannot automatically project 'Part.Code' from 'String' to 'Sku'.", exception.Message);
+
+	}
+
+	[Fact]
+	public async Task A_registered_parser_that_throws_answers_the_documented_400() {
+
+		// The shape the guide teaches and the repository's own registrations all use: the parser throws for text
+		// it cannot read. The registry is consulted *before* the converter's translation try, so this escaped as
+		// an unhandled FormatException -- a 500 from a query string, where the same malformed value on a built-in
+		// type has always been a 400. Registering an override for a built-in type downgraded it the same way.
+		PaginateTypeSupport.RegisterValueParser(typeof(Batch), value => new Batch(int.Parse(value, CultureInfo.InvariantCulture)));
+
+		var exception = await Assert.ThrowsAsync<PaginateQueryException>(() => PageAsync<PartDto>(Filter("batch", "$eq:nope")));
+
+		Assert.Equal("Value 'nope' is not valid for 'batch'.", exception.Message);
+
+	}
+
+	[Fact]
+	public async Task A_registered_parser_answering_null_is_the_same_400() {
+
+		// Func<string, object?> invites it, but null is not an answer the contract allows: against a non-nullable
+		// target it reached Expression.Constant(null, typeof(Lot)) and left as an ArgumentException -- again a 500.
+		PaginateTypeSupport.RegisterValueParser(typeof(Lot), _ => null);
+
+		var exception = await Assert.ThrowsAsync<PaginateQueryException>(() => PageAsync<PartDto>(Filter("lot", "$eq:2")));
+
+		Assert.Equal("Value '2' is not valid for 'lot'.", exception.Message);
 
 	}
 

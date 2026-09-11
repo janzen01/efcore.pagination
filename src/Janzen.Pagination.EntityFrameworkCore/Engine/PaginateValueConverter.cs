@@ -64,15 +64,25 @@ internal static class PaginateValueConverter {
 			return Nullable.GetUnderlyingType(targetType) is not null ? null : throw new PaginateQueryException($"Value for '{field}' must not be empty.");
 		}
 
-		// The registry runs FIRST so a consumer can override a built-in decision. Consulted last — as it was until
-		// 10.0.3 — a registration for an already-supported type was a silent no-op, so everyone it affected was
-		// someone who tried to override and never found out they hadn't.
-		if (PaginateTypeSupport.TryParseValue(type, value, out var custom)) return custom;
-
-		if (type == typeof(Guid)) return Parse<Guid>(value, Guid.TryParse, "GUID");
-		if (type == typeof(bool)) return Parse<bool>(value, bool.TryParse, "boolean");
-
+		// Everything below is reachable by consumer code — a registered parser, or an IParsable<TSelf>.TryParse the
+		// engine found on its own — so the translation guard starts above the registry rather than five lines
+		// below it. Outside it, a parser throwing the way the guide teaches was an unhandled 500 from a query
+		// string, and registering an override for a built-in type silently downgraded that field from 400 to 500.
 		try {
+
+			// The registry runs FIRST so a consumer can override a built-in decision. Consulted last — as it was
+			// until 10.0.3 — a registration for an already-supported type was a silent no-op, so everyone it
+			// affected was someone who tried to override and never found out they hadn't.
+			if (PaginateTypeSupport.TryParseValue(type, value, out var custom)) {
+				// Func<string, object?> invites it, but a parser signals bad input by throwing and null is not an
+				// answer: against a target that cannot hold one it reached Expression.Constant(null, typeof(T)).
+				return custom is null && targetType.IsValueType && Nullable.GetUnderlyingType(targetType) is null
+					? throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.")
+					: custom;
+			}
+
+			if (type == typeof(Guid)) return Parse<Guid>(value, Guid.TryParse, "GUID");
+			if (type == typeof(bool)) return Parse<bool>(value, bool.TryParse, "boolean");
 
 			if (type == typeof(byte)) return byte.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
 			if (type == typeof(sbyte)) return sbyte.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
@@ -165,14 +175,15 @@ internal static class PaginateValueConverter {
 				return Enum.IsDefined(type, parsed) ? parsed : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.");
 			}
 
+			// Last: anything that can parse itself invariantly. This is what makes a consumer's strongly-typed id work
+			// as a filter value with no registration at all — whitelisting a field of type T is the opt-in, so there
+			// is deliberately no separate knob to turn it off. TryParse carries no obligation not to throw, so it
+			// belongs under the same guard as the registry.
+			if (TryParseParsable(type, value, field, out var parsable)) return parsable;
+
 		} catch (Exception ex) when (ex is ArgumentException or FormatException or OverflowException) {
 			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.", ex);
 		}
-
-		// Last: anything that can parse itself invariantly. This is what makes a consumer's strongly-typed id work as
-		// a filter value with no registration at all — whitelisting a field of type T is the opt-in, so there is
-		// deliberately no separate knob to turn it off.
-		if (TryParseParsable(type, value, field, out var parsable)) return parsable;
 
 		throw new PaginateQueryException($"Filtering values for '{field}' is not supported.");
 

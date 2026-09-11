@@ -13,9 +13,12 @@ PaginateTypeSupport.RegisterValueParser(typeof(Ulid), raw =>
         : throw new PaginateQueryException($"Value '{raw}' is not a valid ULID."));
 ```
 
-Throw `PaginateQueryException` for bad input — that is what turns into a `400` rather than a `500`. Without a
-parser, filtering on a field of that type is `400 Filtering values for 'id' is not supported.` — the message names
-the field, never the CLR type behind it.
+Throw `PaginateQueryException` for bad input — that is the message the caller sees. A parser that fails any other
+way is still a `400`: `FormatException`, `ArgumentException` and `OverflowException` are translated into the generic
+`Value 'v' is not valid for 'field'.`, exactly as a malformed value on a built-in type is. **Returning `null` is not
+an answer** and is refused the same way — the caller sent a value, and `$null` is the operator that asks about
+absence. Without a parser at all, filtering on a field of that type is `400 Filtering values for 'id' is not
+supported.` — the message names the field, never the CLR type behind it.
 
 ### You may not need this at all
 
