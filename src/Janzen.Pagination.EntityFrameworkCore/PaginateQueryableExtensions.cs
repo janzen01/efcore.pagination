@@ -223,7 +223,7 @@ public static class PaginateQueryableExtensions {
 
 		for (int index = 0; index < sorts.Count; index++) {
 			var selector = useDatabaseFunctions ? sorts[index].Selector : PaginateNullSafeRewriter.Rewrite(sorts[index].Selector);
-			query = PaginateExpressionUtils.ApplyOrder(query, selector, sorts[index].Descending, index == 0);
+			query = PaginateExpressionUtils.ApplyOrder(query, selector, sorts[index].Descending, index == 0, useDatabaseFunctions);
 		}
 
 		return query;

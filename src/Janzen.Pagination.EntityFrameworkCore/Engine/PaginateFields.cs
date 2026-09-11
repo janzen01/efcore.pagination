@@ -39,6 +39,15 @@ internal abstract class PaginateFilterField(
 	private readonly static MethodInfo EnumerableContainsMethod =
 		PaginateExpressionUtils.GetMethodByParameterCount(typeof(Enumerable), nameof(Enumerable.Contains), 2);
 
+	// The range branch below is reached for exactly two types, so these are two process constants rather than a
+	// per-criterion name lookup.
+	private readonly static MethodInfo StringCompareToMethod = typeof(string).GetMethod(nameof(IComparable.CompareTo), [typeof(string)])!;
+
+	private readonly static MethodInfo GuidCompareToMethod = typeof(Guid).GetMethod(nameof(IComparable.CompareTo), [typeof(Guid)])!;
+
+	private readonly static MethodInfo StringCompareInvariantMethod =
+		typeof(string).GetMethod(nameof(string.Compare), [typeof(string), typeof(string), typeof(StringComparison)])!;
+
 	public string Name { get; } = name;
 
 	public Type Type { get; } = Nullable.GetUnderlyingType(type) ?? type;
@@ -161,10 +170,18 @@ internal abstract class PaginateFilterField(
 
 			compare = comparison(Expression.Convert(operand, underlying), ToConstant(ordinal, underlying, context));
 		} else {
-			// CompareTo translates to a plain SQL comparison, so the ordering is the database's — collation for
-			// strings, byte order for Guids — rather than the one .NET would apply in memory.
+			// On a relational provider CompareTo translates to a plain SQL comparison, so the ordering is the
+			// database's — collation for strings, byte order for Guids. In memory the call really runs, and
+			// String.CompareTo reads CultureInfo.CurrentCulture, which an ASP.NET Core app sets per request from
+			// Accept-Language: the same rows and the same filter then answer differently per caller, and a Swedish
+			// host disagrees with an American one. That arm compares invariantly instead. Guid has no culture to
+			// read, so it is the same call on both legs.
+			var target = ConvertValue(value, Type, context);
+
 			compare = comparison(
-				Expression.Call(operand, Type.GetMethod(nameof(IComparable.CompareTo), [Type])!, ConvertValue(value, Type, context)),
+				Type == typeof(string) && !context.UseDatabaseFunctions
+					? Expression.Call(StringCompareInvariantMethod, operand, target, Expression.Constant(StringComparison.InvariantCulture))
+					: Expression.Call(operand, Type == typeof(string) ? StringCompareToMethod : GuidCompareToMethod, target),
 				Expression.Constant(0));
 		}
 

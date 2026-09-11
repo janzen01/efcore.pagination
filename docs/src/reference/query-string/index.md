@@ -329,12 +329,12 @@ non-string field is `400 Filter 'x' supports '$contains' only for string or coll
 WHERE "p"."Rank" >= @p
 ```
 
-Numbers and dates are the obvious cases. **`string`, `Guid` and enums order too**, and the ordering is the
-database's, not .NET's:
+Numbers and dates are the obvious cases. **`string`, `Guid` and enums order too**, and on a database the
+ordering is the database's, not .NET's:
 
 | Field type | Ordered by | Worth knowing |
 |------------|-----------|---------------|
-| `string` | the column's **collation** | `$gt:m` returns different rows under a case-sensitive and a case-insensitive collation. The engine does not impose one. |
+| `string` | the column's **collation** | `$gt:m` returns different rows under a case-sensitive and a case-insensitive collation. The engine does not impose one. **Over a plain `IQueryable`** there is no collation to follow, so ranges and `sortBy` both use `StringComparison.InvariantCulture` — deterministic, rather than whatever culture the host happens to run under. |
 | `Guid` | the database's byte order | which is not always .NET's `Guid.CompareTo` order. The same divergence already applies to sorting a `Guid` column; filters inherit it rather than introduce it. |
 | enums | the **underlying integral value**, not the member name | so it follows declaration order. A model that maps the enum to text cannot translate this. |
 | `bool` | — | `400 Filter 'x' does not support comparison operators for type 'Boolean'.` There is no ordering to ask for; use `$eq`. |
