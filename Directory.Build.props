@@ -114,8 +114,16 @@
     <!--
       Public API tracking: the declared surface lives in PublicAPI.Shipped.txt (released) and
       PublicAPI.Unshipped.txt (added since). Adding a public member fails the build until it is
-      listed, and removing one fails until its line is deleted — which is the point at which a
-      breaking change becomes a deliberate versioning decision rather than an accident.
+      listed. Removing one is recorded by appending *REMOVED*<the line> to PublicAPI.Unshipped.txt and
+      LEAVING the entry in Shipped — that is the point at which a breaking change becomes a deliberate
+      versioning decision rather than an accident.
+
+      Deleting the line out of Shipped instead also builds green and is the one thing not to do. It
+      defeats the guard rather than satisfying it: a change that only flips a nullable annotation is
+      invisible to the analyzers (the declaration matches the line, nothing is orphaned) and, until
+      the attribute rule above was enabled, was invisible to package validation too, so Shipped was
+      the only thing left that could have reported it. The ci.yml job that compares Shipped against
+      the newest stable tag exists because that already happened once.
     -->
     <ItemGroup Condition="'$(IsPackable)' != 'false'">
         <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive"/>
