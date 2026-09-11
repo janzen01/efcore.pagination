@@ -74,6 +74,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 	private readonly static PaginateConfig<Product> OrderingConfig = PaginateConfig<Product>.Create(b => b
 		.WithLimits(50, 50)
 		.Sortable("name", p => p.Name)
+		// Every row shares a rank, so ordering by it first leaves the string key deciding as a ThenBy.
+		.Sortable("rank", p => p.Rank)
 		.WithTieBreaker(p => p.Id)
 		.Filterable("name", p => p.Name, PaginateFilterOperator.GreaterThan));
 
@@ -108,10 +110,13 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 
 	}
 
-	[Fact]
-	public async Task A_string_sort_does_not_depend_on_the_host_culture() {
+	[Theory]
+	[InlineData("name:ASC")]
+	[InlineData("rank:ASC", "name:ASC")]
+	public async Task A_string_sort_does_not_depend_on_the_host_culture(params string[] sortBy) {
 
-		var page = await UnderSwedishCulture(() => Letters().PageAsync<ProductDto>(Query.Sort("name:ASC"), OrderingConfig));
+		// The second case makes the string key a ThenBy, which is the other half of the ordering branch.
+		var page = await UnderSwedishCulture(() => Letters().PageAsync<ProductDto>(Query.Sort(sortBy), OrderingConfig));
 
 		// Swedish would answer Apple, Zebra, Ångstrom.
 		Assertions.HasIds(page, 2, 3, 1);
