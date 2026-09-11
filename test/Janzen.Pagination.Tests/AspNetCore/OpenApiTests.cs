@@ -150,16 +150,35 @@ public sealed class RegisteredConfigProvider(string fieldName) : IPaginateConfig
 
 }
 
+/// <summary>
+///     Where the counts live, rather than on the provider being counted. The library constructs that provider,
+///     so the test never holds the instance and the tally has to be process-wide — but it is the test's
+///     observation channel, not part of the provider's identity, and a counter written from the constructor of
+///     the type that declares it reads as shared mutable state on a configuration object. Interlocked because
+///     the transformer may activate concurrently across documents.
+/// </summary>
+public static class ConstructionLog {
+
+	private static int constructions;
+
+	private static int disposals;
+
+	public static int Constructions => Volatile.Read(ref constructions);
+
+	public static int Disposals => Volatile.Read(ref disposals);
+
+	public static void NoteConstruction() { Interlocked.Increment(ref constructions); }
+
+	public static void NoteDisposal() { Interlocked.Increment(ref disposals); }
+
+}
+
 /// <summary>Counts what this library does to a consumer type it constructs itself: how often, and whether it disposes.</summary>
 public sealed class CountingConfigProvider : IPaginateConfigProvider<Product>, IDisposable {
 
-	public static int Constructions;
+	public CountingConfigProvider() { ConstructionLog.NoteConstruction(); }
 
-	public static int Disposals;
-
-	public CountingConfigProvider() { Interlocked.Increment(ref Constructions); }
-
-	public void Dispose() { Interlocked.Increment(ref Disposals); }
+	public void Dispose() { ConstructionLog.NoteDisposal(); }
 
 	public PaginateConfig<Product> GetConfig() {
 		return PaginateConfig<Product>.Create(b => b
@@ -780,11 +799,11 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// Two documents were fetched and the provider type is on two operations, so four constructions before,
 		// two now: one per document. The second half of that is as important as the first -- a process-wide cache
 		// would say one, and would then be serving the first document's answer for the life of the app.
-		Assert.Equal(2, CountingConfigProvider.Constructions);
+		Assert.Equal(2, ConstructionLog.Constructions);
 
 		// And this library created them, so this library disposes them: the container does not dispose what it
 		// did not create, which is exactly what ActivatorUtilities produces.
-		Assert.Equal(2, CountingConfigProvider.Disposals);
+		Assert.Equal(2, ConstructionLog.Disposals);
 
 	}
 

@@ -309,19 +309,11 @@ internal static class PaginateStructuralEquality {
 
 		var comparer = EqualityComparer<T>.Default;
 
+		// Enumerable.Contains with an explicit comparer, not the set's own Contains: the instance method answers
+		// through the RIGHT set's comparer, which is the asymmetry the note above rules out. Three arguments is
+		// what picks the LINQ overload.
 		foreach (var item in left) {
-
-			bool matched = false;
-
-			foreach (var other in right) {
-				if (!comparer.Equals(item, other)) continue;
-
-				matched = true;
-				break;
-			}
-
-			if (!matched) return false;
-
+			if (!right.Contains(item, comparer)) return false;
 		}
 
 		return true;

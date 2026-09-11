@@ -305,12 +305,15 @@ public static class PaginateQueryableExtensions {
 	[RequiresDynamicCode(AotIncompatibleMessage)]
 	private static IQueryable<TEntity> ApplySorts<TEntity>(IQueryable<TEntity> query, IReadOnlyList<(LambdaExpression Selector, bool Descending)> sorts) {
 
-		// The same provider test the filter and search stages make, asked here rather than threaded down from
-		// Compose: sorting is resolved separately from the composed query, and one of the two callers has no
-		// context object to carry. A sort key crossing a navigation needs the null-safe form on the in-memory
-		// leg exactly as a filter does — ordering by a rewritten key puts the missing ones where the provider
-		// puts nulls.
-		bool useDatabaseFunctions = UseDatabaseFunctions(query.Provider);
+		// Asked here rather than threaded down from Compose: sorting is resolved separately from the composed
+		// query, and one of the two callers has no context object to carry. A sort key crossing a navigation
+		// needs the null-safe form on the in-memory leg exactly as a filter does — ordering by a rewritten key
+		// puts the missing ones where the provider puts nulls.
+		//
+		// Only the in-memory half is asked. The foreign-async-provider refusal used to ride along on a
+		// UseDatabaseFunctions call here, which every path already makes inside Compose before reaching this
+		// method, so the second call guarded nothing and its value stopped being read once the two flags were
+		// separated.
 		bool inMemory = IsInMemory(query.Provider);
 
 		for (int index = 0; index < sorts.Count; index++) {
