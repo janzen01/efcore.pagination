@@ -144,9 +144,10 @@ public interface IPaginateConfigProvider {
 
 	/// <summary>
 	///     Exposes the resource's limits and sortable / searchable / filterable field metadata without naming the
-	///     entity. The OpenAPI transformer activates the provider type through <c>ActivatorUtilities</c> and calls this
-	///     once per documented operation, so a provider with a parameterless constructor works without being registered
-	///     in DI.
+	///     entity. The OpenAPI transformer resolves the provider type from the container first and activates it through
+	///     <c>ActivatorUtilities</c> only when nothing is registered, so a provider with a parameterless constructor
+	///     still needs no registration. It is called once per provider type per document generation, and an instance
+	///     the transformer activated itself is disposed once it has been.
 	/// </summary>
 	IPaginateConfig GetConfig();
 

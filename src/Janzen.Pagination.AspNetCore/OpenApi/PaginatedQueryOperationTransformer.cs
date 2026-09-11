@@ -14,6 +14,7 @@ using Microsoft.OpenApi;
 using System.Collections.Frozen;
 using System.Globalization;
 using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 
 namespace Janzen.Pagination.AspNetCore.OpenApi;
@@ -51,14 +52,18 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	/// </summary>
 	public Task TransformAsync(OpenApiOperation operation, OpenApiOperationTransformerContext context, CancellationToken cancellationToken) {
 
+		// The token is part of the contract and the body is not free: one provider construction plus a
+		// resolve-by-name walk per filterable field, per operation, per document generation. A client that
+		// disconnects mid-generation had no way to stop any of it.
+		cancellationToken.ThrowIfCancellationRequested();
+
 		var attribute = context.Description.ActionDescriptor.EndpointMetadata
 			.OfType<PaginatedQueryAttribute>()
 			.FirstOrDefault();
 
 		if (attribute is null) return Task.CompletedTask;
 
-		var provider = (IPaginateConfigProvider)ActivatorUtilities.CreateInstance(context.ApplicationServices, attribute.ConfigProviderType);
-		var config = provider.GetConfig();
+		var config = this.GetConfig(context.ApplicationServices, attribute.ConfigProviderType);
 
 		operation.Parameters ??= [];
 		RemoveGeneratedPaginateParameters(operation.Parameters);
@@ -89,6 +94,42 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		AddValidationErrorResponse(operation, context);
 
 		return Task.CompletedTask;
+
+	}
+
+	// One entry per document generation, holding one config per provider type. ASP.NET Core rebuilds the whole
+	// document on every request to the OpenAPI endpoint, and TransformAsync runs once per marked operation, so
+	// without this an app with fifty operations sharing one provider type paid fifty constructions -- and fifty
+	// config builds, where the provider builds rather than caches -- for one Swagger UI page load.
+	//
+	// Keyed on the scope rather than held as a plain field because the scope is what "one document" means here:
+	// OpenApiDocumentService passes the request's own IServiceProvider, so two documents generating concurrently
+	// cannot see each other's entry, and a transformer registered as a shared instance does not carry one
+	// document's answer into the next. That matters for When(...), which exists so a config can vary per caller.
+	// Weak keys, so a finished scope takes its entry with it.
+	private readonly ConditionalWeakTable<IServiceProvider, Dictionary<Type, IPaginateConfig>> ConfigsPerDocument = new();
+
+	private IPaginateConfig GetConfig(IServiceProvider services, Type providerType) {
+
+		var configs = this.ConfigsPerDocument.GetValue(services, static _ => []);
+
+		if (configs.TryGetValue(providerType, out var cached)) return cached;
+
+		// A provider the consumer registered is the consumer's: ActivatorUtilities constructs outside the
+		// container, so a singleton provider's own state -- a prebuilt config, a cache -- was never reached from
+		// here. Activation stays the fallback, which is what makes a parameterless provider need no registration.
+		var registered = services.GetService(providerType) as IPaginateConfigProvider;
+		var provider = registered ?? (IPaginateConfigProvider)ActivatorUtilities.CreateInstance(services, providerType);
+
+		try {
+			var config = provider.GetConfig();
+			configs[providerType] = config;
+			return config;
+		} finally {
+			// Only what this code created. The container does not dispose what it did not create, and disposing
+			// the container's own instance here would break every later consumer of it.
+			if (registered is null && provider is IDisposable disposable) disposable.Dispose();
+		}
 
 	}
 

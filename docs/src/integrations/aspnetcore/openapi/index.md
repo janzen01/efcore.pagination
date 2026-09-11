@@ -18,8 +18,16 @@ the document name and the rest of the pipeline.
 Only the ones carrying `[PaginatedQuery<TProvider>]` (controllers) or `WithPagination<TProvider>()` (Minimal
 APIs). Everything else passes through untouched.
 
-The provider is created with `ActivatorUtilities.CreateInstance`, so **a provider with a parameterless
-constructor needs no DI registration**. Register it only when its constructor takes services.
+The provider is resolved from DI and, only when nothing is registered, created with
+`ActivatorUtilities.CreateInstance` — so **a provider with a parameterless constructor needs no DI
+registration**, while a registered one is the instance that gets asked. An instance the transformer activated
+itself is disposed once its config has been read.
+
+`GetConfig()` is called **once per provider type per document generation**, not once per operation. The
+document itself is not cached: ASP.NET Core rebuilds it on every request to the OpenAPI endpoint, so a
+Swagger UI page load, a contract-test run and a monitoring probe each pay for a fresh one. Build the config
+once and return the same instance rather than building it inside `GetConfig()`, and reach for ASP.NET Core's
+own output caching on the OpenAPI endpoint if the cost shows up.
 
 Before adding anything, the transformer **removes the parameters the framework generated for
 `PaginateQuery`** — any query parameter whose name matches one of the six, or begins with `filter.`. Without

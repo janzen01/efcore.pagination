@@ -6,9 +6,13 @@ using Janzen.Pagination.NodaTime;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+
+using Microsoft.OpenApi;
 
 using NodaTime;
 
@@ -87,6 +91,46 @@ public sealed class GuardedConfigProvider : IPaginateConfigProvider<Product> {
 			.WithGuards(maxFilterValues: 25, maxFilterConditions: 8, maxSortFields: 3, maxSearchLength: 120)
 			.Sortable("rank", p => p.Rank)
 			.Searchable("name", p => p.Name)
+			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+	}
+
+}
+
+/// <summary>
+///     Registered in DI as one instance, and able to tell that instance apart from a freshly activated one: the
+///     two name their filterable field differently, so the emitted document says which was asked.
+/// </summary>
+public sealed class RegisteredConfigProvider(string fieldName) : IPaginateConfigProvider<Product> {
+
+	// ActivatorUtilities takes the greediest constructor whose parameters it can resolve, and no string is
+	// registered, so an activation lands here -- which is the point: "activated" in the document means the
+	// container's own instance was bypassed.
+	public RegisteredConfigProvider() : this("activated") { }
+
+	public PaginateConfig<Product> GetConfig() {
+		return PaginateConfig<Product>.Create(b => b
+			.WithLimits(defaultLimit: 15, maxLimit: 60)
+			.WithTieBreaker(p => p.Id)
+			.Filterable(fieldName, p => p.Name, PaginateFilterOperator.Eq));
+	}
+
+}
+
+/// <summary>Counts what this library does to a consumer type it constructs itself: how often, and whether it disposes.</summary>
+public sealed class CountingConfigProvider : IPaginateConfigProvider<Product>, IDisposable {
+
+	public static int Constructions;
+
+	public static int Disposals;
+
+	public CountingConfigProvider() { Interlocked.Increment(ref Constructions); }
+
+	public void Dispose() { Interlocked.Increment(ref Disposals); }
+
+	public PaginateConfig<Product> GetConfig() {
+		return PaginateConfig<Product>.Create(b => b
+			.WithLimits(defaultLimit: 15, maxLimit: 60)
+			.WithTieBreaker(p => p.Id)
 			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
 	}
 
@@ -239,6 +283,9 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 		// handler never produces those. AddProblemDetails() is deliberately absent, which also makes every
 		// Minimal API operation here the Minimal-API-only shape the 400 schema has to tell the truth about.
 		builder.Services.AddControllers().AddApplicationPart(typeof(MvcProductsController).Assembly);
+		// Registered as an instance the container owns, so the transformer has something to find -- and
+		// something it must not construct a second copy of.
+		builder.Services.AddSingleton(new RegisteredConfigProvider("registered"));
 		builder.Services.AddOpenApi(options => options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
 
 		await using var app = builder.Build();
@@ -250,6 +297,10 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 		app.MapGet("/guarded", () => Results.Ok()).WithPagination<GuardedConfigProvider>();
 		app.MapGet("/per-config-strategy", () => Results.Ok()).WithPagination<PerConfigStrategyProvider>();
 		app.MapGet("/every-type", () => Results.Ok()).WithPagination<EveryValueTypeConfigProvider>();
+		app.MapGet("/registered", () => Results.Ok()).WithPagination<RegisteredConfigProvider>();
+		// Two operations, one provider type: the transformer used to construct it once per operation.
+		app.MapGet("/counted-a", () => Results.Ok()).WithPagination<CountingConfigProvider>();
+		app.MapGet("/counted-b", () => Results.Ok()).WithPagination<CountingConfigProvider>();
 		app.MapGet("/plain", () => Results.Ok());
 
 		await app.StartAsync();
@@ -603,6 +654,47 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		} catch (PaginateQueryException exception) {
 			return exception.Message;
 		}
+	}
+
+	[Fact]
+	public void A_provider_the_container_owns_is_the_one_that_is_asked() {
+
+		// ActivatorUtilities constructs outside the container, so a registered provider -- a singleton holding a
+		// prebuilt config, a cache, a handle -- was never reached from the OpenAPI path.
+		Assert.Contains("filter.registered", this.ParameterNames("/registered"));
+		Assert.DoesNotContain("filter.activated", this.ParameterNames("/registered"));
+
+	}
+
+	[Fact]
+	public void An_activated_provider_is_built_once_per_document_and_disposed() {
+
+		// One construction for two operations: the document is regenerated on every request to the OpenAPI
+		// endpoint, so "once per operation per request" is what a Swagger UI page load paid.
+		Assert.Equal(1, CountingConfigProvider.Constructions);
+
+		// And this library created it, so this library disposes it: the container does not dispose what it did
+		// not create, which is exactly what ActivatorUtilities produces.
+		Assert.Equal(1, CountingConfigProvider.Disposals);
+
+	}
+
+	[Fact]
+	public async Task A_cancelled_document_generation_stops_the_transformer() {
+
+		// The token is part of the IOpenApiOperationTransformer contract and was accepted and ignored, while the
+		// body does a DI activation and a reflection walk per filterable field, per operation, per document.
+		using var services = new ServiceCollection().BuildServiceProvider();
+
+		var context = new OpenApiOperationTransformerContext {
+			DocumentName = "v1",
+			Description = new ApiDescription(),
+			ApplicationServices = services
+		};
+
+		await Assert.ThrowsAsync<OperationCanceledException>(
+			() => new PaginatedQueryOperationTransformer().TransformAsync(new OpenApiOperation(), context, new CancellationToken(true)));
+
 	}
 
 }

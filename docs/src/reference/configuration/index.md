@@ -558,9 +558,10 @@ public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Prod
 }
 ```
 
-The OpenAPI transformer activates the provider with `ActivatorUtilities.CreateInstance`, so a provider with a
-parameterless constructor works without being registered in DI. Register it when its constructor needs
-services.
+The OpenAPI transformer resolves the provider from DI and activates it with `ActivatorUtilities.CreateInstance`
+only when nothing is registered, so a provider with a parameterless constructor works without being registered.
+Register it when its constructor needs services, or when the provider is worth sharing — a registered
+instance is the one the transformer asks, and an instance it activated itself it also disposes.
 
 ## Reading the configuration back
 

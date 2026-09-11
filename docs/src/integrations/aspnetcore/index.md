@@ -61,11 +61,12 @@ public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Prod
 }
 ```
 
-**Does the provider need to be registered in DI?** Usually no. The OpenAPI transformer creates it with
-`ActivatorUtilities.CreateInstance`, which builds a type with a parameterless constructor without it ever
-being registered. Register it only when its constructor takes services — and note that even then, nothing
-injects the provider into your action: the interface exists so the attribute has a type to name, while your
-handler reads the config directly.
+**Does the provider need to be registered in DI?** Usually no. The OpenAPI transformer asks the container
+first and falls back to `ActivatorUtilities.CreateInstance`, which builds a type with a parameterless
+constructor without it ever being registered. Register it when its constructor takes services, or when the
+provider holds state worth sharing — a registered instance is the one the transformer asks, and one it
+activated itself it also disposes. Note that even then, nothing injects the provider into your action: the
+interface exists so the attribute has a type to name, while your handler reads the config directly.
 
 ---
 
