@@ -12,6 +12,11 @@ Every page is **two queries**: a `COUNT(*)` over the filtered set, then the page
 There is one saving built in: when the count comes back `0`, the second query is **never sent**. A filter that
 cannot match anything therefore costs exactly one count, and a page past the end costs the same.
 
+An [unlimited read](/reference/configuration/#allowunlimited) is the exception to the whole paragraph: it is
+**one** query and no count at all, because the rows it fetches *are* the count. It is not free, though — that
+single statement still orders the entire ceiling-bounded set, so everything under *Index the sort* applies to
+it with `maxRows` in place of `limit`.
+
 The count is usually the expensive half. It cannot use `LIMIT` to stop early — it has to resolve the whole
 matching set, however large — while the page fetch stops after `limit` rows once the ordering is satisfied by
 an index.
@@ -28,6 +33,21 @@ The config is a published list of query shapes. Read it as an index checklist:
 The ones that hurt are the ones you granted without meaning to. `$ilike` on an unindexed text column is a
 sequential scan any caller can trigger, on demand, as often as they like. Granting `Eq` and `In` and stopping
 there is a performance decision, not just a security one.
+
+Four cases where the predicate the engine emits is not the one the checklist above suggests:
+
+| Shape | What is emitted | Index consequence |
+|-------|-----------------|-------------------|
+| `$sw` on a string, **portable** strategy | `col LIKE 'Wid%'` | the one anchored pattern the engine produces, and a B-tree (`text_pattern_ops` on PostgreSQL, or a C-locale database) serves it as a range scan |
+| `$sw` after `.UsePostgreSql()` | `col ILIKE 'Wid%'` | PostgreSQL serves `ILIKE` from a B-tree **only when the pattern starts with non-alphabetic characters** ([§11.2](https://www.postgresql.org/docs/current/indexes-types.html)), so an alphabetic prefix drops to a sequential scan. A digit-leading SKU, order number or phone prefix is unaffected. Registering the strategy is what makes that choice — see [PostgreSQL](/integrations/postgresql/) |
+| `$ilike` / `$contains` on a string | `col LIKE '%term%'` | never index-servable by a B-tree under either strategy. A `pg_trgm` GIN or GiST index is the answer on PostgreSQL, for both strategies |
+| `$contains` on a **collection** | one `value = ANY(col)` predicate per value, `AND`-ed | a PostgreSQL `array_ops` GIN index indexes `&&`, `@>`, `<@` and `=` over two arrays, not a scalar against an array column, so it does not serve this. The array is unnested per row, and the SQL text grows with the caller's value count |
+
+`$in` is the well-behaved one: the whole list is sent as a **single** collection parameter, so one SQL shape
+and one plan-cache entry serve every cardinality. That is deliberate and is not configurable — EF Core 10's
+`UseParameterizedCollectionMode` and `EF.Constant(...)` do not reach it, because the engine wraps the array in
+`EF.Parameter` before EF sees it. Without the wrap the values would be inlined as literals and you would get
+one statement per distinct list length instead.
 
 ## Index the sort, including the tie-breaker
 
@@ -49,6 +69,19 @@ right and still leaves a sort node in the plan, because two rows tied on both st
 
 Sorts your callers actually send are worth indexing; the full cross-product of `Sortable` fields is not. Look
 at what the clients ask for before adding five indexes.
+
+**One sort no index on this table can serve.** A `Sortable` whose selector crosses a navigation —
+`Sortable("category", p => p.Category!.Name)` — emits a `LEFT JOIN` and then orders by a column of the *joined*
+table with the tie-breaker of the paged one:
+
+```sql
+ORDER BY "c"."Name", "p"."Id"
+```
+
+No index on `products` has that as a prefix, because its leading key lives elsewhere. Deep pages are the worst
+of it: `OFFSET n` on top of a join that has to be ordered first. If such a field is exposed, either keep it
+shallow with [`WithMaxOffset`](/reference/configuration/#withmaxoffset), denormalise the column onto the paged
+table, or leave it out of the config.
 
 ## Deep pages are the cliff
 
@@ -123,3 +156,18 @@ options.UseNpgsql(connectionString).LogTo(Console.WriteLine, LogLevel.Informatio
 Two statements per request, and both are worth putting through `EXPLAIN` once with realistic data volumes.
 Values arrive as parameters rather than literals, so one plan is reused across everything your callers send —
 which is good for the cache and means a plan you check once stays the plan you get.
+
+## Shapes are not parameters
+
+Values are parameterised; **shapes are not, and cannot be**. A request filtering `name` builds a different
+expression tree from one filtering `rank`, so every distinct combination of filter fields, operators, `$not`,
+connectors, sort keys and directions is its own EF compiled-query cache entry — two of them, in fact, one for
+the count and one for the page. EF's cache holds on the order of a thousand entries and evicts beyond that;
+measured here, a first compilation costs roughly six times a warm request, all of it CPU.
+
+For an ordinary API this never shows up: real clients reuse a handful of shapes and everything stays cached.
+It matters when a resource with many filterable fields is exposed to untrusted or merely erratic callers —
+fourteen fields alone give over sixteen thousand legal field combinations, multiplied again by the operator
+choice, and every one of those requests is perfectly valid. No guard can see it, because
+[`WithGuards`](/reference/configuration/#withguards) counts values and fields, not distinct shapes. The lever
+is the size of the config: a field you did not declare is a shape nobody can ask for.

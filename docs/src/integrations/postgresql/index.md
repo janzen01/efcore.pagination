@@ -13,7 +13,7 @@ Which SQL they become is a single **process-wide** strategy.
 
 | Strategy | Registered by | Emits | Case-insensitive? |
 |----------|---------------|-------|-------------------|
-| Portable *(default)* | nothing — it is the fallback | `EF.Functions.Like` → SQL `LIKE` | follows the column collation |
+| Portable *(default)* | nothing — it is the fallback | `EF.Functions.Like` → SQL `LIKE` | **whatever the engine does** — see below |
 | PostgreSQL | `.UsePostgreSql()` | `NpgsqlDbFunctionsExtensions.ILike` → SQL `ILIKE` | yes, always |
 
 ```csharp
@@ -25,6 +25,15 @@ builder.Services.AddPagination(pagination => pagination
 Your `PaginateConfig<T>` definitions do not change — they stay provider-agnostic, and only the emitted SQL
 differs. The switch is **global**: it applies to every config in the process, because the provider is a
 property of the database, not of a resource.
+
+**"Follows the column collation" is not the answer here, and PostgreSQL is the engine it is least true of.**
+A deterministic collation never case-folds `LIKE`, and before PostgreSQL 18 a nondeterministic one is
+rejected by `LIKE` outright (`ERROR: nondeterministic collations are not supported for LIKE`). Measured on
+15.19 through the portable strategy, `?filter.name=$ilike:widget` returned **zero** rows against `Widget` and
+`WIDGET`. What each leg actually does is tabulated once, under
+[`$ilike`](/reference/query-string/#ilike-and-contains-on-a-string-—-contains); the short version is that the
+portable path is case-insensitive on SQL Server by collation and on SQLite for ASCII only, and is
+case-**sensitive** on PostgreSQL.
 
 ### The difference, in SQL
 
@@ -47,6 +56,21 @@ WHERE p."Name" ILIKE '%widget%' ESCAPE '\'
 One keyword. `$sw:Wid` differs the same way — `ILIKE 'Wid%' ESCAPE '\'` instead of `LIKE`. The pattern, the
 escaping and the parameterisation are identical; only the operator changes, which is why nothing else about a
 config or a query has to know which strategy is registered.
+
+::: warning `$sw` can change cost class with the keyword
+`$sw` is the only anchored pattern the engine emits, and therefore the only one a B-tree could ever serve.
+PostgreSQL uses a B-tree for `ILIKE` **only if the pattern starts with characters unaffected by case
+conversion** ([Index Types, §11.2](https://www.postgresql.org/docs/current/indexes-types.html)) — so
+`?filter.name=$sw:Wid`, served as an index range scan under the portable `LIKE` with a `text_pattern_ops`
+index or a C-locale database, becomes a sequential scan under `ILIKE`. No query, config or schema changed:
+one package reference and one builder line did.
+
+It is scoped to **alphabetic** prefixes. `$sw` on a digit-leading SKU, order number or phone prefix stays
+B-tree eligible under `ILIKE`. Where it does bite, the remedies are a `pg_trgm` GIN or GiST index (which also
+serves `$ilike` and `$contains`, neither of which a B-tree ever could), an expression index on `lower(col)`,
+or a `citext` column kept on the portable strategy — see *A strategy of your own* below, and the
+[performance recipe](/recipes/performance/) for the whole index checklist.
+:::
 
 ::: info About the SQL on this page
 Captured from EF Core's Npgsql provider through `ToQueryString()`, which generates SQL without opening a
@@ -151,12 +175,23 @@ var invoices = PaginateConfig<Invoice>.Create(b => b
     .Filterable("reference", i => i.Reference));
 ```
 
-See [`WithLikeStrategy`](/reference/configuration/#withlikestrategy) for the full rules. The other route is
-still open: leave the default portable strategy in place everywhere and get case-insensitivity from the
-column collation instead.
+See [`WithLikeStrategy`](/reference/configuration/#withlikestrategy) for the full rules.
+
+The other route — leave the portable strategy in place everywhere and get case-insensitivity from the column
+collation — is **version-bounded on PostgreSQL**. It works on **18.6 or later**: `LIKE` gained support for
+nondeterministic collations in 18.0, wildcards included, and 18.6 is the floor because 18.0–18.5 mishandle an
+escaped backslash — precisely the byte sequence this engine's escaping produces for a caller value containing
+`\`. Wire it from EF Core with `UseCollation` on the property. On **17 and earlier the route does not exist**:
+a deterministic collation never folds `LIKE`, and a nondeterministic one is rejected by it, so the
+alternatives there are a `citext` column or a per-provider strategy.
+
+Note the asymmetry before reaching for both at once: `ILIKE` does **not** support nondeterministic collations
+on any major, so the collation route and `.UsePostgreSql()` are alternatives rather than a combination.
 
 ## Testing it
 
-Native `ILIKE` and its `ESCAPE` behaviour need a real PostgreSQL server, so they are **not** covered by this
-library's own in-process test suite. If you depend on `UsePostgreSql()`, that seam is worth one integration
-test of your own — see [Testing your pagination](/recipes/testing/).
+Native `ILIKE` and its `ESCAPE` behaviour need a real PostgreSQL server, so no in-process leg can reach them.
+The library's own CI runs a PostgreSQL service container for exactly that reason, which is where those
+assertions live. Your model, your collations and your indexes are still yours to cover: if you depend on
+`UsePostgreSql()`, that seam is worth one integration test of your own — see
+[Testing your pagination](/recipes/testing/).

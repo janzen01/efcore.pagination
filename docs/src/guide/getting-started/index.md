@@ -45,8 +45,12 @@ Minimal API file already has.
 
 ## 2. The entity and the DTO
 
-Nothing is required of the entity. The response DTO should be a **record** (or any type with a public
-constructor): the automatic projection maps *constructor parameters*, not settable properties.
+Nothing is required of the entity. The response DTO should be a **record**: the automatic projection maps
+*constructor parameters*, not settable properties, so it needs a type whose widest public constructor takes
+the values it is to fill. A target whose widest public constructor takes **no** parameters is refused when
+the configuration is built, as is one with two public constructors of the same maximum arity — the first
+would return a page of all-default rows and the second would depend on the order the constructors happen to
+be declared in. See [Projections](../projections/) for the full set of rules.
 
 ```csharp
 public sealed class Product {
@@ -197,11 +201,14 @@ flowchart TD
     Valid -- no --> Err["<b>400</b> ProblemDetails<br/>title: Invalid query"]
     Valid -- yes --> Filter["<code>Where(...)</code> ← every <code>filter.field</code>"]
     Filter --> Search["<code>Where(...)</code> ← <code>search</code> over the searchBy fields"]
-    Search --> Count["<code>COUNT(*)</code> → totalItems, totalPages"]
+    Search --> Resolve["resolve <code>sortBy</code> / DefaultSortBy<br/>+ tie-breaker as the last key"]
+    Filter -. unknown field, bad operator, bad value .-> Err
+    Search -. unknown searchBy, term too short .-> Err
+    Resolve -. unknown sort field, bad direction .-> Err
+    Resolve --> Count["<code>COUNT(*)</code> → totalItems, totalPages"]
     Count --> Past{"skip ≥ totalItems?"}
     Past -- yes --> Empty["empty page, no second query"]
-    Past -- no --> Sort["<code>OrderBy</code> ← sortBy / DefaultSortBy<br/>+ tie-breaker as the last key"]
-    Sort --> Page["<code>Skip/Take</code> → project each row to the DTO"]
+    Past -- no --> Page["<code>OrderBy</code> · <code>Skip/Take</code> → project each row to the DTO"]
     Empty --> Resp["<b>PaginatedResponse</b>: Items · Meta · Links"]
     Page --> Resp
 ```
@@ -209,11 +216,16 @@ flowchart TD
 Two queries per request: one `COUNT(*)` over the filtered set, one page fetch. Asking for a page past the end
 returns an empty `items` with the real `meta`, and skips the second query entirely.
 
-The validation step is pure arithmetic and runs before either of them, so a request refused there — an
-over-range `limit`, or a page beyond [`WithMaxOffset`](/reference/configuration/#withmaxoffset) — costs no
-query at all. The two opt-in modes change the shape: an
+**Everything is validated before either query runs**, filters, search and `sortBy` included — which is why
+the dotted edges above all reach the same `400`. A `sortBy` naming a field the config does not have is
+refused even when the filters match nothing and even past the last page, the two cases where a validation gap
+would be least likely to be noticed. A request refused at any of those steps — an over-range `limit`, a page
+beyond [`WithMaxOffset`](/reference/configuration/#withmaxoffset), an unknown sort field — costs no query at
+all. The `ORDER BY` itself is *applied* after the count, which is the one thing that genuinely happens later.
+
+The two opt-in modes change the shape: an
 [unlimited read](/reference/configuration/#allowunlimited) skips the `COUNT(*)` entirely, because the rows it
-fetches *are* the count.
+fetches *are* the count. [Errors](/reference/errors/) carries the same order and the complete list.
 
 ## Next
 

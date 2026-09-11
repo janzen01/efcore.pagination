@@ -19,6 +19,15 @@ worth checking:
 4. **You declared the wrong kind.** `Sortable` does not make a field filterable, and neither makes it
    searchable. Each is a separate declaration.
 
+## A `.When(...)` gate stopped applying
+
+The inverse symptom, and it has one cause worth checking before any other: **declaring the same name twice
+for the same kind replaces the earlier declaration silently**, and what is replaced may be the gated one. A
+second `.Filterable("isHidden", …)` with no `.When(...)` leaves the field ungated, and `Build()` does not
+catch it — the `When`-requires-`ShowBadge` check inspects only the declarations that survived, and the
+survivor has no `When`. Search the config for a second declaration of that name; the replacement may sit in a
+shared helper rather than next to the original.
+
 ## Sorting is ignored, or wrong
 
 - **`sortBy` replaces the defaults, it does not merge with them.** A request that sends any `sortBy` drops
@@ -35,9 +44,11 @@ worth checking:
 ## `$ilike` is not case-insensitive
 
 `$ilike` names the intent, not a guarantee. Without the `.PostgreSql` package it emits a portable `LIKE`, and
-case sensitivity is then whatever the column's collation says — which on many collations means it behaves
-exactly like `$contains`. Register [`UsePostgreSql()`](/integrations/postgresql/) for native `ILIKE`, or use a
-case-insensitive collation.
+the case behaviour is then the engine's — which is **not the same on every one of them**, and on PostgreSQL is
+case-*sensitive* with no collation that changes it before 18.6. The
+[per-leg table](/reference/query-string/#ilike-and-contains-on-a-string-—-contains) is the place to check what
+yours does. Register [`UsePostgreSql()`](/integrations/postgresql/) for native `ILIKE`, or move the column to a
+type or collation that folds case on the engine you deploy on.
 
 ## A value with a comma in it does not work
 

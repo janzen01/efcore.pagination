@@ -60,7 +60,11 @@ public sealed record PaginatedResponse<T>(
 /// </remarks>
 /// <param name="TotalItems">Rows matching the filter and search across <b>all</b> pages, before paging.</param>
 /// <param name="ItemCount">Rows actually returned on this page — smaller than <paramref name="ItemsPerPage" /> on the last page, and <c>0</c> past the end.</param>
-/// <param name="ItemsPerPage">The effective page size for this request: the requested <c>limit</c>, or the configured default when it was omitted.</param>
+/// <param name="ItemsPerPage">
+///     The effective page size for this request: the requested <c>limit</c>, or the configured default when it
+///     was omitted. For an <b>unlimited</b> read (<c>limit=-1</c>) it is the actual row count instead, which is
+///     <c>0</c> when nothing matched — so it is not safe to divide by.
+/// </param>
 /// <param name="TotalPages">Number of pages at this page size, or <c>0</c> when nothing matched.</param>
 /// <param name="CurrentPage">The 1-based page that was <b>requested</b>. Not clamped, so it can exceed <paramref name="TotalPages" /> — that page is simply empty.</param>
 public sealed record PaginatedMeta(
@@ -100,7 +104,14 @@ public sealed record PaginatedMeta(
 	[JsonPropertyName("hasPreviousPage")]
 	public bool HasPreviousPage { get; init; }
 
-	/// <summary>Whether a page follows this one — <see cref="CurrentPage" /> is below <see cref="TotalPages" />. <see langword="false" /> past the last page, where nothing follows either.</summary>
+	/// <summary>
+	///     Whether a page follows this one and may be <b>requested</b>: <see cref="CurrentPage" /> is below
+	///     <see cref="TotalPages" />, unless <c>WithMaxOffset</c> stops paging earlier, in which case it is the
+	///     last reachable page that ends it. <see langword="false" /> past the last page, where nothing follows
+	///     either. So <see cref="TotalPages" /> stays the honest count of pages the data has while this reports
+	///     the ones the resource will answer — on an offset-capped resource the two deliberately disagree,
+	///     which is what keeps a client that follows links out of a <c>400</c>.
+	/// </summary>
 	[JsonPropertyName("hasNextPage")]
 	public bool HasNextPage { get; init; }
 
@@ -169,9 +180,11 @@ public sealed record PaginatedLinks(
 ) {
 
 	/// <summary>
-	///     Link to the page that was requested — the request echoed back, so it is never <see langword="null" /> and is
-	///     present past the last page too, where <see cref="Next" /> and <see cref="Previous" /> already say what is
-	///     navigable. A client that stores "where am I" URLs (bookmarks, retry, restoring table state) reads it here
+	///     Link to the page that was requested — the request echoed back, so on an envelope the engine produced
+	///     it is never <see langword="null" /> and is present past the last page too, where <see cref="Next" /> and
+	///     <see cref="Previous" /> already say what is navigable. An instance built through the four-parameter
+	///     constructor, or deserialized from a payload that omits the key, carries <see langword="null" /> here like
+	///     any other member. A client that stores "where am I" URLs (bookmarks, retry, restoring table state) reads it here
 	///     instead of reassembling it from <see cref="PaginatedResponse{T}.Meta" /> and its own knowledge of the path.
 	///     Declared outside the positional list on purpose: the constructor, <c>Deconstruct</c> and <c>with</c> keep
 	///     their shape, and it serializes after the four positional members.
@@ -246,6 +259,14 @@ internal static class PaginateStructuralEquality {
 		return hash.ToHashCode();
 	}
 
+	/// <summary>
+	///     Compares two filter echoes. Keys are matched <b>ordinally</b>, not through either dictionary's own
+	///     comparer — those disagree: the model binder builds an <c>OrdinalIgnoreCase</c> map,
+	///     <c>PaginateQuery.EmptyFilters</c> is <c>Ordinal</c>, and a hand-built request brings whatever the caller
+	///     chose. Deferring to the right-hand one would make equality asymmetric: a request echoing <c>Status</c>
+	///     and one echoing <c>status</c> would compare equal in one direction and not the other. Ordinal is also
+	///     the honest reading of the member, which echoes the request's field names verbatim.
+	/// </summary>
 	public static bool FilterEquals(
 		IReadOnlyDictionary<string, IReadOnlyList<string>>? left,
 		IReadOnlyDictionary<string, IReadOnlyList<string>>? right
@@ -255,11 +276,7 @@ internal static class PaginateStructuralEquality {
 		if (left is null || right is null) return false;
 		if (left.Count != right.Count) return false;
 
-		// Keys are matched ORDINALLY, not through either dictionary's own comparer — those disagree. The model
-		// binder builds an OrdinalIgnoreCase map, PaginateQuery.EmptyFilters is Ordinal, and a hand-built request
-		// brings whatever the caller chose. Using the right-hand one would make equality asymmetric: a request
-		// echoing 'Status' and one echoing 'status' would compare equal in one direction and not the other.
-		// Ordinal is also the honest reading of the member, which echoes the request's field names verbatim.
+		// The ordinal-key rule is on the summary above, where a maintainer sees it in quick info.
 		// The scan is quadratic in the number of filtered FIELDS, which the config caps in single digits.
 		foreach ((string field, var values) in left) {
 

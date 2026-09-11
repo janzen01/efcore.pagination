@@ -30,14 +30,25 @@ replaces the earlier declaration silently rather than throwing.
 Building walks expression trees and freezes several dictionaries, so build **once**: a static field, or a
 singleton in DI. The result is immutable and safe to share across threads.
 
-Three checks cannot run when the method is called, because they depend on declarations that may come later.
-They run at the end of `Create`, and each throws `InvalidOperationException`:
+These checks cannot run when their own builder method is called, because they depend on declarations that may
+come later or on values that may arrive from a defaults object. They run at the end of `Create`, in this
+order, and each throws `InvalidOperationException`:
 
 | Check | Message |
 |---|---|
-| `WithLimits` was never called | `Pagination limits must be configured explicitly via WithLimits(defaultLimit, maxLimit).` |
+| `WithLimits` was never called, and no defaults object supplied both halves | `Pagination limits must be configured explicitly via WithLimits(defaultLimit, maxLimit).` |
+| a resolved guard is zero or negative | `<Guard> must be greater than zero.` |
+| `defaultLimit` above `maxLimit` after resolution | `Default limit 50 must not be greater than max limit 25.` |
+| a resolved `MaxOffset` below zero | `MaxOffset must not be negative.` |
+| `MinSearchLength` above `MaxSearchLength` | `Min search length 10 must not be greater than max search length 5.` |
 | a `DefaultSortBy` field is not also `Sortable` | `Default sort field 'x' is not sortable.` |
+| [`WithTieBreaker`](#withtiebreaker) was never called | `A pagination configuration requires WithTieBreaker(...): …` |
 | a `.When(...)` field has no `.ShowBadge(...)` | `A field configured with .When(...) must also declare .ShowBadge(...) so the condition is documented in the OpenAPI output.` |
+| an explicit operator list names one the field's type cannot carry | `Filter 'x' allows operator '$gt', which the engine cannot build for type 'Boolean'. …` |
+
+The tie-breaker row is the one most likely to surprise an upgrade: it is required outright rather than "a
+default sort **or** a tie-breaker", and a configuration that omits it no longer builds — see
+[`WithTieBreaker`](#withtiebreaker) for why the weaker rule does not hold.
 
 So a config that compiles can still throw on first use. Build it in a startup path, or in a test, rather than
 lazily on the first request.
@@ -159,7 +170,11 @@ page 1; pages of an unbounded set are meaningless.
 
 What it costs and what comes back:
 
-- **one query, not two.** The fetched set *is* the count, so no `COUNT(*)` is issued.
+- **one query, not two.** The fetched set *is* the count, so no `COUNT(*)` is issued. The saving is the
+  count, not the ordering: that single query still carries the full `ORDER BY` — your sort keys plus the
+  mandatory tie-breaker — over the whole ceiling-bounded set, so `maxRows` is a promise about sort cost as
+  much as about row count. Index the ordering, and see
+  [Performance](/recipes/performance/) for the one sort no index on the paged table can serve.
 - `meta.itemsPerPage` echoes `itemCount` — the honest value, not the requested `-1`.
 - `meta.hasNextPage` and `meta.hasPreviousPage` are both `false`; `totalPages` is 1, or 0 when nothing matched.
 - `links.first`, `links.last` and `links.current` are the same URL; `next` and `previous` are `null`.
@@ -391,7 +406,7 @@ The derivation is public, which is the middle road between the two signatures �
 
 One ordering requirement comes with it: the derivation reads the process-wide type registry, so a type from an
 add-on package only resolves once that package has registered it. A `static readonly` config using the
-shorthand on a NodaTime type will throw during type initialization if it is built before `AddNodaTime()` (or
+shorthand on a NodaTime type will throw during type initialization if it is built before `UseNodaTime()` (or
 `PaginateNodaTime.Register()`) runs. Register first, or give such a field the explicit operator list.
 
 ### `FilterableMany`
@@ -501,6 +516,14 @@ than one per request. See [Recipes → role-based configurations](/recipes/#role
 - no preceding field → `InvalidOperationException`,
   `When must be called immediately after a Sortable, Searchable, or Filterable field.`
 - no paired `ShowBadge` — deferred to the end of `Create`, see [above](#create-and-what-it-defers)
+
+::: warning A later redeclaration takes the gate with it
+Declaring the same name twice for the same kind [replaces the earlier declaration
+silently](#create-and-what-it-defers), and the thing being replaced may be this gate: a second
+`.Filterable("isHidden", …)` with no `.When(...)` leaves an **ungated** field, and the `ShowBadge` check
+above passes trivially because it only inspects the declarations that survived. If a conditional field
+stops being conditional, look for a second declaration of the same name before looking anywhere else.
+:::
 
 ---
 

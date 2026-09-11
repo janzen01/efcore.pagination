@@ -41,7 +41,7 @@ same query parameters, operator names and response envelope.
 | **Janzen.Pagination.EntityFrameworkCore** | [README](src/Janzen.Pagination.EntityFrameworkCore/README.md) | Provider-agnostic query engine — fluent `PaginateConfig<T>`, filtering / sorting / search, projection, `PaginateAsync`. |
 | **Janzen.Pagination.PostgreSql**          | [README](src/Janzen.Pagination.PostgreSql/README.md)          | PostgreSQL provider — case-insensitive search via native `ILIKE`.                                                       |
 | **Janzen.Pagination.AspNetCore**          | [README](src/Janzen.Pagination.AspNetCore/README.md)          | ASP.NET Core integration — query-string model binding, `ProblemDetails`, links, OpenAPI metadata.                       |
-| **Janzen.Pagination.NodaTime**            | [README](src/Janzen.Pagination.NodaTime/README.md)            | NodaTime support — filter / sort / project `Instant` and `LocalDate` (incl. `Instant` → `DateTimeOffset`).              |
+| **Janzen.Pagination.NodaTime**            | [README](src/Janzen.Pagination.NodaTime/README.md)            | NodaTime support — filter / sort / project the seven NodaTime value types (incl. `Instant` → `DateTimeOffset`).         |
 
 ```mermaid
 graph BT
@@ -161,7 +161,7 @@ Every `400` it can produce, in the order the engine validates:
 | [ASP.NET Core](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/) | Binding, `ProblemDetails`, links, Minimal APIs. |
 | [OpenAPI](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/openapi/) | What the transformer emits, and badges. |
 | [PostgreSQL](https://janzen01.github.io/efcore.pagination/integrations/postgresql/) | `LIKE` vs `ILIKE`, and the SQL each emits. |
-| [NodaTime](https://janzen01.github.io/efcore.pagination/integrations/nodatime/) | `Instant` and `LocalDate` as filter, sort and projection types. |
+| [NodaTime](https://janzen01.github.io/efcore.pagination/integrations/nodatime/) | The seven NodaTime value types as filter, sort and projection types. |
 | [Custom types](https://janzen01.github.io/efcore.pagination/integrations/custom-types/) | Teaching the engine a value type of your own. |
 
 **Cookbook** — task-shaped answers:

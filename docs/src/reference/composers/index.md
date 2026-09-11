@@ -17,10 +17,17 @@ Both are in the **core package** (`Janzen.Pagination.EntityFrameworkCore`), and 
 `[RequiresUnreferencedCode]` / `[RequiresDynamicCode]` like the four entry points — the engine builds
 expression trees either way.
 
-::: tip They cannot drift from the real thing
-`PaginateAsync` and its three siblings compose through the same internal path these do. The library's own
-test suite asserts that byte-for-byte: it captures the SQL the engine executes and compares it against
-`ApplyPagination(...).Query.ToQueryString()`.
+::: tip The composed query is the executed query
+All six paths — the four `Paginate*Async` entry points and these two composers — compose through the same
+internal step, so a stage added on one is added on all of them. The library's own suite pins that: it captures
+the command the engine runs for `PaginateMapAsync` and compares it against
+`ApplyPagination(...).Query.ToQueryString()`, modulo whitespace and `ToQueryString`'s `.param set` preamble.
+
+Read that for what it is. `PaginateMapAsync` is the one entry point that adds no SQL-side projection, which
+is exactly why it is the one the assertion can make; the other three replace the `SELECT` list with their
+projection, so their executed statement is **not** what `ApplyPagination` prints and comparing the two will
+mislead you. What is shared is everything before the projection — the filters, the search, the order, the
+`LIMIT`/`OFFSET`.
 :::
 
 ## `ApplyPaginateFilters` — the matching set
@@ -66,9 +73,9 @@ query from one, the matching set from the other.
 | `Query` | `IQueryable<TEntity>` | The composed query, unexecuted. |
 | `Page` | `int` | The 1-based page requested. Not clamped. |
 | `Limit` | `int` | The **effective** page size: the requested `limit`, or the config's `DefaultLimit`. |
-| `SortBy` | `string[]` | The **effective** order in `"field:DIR"` form, tie-breaker excluded. `[]` when the request asked for none and the config declares no `DefaultSortBy`. |
+| `SortBy` | `IReadOnlyList<string>` | The **effective** order in `"field:DIR"` form, tie-breaker excluded. `[]` when the request asked for none and the config declares no `DefaultSortBy`. |
 | `Search` | `string?` | The search term that ran, or `null`. |
-| `SearchBy` | `string[]` | The **effective** fields it ran over. `[]` when no search ran. |
+| `SearchBy` | `IReadOnlyList<string>` | The **effective** fields it ran over. `[]` when no search ran. |
 | `Filter` | `IReadOnlyDictionary<string, IReadOnlyList<string>>` | The request's filters, verbatim per field. |
 
 These are the same values that reach [`meta`](../response/#the-request-echo) on the normal path, from the same

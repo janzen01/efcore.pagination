@@ -160,7 +160,32 @@ if (missing.length > 0) {
 }
 
 // Every page above exists, so reading them is safe from here.
-const idsOf = (page) => new Set([...readFileSync(join(dist, page), 'utf8').matchAll(/id="([^"]+)"/g)].map((match) => match[1]))
+const pageOf = (page) => readFileSync(join(dist, page), 'utf8')
+const idsOf = (page) => new Set([...pageOf(page).matchAll(/id="([^"]+)"/g)].map((match) => match[1]))
+
+// A stub answering at a frozen address is only half the promise: it exists, and it sends the reader somewhere.
+// Nothing checked the second half. `ignoreDeadLinks` walks markdown links while the refresh target lives in
+// front matter; scripts/verify-anchors.mjs matches `](...)`; the loop above stops at "the stub built". Every
+// stub also happens to repeat its target as an ordinary markdown link in its body, which is the only reason a
+// move of the target is caught at all -- an accidental guarantee, and one an editor removes by deciding the
+// body should not duplicate what the redirect already does. Read the emitted meta instead.
+const base = '/efcore.pagination/'
+
+const stranded = [...required.keys()]
+	.map((page) => ({ page, target: pageOf(page).match(/http-equiv="refresh"[^>]*content="[^"]*url=([^"]+)"/i)?.[1] }))
+	.filter(({ target }) => target !== undefined)
+	.filter(({ target }) => !target.endsWith('/')
+		|| !existsSync(join(dist, `${target.startsWith(base) ? target.slice(base.length) : target}index.html`)))
+
+if (stranded.length > 0) {
+	console.error('\nThese redirect stubs send the reader at a path the build did not publish:\n')
+	for (const { page, target } of stranded) {
+		console.error(`  ${page.replace(/index\.html$/, '')}   ->   ${target}`)
+	}
+	console.error('\nA stub exists so an address already inside a released package keeps answering. Point it at a\n' +
+		'page that is built, ending in a slash -- otherwise a frozen URL resolves to a 404 with a green build.\n')
+	process.exit(1)
+}
 
 const dangling = [...fragments.values()].filter(({ page, anchor }) => !idsOf(page).has(anchor))
 
