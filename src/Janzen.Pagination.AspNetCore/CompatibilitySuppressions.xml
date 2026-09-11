@@ -1,0 +1,26 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
+<!--
+  The breaking-change inventory for this package. Generated, never hand-written
+  (dotnet pack -p:ApiCompatGenerateSuppressionFile=true), which also drops this comment and writes
+  CRLF, so both are restored afterwards. One entry:
+
+  CP0014 x1 PaginateExceptionFilter.OnException: the method was rewritten so the two pipelines
+  enrich a ProblemDetails exactly once each, and its nullable context moved with it. The behaviour
+  is the change; the attribute is a side effect.
+
+  It is visible only because the ApiCompat attribute rule is now on — nullable context lives in
+  metadata the signature comparison does not read, so this would have shipped silently before.
+
+  Delete this file when PackageValidationBaselineVersion moves past 10.0.3: the entry exists only
+  against that baseline, and a stale suppression hides the next accidental break behind it.
+-->
+<Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Suppression>
+    <DiagnosticId>CP0014</DiagnosticId>
+    <Target>M:Janzen.Pagination.AspNetCore.Filters.PaginateExceptionFilter.OnException(Microsoft.AspNetCore.Mvc.Filters.ExceptionContext):[T:System.Runtime.CompilerServices.NullableContextAttribute]</Target>
+    <Left>lib/net10.0/Janzen.Pagination.AspNetCore.dll</Left>
+    <Right>lib/net10.0/Janzen.Pagination.AspNetCore.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+</Suppressions>
