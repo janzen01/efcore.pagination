@@ -42,7 +42,13 @@ public sealed class PaginateQuery {
 	/// <summary>Subset of searchable fields to search; empty uses the configured defaults. Ignored when the config sets <c>IgnoreSearchByInQueryParam()</c>.</summary>
 	public IReadOnlyList<string> SearchBy { get; init; } = [];
 
-	/// <summary>Filter criteria per field; each value uses the <c>"$op:value"</c> form (e.g. <c>"$eq:42"</c>).</summary>
+	/// <summary>
+	///     Filter criteria per field; each value uses the <c>"$op:value"</c> form (e.g. <c>"$eq:42"</c>). <b>One
+	///     entry per field</b> — several criteria on one field are the several values of its entry. Field names
+	///     are matched case-insensitively, so two keys differing only in case resolve to the same field and are
+	///     rejected; use <see cref="StringComparer.OrdinalIgnoreCase" /> when building the map by hand and the
+	///     collision cannot arise in the first place.
+	/// </summary>
 	public IReadOnlyDictionary<string, IReadOnlyList<string>> Filters { get; init; } = EmptyFilters;
 
 	/// <summary>

@@ -48,9 +48,21 @@ public static class PaginateQueryableExtensions {
 		Expression? aggregate = null;
 		int conditionCount = 0;
 
+		// Field lookup is case-insensitive, but a hand-built Filters map need not be -- the type's own default
+		// is an ordinal dictionary -- so two keys can resolve to one configured field. Their criteria are then
+		// ANDed as if they came from different fields and the page comes back empty with nothing to say why.
+		// Only the documented direct-construction path can reach this; the model binder collapses the keys
+		// first. Built only when there is a second entry to collide with, and keyed by the field's canonical
+		// name, which is what both spellings resolved to.
+		Dictionary<string, string>? claimed = request.Filters.Count > 1 ? new(StringComparer.Ordinal) : null;
+
 		foreach ((string fieldName, var values) in request.Filters) {
 
 			if (!config.TryGetFilterableField(fieldName, out var field)) throw new PaginateQueryException($"Filter for field '{fieldName}' is not configured.") { Code = PaginateQueryError.FilterFieldNotConfigured };
+
+			if (claimed is not null && !claimed.TryAdd(field.Name, fieldName)) {
+				throw new PaginateQueryException($"Filter for field '{fieldName}' repeats '{claimed[field.Name]}'; combine the criteria in one entry.");
+			}
 
 			Expression? fieldExpression = null;
 
