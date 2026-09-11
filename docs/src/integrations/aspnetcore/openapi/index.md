@@ -39,7 +39,7 @@ Six parameters plus a `400`, in this order:
 
 | Parameter | Shape | Built from |
 |-----------|-------|------------|
-| `page` | `integer`, minimum `1`, default `1` | fixed |
+| `page` | `integer`, minimum `1`, default `1` | `WithMaxOffset` |
 | `limit` | `integer`, minimum `1`, **maximum `MaxLimit`**, default `DefaultLimit` — or a `oneOf` of that range and `-1` where the resource called `AllowUnlimited` | `WithLimits`, `AllowUnlimited` |
 | `sortBy` | `array` of `string`, exploded, **enum of every `field:ASC` / `field:DESC`**, maximum `MaxSortFields` items | `Sortable`, `DefaultSortBy`, `WithGuards` |
 | `search` | `string`, maximum `MaxSearchLength` characters | `Searchable`, `WithGuards` |
@@ -47,7 +47,7 @@ Six parameters plus a `400`, in this order:
 | `filter.<field>` | `array` of `string`, exploded, one parameter **per filterable field** | `Filterable`, `FilterableMany`, `WithGuards` |
 | `400` response | `application/problem+json` with `type` / `title` / `status` / `detail` / `code`, plus `traceId` where the app sends one | fixed |
 
-Three conditions worth knowing:
+Four conditions worth knowing:
 
 - **Both search parameters are omitted** when the config declares no `Searchable` field at all. There is no
   free-text surface to document: `search` would advertise an input whose only possible answer is a `400`, and
@@ -57,6 +57,12 @@ Three conditions worth knowing:
   run time, so advertising it would be a lie.
 - **`filter.` parameters are ordered by field name** (ordinal), not by declaration order, so the document is
   stable across config edits that only move lines around.
+- **Three descriptions grow a sentence** when the matching guard is configured, which is why the `page`,
+  `limit` and `search` rows above name a builder method rather than saying "fixed": `page` under
+  [`WithMaxOffset`](/reference/configuration/#withmaxoffset), `limit` under
+  [`AllowUnlimited`](/reference/configuration/#allowunlimited), and `search` under
+  [`WithMinSearchLength`](/reference/configuration/#withminsearchlength) above 1. An unguarded resource says
+  nothing extra, so adding one of those calls shows up as a description diff in a committed artefact.
 
 The `limit` schema only grows a `oneOf` on a resource that called
 [`AllowUnlimited`](/reference/configuration/#allowunlimited), and it is the whole reason it grows one: the
