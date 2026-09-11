@@ -51,7 +51,7 @@ would compare by reference and lie. Use [`WithPage(n)`](../response/#paging-with
 one request from another. Validation happens when the query executes, never here, so an out-of-range value
 produces the same `400` whichever way the request was built.
 
-For the pipeline these six parameters feed — bind, validate, filter, count, sort, page — see
+For the pipeline these six parameters feed — bind, validate everything, count, then order and page — see
 [Getting started](/guide/getting-started/#what-the-engine-does-with-that-request). This page is the parameters
 themselves.
 
