@@ -115,6 +115,62 @@ jobs:
           done
           exit $status
 
+  # Four things about this library are invisible to the SQLite leg, and two of them shipped because of it:
+  # SQLite has no ILIKE at all (the native form does not translate, so no test can assert it), its LIKE is
+  # case-insensitive for ASCII (which makes both strategies look alike where PostgreSQL separates them), its
+  # escape handling differs, and it stores a nul byte happily where PostgreSQL rejects the parameter at the
+  # protocol boundary. Only a real server answers those.
+  #
+  # Ubuntu only, and not by preference: GitHub-hosted runners can start service containers on Linux alone, so
+  # the three-OS matrix above cannot host this and no other container tool would change that. The assertions
+  # are provider-specific by construction -- everything provider-neutral is already proven on SQLite, and this
+  # job must not grow into a second full pass against PostgreSQL.
+  #
+  # Do NOT give this job an `if:`. It is a dependency of `ci-ok`, where a skipped dependency counts as passing,
+  # so a condition here would turn a leg nobody can run locally into a silent green.
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        # 18.6 rather than "a supported major": 18.0 is where LIKE gained nondeterministic-collation support
+        # and 18.6 is where escaped-backslash handling was fixed, so both are load-bearing for what is asserted.
+        image: postgres:18.6
+        env:
+          POSTGRES_PASSWORD: postgres
+        # Without the health gate the first connection races the server's own initialisation.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Janzen.Pagination.slnx
+
+      - name: Build
+        run: dotnet build Janzen.Pagination.slnx -c Release --no-restore -warnaserror
+
+      # The variable is set unconditionally, so in the only place that decides whether code merges the gated
+      # class always runs and there is nothing to skip. The database it names is dropped and recreated by the
+      # fixture, which is why it is not the container's own `postgres` one. The whole suite runs rather than a
+      # filtered subset: it costs seconds and it proves the gate opens without disturbing anything else.
+      - name: Test (PostgreSQL leg)
+        env:
+          JANZEN_TEST_POSTGRES: Host=localhost;Port=5432;Database=janzen_pagination_ci;Username=postgres;Password=postgres
+        run: dotnet test Janzen.Pagination.slnx -c Release --no-build
+
   # The PR title becomes the squash commit on master, and master takes no other kind of merge -- a typo
   # there is permanent history. Dependabot is exempt: its titles are its own.
   pr-lint:
@@ -147,7 +203,7 @@ jobs:
   # real failure or a cancellation is a failure here. `needs.build-test.result` is one aggregate for the
   # whole matrix, so with fail-fast disabled a single red leg still surfaces as `failure`.
   ci-ok:
-    needs: [ build-test, docs, api-tracking, pr-lint ]
+    needs: [ build-test, docs, api-tracking, postgres, pr-lint ]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
