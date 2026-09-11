@@ -103,7 +103,7 @@ Raised when the text after the operator cannot become the field's CLR type. See
 | `Value 'v' is not a valid GUID.` | text that `Guid.TryParse` rejects | any format `Guid.TryParse` accepts is fine |
 | `Value 'v' is not a valid boolean.` | anything but `true` / `false`, case-insensitively | `1` and `0` are **not** accepted |
 | `Value 'v' is not a valid instant.` / `local date.` | an ISO-8601 failure on a NodaTime field | requires the [`.NodaTime` package](/integrations/nodatime/) |
-| `Value for type 'T' must not be empty.` | an empty value (`?filter.price=$eq:`) against a **non-nullable** target | use `$null` to test for absence rather than relying on an empty value |
+| `Filter 'x' requires a value; use '$null' to match rows with no value.` | an empty or whitespace-only value on any non-`string` field (`?filter.price=$eq:`) | send a value, or `$null` — which the field has to whitelist, exactly as any other operator does |
 | `Filtering values of type 'T' is not supported.` | a field whose CLR type has no registered parser | register one with [`PaginateTypeSupport`](/integrations/custom-types/) |
 
 ---

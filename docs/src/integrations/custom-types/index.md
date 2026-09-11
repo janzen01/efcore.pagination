@@ -50,8 +50,8 @@ Two things are decided before the registry is consulted, and a parser cannot rea
 - **`string` is returned verbatim.** A registered `string` parser is never called — the type is the wire format,
   so there is nothing to parse, and routing it through the registry would change what an empty value means for
   every existing string filter.
-- **An empty or whitespace-only value** is `null` for a nullable target and a `400` for a non-nullable one, per
-  [Value formats](/reference/query-string/#value-formats). That is a nullability rule rather than a parsing one,
+- **An empty or whitespace-only value** is a `400`, per
+  [Value formats](/reference/query-string/#value-formats). That is a grammar rule rather than a parsing one,
   so your parser is never handed `""`.
 
 ## `RegisterSimpleType` — stop projection recursing into it

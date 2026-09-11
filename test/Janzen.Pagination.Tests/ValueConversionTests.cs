@@ -72,15 +72,15 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public async Task An_empty_value_is_rejected_for_a_non_nullable_target() {
-		Assert.Equal("Value for 'rank' must not be empty.", await this.Rejects(Query.Filter("rank", "$eq:")));
+		Assert.Equal("Filter 'rank' requires a value; use '$null' to match rows with no value.", await this.Rejects(Query.Filter("rank", "$eq:")));
 	}
 
 	[Fact]
-	public async Task An_empty_value_becomes_null_for_a_nullable_target() {
-		// EF rewrites a comparison against a null parameter into IS NULL, so this lands on the unset rows
-		// rather than on nothing. $null is still the operator to reach for: it says so at the call site and
-		// does not depend on the provider's null semantics.
-		Assertions.HasIds(await this.Page(Query.Filter("discontinuedAt", "$eq:")), 1, 2, 3, 4, 5, 7, 8);
+	public async Task An_empty_value_is_rejected_for_a_nullable_target_too() {
+		// It used to convert to null and land on the unset rows, which is $null spelled implicitly -- without
+		// the field's allow-list ever being asked about $null. One spelling, and the message names it.
+		Assert.Equal("Filter 'discontinuedAt' requires a value; use '$null' to match rows with no value.",
+			await this.Rejects(Query.Filter("discontinuedAt", "$eq:")));
 	}
 
 	[Fact]

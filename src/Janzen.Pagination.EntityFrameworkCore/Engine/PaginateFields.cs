@@ -101,7 +101,7 @@ internal abstract class PaginateFilterField(
 		var converted = Array.CreateInstance(valueType, values.Length);
 
 		for (int i = 0; i < values.Length; i++) {
-			converted.SetValue(PaginateValueConverter.Convert(values[i], valueType, Name), i);
+			converted.SetValue(this.ConvertRawValue(values[i], valueType), i);
 		}
 
 		Expression valuesExpression = Expression.Constant(converted, converted.GetType());
@@ -157,7 +157,7 @@ internal abstract class PaginateFilterField(
 			// Compare on the underlying integral type, which is also what the column stores unless the model maps the
 			// enum to text — in which case this filter does not translate, exactly as it did not before.
 			var underlying = Enum.GetUnderlyingType(Type);
-			object? ordinal = Convert.ChangeType(PaginateValueConverter.Convert(value, Type, Name), underlying, CultureInfo.InvariantCulture);
+			object? ordinal = Convert.ChangeType(this.ConvertRawValue(value, Type), underlying, CultureInfo.InvariantCulture);
 
 			compare = comparison(Expression.Convert(operand, underlying), ToConstant(ordinal, underlying, context));
 		} else {
@@ -234,7 +234,26 @@ internal abstract class PaginateFilterField(
 	///     Converts a raw string value to a constant of the target type, optionally wrapped in
 	///     <see cref="EF.Parameter{T}" /> for plan reuse.
 	/// </summary>
-	private Expression ConvertValue(string value, Type targetType, PaginateExpressionContext context) { return ToConstant(PaginateValueConverter.Convert(value, targetType, Name), targetType, context); }
+	private Expression ConvertValue(string value, Type targetType, PaginateExpressionContext context) { return ToConstant(this.ConvertRawValue(value, targetType), targetType, context); }
+
+	/// <summary>
+	///     Parses one criterion value, refusing a blank one first. A blank used to convert to <c>null</c> wherever
+	///     the target was nullable, which is <c>$null</c> spelled implicitly — and the implicit spelling asked the
+	///     field's operator allow-list nothing, so a configuration withholding <c>Null</c> answered the null rows
+	///     anyway. It also read whichever type reached it, so a nested value-typed member the in-memory rewriter
+	///     had lifted to <see cref="Nullable{T}" /> matched rows in memory while every relational provider answered
+	///     400. There is one spelling for "no value" now, and it is the declared one. <c>string</c> is untouched:
+	///     an empty string is a value, not an absence.
+	/// </summary>
+	private object? ConvertRawValue(string value, Type targetType) {
+
+		if (targetType != typeof(string) && string.IsNullOrWhiteSpace(value)) {
+			throw new PaginateQueryException($"Filter '{Name}' requires a value; use '$null' to match rows with no value.");
+		}
+
+		return PaginateValueConverter.Convert(value, targetType, Name);
+
+	}
 
 	/// <summary>Wraps an already-converted value as a constant of <paramref name="targetType" />, parameterised as above.</summary>
 	private static Expression ToConstant(object? value, Type targetType, PaginateExpressionContext context) {
