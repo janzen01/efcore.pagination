@@ -64,8 +64,14 @@ reaches into a JSON column with `json_each`, another provider will not.
 
 ## `page`
 
-1-based. Must parse as a positive integer with no sign, decimal point or padding — `0`, `-1`, `+2`, `2.0` and
-`abc` all return `400 Query parameter 'page' must be a positive integer.`
+1-based. Must parse as a positive integer with no sign, decimal point or surrounding whitespace — `0`, `-1`,
+`+2`, `2.0`, `abc`, `%202` and `2%20` all return `400 Query parameter 'page' must be a positive integer.`
+Leading **zeros** are accepted and mean the same page: `?page=007` is page 7.
+
+An **empty or whitespace-only** `page` is not an error either — it is read as if the parameter had not been
+sent, so `?page=` serves page 1. The same holds for `limit`, where it leaves `DefaultLimit` in force. That is
+what keeps an HTML `GET` form, which submits every input it has whether or not the user filled it in, from
+rejecting the request it was meant to make.
 
 The value becomes the `OFFSET`, always as a parameter:
 
@@ -82,18 +88,30 @@ second query entirely.
 
 ## `limit`
 
-Omitted → the config's `DefaultLimit`. Supplied → must be between `1` and the config's `MaxLimit`, otherwise
-`400 Query parameter 'limit' must be between 1 and 100.` An over-large limit is **rejected, not clamped** —
-silently returning fewer rows than asked for is the harder bug to notice.
+Omitted → the config's `DefaultLimit`. Supplied → must be between `1` and the config's `MaxLimit`. An
+over-large limit is **rejected, not clamped** — silently returning fewer rows than asked for is the harder
+bug to notice.
+
+Which `400` comes back depends on which rule was broken, and the two messages are not interchangeable:
+
+| Input | Message |
+|-------|---------|
+| `?limit=150` against `MaxLimit` 100 | `Query parameter 'limit' must be between 1 and 100.` |
+| `?limit=0`, `?limit=-2`, `?limit=2.0`, `?limit=abc` | `Query parameter 'limit' must be a positive integer.` |
+
+A value that never was a positive integer is refused while the request is being read, before any
+configuration is in scope to name a ceiling — so the range message is reserved for a number that *is* one and
+is simply too large. (Construct a `PaginateQuery` directly with `Limit = 0` and you get the range message
+instead: there was no query string to refuse it earlier.)
 
 A resource that opted in with `AllowUnlimited(maxRows)` also accepts **`limit=-1`**: every matching row as
 one page, with `page=1` and nothing else. It costs one query rather than two, `meta.itemsPerPage` reports
 what the page actually holds, and exceeding the configured ceiling is a `400`. Everywhere else `-1` is just
 another out-of-range limit, as are `-2` and `0` even where the mode is enabled. See
-[`AllowUnlimited`](/reference/configuration/#allowunlimited).
+[`AllowUnlimited`](../configuration/#allowunlimited).
 
 A resource may also cap how deep paging goes — `(page - 1) × limit` against
-[`WithMaxOffset`](/reference/configuration/#withmaxoffset). That refusal is raised before anything is
+[`WithMaxOffset`](../configuration/#withmaxoffset). That refusal is raised before anything is
 counted or fetched, so a guarded deep page costs no query at all.
 
 ## `sortBy`
@@ -124,17 +142,23 @@ equal cannot swap places between pages.
 - The configured **tie-breaker is always appended last**, whichever of the two applied.
 
 There is therefore always an ordering: a configuration cannot be built without a tie-breaker (see
-[`WithTieBreaker`](/reference/configuration/#withtiebreaker)), so no request can reach an unordered page.
+[`WithTieBreaker`](../configuration/#withtiebreaker)), so no request can reach an unordered page.
 
 ## `search` and `searchBy`
 
-`search` matches a substring, case-insensitively on PostgreSQL with the `.PostgreSql` package (see
-[Providers](/integrations/postgresql/)), otherwise per the column collation. The term is matched against every
-configured searchable field and the results OR'd together:
+`search` matches a substring. It is case-insensitive on PostgreSQL with the `.PostgreSql` package (see
+[PostgreSQL](/integrations/postgresql/)); without it the case behaviour is the engine's, and it is **not the
+same on every leg** — the table under [`$ilike`](#ilike-and-contains-on-a-string-—-contains) is the single
+home for that. The term is matched against every configured searchable field and the results OR'd together:
 
 The term is **trimmed** before anything else happens, so `?search=%20widget%20` searches for `widget` and
 `meta.search` echoes the trimmed form. Both length guards measure the trimmed term: `MaxSearchLength`
-(default 256) and [`WithMinSearchLength`](/reference/configuration/#withminsearchlength) (default 1).
+(default 256) and [`WithMinSearchLength`](../configuration/#withminsearchlength) (default 1).
+
+A term that is absent, **empty or entirely whitespace** is no search at all rather than a short one: neither
+guard runs, no `LIKE` is emitted and `meta.search` is `null`. `?search=%20%20%20` with
+`WithMinSearchLength(3)` is a `200`, not the length `400` — there is nothing left to measure. One character
+of content brings the guards back, so `?search=%20a%20` is the `400`.
 
 ```http
 GET /products?search=gizmo
@@ -160,7 +184,15 @@ WHERE "p"."Name" LIKE @p ESCAPE '\'
 
 - `%`, `_` and `[` in the term are escaped — hence the `ESCAPE '\'` — so they match literally rather than as
   wildcards. `[` only opens a character range on SQL Server, but escaping it everywhere keeps one pattern
-  correct on every provider: PostgreSQL and SQLite read any escaped character as a literal.
+  correct on the three engines this behaviour is verified against — **PostgreSQL, SQLite and SQL Server**,
+  where an escaped character is read as a literal whether or not it is a wildcard. A provider that instead
+  requires the escape character to be followed by `%`, `_` or itself will reject `\[`; if you deploy on one,
+  supply a [strategy of your own](/integrations/postgresql/#a-strategy-of-your-own).
+- **Matching is over code points, with no Unicode normalization.** `café` typed as `caf` + `é` (NFC) and the
+  same word as `cafe` + a combining acute (NFD) are different terms on every leg, and only the form your rows
+  are stored in will match. Normalize on write if your data can arrive in both forms; the library deliberately
+  does not normalize the term, which would desynchronize `meta.search` from what the caller sent without
+  making the stored values agree.
 - Longer than `MaxSearchLength` (default 256) → `400`.
 - A `searchBy` field that is not searchable → `400`; the same field twice → `400`. Both are validated **even
   when `search` is absent**, so a typo surfaces instead of silently searching everything.
@@ -206,7 +238,7 @@ A name is opaque to the engine — whatever the config called the field. That in
 reached through a navigation is conventionally named for its path, so `?filter.author.name=$eq:ann`,
 `?sortBy=author.name:ASC` and `?searchBy=author.name` are ordinary requests against a field named
 `author.name`, not a nested-object syntax. See
-[Nested attributes](/reference/configuration/#nested-attributes).
+[Nested attributes](../configuration/#nested-attributes).
 
 ### Operator reference
 
@@ -294,8 +326,22 @@ The two are the same predicate on a string field:
 WHERE "p"."Name" LIKE @p ESCAPE '\'      -- parameter: '%widget%'
 ```
 
-With the `.PostgreSql` package registered, the same request emits native `ILIKE` instead. Without it, `$ilike`
-is only as case-insensitive as the column's collation — the token names the intent, not a guarantee.
+With the `.PostgreSql` package registered, the same request emits native `ILIKE` instead. Without it the token
+names the intent, not a guarantee: **the portable path is only as case-insensitive as the engine underneath
+it, and the answer differs by leg.** Measured on `Widget` and `WIDGET` with `?filter.name=$ilike:widget`:
+
+| Leg | Matches |
+|-----|---------|
+| plain `IQueryable` (in memory) | both — the expression is an `OrdinalIgnoreCase` `IndexOf`, ASCII and non-ASCII alike |
+| SQLite | both, but **ASCII only**: its `LIKE` case-folds `a`–`z` and nothing else, so `česky` does not match `ČESKY` |
+| SQL Server | per the column collation, which is usually case-insensitive |
+| PostgreSQL, portable strategy | **neither** — no collation makes `LIKE` case-fold before 18.6, see [PostgreSQL](/integrations/postgresql/) |
+| PostgreSQL, `.UsePostgreSql()` | both |
+
+This divergence is deliberate and is the price of a portable `LIKE`: the in-memory leg has no column and no
+collation to consult, so it cannot follow one. Do not develop case-sensitivity expectations against the
+in-memory leg — [`recipes/testing/`](/recipes/testing/) explains why SQLite in-memory is the leg to assert
+pattern behaviour on, and even there the ASCII-only limit above applies.
 
 #### `$contains` on a collection — set containment
 
@@ -339,7 +385,8 @@ ordering is the database's, not .NET's:
 | enums | the **underlying integral value**, not the member name | so it follows declaration order. A model that maps the enum to text cannot translate this. |
 | `bool` | — | `400 Filter 'x' does not support comparison operators for type 'Boolean'.` There is no ordering to ask for; use `$eq`. |
 
-A `NULL` column never matches a comparison, in either direction — the same three-valued logic `$eq` follows.
+A `NULL` column never matches an **un-negated** comparison, in either direction — the same three-valued logic
+`$eq` follows. Under [`$not`](#not-—-negation) it does match; the negation covers the null guard too.
 
 #### `$btw` — inclusive range
 
@@ -401,10 +448,24 @@ Negates the single criterion it prefixes, and the negation reaches the SQL rathe
 ?filter.deletedAt=$not:$null             → WHERE "p"."DeletedAt" IS NOT NULL
 ```
 
+**A `NULL` row matches `$not:<anything>`.** The negation is applied to the whole criterion, null guard
+included, so `?filter.deletedBy=$not:$eq:ann` reads as "deleted by someone other than ann" and also returns
+every row that was never deleted at all. Both legs agree on this, which is why no test comparing them can
+reveal it. When that is not what you want, combine the negation with `$not:$null` on the same field, or
+filter the nullable key instead of the joined value.
+
+Repeating a modifier does **not** accumulate it: `$not:$not:$eq:x` is a single negation, not a double one,
+and `$and:$or:` is last-wins. A client that negates a criterion by wrapping its string in `$not:` therefore
+gets a toggle that sticks — negate on the value, not on the already-prefixed string.
+
 ### `$and` / `$or` — combining criteria on one field
 
 Repeat `filter.<field>` to apply several criteria to the same field. Each criterion says how it joins the ones
-before it; the default is `$and`:
+before it; the default is `$and`. A connector therefore only means something when there **is** something
+before it: a field's **first** criterion may not carry one, and `?filter.status=$or:$eq:Draft` is a
+`400 Filter 'status' must not begin with '$or'; a connector joins a criterion to the one before it.` That
+matters for a client that builds criteria uniformly and prefixes every one of them — the whole field would
+otherwise have been `AND`-ed and returned an empty page with no error.
 
 ```http
 # 20 <= rank <= 50
@@ -448,8 +509,8 @@ flowchart LR
 | integers (`byte`, `sbyte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong`), `decimal`, `float`, `double` | invariant culture — `.` as the decimal separator and an optional leading sign, with **no group separator**: `1,5` is a `400`, not fifteen. A magnitude the type cannot hold is a `400` too, `NaN` and `Infinity` included — `$gt:1e400` on a `double` would otherwise compare against infinity and answer an empty page indistinguishable from "no rows match". |
 | `DateTime`, `DateTimeOffset` | ISO-8601 with a **mandatory date**: `2026-01-31`, `2026-01-31T23:59`, `2026-01-31T23:59:59` or `2026-01-31T23:59:59.1234567`. The three forms that carry a time may be suffixed `Z` or `+01:00`; the bare date may not, so `2026-01-31Z` is a `400`. A value with no offset is read as **UTC**. A value with no date is a `400` rather than a silent "today", which would make a stored filter link mean something else after midnight. |
 | `DateOnly` | `yyyy-MM-dd` only. A value carrying a time (`2026-01-03T10:00:00`) is a `400` rather than a silent match on the whole day. |
-| `TimeOnly` | `HH:mm`, `HH:mm:ss` or `HH:mm:ss.fffffff`. A value carrying a date is a `400`, for the same reason. |
-| `TimeSpan` | `h:mm`, `h:mm:ss` or `h:mm:ss.fffffff` (.NET's own form, colon required, optionally signed) **or** ISO-8601 `PT2H30M`. The hour component stops at `23`: `24:00:00` is a `400` rather than twenty-four *days*, and a day count is spelled `P5D`. A bare number is a `400` — `TimeSpan.TryParse` would read `2` as two *days*. So is a duration in years or months (`P1M`): those have no fixed length, and answering with a 30-day approximation would be a filter for something the caller did not ask for. |
+| `TimeOnly` | `HH:mm`, `HH:mm:ss` or `HH:mm:ss.FFFFFFF` — the fractional part is **optional-width**, so one to seven digits are accepted and `10:30:00.5` needs no padding. A value carrying a date is a `400`, for the same reason. |
+| `TimeSpan` | `h:mm`, `h:mm:ss` or `h:mm:ss.FFFFFFF` — fractional digits optional-width here too (.NET's own form, colon required, optionally signed) **or** ISO-8601 `PT2H30M`. The hour component stops at `23`: `24:00:00` is a `400` rather than twenty-four *days*, and a day count is spelled `P5D`. A bare number is a `400` — `TimeSpan.TryParse` would read `2` as two *days*. So is a duration in years or months (`P1M`): those have no fixed length, and answering with a 30-day approximation would be a filter for something the caller did not ask for. |
 | enums | **by name only** and one name at a time, case-insensitive (`Active`, `active`). A numeric value is rejected however it is padded, and so is a comma-separated list — `$in` is the operator that takes several values, which means a `[Flags]` enum is addressed through its declared members. |
 | `Instant`, `LocalDate`, `LocalDateTime`, `LocalTime`, `OffsetDateTime`, `YearMonth`, `Duration` | ISO-8601, with the `.NodaTime` package — see [NodaTime](/integrations/nodatime/) for the per-type forms |
 | any type implementing `IParsable<TSelf>` | whatever its own `TryParse` accepts, in the invariant culture — **no registration needed** |
