@@ -39,6 +39,15 @@ internal abstract class PaginateFilterField(
 	private readonly static MethodInfo EnumerableContainsMethod =
 		PaginateExpressionUtils.GetMethodByParameterCount(typeof(Enumerable), nameof(Enumerable.Contains), 2);
 
+	// The range branch below is reached for exactly two types, so these are two process constants rather than a
+	// per-criterion name lookup.
+	private readonly static MethodInfo StringCompareToMethod = typeof(string).GetMethod(nameof(IComparable.CompareTo), [typeof(string)])!;
+
+	private readonly static MethodInfo GuidCompareToMethod = typeof(Guid).GetMethod(nameof(IComparable.CompareTo), [typeof(Guid)])!;
+
+	private readonly static MethodInfo StringCompareInvariantMethod =
+		typeof(string).GetMethod(nameof(string.Compare), [typeof(string), typeof(string), typeof(StringComparison)])!;
+
 	public string Name { get; } = name;
 
 	public Type Type { get; } = Nullable.GetUnderlyingType(type) ?? type;
@@ -74,7 +83,24 @@ internal abstract class PaginateFilterField(
 
 	}
 
-	private BinaryExpression BuildEqualityExpression(Expression valueExpression, string value, PaginateExpressionContext context) { return Expression.Equal(valueExpression, ConvertValue(value, valueExpression.Type, context)); }
+	/// <summary>
+	///     Builds the <c>$eq</c> predicate. The guard mirrors the one <c>BuildComparison</c> has always had: a value
+	///     can parse cleanly and still have no operator for the factory to use — a plain <c>struct</c> registered
+	///     through <c>PaginateTypeSupport</c> declares no <c>op_Equality</c>, and the expression factory answers that
+	///     with an <see cref="InvalidOperationException" />. Unguarded it escaped as a 500 for a request the field's
+	///     own allow-list had permitted, on the one operator of six that was not covered.
+	/// </summary>
+	private BinaryExpression BuildEqualityExpression(Expression valueExpression, string value, PaginateExpressionContext context) {
+
+		var constant = ConvertValue(value, valueExpression.Type, context);
+
+		try {
+			return Expression.Equal(valueExpression, constant);
+		} catch (InvalidOperationException exception) {
+			throw new PaginateQueryException($"Filter '{Name}' does not support operator '$eq' for type '{Type.Name}'.", exception);
+		}
+
+	}
 
 	/// <summary>
 	///     Whether the value is null. The decision uses the <b>declared</b> type rather than the expression's,
@@ -101,7 +127,7 @@ internal abstract class PaginateFilterField(
 		var converted = Array.CreateInstance(valueType, values.Length);
 
 		for (int i = 0; i < values.Length; i++) {
-			converted.SetValue(PaginateValueConverter.Convert(values[i], valueType, Name), i);
+			converted.SetValue(this.ConvertRawValue(values[i], valueType), i);
 		}
 
 		Expression valuesExpression = Expression.Constant(converted, converted.GetType());
@@ -157,14 +183,23 @@ internal abstract class PaginateFilterField(
 			// Compare on the underlying integral type, which is also what the column stores unless the model maps the
 			// enum to text — in which case this filter does not translate, exactly as it did not before.
 			var underlying = Enum.GetUnderlyingType(Type);
-			object? ordinal = Convert.ChangeType(PaginateValueConverter.Convert(value, Type, Name), underlying, CultureInfo.InvariantCulture);
+			object? ordinal = Convert.ChangeType(this.ConvertRawValue(value, Type), underlying, CultureInfo.InvariantCulture);
 
 			compare = comparison(Expression.Convert(operand, underlying), ToConstant(ordinal, underlying, context));
 		} else {
-			// CompareTo translates to a plain SQL comparison, so the ordering is the database's — collation for
-			// strings, byte order for Guids — rather than the one .NET would apply in memory.
+			// On a relational provider CompareTo translates to a plain SQL comparison, so the ordering is the
+			// database's — collation for strings, byte order for Guids. In memory the call really runs, and
+			// String.CompareTo reads CultureInfo.CurrentCulture: the same rows and the same filter answer
+			// differently depending on the host's culture, so a Swedish deployment disagrees with an American one.
+			// An app that opts into request localization -- UseRequestLocalization, which is NOT in the default
+			// pipeline -- moves that per caller, from the query string, a cookie or Accept-Language. That arm
+			// compares invariantly instead. Guid has no culture to read, so it is the same call on both legs.
+			var target = ConvertValue(value, Type, context);
+
 			compare = comparison(
-				Expression.Call(operand, Type.GetMethod(nameof(IComparable.CompareTo), [Type])!, ConvertValue(value, Type, context)),
+				Type == typeof(string) && !context.UseDatabaseFunctions
+					? Expression.Call(StringCompareInvariantMethod, operand, target, Expression.Constant(StringComparison.InvariantCulture))
+					: Expression.Call(operand, Type == typeof(string) ? StringCompareToMethod : GuidCompareToMethod, target),
 				Expression.Constant(0));
 		}
 
@@ -234,7 +269,26 @@ internal abstract class PaginateFilterField(
 	///     Converts a raw string value to a constant of the target type, optionally wrapped in
 	///     <see cref="EF.Parameter{T}" /> for plan reuse.
 	/// </summary>
-	private Expression ConvertValue(string value, Type targetType, PaginateExpressionContext context) { return ToConstant(PaginateValueConverter.Convert(value, targetType, Name), targetType, context); }
+	private Expression ConvertValue(string value, Type targetType, PaginateExpressionContext context) { return ToConstant(this.ConvertRawValue(value, targetType), targetType, context); }
+
+	/// <summary>
+	///     Parses one criterion value, refusing a blank one first. A blank used to convert to <c>null</c> wherever
+	///     the target was nullable, which is <c>$null</c> spelled implicitly — and the implicit spelling asked the
+	///     field's operator allow-list nothing, so a configuration withholding <c>Null</c> answered the null rows
+	///     anyway. It also read whichever type reached it, so a nested value-typed member the in-memory rewriter
+	///     had lifted to <see cref="Nullable{T}" /> matched rows in memory while every relational provider answered
+	///     400. There is one spelling for "no value" now, and it is the declared one. <c>string</c> is untouched:
+	///     an empty string is a value, not an absence.
+	/// </summary>
+	private object? ConvertRawValue(string value, Type targetType) {
+
+		if (targetType != typeof(string) && string.IsNullOrWhiteSpace(value)) {
+			throw new PaginateQueryException($"Filter '{Name}' requires a value; use '$null' to match rows with no value.");
+		}
+
+		return PaginateValueConverter.Convert(value, targetType, Name);
+
+	}
 
 	/// <summary>Wraps an already-converted value as a constant of <paramref name="targetType" />, parameterised as above.</summary>
 	private static Expression ToConstant(object? value, Type targetType, PaginateExpressionContext context) {

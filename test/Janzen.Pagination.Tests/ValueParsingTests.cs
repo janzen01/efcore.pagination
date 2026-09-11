@@ -99,10 +99,11 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 	}
 
 	[Fact]
-	public async Task An_empty_value_on_a_nullable_date_only_matches_null() {
+	public async Task An_empty_value_on_a_nullable_date_only_is_rejected() {
 
-		// Ids 1-5, 7 and 8 have no RetiredOn; only the discontinued row does.
-		Assertions.HasIds(await this.Page(Query.Filter("retiredOn", "$eq:")), 1, 2, 3, 4, 5, 7, 8);
+		// It used to answer the rows with no RetiredOn. $null is the operator for that, and this field grants it.
+		Assert.Equal("Filter 'retiredOn' requires a value; use '$null' to match rows with no value.",
+			await this.Rejects(Query.Filter("retiredOn", "$eq:")));
 
 	}
 

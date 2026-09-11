@@ -329,12 +329,12 @@ non-string field is `400 Filter 'x' supports '$contains' only for string or coll
 WHERE "p"."Rank" >= @p
 ```
 
-Numbers and dates are the obvious cases. **`string`, `Guid` and enums order too**, and the ordering is the
-database's, not .NET's:
+Numbers and dates are the obvious cases. **`string`, `Guid` and enums order too**, and on a database the
+ordering is the database's, not .NET's:
 
 | Field type | Ordered by | Worth knowing |
 |------------|-----------|---------------|
-| `string` | the column's **collation** | `$gt:m` returns different rows under a case-sensitive and a case-insensitive collation. The engine does not impose one. |
+| `string` | the column's **collation** | `$gt:m` returns different rows under a case-sensitive and a case-insensitive collation. The engine does not impose one. **Over a plain `IQueryable`** there is no collation to follow, so ranges and `sortBy` both use `StringComparison.InvariantCulture` — deterministic, rather than whatever culture the host happens to run under. |
 | `Guid` | the database's byte order | which is not always .NET's `Guid.CompareTo` order. The same divergence already applies to sorting a `Guid` column; filters inherit it rather than introduce it. |
 | enums | the **underlying integral value**, not the member name | so it follows declaration order. A model that maps the enum to text cannot translate this. |
 | `bool` | — | `400 Filter 'x' does not support comparison operators for type 'Boolean'.` There is no ordering to ask for; use `$eq`. |
@@ -443,7 +443,7 @@ flowchart LR
 |-------------|----------|
 | `string` | anything, used verbatim |
 | `bool` | `true` / `false`, case-insensitive (not `1` / `0`) |
-| `char` | exactly one character. A space cannot be expressed — an all-whitespace value is read as empty, see below. |
+| `char` | exactly one character. A space cannot be expressed — an all-whitespace value is read as empty, and empty is a `400`, see below. |
 | `Guid` | any format `Guid.TryParse` accepts |
 | integers (`byte`, `sbyte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong`), `decimal`, `float`, `double` | invariant culture — `.` as the decimal separator and an optional leading sign, with **no group separator**: `1,5` is a `400`, not fifteen. A magnitude the type cannot hold is a `400` too, `NaN` and `Infinity` included — `$gt:1e400` on a `double` would otherwise compare against infinity and answer an empty page indistinguishable from "no rows match". |
 | `DateTime`, `DateTimeOffset` | ISO-8601 with a **mandatory date**: `2026-01-31`, `2026-01-31T23:59`, `2026-01-31T23:59:59` or `2026-01-31T23:59:59.1234567`. The three forms that carry a time may be suffixed `Z` or `+01:00`; the bare date may not, so `2026-01-31Z` is a `400`. A value with no offset is read as **UTC**. A value with no date is a `400` rather than a silent "today", which would make a stored filter link mean something else after midnight. |
@@ -458,8 +458,10 @@ flowchart LR
 Resolution order is **registry → built-ins → `IParsable<TSelf>` → `400`**. A parser you register therefore
 overrides a built-in one, which is what makes the table above a default rather than a ceiling.
 
-An empty value (`?filter.price=$eq:`) is `null` for a nullable target and a `400` for a non-nullable one. Use
-`$null` rather than relying on that.
+An empty value (`?filter.price=$eq:`) is a `400` on every non-`string` field, nullable or not: it used to convert
+to `null` on a nullable one, which is `$null` spelled implicitly and without the field's allow-list being asked
+about it. `$null` is the way to match rows with no value, and the message says so. An empty value on a `string`
+field is unchanged — there it is a value, not an absence.
 
 **No escaping inside value lists.** `$in`, `$btw` and `$contains`-on-a-collection split on `,` and trim; a
 value that itself contains a comma cannot be expressed. Single-value operators take the value whole, commas

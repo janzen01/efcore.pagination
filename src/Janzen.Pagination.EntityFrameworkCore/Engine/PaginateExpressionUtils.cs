@@ -3,6 +3,7 @@ using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.EntityFrameworkCore;
 
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -49,7 +50,32 @@ internal static class PaginateExpressionUtils {
 			);
 	}
 
-	public static IQueryable<TEntity> ApplyOrder<TEntity>(IQueryable<TEntity> query, LambdaExpression selector, bool descending, bool first) {
+	/// <summary>
+	///     Applies one ordering key. A <c>string</c> key on the in-memory leg is ordered with
+	///     <see cref="StringComparer.InvariantCulture" />, because <c>Comparer&lt;string&gt;.Default</c> reads
+	///     <see cref="CultureInfo.CurrentCulture" /> — so the page order would follow the host's own culture, and
+	///     an app that opts into request localization would make it follow the caller's query string, cookie or
+	///     <c>Accept-Language</c> header instead. On a relational provider the comparer is the column's collation
+	///     and there is nothing here to choose.
+	/// </summary>
+	public static IQueryable<TEntity> ApplyOrder<TEntity>(IQueryable<TEntity> query, LambdaExpression selector, bool descending, bool first, bool useDatabaseFunctions) {
+
+		if (!useDatabaseFunctions && selector.Body.Type == typeof(string)) {
+
+			// Rebuilt rather than cast: the null-safe rewriter returns a LambdaExpression whose delegate type is
+			// inferred, and only this form is guaranteed to be the one the overload wants.
+			var key = Expression.Lambda<Func<TEntity, string>>(selector.Body, selector.Parameters);
+			var comparer = StringComparer.InvariantCulture;
+
+			// first == false means an OrderBy already ran, so the cast holds.
+			return (first, descending) switch {
+				(true, true) => query.OrderByDescending(key, comparer),
+				(true, false) => query.OrderBy(key, comparer),
+				(false, true) => ((IOrderedQueryable<TEntity>)query).ThenByDescending(key, comparer),
+				(false, false) => ((IOrderedQueryable<TEntity>)query).ThenBy(key, comparer)
+			};
+
+		}
 
 		var openMethod = (first, descending) switch {
 			(true, true) => OrderByDescendingMethod,

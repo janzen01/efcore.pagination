@@ -157,8 +157,10 @@ public sealed class NodaTimeTests {
 	}
 
 	[Fact]
-	public async Task An_empty_value_on_a_nullable_instant_matches_null() {
-		Assert.Equal([1, 3], (await FilterAsync("archivedAt", "$eq:")).Items.Select(item => item.Id));
+	public async Task An_empty_value_on_a_nullable_instant_is_rejected() {
+		// Nothing NodaTime-specific: an empty value is refused for every non-string target, and names $null.
+		var exception = await Assert.ThrowsAsync<PaginateQueryException>(() => FilterAsync("archivedAt", "$eq:"));
+		Assert.Equal("Filter 'archivedAt' requires a value; use '$null' to match rows with no value.", exception.Message);
 	}
 
 	[Fact]
