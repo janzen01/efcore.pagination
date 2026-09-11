@@ -107,14 +107,17 @@ That is the whole point of the echo: a client rendering a grid header cannot dra
 "searching in…" hint for a request it did not spell out, because only the config knows where the defaults
 landed. Four details worth knowing:
 
-- **Field names are canonical, not as typed.** Lookup is case-insensitive, so `?sortBy=NAME:desc` echoes
-  `name:DESC`.
+- **`sortBy` and `searchBy` report canonical field names, not as typed.** Lookup is case-insensitive, so
+  `?sortBy=NAME:desc` echoes `name:DESC`. `filter` is the exception — see the last bullet.
 - **The tie-breaker is not listed.** `WithTieBreaker(...)` orders every page, but nobody requested it and no
   arrow belongs on it.
 - **A field switched off by `When(false)` for this caller is absent**, from the defaults too — the same rule
   that makes it unrequestable.
-- **`filter` is raw.** The values are the `"$op:value"` strings as received, grouped per field, which is what
-  a filter chip renders. Only validated fields can appear: an unknown one is a `400`, so no envelope exists.
+- **`filter` is raw — keys included.** The values are the `"$op:value"` strings as received, grouped per
+  field, which is what a filter chip renders, and the **keys are the spelling the request used**, not the
+  configured name: `?filter.STATUS=$eq:Active` echoes `"STATUS"`. Only validated fields can appear: an
+  unknown one is a `400`, so no envelope exists. [Envelope equality](#comparing-envelopes) matches those
+  keys ordinally for the same reason.
 
 `hasPreviousPage` / `hasNextPage` carry the two comparisons every client would otherwise re-derive — and
 `hasNextPage` is `false` past the last page, which the counters alone do not say without a second look.
@@ -147,12 +150,12 @@ With a link context, every key is present on every page, and an absent link carr
 | `previous` | on page 1 |
 | `next` | on the last page, and whenever nothing matched |
 | `last` | never — it is page 1 for an empty result set |
+| `current` | never — it echoes the request, so it answers past the last page too |
 
 `next` and `last` are drawn from the last **reachable** page, not from `totalPages`: with
 [`WithMaxOffset`](../configuration/#withmaxoffset) they stop where the guard does, so following `next` can
 never walk into a `400`. An [unlimited read](../configuration/#allowunlimited) is one page, so `first`,
 `last` and `current` are the same URL and both `next` and `previous` are `null`.
-| `current` | never — it echoes the request, so it answers past the last page too |
 
 `current` is the request that was made, not a clamped one: ask for page 900 of a 19-page result and it comes
 back pointing at page 900, while `next` and `previous` say what is actually navigable. It is what a client
@@ -271,9 +274,9 @@ The rules:
   value; a projection declared as a class compares by reference, because that is its contract, not the
   envelope's.
 - **Order is part of the value** for `items`, `sortBy` and `searchBy`. A page is an ordered thing.
-- **`filter` is order-independent** — a dictionary has no order — and its **keys match ordinally**. It echoes
-  the request's field names verbatim, so `Status` and `status` are different echoes even though the field
-  lookup that produced them is case-insensitive.
+- **`filter` is order-independent** — a dictionary has no order — and its **keys match ordinally**, because
+  they are [raw, as the request spelled them](#the-request-echo): `Status` and `status` are different echoes
+  even though the field lookup that produced them is case-insensitive.
 - Equal envelopes hash equal, so they work as dictionary keys and in a `HashSet`.
 
 An envelope deserialized from a payload carrying explicit `null`s where the contract promises a list reports
