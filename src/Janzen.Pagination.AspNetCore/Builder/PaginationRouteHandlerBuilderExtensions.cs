@@ -14,7 +14,9 @@ namespace Microsoft.AspNetCore.Builder;
 
 /// <summary>
 ///     Pagination for Minimal API endpoints: adds <c>WithPagination&lt;TConfigProvider&gt;()</c> to the
-///     <see cref="RouteHandlerBuilder" /> returned by <c>MapGet</c>/<c>MapPost</c>.
+///     <see cref="RouteHandlerBuilder" /> returned by <c>MapGet</c>/<c>MapPost</c>, and to the
+///     <see cref="RouteGroupBuilder" /> returned by <c>MapGroup</c> — one call then covers every endpoint
+///     mapped in that group.
 /// </summary>
 public static class PaginationRouteHandlerBuilderExtensions {
 

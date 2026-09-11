@@ -33,6 +33,20 @@
 # `diff` forces a textual diff, so the offending byte shows up in the review instead of hiding the file around
 # it. A source file is never legitimately binary.
 *.cs text diff
+*.csproj text diff
+*.json text diff
 *.md text diff
 *.mjs text diff
+*.mts text diff
+*.props text diff
+*.slnx text diff
+*.ts text diff
+*.txt text diff
+*.xml text diff
+*.yaml text diff
 *.yml text diff
+nuget.config text diff
+.npmrc text diff
+
+# The one tracked binary, named so the rule above can stay a list of everything else.
+*.png -text -diff

@@ -80,7 +80,15 @@ Single-value operators take everything after the operator's colon verbatim, comm
 ## Something threw a `500`, not a `400`
 
 `PaginateQueryException` is the only exception the ProblemDetails filter maps. Anything else is a bug in your
-code rather than in the request, and the most common one is projection:
+code rather than in the request, and the two most common ones are a queryable-shaped test double and a
+projection:
+
+> `NotSupportedException` … *"provider is asynchronous but is not Entity Framework Core's"*
+
+means a mocking library is standing in for the provider. Nothing is wrong with the request; see
+[Testing your pagination](/recipes/testing/) for the SQLite in-memory setup to use instead.
+
+The projection one:
 
 > `InvalidOperationException` from `PaginateProjectionBuilder`
 

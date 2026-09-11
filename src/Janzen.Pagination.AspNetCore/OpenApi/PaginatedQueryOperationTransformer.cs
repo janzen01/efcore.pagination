@@ -370,6 +370,11 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		string exampleValue = value.Example;
 		if (field.Type == typeof(string) && IsLengthGuarded(exampleOperator)) {
 			while (exampleValue.Length < config.MinSearchLength) exampleValue += value.Example;
+
+			// The ceiling as well as the floor. Repeating a four-character sample overshoots a tight MaxSearchLength
+			// — Min 5 / Max 6 documents `$ilike:texttext`, which the engine answers with FilterPatternTooLong —
+			// which is the defect this padding exists to remove, pointing the other way.
+			if (exampleValue.Length > config.MaxSearchLength) exampleValue = exampleValue[..config.MaxSearchLength];
 		}
 
 		// Not every operator is spelled "$op:one scalar", and rendering them all that way documented requests the
@@ -382,10 +387,16 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		};
 
 		// The search guards bound these three as well as `search` itself, and a guard that is enforced but
-		// undocumented is the shape this transformer exists to remove.
+		// undocumented is the shape this transformer exists to remove. The floor is named only when it refuses
+		// something: at the default MinSearchLength of 1, "between 1 and 256" is a sentence that rules nothing
+		// out, and these descriptions land in a consumer's committed OpenAPI artefact — so every such repository
+		// would take a diff carrying no information. The ceiling always refuses something and is always stated.
 		string patternGuards = field.Type == typeof(string) && field.Operators.Any(IsLengthGuarded)
-			? $"\n\n`$ilike`, `$sw` and `$contains` values are measured as sent — not trimmed — and must be between "
-				+ $"{config.MinSearchLength} and {config.MaxSearchLength} characters; outside that the request returns 400."
+			? "\n\n`$ilike`, `$sw` and `$contains` values are measured as sent — not trimmed — and "
+				+ (config.MinSearchLength > 1
+					? $"must be between {config.MinSearchLength} and {config.MaxSearchLength} characters"
+					: $"must not exceed {config.MaxSearchLength} characters")
+				+ "; outside that the request returns 400."
 			: string.Empty;
 
 		return new OpenApiParameter {

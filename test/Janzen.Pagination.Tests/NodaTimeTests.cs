@@ -187,6 +187,32 @@ public sealed class NodaTimeTests {
 	}
 
 	/// <summary>
+	///     Padding is not the difference between a page and a 400, on either spelling. The engine's TimeSpan
+	///     branch trims; this package read the raw value, so " PT2H30M " was a rejection here and a page there.
+	/// </summary>
+	[Theory]
+	[InlineData(" 2:30:00 ")]
+	[InlineData(" PT2H30M ")]
+	public async Task A_duration_is_trimmed_on_both_spellings(string value) {
+		Assert.Equal([1], (await FilterAsync("length", $"$eq:{value}")).Items.Select(item => item.Id));
+	}
+
+	/// <summary>
+	///     This package's 400s echo the caller's value through the same guard the engine uses. They interpolated
+	///     it raw, so an unbounded value reached the ProblemDetails `detail` in full and an embedded CR or LF
+	///     reached a plain-text log sink as a real line break — the shape that guard exists for.
+	/// </summary>
+	[Fact]
+	public async Task A_rejected_nodatime_value_is_echoed_through_the_guard() {
+
+		string message = await RejectsAsync("length", "$eq:" + new string('x', 400));
+
+		Assert.DoesNotContain(new string('x', 200), message, StringComparison.Ordinal);
+		Assert.Contains("is not a valid duration", message, StringComparison.Ordinal);
+
+	}
+
+	/// <summary>
 	///     The calendar-designator rule is the engine's own, shared with the <c>TimeSpan</c> leg, but each leg
 	///     keeps its own wording: this text and the engine's are both a documented <c>400</c> <c>detail</c>, so
 	///     sharing the implementation must not move either. The minute designator lives in the time part and is

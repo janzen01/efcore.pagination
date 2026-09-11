@@ -154,3 +154,36 @@ public sealed class LinkContextTests {
 	}
 
 }
+
+/// <summary>
+///     The link context the ASP.NET Core overloads build for the caller, which is the only construction site a
+///     consumer never sees. It has to satisfy the same guard as a hand-built one.
+/// </summary>
+public sealed class RequestLinkContextTests {
+
+	private static Task<PaginatedResponse<ProductDto>> Page(string path) {
+
+		var context = new DefaultHttpContext();
+		context.Request.Path = new PathString(path);
+		context.Request.QueryString = new QueryString("?page=1");
+
+		return TestData.Products().AsQueryable()
+			.PaginateAsync<Product, ProductDto>(context.Request.ToPaginateQuery(), TestData.Config, context.Request, TestContext.Current.CancellationToken);
+
+	}
+
+	/// <summary>
+	///     A percent-encoded space is a perfectly ordinary path. <c>PathString</c> holds it decoded, so the escaped
+	///     form has to be asked for by name — and the guard the context applies is written against that form.
+	/// </summary>
+	[Fact]
+	public async Task An_escaped_path_segment_still_builds_a_link_context() {
+
+		var page = await Page("/api/my products");
+
+		Assert.NotNull(page.Links);
+		Assert.Contains("my%20products", page.Links.Current, StringComparison.Ordinal);
+
+	}
+
+}

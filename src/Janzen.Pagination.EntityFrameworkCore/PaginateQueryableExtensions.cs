@@ -342,11 +342,6 @@ public static class PaginateQueryableExtensions {
 		// held only a binder-level page/limit parse error, which the order puts first anyway; leaving the call
 		// where it was made a filter error pre-empt MaxOffsetExceeded and LimitOutOfRange for a request wrong in
 		// both ways. EnsureValid is idempotent, so the second call is the one that surfaces the filter half.
-		// Split around the paging checks so the published precedence -- page and limit, then filters -- survives a
-		// binder that can now report either. Until a duplicated `filter.<field>` became reportable this channel
-		// held only a binder-level page/limit parse error, which the order puts first anyway; leaving the call
-		// where it was made a filter error pre-empt MaxOffsetExceeded and LimitOutOfRange for a request wrong in
-		// both ways. EnsureValid is idempotent, so the second call is the one that surfaces the filter half.
 		if (request.ValidationErrorCode != PaginateQueryError.DuplicateFilterField) request.EnsureValid();
 
 		// Mirrors the 'limit' guard: an out-of-range page is a caller bug, so surface it instead of clamping it away.

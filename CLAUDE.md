@@ -170,8 +170,8 @@ independent of each other — consumers pick the extensions they need:
   claim about one resource's size. Its arrival is why `WithGuards`' four parameters became `int?` — with the old
   `int` defaults, naming one guard silently reset the other three to the constants, discarding shared values the
   caller never mentioned. Source-compatible, binary-breaking, and the only **signature** entry in
-  `CompatibilitySuppressions.xml` — the other eight are `CP0014`s the attribute rule surfaced, split across the
-  core and AspNetCore files, and every one of them is baseline-only against `10.0.3`.
+  `CompatibilitySuppressions.xml` — the other **eleven** are `CP0014`s the attribute rule surfaced, nine in the
+  core file and two in the AspNetCore one, and every one of them is baseline-only against `10.0.3`.
   Both `Filterable` overloads have an **operator-less sibling** (`.Filterable(name, expr)`) whitelisting
   `PaginateFilterOperators.For<TValue>()` — the public derivation, and the single place a later release widens a
   row (which then widens every shorthand field on rebuild: release-note it). Ranges are deliberately withheld

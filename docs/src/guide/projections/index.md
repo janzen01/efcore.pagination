@@ -255,5 +255,7 @@ this is the contract, not an implementation detail:
   Framework Core's, and an in-memory one for a plain `IQueryable` such as `List<T>.AsQueryable()`. On the
   in-memory leg the terminal operators are `Count()` and `ToArray()`, which run on the calling thread — fine for
   a test, not something to put on a request path. A provider that is asynchronous *without* being EF Core's —
-  what a queryable-shaped mocking library produces — is neither leg and is refused with a `PaginateQueryException`
-  saying so; test against a real provider instead, as [Testing](/recipes/testing/) shows.
+  what a queryable-shaped mocking library produces — is neither leg and is refused with a
+  `NotSupportedException` saying so. Deliberately **not** a `PaginateQueryException`: that type is the `400`
+  contract, and a queryable-shaped double is a wiring mistake on the server rather than something the caller
+  sent, so it surfaces as a `500`. Test against a real provider instead, as [Testing](/recipes/testing/) shows.
