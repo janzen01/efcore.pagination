@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+
 namespace Janzen.Pagination.Tests;
 
 /// <summary>
@@ -39,6 +41,47 @@ public sealed class CancellationTests(SqliteFixture fixture) : IClassFixture<Sql
 		await Assert.ThrowsAnyAsync<OperationCanceledException>(
 			() => TestData.Products().AsQueryable().PaginateAsync<Product, ProductDto>(new PaginateQuery(), TestData.Config, null, cts.Token));
 
+	}
+
+	[Fact]
+	public async Task A_cancelled_token_wins_over_an_invalid_request() {
+
+		using var cts = new CancellationTokenSource();
+		await cts.CancelAsync();
+
+		// page=0 is refused by the composer, which runs as the method's first statement -- so a caller who had
+		// already gone away used to be answered with a client error for a request nobody was waiting for.
+		await Assert.ThrowsAnyAsync<OperationCanceledException>(
+			() => TestData.Products().AsQueryable().PaginateAsync<Product, ProductDto>(new PaginateQuery { Page = 0 }, TestData.Config, null, cts.Token));
+
+	}
+
+	[Fact]
+	public async Task A_token_cancelled_while_the_rows_are_read_stops_the_post_map() {
+
+		using var cts = new CancellationTokenSource();
+
+		int postMapCalls = 0;
+
+		// The selector runs during enumeration, so the token is cancelled after the rows are in memory but before
+		// postMap sees them -- the one window the engine never looked at, and the one where a consumer delegate
+		// runs over up to UnlimitedMaxRows + 1 rows with no client left to read the answer.
+		Expression<Func<Product, Product>> selector = product => CancelAndPass(cts, product);
+		Func<Product, ProductDto> postMap = product => {
+			postMapCalls++;
+			return new ProductDto(product.Id, product.Name, product.Status, product.Rank);
+		};
+
+		await Assert.ThrowsAnyAsync<OperationCanceledException>(
+			() => TestData.Products().AsQueryable().PaginateSelectMapAsync(new PaginateQuery(), TestData.Config, selector, postMap, null, cts.Token));
+
+		Assert.Equal(0, postMapCalls);
+
+	}
+
+	private static Product CancelAndPass(CancellationTokenSource cts, Product product) {
+		cts.Cancel();
+		return product;
 	}
 
 }

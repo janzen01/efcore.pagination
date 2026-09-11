@@ -16,7 +16,7 @@ unchanged on PostgreSQL; only the emitted SQL differs.
 ## Non-EF `IQueryable`
 
 Before any of that, there is one adaptation the engine makes on its own. It checks whether the source's
-provider is an EF `IAsyncQueryProvider` and takes a different path when it is not:
+provider is Entity Framework Core's own `EntityQueryProvider` and takes a different path when it is not:
 
 | | EF provider | plain `IQueryable` (e.g. `List<T>.AsQueryable()`) |
 |---|---|---|
@@ -27,3 +27,10 @@ provider is an EF `IAsyncQueryProvider` and takes a different path when it is no
 So the whole pipeline — filters, search, sort, paging, projection — runs against an in-memory list, with
 case-insensitive search, which makes unit-testing a `PaginateConfig<T>` cheap. See
 [Testing your pagination](/recipes/testing/).
+
+There is a third case, and it is refused rather than adapted. A provider that is **asynchronous without being
+Entity Framework Core's** — what a queryable-shaped mocking library produces — is neither leg, and the engine
+answers it with a `PaginateQueryException` that says so. Sending it down the in-memory leg would have been the
+friendlier answer and the wrong one: the two legs disagree on a substantial share of requests, so a test that
+passed that way would prove nothing about the database. [Testing your pagination](/recipes/testing/) shows the
+SQLite in-memory setup to use instead — a real provider, and it costs no more.
