@@ -1,3 +1,4 @@
+using Janzen.Pagination.EntityFrameworkCore.Links;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.AspNetCore.Http;
@@ -14,6 +15,14 @@ public static class PaginateHttpResponseExtensions {
 	///     no header is written. Call after paginating, e.g.
 	///     <c>HttpContext.Response.AddPaginationLinkHeader(result.Links)</c>.
 	/// </summary>
+	/// <remarks>
+	///     The rels are <b>appended</b> as a further <c>Link</c> header field rather than assigned, so a relation
+	///     the response already carries — a <c>describedby</c> written by the handler or by middleware — survives:
+	///     RFC 8288 §3 permits several <c>Link</c> fields and conforming clients read them as one set. Calling this
+	///     twice for the same response therefore emits the pagination rels twice. The header repeats the request's
+	///     whole query string once per rel; see the size note on
+	///     <see cref="PaginateLinkContext.QueryParameters" />.
+	/// </remarks>
 	public static void AddPaginationLinkHeader(this HttpResponse response, PaginatedLinks? links) {
 		ArgumentNullException.ThrowIfNull(response);
 
@@ -26,7 +35,9 @@ public static class PaginateHttpResponseExtensions {
 		if (links.Next is not null) parts.Add($"<{links.Next}>; rel=\"next\"");
 		if (links.Last is not null) parts.Add($"<{links.Last}>; rel=\"last\"");
 
-		if (parts.Count > 0) response.Headers.Link = string.Join(", ", parts);
+		// Append, not assign: the IHeaderDictionary.Link setter replaces the whole header, which silently dropped
+		// any relation a consumer or middleware had already written.
+		if (parts.Count > 0) response.Headers.Append("Link", string.Join(", ", parts));
 	}
 
 }

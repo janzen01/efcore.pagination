@@ -81,6 +81,24 @@ The strategy you pick decides how many columns cross the wire. Only
 [`PaginateMapAsync`](/guide/projections/) materialises the whole entity; the other three send a `SELECT` list
 built from what the DTO actually names. On a wide table that difference dwarfs anything above.
 
+## The response repeats the query string
+
+Everything above is about the database. One cost sits on the way out instead: every parameter the request
+sent is re-emitted in all five navigation links, and again in each of the four rels of the opt-in `Link`
+header. That includes parameters the library does not recognise — it carries them so client-side state
+survives paging.
+
+The measured multipliers, and why the `Link` header is the half that bites rather than the body, are on the
+[response reference](/reference/response/). This page is the what-to-do-about-it half, and it only matters if
+your callers send long query strings *and* you write the header:
+
+- **Cap the request line** below your proxy's header buffer ÷ 4 — the divisor is the four rels the header
+  carries, so the usable ceiling is lower than the buffer suggests.
+- **Or build the [link context](/reference/response/) from a filtered parameter list**, keeping only what the
+  client needs echoed back across pages.
+- **Or do not write the header.** The five links in the body carry the same navigation, and the body is
+  usually noise beside the rows.
+
 ## Measuring it
 
 `ApplyPagination` composes the page query and hands it back **unexecuted**, so `ToQueryString()` gives you the

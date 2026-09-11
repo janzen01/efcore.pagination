@@ -199,6 +199,43 @@ internal static class PaginateStructuralEquality {
 		return true;
 	}
 
+	// Key and value are compared explicitly rather than through EqualityComparer<KeyValuePair<,>>.Default:
+	// KeyValuePair<,> overrides no Equals and implements no IEquatable<>, so the default comparer falls back
+	// to ValueType.Equals and its reflective field walk. Order is significant here — the link builder emits
+	// the parameters in list order, so two orderings really are two different links.
+	public static bool PairListEquals(
+		IReadOnlyList<KeyValuePair<string, string>>? left,
+		IReadOnlyList<KeyValuePair<string, string>>? right
+	) {
+
+		if (ReferenceEquals(left, right)) return true;
+		if (left is null || right is null) return false;
+		if (left.Count != right.Count) return false;
+
+		for (int index = 0; index < left.Count; index++) {
+
+			if (!string.Equals(left[index].Key, right[index].Key, StringComparison.Ordinal)) return false;
+			if (!string.Equals(left[index].Value, right[index].Value, StringComparison.Ordinal)) return false;
+
+		}
+
+		return true;
+
+	}
+
+	public static int PairListHash(IReadOnlyList<KeyValuePair<string, string>>? list) {
+		if (list is null) return 0;
+
+		var hash = new HashCode();
+
+		foreach ((string key, string value) in list) {
+			hash.Add(key, StringComparer.Ordinal);
+			hash.Add(value, StringComparer.Ordinal);
+		}
+
+		return hash.ToHashCode();
+	}
+
 	public static bool FilterEquals(
 		IReadOnlyDictionary<string, IReadOnlyList<string>>? left,
 		IReadOnlyDictionary<string, IReadOnlyList<string>>? right
