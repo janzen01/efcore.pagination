@@ -21,6 +21,15 @@
              published at the wrong moment fails the release itself. Report from moderate up;
              a low-severity advisory deep in the graph is not worth blocking a publish on. -->
         <NuGetAuditLevel>moderate</NuGetAuditLevel>
+        <!-- AnalysisMode is left at Default, whose enabled set contains no Security rule at all, so the
+             required merge gate carried no security analysis: CodeQL is the only one that runs and sits
+             outside ci-ok on purpose, reporting after a merge is already possible rather than before.
+             Measured at zero diagnostics across src and test, so turning the whole category up costs
+             nothing today and its value is prospective - CA2100 on a raw-SQL escape hatch, say. The
+             wider AnalysisMode levels are deliberately NOT taken: Recommended and All were measured at
+             roughly 85 % false positives here, largely CA1062 made redundant by Nullable=enable and a
+             CA1034 that misfires on C# 14 extension blocks. -->
+        <AnalysisModeSecurity>All</AnalysisModeSecurity>
     </PropertyGroup>
 
     <!-- Package identity (PackageId and Description are set per project) -->
