@@ -37,7 +37,7 @@ Six parameters plus a `400`, in this order:
 | `search` | `string` | `Searchable` |
 | `searchBy` | `array` of `string`, exploded, enum of the searchable names | `Searchable` |
 | `filter.<field>` | `array` of `string`, exploded, one parameter **per filterable field** | `Filterable`, `FilterableMany` |
-| `400` response | `application/problem+json` with `type` / `title` / `status` / `detail` / `instance` / `traceId` | fixed |
+| `400` response | `application/problem+json` with `type` / `title` / `status` / `detail` / `code`, plus `traceId` where the app sends one | fixed |
 
 Three conditions worth knowing:
 
@@ -50,9 +50,15 @@ Three conditions worth knowing:
 - **`filter.` parameters are ordered by field name** (ordinal), not by declaration order, so the document is
   stable across config edits that only move lines around.
 
-`traceId` is in the `400` schema because [both
-pipelines](../#errors-as-problemdetails) build the payload through the app's
-`ProblemDetailsFactory`, which adds it. `instance` stays as the standard member it is.
+The `400` schema documents **what that operation actually sends**, which is why it is not the same on both
+legs. `type`, `title`, `status`, `detail` and `code` are always there — `code` names the cause as a stable
+token, so a client branches on it rather than on the `detail` prose; see
+[Errors as ProblemDetails](../#errors-as-problemdetails) for the member itself. `traceId` is added by the app's
+`ProblemDetailsFactory` on a controller operation and by the problem-details writer on a Minimal API one, so
+it is published for every controller operation and for a Minimal API operation only when the app registered
+`AddProblemDetails()` — see [Errors as ProblemDetails](../#errors-as-problemdetails). `instance` is not
+published at all: neither pipeline sets one and the framework synthesises none, so a generated model would
+carry a property that is always `null`.
 
 Exploded array parameters are what tell a client to repeat the key — `?sortBy=a:ASC&sortBy=b:DESC` — rather
 than comma-join it.

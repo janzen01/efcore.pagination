@@ -117,7 +117,7 @@ internal abstract class PaginateFilterField(
 	protected Expression BuildOperatorExpression(Expression valueExpression, PaginateFilterCriterion criterion, PaginateExpressionContext context, int maxFilterValues) {
 
 		if (!Operators.Contains(criterion.Operator)) {
-			throw new PaginateQueryException($"Filter '{Name}' does not support operator '{PaginateFilterParser.GetOperatorToken(criterion.Operator)}'.");
+			throw new PaginateQueryException($"Filter '{Name}' does not support operator '{PaginateFilterParser.GetOperatorToken(criterion.Operator)}'.") { Code = PaginateQueryError.FilterOperatorNotAllowed };
 		}
 
 		var expression = criterion.Operator switch {
@@ -132,7 +132,7 @@ internal abstract class PaginateFilterField(
 			PaginateFilterOperator.GreaterThan => BuildComparison(valueExpression, criterion.Value, Expression.GreaterThan, context),
 			PaginateFilterOperator.GreaterThanOrEqual => BuildComparison(valueExpression, criterion.Value, Expression.GreaterThanOrEqual, context),
 			PaginateFilterOperator.Between => BuildBetweenExpression(valueExpression, criterion.Value, context, maxFilterValues),
-			_ => throw new PaginateQueryException($"Filter operator '{criterion.Operator}' is not supported.")
+			_ => throw new PaginateQueryException($"Filter operator '{criterion.Operator}' is not supported.") { Code = PaginateQueryError.FilterOperatorUnsupported }
 		};
 
 		return criterion.Not ? Expression.Not(expression) : expression;
@@ -153,7 +153,7 @@ internal abstract class PaginateFilterField(
 		try {
 			return Expression.Equal(valueExpression, constant);
 		} catch (InvalidOperationException exception) {
-			throw new PaginateQueryException($"Filter '{Name}' does not support operator '$eq' for type '{Type.Name}'.", exception);
+			throw new PaginateQueryException($"Filter '{Name}' does not support operator '$eq' for type '{Type.Name}'.", exception) { Code = PaginateQueryError.FilterOperatorTypeMismatch };
 		}
 
 	}
@@ -177,7 +177,7 @@ internal abstract class PaginateFilterField(
 	private MethodCallExpression BuildInExpression(Expression valueExpression, string value, PaginateExpressionContext context, int maxFilterValues) {
 
 		string[] values = SplitValueList(value, maxFilterValues);
-		if (values.Length == 0) throw new PaginateQueryException($"Filter '{Name}' requires at least one '$in' value.");
+		if (values.Length == 0) throw new PaginateQueryException($"Filter '{Name}' requires at least one '$in' value.") { Code = PaginateQueryError.FilterValueCountInvalid };
 
 		var valueType = valueExpression.Type;
 		var converted = Array.CreateInstance(valueType, values.Length);
@@ -198,7 +198,7 @@ internal abstract class PaginateFilterField(
 	private BinaryExpression BuildBetweenExpression(Expression valueExpression, string value, PaginateExpressionContext context, int maxFilterValues) {
 
 		string[] values = SplitValueList(value, maxFilterValues);
-		if (values.Length != 2) throw new PaginateQueryException($"Filter '{Name}' requires exactly two '$btw' values.");
+		if (values.Length != 2) throw new PaginateQueryException($"Filter '{Name}' requires exactly two '$btw' values.") { Code = PaginateQueryError.FilterValueCountInvalid };
 
 		return Expression.AndAlso(
 			BuildComparison(valueExpression, values[0], Expression.GreaterThanOrEqual, context),
@@ -224,7 +224,7 @@ internal abstract class PaginateFilterField(
 			} catch (InvalidOperationException exception) {
 				// Unreachable through a configuration since Build() refuses the pair, and kept as the backstop it
 				// now is: bool, and anything registered through PaginateTypeSupport without operators of its own.
-				throw new PaginateQueryException($"Filter '{Name}' does not support comparison operators for type '{Type.Name}'.", exception);
+				throw new PaginateQueryException($"Filter '{Name}' does not support comparison operators for type '{Type.Name}'.", exception) { Code = PaginateQueryError.FilterOperatorTypeMismatch };
 			}
 		}
 
@@ -272,10 +272,10 @@ internal abstract class PaginateFilterField(
 		if (Type == typeof(string)) return BuildStringPatternExpression(valueExpression, value, false, context);
 
 		var elementType = GetEnumerableElementType(valueExpression.Type);
-		if (elementType is null) throw new PaginateQueryException($"Filter '{Name}' supports '$contains' only for string or collection fields.");
+		if (elementType is null) throw new PaginateQueryException($"Filter '{Name}' supports '$contains' only for string or collection fields.") { Code = PaginateQueryError.FilterOperatorTypeMismatch };
 
 		string[] values = SplitValueList(value, maxFilterValues);
-		if (values.Length == 0) throw new PaginateQueryException($"Filter '{Name}' requires at least one '$contains' value.");
+		if (values.Length == 0) throw new PaginateQueryException($"Filter '{Name}' requires at least one '$contains' value.") { Code = PaginateQueryError.FilterValueCountInvalid };
 
 		var enumerableType = typeof(IEnumerable<>).MakeGenericType(elementType);
 		var collectionExpression = valueExpression.Type == enumerableType
@@ -304,7 +304,7 @@ internal abstract class PaginateFilterField(
 
 	private BinaryExpression BuildStringPatternExpression(Expression valueExpression, string value, bool startsWith, PaginateExpressionContext context) {
 
-		if (Type != typeof(string)) throw new PaginateQueryException($"Filter '{Name}' supports string pattern operators only for string fields.");
+		if (Type != typeof(string)) throw new PaginateQueryException($"Filter '{Name}' supports string pattern operators only for string fields.") { Code = PaginateQueryError.FilterOperatorTypeMismatch };
 
 		var notNull = Expression.NotEqual(valueExpression, Expression.Constant(null, valueExpression.Type));
 
@@ -340,7 +340,7 @@ internal abstract class PaginateFilterField(
 	private object? ConvertRawValue(string value, Type targetType) {
 
 		if (targetType != typeof(string) && string.IsNullOrWhiteSpace(value)) {
-			throw new PaginateQueryException($"Filter '{Name}' requires a value; use '$null' to match rows with no value.");
+			throw new PaginateQueryException($"Filter '{Name}' requires a value; use '$null' to match rows with no value.") { Code = PaginateQueryError.ValueEmpty };
 		}
 
 		return PaginateValueConverter.Convert(value, targetType, Name);
@@ -361,7 +361,7 @@ internal abstract class PaginateFilterField(
 
 		string[] values = value.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
-		return values.Length > maxFilterValues ? throw new PaginateQueryException($"Filter '{Name}' accepts at most {maxFilterValues} values.") : values;
+		return values.Length > maxFilterValues ? throw new PaginateQueryException($"Filter '{Name}' accepts at most {maxFilterValues} values.") { Code = PaginateQueryError.TooManyFilterValues } : values;
 
 	}
 

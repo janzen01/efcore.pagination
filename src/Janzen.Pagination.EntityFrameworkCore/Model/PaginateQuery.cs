@@ -61,21 +61,25 @@ public sealed class PaginateQuery {
 	/// </remarks>
 	/// <param name="page">1-based page number. Non-positive values are rejected on execution, not here.</param>
 	public PaginateQuery WithPage(int page) => new() {
-		Page            = page,
-		Limit           = this.Limit,
-		SortBy          = this.SortBy,
-		Search          = this.Search,
-		SearchBy        = this.SearchBy,
-		Filters         = this.Filters,
-		ValidationError = this.ValidationError,
+		Page                = page,
+		Limit               = this.Limit,
+		SortBy              = this.SortBy,
+		Search              = this.Search,
+		SearchBy            = this.SearchBy,
+		Filters             = this.Filters,
+		ValidationError     = this.ValidationError,
+		ValidationErrorCode = this.ValidationErrorCode,
 	};
 
 	/// <summary>Parse-time validation error captured during model binding; surfaced as a 400 on execution.</summary>
 	internal string? ValidationError { get; init; }
 
+	/// <summary>Machine-readable cause of <see cref="ValidationError" />, carried to the exception it becomes.</summary>
+	internal PaginateQueryError ValidationErrorCode { get; init; }
+
 	/// <summary>Throws the captured parse-time validation error, if any.</summary>
 	internal void EnsureValid() {
-		if (ValidationError is not null) throw new PaginateQueryException(ValidationError);
+		if (ValidationError is not null) throw new PaginateQueryException(ValidationError) { Code = ValidationErrorCode };
 	}
 
 }

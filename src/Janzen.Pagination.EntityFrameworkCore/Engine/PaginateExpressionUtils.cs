@@ -113,7 +113,7 @@ internal static class PaginateExpressionUtils {
 		if (limit == PaginateQuery.UnlimitedLimit && config.UnlimitedMaxRows is not null) return limit;
 
 		if (limit < 1 || limit > config.MaxLimit) {
-			throw new PaginateQueryException($"Query parameter 'limit' must be between 1 and {config.MaxLimit}.");
+			throw new PaginateQueryException($"Query parameter 'limit' must be between 1 and {config.MaxLimit}.") { Code = PaginateQueryError.LimitOutOfRange };
 		}
 
 		return limit;
@@ -128,7 +128,7 @@ internal static class PaginateExpressionUtils {
 
 		if (limit == PaginateQuery.UnlimitedLimit) {
 			// Pages of an unbounded set are meaningless: there is exactly one.
-			if (page != PaginateQuery.DefaultPage) throw new PaginateQueryException("Query parameter 'page' must be 1 when 'limit' is -1.");
+			if (page != PaginateQuery.DefaultPage) throw new PaginateQueryException("Query parameter 'page' must be 1 when 'limit' is -1.") { Code = PaginateQueryError.UnlimitedReadRequiresFirstPage };
 
 			return;
 		}
@@ -139,7 +139,7 @@ internal static class PaginateExpressionUtils {
 		long skip = (long)(page - 1) * limit;
 
 		if (skip > maxOffset) {
-			throw new PaginateQueryException($"Query parameter 'page' exceeds the allowed offset for this resource: at most {maxOffset} rows may be skipped.");
+			throw new PaginateQueryException($"Query parameter 'page' exceeds the allowed offset for this resource: at most {maxOffset} rows may be skipped.") { Code = PaginateQueryError.MaxOffsetExceeded };
 		}
 
 	}
@@ -149,12 +149,12 @@ internal static class PaginateExpressionUtils {
 	public static PaginateSort ParseSort(string value) {
 
 		string[] parts = value.Split(':', 2, StringSplitOptions.TrimEntries);
-		if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0])) throw new PaginateQueryException($"Sort value '{value}' must use the format 'field:ASC' or 'field:DESC'.");
+		if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0])) throw new PaginateQueryException($"Sort value '{value}' must use the format 'field:ASC' or 'field:DESC'.") { Code = PaginateQueryError.SortValueMalformed };
 
 		var direction = parts[1].ToUpperInvariant() switch {
 			"ASC" => PaginateSortDirection.Asc,
 			"DESC" => PaginateSortDirection.Desc,
-			_ => throw new PaginateQueryException($"Sort direction '{parts[1]}' is not supported.")
+			_ => throw new PaginateQueryException($"Sort direction '{parts[1]}' is not supported.") { Code = PaginateQueryError.SortDirectionUnknown }
 		};
 
 		return new PaginateSort(parts[0], direction);

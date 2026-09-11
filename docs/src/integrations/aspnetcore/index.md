@@ -132,6 +132,7 @@ Every invalid query — a bad operator, an unknown sort field, an out-of-range l
   "title": "Invalid query",
   "status": 400,
   "detail": "Filter 'price' does not support operator '$ilike'.",
+  "code": "FilterOperatorNotAllowed",
   "traceId": "00-…"
 }
 ```
@@ -139,11 +140,32 @@ Every invalid query — a bad operator, an unknown sort field, an out-of-range l
 The `title` is always `Invalid query`; `detail` carries the specific message. The full list is in the
 [error catalogue](/reference/errors/). No per-action `try`/`catch` is needed anywhere.
 
-**Both** paths build the payload through the app's registered `ProblemDetailsFactory` when there is one, so
-your own `AddProblemDetails` customisation (extra members, `type` URIs, trace identifiers) applies to either,
-and the same error comes back with the same members whichever pipeline served it. An app with no MVC services
-registered at all has no factory; there the endpoint filter falls back to a bare `Results.Problem`, which
-carries `title`, `status` and `detail` but not `type` or `traceId`.
+`code` is the machine-readable cause — the name of the `PaginateQueryError` member the engine rejected with,
+also available in process as `PaginateQueryException.Code`. Branch on it rather than on `detail`, whose
+wording is prose: matching the prose pins the wording for your client permanently and cannot survive
+localisation. New members are added as the engine grows new rejections, so treat an unrecognised value the
+way you would treat `Unspecified`. The library owns this member on its own `400`, so pick another name for
+an extension of your own rather than writing `code` from `CustomizeProblemDetails`.
+
+Both responses are served as `Content-Type: application/problem+json`, the media type
+[RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) reserves for this payload and the only one the
+[generated OpenAPI document](./openapi/) publishes the `400` under.
+
+Each leg is enriched **once**, at its own framework's enrichment point: the controller payload is built by
+the app's registered `ProblemDetailsFactory`, the Minimal API payload by the framework's problem-details
+writer when the result executes. So an `AddProblemDetails` customisation (extra members, `type` URIs, trace
+identifiers) applies to either, and the same error comes back with the same members whichever pipeline served
+it. The endpoint filter deliberately does **not** pre-build its payload through `ProblemDetailsFactory` as
+well: `Results.Problem` is written by `IProblemDetailsService`, which runs `CustomizeProblemDetails` itself,
+so a customizer that adds a key — which is what the documented sample does — would throw on the second pass
+and turn the `400` into a `500`.
+
+`type` is filled in on both legs by the framework's problem-details defaults, so it is there even in a
+Minimal-API-only app. `traceId` is **per leg, not per app**: on the controller leg it comes from
+`ProblemDetailsFactory`, which MVC registers, so it is there whenever MVC services are; on the Minimal API
+leg it comes from the problem-details writer, so it is there only if the app called `AddProblemDetails()`.
+Registering MVC does not put it on a Minimal API response — an app with controllers but no
+`AddProblemDetails()` sends `traceId` from its controller `400`s and not from its Minimal API ones.
 
 ---
 

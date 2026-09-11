@@ -50,14 +50,14 @@ public static class PaginateQueryableExtensions {
 
 		foreach ((string fieldName, var values) in request.Filters) {
 
-			if (!config.TryGetFilterableField(fieldName, out var field)) throw new PaginateQueryException($"Filter for field '{fieldName}' is not configured.");
+			if (!config.TryGetFilterableField(fieldName, out var field)) throw new PaginateQueryException($"Filter for field '{fieldName}' is not configured.") { Code = PaginateQueryError.FilterFieldNotConfigured };
 
 			Expression? fieldExpression = null;
 
 			foreach (string rawValue in values) {
 
 				if (++conditionCount > config.MaxFilterConditions) {
-					throw new PaginateQueryException($"Too many filter conditions; at most {config.MaxFilterConditions} are allowed.");
+					throw new PaginateQueryException($"Too many filter conditions; at most {config.MaxFilterConditions} are allowed.") { Code = PaginateQueryError.TooManyFilterConditions };
 				}
 
 				var criterion = PaginateFilterParser.Parse(fieldName, rawValue);
@@ -114,15 +114,15 @@ public static class PaginateQueryableExtensions {
 		PaginateInputGuard.RejectNul(search, "Search term");
 
 		if (search.Length > config.MaxSearchLength) {
-			throw new PaginateQueryException($"Search term must not exceed {config.MaxSearchLength} characters.");
+			throw new PaginateQueryException($"Search term must not exceed {config.MaxSearchLength} characters.") { Code = PaginateQueryError.SearchTermTooLong };
 		}
 
 		if (search.Length < config.MinSearchLength) {
-			throw new PaginateQueryException($"Search term must be at least {config.MinSearchLength} characters.");
+			throw new PaginateQueryException($"Search term must be at least {config.MinSearchLength} characters.") { Code = PaginateQueryError.SearchTermTooShort };
 		}
 
 		var fields = ResolveSearchFields(request, config);
-		if (fields.Count == 0) throw new PaginateQueryException("Search is not configured for this resource.");
+		if (fields.Count == 0) throw new PaginateQueryException("Search is not configured for this resource.") { Code = PaginateQueryError.SearchNotConfigured };
 
 		searchFields = fields.Select(field => field.Name).ToArray();
 
@@ -155,8 +155,8 @@ public static class PaginateQueryableExtensions {
 		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 		foreach (string fieldName in request.SearchBy) {
-			if (!config.TryGetSearchableField(fieldName, out var field)) throw new PaginateQueryException($"Search for field '{fieldName}' is not configured.");
-			if (!seen.Add(fieldName)) throw new PaginateQueryException($"Search field '{fieldName}' is specified more than once.");
+			if (!config.TryGetSearchableField(fieldName, out var field)) throw new PaginateQueryException($"Search for field '{fieldName}' is not configured.") { Code = PaginateQueryError.SearchFieldNotConfigured };
+			if (!seen.Add(fieldName)) throw new PaginateQueryException($"Search field '{fieldName}' is specified more than once.") { Code = PaginateQueryError.DuplicateSearchField };
 
 			fields.Add(field);
 		}
@@ -185,7 +185,7 @@ public static class PaginateQueryableExtensions {
 			sorts = config.GetEnabledDefaultSorts();
 		} else {
 			if (request.SortBy.Count > config.MaxSortFields) {
-				throw new PaginateQueryException($"Too many sort fields; at most {config.MaxSortFields} are allowed.");
+				throw new PaginateQueryException($"Too many sort fields; at most {config.MaxSortFields} are allowed.") { Code = PaginateQueryError.TooManySortFields };
 			}
 
 			sorts = request.SortBy.Select(PaginateExpressionUtils.ParseSort).ToArray();
@@ -196,7 +196,9 @@ public static class PaginateQueryableExtensions {
 			var requested = new HashSet<string>(sorts.Count, StringComparer.OrdinalIgnoreCase);
 
 			foreach (var sort in sorts) {
-				if (!requested.Add(sort.Field)) throw new PaginateQueryException($"Sort field '{sort.Field}' is specified more than once.");
+				if (!requested.Add(sort.Field)) {
+					throw new PaginateQueryException($"Sort field '{sort.Field}' is specified more than once.") { Code = PaginateQueryError.DuplicateSortField };
+				}
 			}
 		}
 
@@ -204,7 +206,7 @@ public static class PaginateQueryableExtensions {
 		List<string> tokens = [];
 
 		foreach (var sort in sorts) {
-			if (!config.TryGetSortableField(sort.Field, out var field)) throw new PaginateQueryException($"Sort for field '{sort.Field}' is not configured.");
+			if (!config.TryGetSortableField(sort.Field, out var field)) throw new PaginateQueryException($"Sort for field '{sort.Field}' is not configured.") { Code = PaginateQueryError.SortFieldNotConfigured };
 
 			keys.Add((field.Selector, sort.Direction == PaginateSortDirection.Desc));
 			// The configured name, not the requested spelling: field lookup is case-insensitive, so echoing the
@@ -237,6 +239,9 @@ public static class PaginateQueryableExtensions {
 		if (provider is Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryProvider) return true;
 
 		if (provider is IAsyncQueryProvider) {
+			// Deliberately left Unspecified. The codes exist so a client can branch on the cause of its 400,
+			// and no request can produce this one: it fires only for a queryable-shaped test double, which is
+			// the developer's mistake rather than the caller's, and there is nothing for a client to branch on.
 			throw new PaginateQueryException(
 				"This queryable's provider is asynchronous but is not Entity Framework Core's, so the engine can neither translate "
 				+ "the query nor evaluate it in memory. Test against a real EF Core provider, SQLite in-memory, rather than a "
@@ -289,7 +294,7 @@ public static class PaginateQueryableExtensions {
 		request.EnsureValid();
 
 		// Mirrors the 'limit' guard: an out-of-range page is a caller bug, so surface it instead of clamping it away.
-		if (request.Page < PaginateQuery.DefaultPage) throw new PaginateQueryException("Query parameter 'page' must be a positive integer.");
+		if (request.Page < PaginateQuery.DefaultPage) throw new PaginateQueryException("Query parameter 'page' must be a positive integer.") { Code = PaginateQueryError.PageOutOfRange };
 
 		int limit = PaginateExpressionUtils.ParseLimit(request, config);
 
@@ -634,7 +639,7 @@ public static class PaginateQueryableExtensions {
 				items = await project(ApplyCeiling(ApplySorts(query, sorts.Keys), limit, config), ct).ConfigureAwait(false);
 
 				if (items.Length > maxRows) {
-					throw new PaginateQueryException($"The unlimited read is too large: this resource returns at most {maxRows} rows for 'limit=-1'.");
+					throw new PaginateQueryException($"The unlimited read is too large: this resource returns at most {maxRows} rows for 'limit=-1'.") { Code = PaginateQueryError.UnlimitedReadTooLarge };
 				}
 
 				totalItems = items.Length;

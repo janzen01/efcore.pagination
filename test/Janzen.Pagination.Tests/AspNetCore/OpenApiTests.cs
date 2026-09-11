@@ -97,11 +97,17 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 		builder.WebHost.UseUrls("http://127.0.0.1:0");
 		builder.Logging.ClearProviders();
 		builder.Services.AddPagination(pagination => pagination.AddAspNetCore());
+		// Controllers belong in the fixture: the transformer's parameter-removal branch exists for the MVC path,
+		// where ApiExplorer expands a bound PaginateQuery into its PascalCase properties, and a Minimal API
+		// handler never produces those. AddProblemDetails() is deliberately absent, which also makes every
+		// Minimal API operation here the Minimal-API-only shape the 400 schema has to tell the truth about.
+		builder.Services.AddControllers().AddApplicationPart(typeof(MvcProductsController).Assembly);
 		builder.Services.AddOpenApi(options => options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
 
 		await using var app = builder.Build();
 
 		app.MapOpenApi();
+		app.MapControllers();
 		app.MapGet("/products", () => Results.Ok()).WithPagination<DocumentedConfigProvider>();
 		app.MapGet("/searchless", () => Results.Ok()).WithPagination<SearchlessConfigProvider>();
 		app.MapGet("/guarded", () => Results.Ok()).WithPagination<GuardedConfigProvider>();
@@ -153,6 +159,23 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	[Fact]
 	public void An_endpoint_without_the_attribute_is_untouched() {
 		Assert.False(fixture.Document.GetProperty("paths").GetProperty("/plain").GetProperty("get").TryGetProperty("parameters", out _));
+	}
+
+	[Fact]
+	public void A_controller_action_that_binds_the_request_advertises_the_same_parameters() {
+
+		// The generated-parameter removal exists only for this path and nothing exercised it: the unmarked
+		// action below shows what ApiExplorer produces for a bound PaginateQuery, and the marked one shows that
+		// none of it survives. Rename a PaginateQuery property with no coverage here and the document silently
+		// carries both the framework's guess and the real contract.
+		Assert.Equal(
+			["Page", "Limit", "SortBy", "Search", "SearchBy", "Filters"],
+			this.ParameterNames("/mvc/products/unmarked"));
+
+		Assert.Equal(
+			["page", "limit", "sortBy", "search", "searchBy", "filter.isFeatured", "filter.status"],
+			this.ParameterNames("/mvc/products"));
+
 	}
 
 	[Fact]
@@ -248,18 +271,32 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 	}
 
+	private string[] ValidationFailureMembers(string path) {
+
+		return [.. fixture.Document.GetProperty("paths").GetProperty(path).GetProperty("get")
+			.GetProperty("responses").GetProperty("400")
+			.GetProperty("content").GetProperty("application/problem+json")
+			.GetProperty("schema").GetProperty("properties")
+			.EnumerateObject().Select(property => property.Name)];
+
+	}
+
 	[Fact]
 	public void The_validation_failure_schema_documents_what_the_runtime_actually_sends() {
 
-		var properties = fixture.Document.GetProperty("paths").GetProperty("/products").GetProperty("get")
-			.GetProperty("responses").GetProperty("400")
-			.GetProperty("content").GetProperty("application/problem+json")
-			.GetProperty("schema").GetProperty("properties");
+		// This host registers no AddProblemDetails(), so a Minimal API 400 reaches no problem-details writer and
+		// carries no traceId. instance is on neither leg: nothing passes one and the framework synthesises none,
+		// so a generated model used to carry a property that is always null.
+		Assert.Equal(["type", "title", "status", "detail", "code"], this.ValidationFailureMembers("/products"));
 
-		// traceId is added by ProblemDetailsFactory, which both pipelines go through; the schema used to list only
-		// the RFC members and leave a client to discover it.
-		Assert.True(properties.TryGetProperty("traceId", out _));
-		Assert.True(properties.TryGetProperty("instance", out _));
+	}
+
+	[Fact]
+	public void The_controller_leg_documents_the_traceId_its_factory_always_adds() {
+
+		// The controller 400 is built by ProblemDetailsFactory, which the MVC services always bring, so traceId
+		// is unconditional there -- the one place the member is honest without AddProblemDetails().
+		Assert.Equal(["type", "title", "status", "detail", "code", "traceId"], this.ValidationFailureMembers("/mvc/products"));
 
 	}
 

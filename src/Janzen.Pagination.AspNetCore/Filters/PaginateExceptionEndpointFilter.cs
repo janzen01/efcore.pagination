@@ -1,8 +1,6 @@
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Janzen.Pagination.AspNetCore.Filters;
 
@@ -15,9 +13,11 @@ public sealed class PaginateExceptionEndpointFilter : IEndpointFilter {
 
 	/// <summary>
 	///     Runs the rest of the endpoint pipeline; a <see cref="PaginateQueryException" /> becomes a 400 titled
-	///     <c>Invalid query</c>, every other exception passes through untouched. The payload is built by the app's
-	///     <see cref="ProblemDetailsFactory" /> when one is registered, so a request that reaches a Minimal API
-	///     handler comes back with the same members (<c>type</c>, <c>traceId</c>) as one that reaches a controller.
+	///     <c>Invalid query</c>, every other exception passes through untouched. Only the members this library
+	///     decides are set here: everything the host contributes — <c>traceId</c>, and its own
+	///     <c>CustomizeProblemDetails</c> — is applied once, by the framework's problem-details writer, when the
+	///     result executes. Building the payload here as well would run that customizer twice, and the documented
+	///     sample for it adds a key to a dictionary, so the second pass threw and the request came back a 500.
 	/// </summary>
 	public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next) {
 		ArgumentNullException.ThrowIfNull(context);
@@ -26,14 +26,11 @@ public sealed class PaginateExceptionEndpointFilter : IEndpointFilter {
 		try {
 			return await next(context);
 		} catch (PaginateQueryException exception) {
-			// GetService, not GetRequiredService: the factory comes with the MVC services, and a Minimal-API-only app
-			// has none — there the bare overload is the right answer rather than a 500 about a missing service. The
-			// null-conditional covers a hand-built HttpContext, whose RequestServices is unset despite the type.
-			var factory = context.HttpContext.RequestServices?.GetService<ProblemDetailsFactory>();
-
-			return factory is null
-				? Results.Problem(detail: exception.Message, statusCode: StatusCodes.Status400BadRequest, title: PaginateExceptionFilter.Title)
-				: Results.Problem(factory.CreateProblemDetails(context.HttpContext, StatusCodes.Status400BadRequest, PaginateExceptionFilter.Title, detail: exception.Message));
+			return Results.Problem(
+				detail: exception.Message,
+				statusCode: StatusCodes.Status400BadRequest,
+				title: PaginateExceptionFilter.Title,
+				extensions: new Dictionary<string, object?> { [PaginateExceptionFilter.CodeExtension] = exception.Code.ToString() });
 		}
 	}
 
