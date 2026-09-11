@@ -11,7 +11,8 @@ PostgreSQL; if you only want the engine, everything below except step 4 and step
 - **Not trim-safe or Native-AOT-safe.** The engine builds expression trees and uses reflection, so every public
   entry point that reaches it carries `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`: the
   `Paginate*Async` methods and both composers, `WithPagination<TProvider>()`, `UseNodaTime()` /
-  `PaginateNodaTime.Register()`, and the `Filterable` / `FilterableMany` builder overloads. Publishing a
+  `PaginateNodaTime.Register()`, `PaginateFilterOperators.For`, and the `Filterable` /
+  `FilterableMany` builder overloads. Publishing a
   trimmed or AOT app produces analyzer warnings, and those warnings are accurate — the annotations are there
   so you find out at build time rather than at run time.
 - No database is required to *use* it: the engine works against any `IQueryable<T>`.
