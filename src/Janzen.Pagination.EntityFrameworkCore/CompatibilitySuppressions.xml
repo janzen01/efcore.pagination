@@ -1,19 +1,61 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
 <!--
-  The breaking-change inventory for this release. One entry, deliberate:
+  The breaking-change inventory for this release. Generated, never hand-written
+  (dotnet pack -p:ApiCompatGenerateSuppressionFile=true), which also means a regeneration drops this
+  comment and the CRLF it writes needs normalising back to LF. Five entries, all deliberate:
 
-  CP0002 WithGuards(int, int, int, int): its four parameters became int?, so a caller naming one guard
-  no longer silently resets the other three to the engine constants. Source-compatible (WithGuards() and
-  WithGuards(25) both still compile), binary-breaking, and 10.1.0 is the release that may carry it.
+  CP0002 x1 WithGuards(int, int, int, int): the all-int overload went when the four guards became
+  int?, so naming one stopped silently resetting the other three to the engine constants.
 
-  Delete this file when PackageValidationBaselineVersion moves past 10.0.3: the entry exists only against
-  that baseline, and a stale suppression hides the next accidental break behind the same target.
+  CP0014 x2 PaginateComposedQuery<TEntity>.SortBy: the property and its getter lost their nullable
+  annotation when a tie-breaker became mandatory at Build(), so an empty list now unambiguously means
+  "resolved, nothing requested".
+
+  CP0014 x2 PaginateLinkContext.Equals / GetHashCode: both were synthesized by the record and are now
+  hand-written, so they no longer carry CompilerGeneratedAttribute. The members and their behaviour
+  are what changed on purpose — the attribute is a side effect of writing them out.
+
+  All four CP0014 appear only because the ApiCompat attribute rule is now on: annotations and
+  compiler-generated markers live in metadata the signature comparison does not read, and
+  PublicAPI.Shipped.txt records a member only as line text. Each of these went in with no diagnostic
+  from anything before that rule was enabled.
+
+  Delete this file when PackageValidationBaselineVersion moves past 10.0.3: every entry exists only
+  against that baseline, and a stale suppression hides the next accidental break behind the same target.
 -->
 <Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Suppression>
     <DiagnosticId>CP0002</DiagnosticId>
     <Target>M:Janzen.Pagination.EntityFrameworkCore.Configuration.PaginateConfigBuilder`1.WithGuards(System.Int32,System.Int32,System.Int32,System.Int32)</Target>
+    <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
+    <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0014</DiagnosticId>
+    <Target>M:Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.Equals(Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext):[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
+    <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
+    <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0014</DiagnosticId>
+    <Target>M:Janzen.Pagination.EntityFrameworkCore.Links.PaginateLinkContext.GetHashCode:[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
+    <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
+    <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0014</DiagnosticId>
+    <Target>M:Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery`1.get_SortBy-&gt;System.Collections.Generic.IReadOnlyList&lt;string&gt;?:[T:System.Runtime.CompilerServices.NullableAttribute]</Target>
+    <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
+    <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
+    <IsBaselineSuppression>true</IsBaselineSuppression>
+  </Suppression>
+  <Suppression>
+    <DiagnosticId>CP0014</DiagnosticId>
+    <Target>P:Janzen.Pagination.EntityFrameworkCore.Model.PaginateComposedQuery`1.SortBy:[T:System.Runtime.CompilerServices.NullableAttribute]</Target>
     <Left>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Left>
     <Right>lib/net10.0/Janzen.Pagination.EntityFrameworkCore.dll</Right>
     <IsBaselineSuppression>true</IsBaselineSuppression>

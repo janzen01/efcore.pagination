@@ -4,19 +4,17 @@ on:
   release:
     types: [published]
 
-permissions:
-  contents: read
-  id-token: write
-  # Lets the job record a signed provenance statement for the packages it just built.
-  attestations: write
+# No workflow-level `permissions:` on purpose: `id-token: write` declared here would make a live
+# nuget.org push key readable from every step of every job, restore and test included. Each job
+# declares its own -- omit one and it inherits the repository default, so both are explicit.
 
 jobs:
-  publish:
+  # Everything that runs project code, with no credential in the job worth stealing.
+  build:
     runs-on: ubuntu-latest
-    # The OIDC exchange below mints a live nuget.org push key, so the job waits for a manual
-    # approval on the `nuget` environment first. nuget.org unlists but never deletes -- one
-    # click is cheaper than a version that can only be withdrawn from search.
-    environment: nuget
+    timeout-minutes: 20
+    permissions:
+      contents: read
     env:
       # A published release is the only trigger, so this is always the release tag. There is
       # deliberately no fallback to github.ref_name -- that fallback is what would let a run
@@ -24,6 +22,8 @@ jobs:
       TAG: ${{ github.event.release.tag_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # The tag is what people see; Directory.Build.props is what actually gets packed.
       # Publishing 0.9.0 under a v10.0.0 release cannot be undone -- nuget.org allows
@@ -64,6 +64,35 @@ jobs:
 
       - name: Pack
         run: dotnet pack Janzen.Pagination.slnx -c Release --no-build -o ./artifacts
+
+      # The privileged job attests and pushes these exact bytes rather than rebuilding them.
+      - name: Upload the packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: packages
+          path: ./artifacts/*.nupkg
+          if-no-files-found: error
+          # Must outlast the environment approval below -- the publish job downloads this after a
+          # human clicks, and an expired artefact would fail the release rather than delay it.
+          retention-days: 7
+
+  # The only job holding the credential. It runs no project code: attest, exchange, push.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The OIDC exchange below mints a live nuget.org push key, so a human approves first.
+    environment: nuget
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: packages
+          path: ./artifacts
 
       # Records, in GitHub's transparency log, that these exact package files came out of this
       # repository and this workflow. Anyone can then check a downloaded package against it with

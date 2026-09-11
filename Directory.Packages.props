@@ -3,22 +3,41 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
+  <!-- The EF Core version here becomes the floor all four packages advertise, because transitive
+       pinning propagates it into every nuspec. Tracking the latest 10.x servicing release is
+       deliberate, not an artefact of whatever the last build used: the 10.x line pairs with .NET 10
+       and EF Core 10 by design, so a consumer of these packages is on that line already. The cost is
+       real and accepted - someone pinned to an earlier 10.0.x patch for their own reasons has to move
+       their whole EF Core closure - and the alternative, flooring at the engine's true minimum, means
+       establishing that minimum empirically and holding a CI leg on it. -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <!-- Nothing in the tree references Relational directly, so without this entry it settles on
+         Npgsql.EntityFrameworkCore.PostgreSQL's [10.0.4, 11.0.0) floor while the core project raises
+         Microsoft.EntityFrameworkCore itself - a Core 10.0.11+ / Relational 10.0.4 pairing EF Core's
+         own packages never produce, and one nothing warns about because every declared range is
+         satisfied. Transitive pinning only applies to packages that have an entry here, which is why
+         the split has to be closed by naming it. It is promoted to a visible dependency of the
+         PostgreSql package as a result; that is the cost of holding the family together. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
     <PackageVersion Include="NodaTime" Version="3.3.3" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageVersion Include="Microsoft.OpenApi" Version="2.12.2" />
     <PackageVersion Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" />
   </ItemGroup>
   <!-- Test-only. Sqlite tracks the same EF Core version as the engine. -->
   <ItemGroup>
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
-    <!-- Transitive pin: the version EF Core's Sqlite provider resolves (2.1.11) carries GHSA-2m69-gcr7-jv3q,
-         a high-severity advisory in the bundled SQLite. 2.1.12 is the first release outside the affected range. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+    <!-- Transitive pin: a floor at 2.1.12, the first release outside GHSA-2m69-gcr7-jv3q's affected
+         range (<= 2.1.11, a high-severity advisory in the bundled SQLite). EF Core's Sqlite provider
+         resolves 2.1.12 on its own at the version pinned above, so the pin is belt-and-braces today
+         and blocks a downgrade should a future provider relax its own floor. Do not raise it: 2.1.12
+         is exactly EF Core's floor, and diverging means testing a native build it does not ship
+         against. -->
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
   </ItemGroup>

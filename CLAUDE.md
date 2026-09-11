@@ -350,14 +350,19 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
 5. Publishing authenticates by **Trusted Publishing (OIDC)**, so there is no API key anywhere. The policy lives
    on nuget.org under the *owner* (not per package), keyed to repository owner + repo + `publish.yml` + the
    **`nuget` environment**. That last field is optional on nuget.org's side, but it is filled in here on purpose:
-   left empty, the policy would trust any run of that workflow, gated or not. A fresh policy is "pending full
-   activation" for 7 days and goes inactive if nothing is published in that window; the first successful publish
-   makes it permanent.
-6. The job declares `environment: nuget`, so the run **stops for a manual approval** (required reviewer, and only
-   a `v*` tag may deploy) before it reaches the OIDC exchange. Approve it under *Review deployments* in the run.
-   Nothing reaches nuget.org until then, which is also why a mismatched policy fails at `NuGet login` rather than
-   half-way through a push.
-7. The same job records a **build provenance attestation** for every packed file, and that is where it ends:
+   left empty, the policy would trust any run of that workflow, gated or not. Its scope is narrowed to
+   `Janzen.Pagination.*`, "push only new package versions" — so a *fifth* package needs the policy widened before
+   its first publish. The "pending full activation for 7 days" wait applies to **private** repositories; for a
+   public one like this the policy is active immediately.
+6. `publish.yml` runs as two jobs. `build` holds no credential and does everything that executes project code —
+   the tag-vs-version guard, restore, build, test, the README pin and pack — and hands the packages on as an
+   artefact. `publish` declares `environment: nuget`, so the run **stops for a manual approval** (required
+   reviewer, and only a `v*` tag may deploy) before it reaches the OIDC exchange; by then the suite is already
+   green, which is what the approval is confirming. Approve it under *Review deployments* in the run. Nothing
+   reaches nuget.org until then, which is also why a mismatched policy fails at `NuGet login` rather than
+   half-way through a push. **The artefact hand-off cannot be dry-run** — `release: published` is the only
+   trigger — so the first release after any change to it is its own test; cut that one as an `-rc.N`.
+7. The `publish` job records a **build provenance attestation** for every packed file, and that is where it ends:
    **nothing is attached to the GitHub release.** Releases here are *immutable*, so a `gh release upload` step
    fails with `HTTP 422: Cannot upload assets to an immutable release` — learned by trying it during the
    `10.0.0` publish. Don't re-add one. Note what that costs: `gh attestation verify` compares a file digest,
