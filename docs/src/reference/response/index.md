@@ -55,9 +55,11 @@ sealed record PaginatedLinks(string? First, string? Previous, string? Next, stri
 Those init-only members sit outside the positional lists on purpose, so each record's constructor,
 `Deconstruct` and `with` keep the shape they had; the engine sets them, a caller never does.
 
-Nothing here is serializer-specific: the JSON above is what ASP.NET Core's default camelCase settings
-produce from those records. The tables below use the JSON names; the CLR members are the same names in
-PascalCase.
+The JSON names above are **pinned by the library**, with `[JsonPropertyName]` on every member of the three
+records, so the shape is the same whatever the host's `JsonSerializerOptions.PropertyNamingPolicy` says. They
+match what ASP.NET Core's default camelCase settings would have produced anyway, which is why the common case
+looks unchanged — but an application serving `snake_case` everywhere else still serves this envelope as it is
+documented here. The tables below use the JSON names; the CLR members are the same names in PascalCase.
 
 ## `items`
 
