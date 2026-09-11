@@ -18,4 +18,23 @@
         <PackageReference Include="Microsoft.OpenApi"/>
     </ItemGroup>
 
+    <!--
+      Microsoft.AspNetCore.OpenApi's own GenerateAdditionalXmlFilesForOpenApi target feeds the .xml
+      documentation file of every ProjectReference into its XML-comment source generator, so this
+      assembly compiled in a second copy of the core package's documentation strings - 58 % of its
+      size - to support a call this library never makes: the generated code only takes effect
+      through an interceptor on AddOpenApi(), which appears nowhere in src/, and the target's own
+      condition excludes PackageReferences, so a consuming application's generator run never reads
+      it back out of lib/net10.0 either. ExcludeAssets="analyzers" was measured and does not
+      suppress the generator, and it exposes no build_property opt-out, so the input is withheld
+      instead. Scoped to this project: the test project hosts a real app and does call AddOpenApi().
+    -->
+    <Target Name="RemoveProjectReferenceDocsFromOpenApiGenerator" AfterTargets="GenerateAdditionalXmlFilesForOpenApi">
+        <ItemGroup>
+            <ProjectReferenceXmlDoc Include="@(ReferencePath->'%(RootDir)%(Directory)%(Filename).xml')"
+                                    Condition="'%(ReferencePath.ReferenceSourceTarget)' == 'ProjectReference'"/>
+            <AdditionalFiles Remove="@(ProjectReferenceXmlDoc)"/>
+        </ItemGroup>
+    </Target>
+
 </Project>
