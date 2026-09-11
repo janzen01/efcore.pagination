@@ -107,11 +107,11 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	// cannot see each other's entry, and a transformer registered as a shared instance does not carry one
 	// document's answer into the next. That matters for When(...), which exists so a config can vary per caller.
 	// Weak keys, so a finished scope takes its entry with it.
-	private readonly ConditionalWeakTable<IServiceProvider, Dictionary<Type, IPaginateConfig>> ConfigsPerDocument = new();
+	private readonly ConditionalWeakTable<IServiceProvider, Dictionary<Type, IPaginateConfig>> _configsPerDocument = new();
 
 	private IPaginateConfig GetConfig(IServiceProvider services, Type providerType) {
 
-		var configs = this.ConfigsPerDocument.GetValue(services, static _ => []);
+		var configs = this._configsPerDocument.GetValue(services, static _ => []);
 
 		if (configs.TryGetValue(providerType, out var cached)) return cached;
 
