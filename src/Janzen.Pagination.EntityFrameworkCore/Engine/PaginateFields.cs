@@ -83,7 +83,24 @@ internal abstract class PaginateFilterField(
 
 	}
 
-	private BinaryExpression BuildEqualityExpression(Expression valueExpression, string value, PaginateExpressionContext context) { return Expression.Equal(valueExpression, ConvertValue(value, valueExpression.Type, context)); }
+	/// <summary>
+	///     Builds the <c>$eq</c> predicate. The guard mirrors the one <c>BuildComparison</c> has always had: a value
+	///     can parse cleanly and still have no operator for the factory to use — a plain <c>struct</c> registered
+	///     through <c>PaginateTypeSupport</c> declares no <c>op_Equality</c>, and the expression factory answers that
+	///     with an <see cref="InvalidOperationException" />. Unguarded it escaped as a 500 for a request the field's
+	///     own allow-list had permitted, on the one operator of six that was not covered.
+	/// </summary>
+	private BinaryExpression BuildEqualityExpression(Expression valueExpression, string value, PaginateExpressionContext context) {
+
+		var constant = ConvertValue(value, valueExpression.Type, context);
+
+		try {
+			return Expression.Equal(valueExpression, constant);
+		} catch (InvalidOperationException exception) {
+			throw new PaginateQueryException($"Filter '{Name}' does not support operator '$eq' for type '{Type.Name}'.", exception);
+		}
+
+	}
 
 	/// <summary>
 	///     Whether the value is null. The decision uses the <b>declared</b> type rather than the expression's,
