@@ -128,22 +128,36 @@ public static class PaginateQueryableExtensions {
 
 		var entity = Expression.Parameter(typeof(TEntity), "item");
 
-		var aggregate = (from field in fields
-			select ParameterReplaceVisitor.Replace(field.Selector.Body, field.Selector.Parameters[0], entity)
-			into spliced
-			let valueExpression = context.UseDatabaseFunctions ? spliced : PaginateNullSafeRewriter.Rewrite(spliced, entity)
-			let notNull = Expression.NotEqual(valueExpression, Expression.Constant(null, valueExpression.Type))
-			let match = context.UseDatabaseFunctions
-				? context.LikeStrategy.BuildLike(
-					valueExpression,
-					PaginateExpressionUtils.ToDatabaseParameter(Expression.Constant($"%{PaginateExpressionUtils.EscapeLikePattern(search)}%")))
-				: PaginateExpressionUtils.BuildInMemoryStringMatchExpression(valueExpression, search, false)
-			select Expression.AndAlso(notNull, match)).Aggregate<Expression, Expression?>(null, (current, fieldExpression) => current is null
-			? fieldExpression
-			: Expression.OrElse(current, fieldExpression));
+		// The pattern depends on the term alone, so it is built once and shared by every branch rather than
+		// rebuilt per field. Expression nodes are immutable, and EF already collapsed the structurally equal
+		// copies into a single parameter, so the composed command is identical either way.
+		var pattern = context.UseDatabaseFunctions
+			? PaginateExpressionUtils.ToDatabaseParameter(Expression.Constant($"%{PaginateExpressionUtils.EscapeLikePattern(search)}%"))
+			: null;
 
-		var predicate = Expression.Lambda<Func<TEntity, bool>>(aggregate!, entity);
-		return query.Where(predicate);
+		// Folded the way ApplyFilters folds rather than through a query comprehension: the two stages do the same
+		// thing and now say so, and the aggregate no longer needs a null-forgiving operator resting on a guard ten
+		// lines above it.
+		Expression? aggregate = null;
+
+		foreach (var field in fields) {
+
+			var spliced = ParameterReplaceVisitor.Replace(field.Selector.Body, field.Selector.Parameters[0], entity);
+			var valueExpression = context.UseDatabaseFunctions ? spliced : PaginateNullSafeRewriter.Rewrite(spliced, entity);
+
+			var notNull = Expression.NotEqual(valueExpression, Expression.Constant(null, valueExpression.Type));
+
+			Expression match = pattern is { } databasePattern
+				? context.LikeStrategy.BuildLike(valueExpression, databasePattern)
+				: PaginateExpressionUtils.BuildInMemoryStringMatchExpression(valueExpression, search, false);
+
+			Expression fieldExpression = Expression.AndAlso(notNull, match);
+
+			aggregate = aggregate is null ? fieldExpression : Expression.OrElse(aggregate, fieldExpression);
+
+		}
+
+		return aggregate is null ? query : query.Where(Expression.Lambda<Func<TEntity, bool>>(aggregate, entity));
 
 	}
 

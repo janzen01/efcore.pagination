@@ -17,13 +17,19 @@ namespace Janzen.Pagination.EntityFrameworkCore.Like;
 /// <param name="likeMethod">The four-parameter <c>EF.Functions</c> method to call, e.g. <c>EF.Functions.Like</c>.</param>
 public abstract class PaginateLikeStrategyBase(MethodInfo likeMethod) : IPaginateLikeStrategy {
 
+	// Both nodes are process constants -- EF.Functions is a static property on a static type, and the escape
+	// character is a literal -- while BuildLike runs per pattern criterion and per searched field. Expression
+	// nodes are immutable, so one instance is shared by every tree built from here, exactly as the shipped
+	// strategies already share their MethodInfo. A name that stopped resolving now fails at type initialization
+	// rather than on a request.
+	private readonly static MemberExpression Functions = Expression.Property(null, typeof(EF), nameof(EF.Functions));
+
+	private readonly static ConstantExpression Escape = Expression.Constant(PaginateLikeDefaults.EscapeCharacter);
+
 	/// <inheritdoc />
 	public abstract PaginateFilterOperator? PreferredExampleOperator { get; }
 
 	/// <inheritdoc />
-	public Expression BuildLike(Expression value, Expression pattern) {
-		var functions = Expression.Property(null, typeof(EF), nameof(EF.Functions));
-		return Expression.Call(likeMethod, functions, value, pattern, Expression.Constant(PaginateLikeDefaults.EscapeCharacter));
-	}
+	public Expression BuildLike(Expression value, Expression pattern) { return Expression.Call(likeMethod, Functions, value, pattern, Escape); }
 
 }

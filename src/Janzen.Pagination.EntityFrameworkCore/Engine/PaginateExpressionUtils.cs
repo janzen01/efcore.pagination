@@ -17,6 +17,11 @@ internal static class PaginateExpressionUtils {
 
 	private readonly static MethodInfo ParameterMethod = typeof(EF).GetMethod(nameof(EF.Parameter))!;
 
+	// Every pattern operator and every searched field parameterises a string by construction, and closing a
+	// generic method is the expensive half of this call -- so that one instantiation is resolved once here rather
+	// than per criterion.
+	private readonly static MethodInfo StringParameterMethod = ParameterMethod.MakeGenericMethod(typeof(string));
+
 	private readonly static MethodInfo OrderByMethod = GetQueryableOrderMethod(nameof(Queryable.OrderBy));
 	private readonly static MethodInfo OrderByDescendingMethod = GetQueryableOrderMethod(nameof(Queryable.OrderByDescending));
 	private readonly static MethodInfo ThenByMethod = GetQueryableOrderMethod(nameof(Queryable.ThenBy));
@@ -26,7 +31,9 @@ internal static class PaginateExpressionUtils {
 	///     Wraps a value expression in <see cref="EF.Parameter{T}" /> so EF Core translates it as a SQL parameter instead
 	///     of an inlined literal (better plan reuse). Only valid inside EF queries.
 	/// </summary>
-	public static Expression ToDatabaseParameter(Expression value) { return Expression.Call(ParameterMethod.MakeGenericMethod(value.Type), value); }
+	public static Expression ToDatabaseParameter(Expression value) {
+		return Expression.Call(value.Type == typeof(string) ? StringParameterMethod : ParameterMethod.MakeGenericMethod(value.Type), value);
+	}
 
 	/// <summary>
 	///     Escapes LIKE/ILIKE wildcard characters so user input is matched literally (used together with
@@ -94,7 +101,11 @@ internal static class PaginateExpressionUtils {
 
 		var method = openMethod.MakeGenericMethod(typeof(TEntity), selector.Body.Type);
 
-		return (IQueryable<TEntity>)method.Invoke(null, [query, selector])!;
+		// Queryable.OrderBy's own body, reached without invoking it reflectively. MethodInfo.Invoke boxes its
+		// arguments into an array and wraps whatever the provider throws in a TargetInvocationException, so a
+		// caller's catch clause for the real exception never fired and the top log line named nothing. The node
+		// built here is the one the typed overload builds, which is what keeps the composed SQL unchanged.
+		return query.Provider.CreateQuery<TEntity>(Expression.Call(method, query.Expression, Expression.Quote(selector)));
 
 	}
 
