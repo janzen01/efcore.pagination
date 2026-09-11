@@ -78,7 +78,9 @@ as excluding.
 
 ### Filter operators
 
-Raised once the operator is known and is being applied to the field.
+Raised once the operator is known and is being applied to the field. Three of these describe an
+operator the field's type cannot carry; a configuration declaring one no longer builds, so they survive
+only as engine-internal backstops and no query string reaches them.
 
 | Message | Triggered by | Fix |
 |---------|--------------|-----|
@@ -86,10 +88,10 @@ Raised once the operator is known and is being applied to the field.
 | `Filter 'x' requires at least one '$in' value.` | `$in:` with an empty list | `$in` needs one or more comma-separated values |
 | `Filter 'x' requires exactly two '$btw' values.` | `$btw` with one value, or three or more | `$btw:20,50`; the bounds are inclusive |
 | `Filter 'x' requires at least one '$contains' value.` | `$contains:` on a collection field with an empty list | supply the values the collection must hold |
-| `Filter 'x' supports '$contains' only for string or collection fields.` | `$contains` against a number, date or enum field | use `$eq` or `$in` on a scalar |
-| `Filter 'x' supports string pattern operators only for string fields.` | `$sw` or `$ilike` against a non-string field | pattern matching needs a `string` selector |
+| `Filter 'x' supports '$contains' only for string or collection fields.` | `$contains` granted to a number, date or enum field. Not reachable from a request: [`Build()`](../configuration/#filterable) refuses that declaration | use `$eq` or `$in` on a scalar |
+| `Filter 'x' supports string pattern operators only for string fields.` | `$sw` or `$ilike` granted to a non-string field. Not reachable from a request: [`Build()`](../configuration/#filterable) refuses that declaration | pattern matching needs a `string` selector |
 | `Filter 'x' does not support operator '$eq' for type 'T'.` | `$eq` against a type that defines no equality operator — a plain `struct` registered through [`PaginateTypeSupport`](/integrations/custom-types/), where the compiler writes none. A `record struct` gets one and is unaffected | use `$in`, which compares through `EqualityComparer<T>.Default`, or give the type an `==` operator |
-| `Filter 'x' does not support comparison operators for type 'T'.` | `$lt`/`$lte`/`$gt`/`$gte`/`$btw` against a type with no ordering — `bool`, and any type registered through [`PaginateTypeSupport`](/integrations/custom-types/) that defines no comparison operators | there is nothing to order; use `$eq` or `$in`. Numbers, dates, `string`, `Guid` and enums all compare — see [comparisons](../query-string/#lt-lte-gt-gte-—-comparisons) |
+| `Filter 'x' does not support comparison operators for type 'T'.` | `$lt`/`$lte`/`$gt`/`$gte`/`$btw` granted to a type with no ordering — `bool`, and any type registered through [`PaginateTypeSupport`](/integrations/custom-types/) that defines no comparison operators. Not reachable from a request: [`Build()`](../configuration/#filterable) refuses that declaration | there is nothing to order; use `$eq` or `$in`. Numbers, dates, `string`, `Guid` and enums all compare — see [comparisons](../query-string/#lt-lte-gt-gte-—-comparisons) |
 | `Filter 'x' accepts at most N values.` | one list longer than `MaxFilterValues` | the ceiling is **per criterion**, so splitting a huge `$in` across two criteria of the same field is a legitimate workaround; raising it is [`WithGuards`](../configuration/#withguards) |
 | `Filter operator '<member>' is not supported.` | an operator with no implementation behind it. Every current member has one, so no query string can reach this — it is an engine-internal guard, and it names the **enum member** rather than a `$token` for exactly that reason | not reachable from a request; treat it as a bug report |
 

@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+
 namespace Janzen.Pagination.Tests;
 
 /// <summary>What the builder refuses to produce, and what it exposes about what it did produce.</summary>
@@ -71,6 +73,87 @@ public sealed class ConfigurationTests {
 
 		Assert.StartsWith("At least one filter operator must be configured.", exception.Message);
 
+	}
+
+	[Fact]
+	public void A_comparison_operator_the_field_type_cannot_carry_is_refused_at_build_time() {
+
+		// PaginateFilterOperators.For<bool>() returns Eq alone, so a range on a bool can only arrive through the
+		// explicit signature. It used to build and then answer 400 to every request -- a configuration defect
+		// reported to a caller who cannot act on it.
+		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
+			.WithLimits(10, 10)
+			.Filterable("isFeatured", p => p.IsFeatured, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan)));
+
+		Assert.Equal(
+			"Filter 'isFeatured' allows operator '$gt', which the engine cannot build for type 'Boolean'. Drop the operator, or declare the field without an explicit list to take the operators its type supports.",
+			exception.Message);
+
+	}
+
+	[Fact]
+	public void A_pattern_operator_on_a_field_that_is_not_a_string_is_refused_at_build_time() {
+
+		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
+			.WithLimits(10, 10)
+			.Filterable("rank", p => p.Rank, PaginateFilterOperator.ILike)));
+
+		Assert.Equal(
+			"Filter 'rank' allows operator '$ilike', which the engine cannot build for type 'Int32'. Drop the operator, or declare the field without an explicit list to take the operators its type supports.",
+			exception.Message);
+
+	}
+
+	[Fact]
+	public void Contains_on_a_field_that_is_neither_a_string_nor_a_collection_is_refused_at_build_time() {
+
+		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
+			.WithLimits(10, 10)
+			.Filterable("rank", p => p.Rank, PaginateFilterOperator.Contains)));
+
+		Assert.StartsWith("Filter 'rank' allows operator '$contains'", exception.Message);
+
+	}
+
+	[Fact]
+	public void Contains_stays_allowed_on_a_collection_field() {
+		Assert.Single(Build(b => b.WithLimits(10, 10).Filterable("tags", p => p.Tags, PaginateFilterOperator.Contains)).FilterableFields);
+	}
+
+	[Fact]
+	public void The_build_time_check_accepts_every_type_the_comparison_builder_handles() {
+
+		// The guard mirrors what BuildComparison does, which is wider than any single reflection probe: the
+		// integral primitives declare no op_LessThan at all, char is in neither the derived Comparable set nor
+		// the ordering probe, and enums, strings and Guids reach a CompareTo stand-in rather than an operator.
+		AcceptsRanges(p => (sbyte)p.Rank);
+		AcceptsRanges(p => (byte)p.Rank);
+		AcceptsRanges(p => (short)p.Rank);
+		AcceptsRanges(p => (ushort)p.Rank);
+		AcceptsRanges(p => p.Rank);
+		AcceptsRanges(p => (uint)p.Rank);
+		AcceptsRanges(p => (long)p.Rank);
+		AcceptsRanges(p => (ulong)p.Rank);
+		AcceptsRanges(p => (float)p.Rank);
+		AcceptsRanges(p => (double)p.Rank);
+		AcceptsRanges(p => p.Price);
+		AcceptsRanges(p => p.Name[0]);
+		AcceptsRanges(p => p.Name);
+		AcceptsRanges(p => p.ExternalId);
+		AcceptsRanges(p => p.Status);
+		AcceptsRanges(p => p.CreatedAt);
+		AcceptsRanges(p => p.DiscontinuedAt);
+		AcceptsRanges(p => p.ReleasedOn);
+		AcceptsRanges(p => p.OpensAt);
+		AcceptsRanges(p => p.Warranty);
+
+	}
+
+	private static void AcceptsRanges<TValue>(Expression<Func<Product, TValue>> selector) {
+		Assert.Single(Build(b => b
+			.WithLimits(10, 10)
+			.Filterable("value", selector, PaginateFilterOperator.GreaterThan, PaginateFilterOperator.GreaterThanOrEqual,
+				PaginateFilterOperator.LessThan, PaginateFilterOperator.LessThanOrEqual, PaginateFilterOperator.Between)).FilterableFields);
 	}
 
 	[Fact]

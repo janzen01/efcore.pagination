@@ -20,8 +20,7 @@ public sealed class ComparisonOperatorTests(SqliteFixture fixture) : IClassFixtu
 		.Filterable("name", p => p.Name, Ranges)
 		.Filterable("description", p => p.Description, Ranges)
 		.Filterable("externalId", p => p.ExternalId, Ranges)
-		.Filterable("status", p => p.Status, Ranges)
-		.Filterable("isFeatured", p => p.IsFeatured, Ranges));
+		.Filterable("status", p => p.Status, Ranges));
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request) {
 		await using var context = fixture.CreateContext();
@@ -52,13 +51,15 @@ public sealed class ComparisonOperatorTests(SqliteFixture fixture) : IClassFixtu
 	}
 
 	[Fact]
-	public async Task Booleans_are_rejected_rather_than_failing_the_request() {
+	public void Booleans_are_refused_before_a_request_can_ask_for_one() {
 
-		await using var context = fixture.CreateContext();
-
-		Assert.Equal(
-			"Filter 'isFeatured' does not support comparison operators for type 'Boolean'.",
-			await Assertions.RejectsAsync(() => SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("isFeatured", "$gt:false"), Config)));
+		// bool is the type in this family the engine cannot order at all, so granting it the same Ranges list is
+		// a configuration defect rather than a request the resource has to answer. ConfigurationTests pins the
+		// wording; here the point is that the refusal happens instead of a working endpoint with one dead field.
+		Assert.Throws<InvalidOperationException>(() => PaginateConfig<Product>.Create(b => b
+			.WithLimits(50, 50)
+			.WithTieBreaker(p => p.Id)
+			.Filterable("isFeatured", p => p.IsFeatured, Ranges)));
 
 	}
 

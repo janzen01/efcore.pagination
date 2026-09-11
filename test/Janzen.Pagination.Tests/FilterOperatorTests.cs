@@ -1,15 +1,29 @@
 using Janzen.Pagination.EntityFrameworkCore.Engine;
+using Janzen.Pagination.EntityFrameworkCore.Like;
+
+using System.Linq.Expressions;
 
 namespace Janzen.Pagination.Tests;
 
 /// <summary>What each of the eleven operators actually matches, against real SQL.</summary>
 public sealed class FilterOperatorTests(SqliteFixture fixture) : IClassFixture<SqliteFixture> {
 
-	/// <summary>Grants pattern operators to a non-string field so the type guards are reachable.</summary>
-	private readonly static PaginateConfig<Product> PatternsOnAnInt = PaginateConfig<Product>.Create(b => b
-		.WithLimits(50, 50)
-		.WithTieBreaker(p => p.Id)
-		.Filterable("rank", p => p.Rank, PaginateFilterOperator.Contains, PaginateFilterOperator.StartsWith));
+	/// <summary>
+	///     The engine's own type guards, now that <c>Build()</c> refuses the configuration that used to reach
+	///     them: a filter field is constructed directly, which is the only way left to exercise the backstop.
+	/// </summary>
+	private static string RejectsAtRuntime(PaginateFilterOperator filterOperator) {
+
+		var field = new PaginateScalarFilterField<Product, int>("rank", p => p.Rank, typeof(int), new HashSet<PaginateFilterOperator> { filterOperator });
+		var criterion = new PaginateFilterCriterion(filterOperator, "1", false, PaginateFilterConnector.And);
+
+		return Assert.Throws<PaginateQueryException>(() => field.BuildExpression(
+			Expression.Parameter(typeof(Product), "p"),
+			criterion,
+			new PaginateExpressionContext(true, PaginateLikeDefaults.Strategy),
+			20)).Message;
+
+	}
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request, PaginateConfig<Product>? config = null) {
 		await using var context = fixture.CreateContext();
@@ -127,9 +141,8 @@ public sealed class FilterOperatorTests(SqliteFixture fixture) : IClassFixture<S
 	}
 
 	[Fact]
-	public async Task Pattern_operators_reject_a_non_string_field() {
-		Assert.Equal("Filter 'rank' supports string pattern operators only for string fields.",
-			await this.Rejects(Query.Filter("rank", "$sw:1"), PatternsOnAnInt));
+	public void Pattern_operators_reject_a_non_string_field() {
+		Assert.Equal("Filter 'rank' supports string pattern operators only for string fields.", RejectsAtRuntime(PaginateFilterOperator.StartsWith));
 	}
 
 	// --- $contains over collections ---------------------------------------------------------------------
@@ -150,9 +163,8 @@ public sealed class FilterOperatorTests(SqliteFixture fixture) : IClassFixture<S
 	}
 
 	[Fact]
-	public async Task Contains_rejects_a_scalar_field() {
-		Assert.Equal("Filter 'rank' supports '$contains' only for string or collection fields.",
-			await this.Rejects(Query.Filter("rank", "$contains:1"), PatternsOnAnInt));
+	public void Contains_rejects_a_scalar_field() {
+		Assert.Equal("Filter 'rank' supports '$contains' only for string or collection fields.", RejectsAtRuntime(PaginateFilterOperator.Contains));
 	}
 
 	// --- comparisons ------------------------------------------------------------------------------------
