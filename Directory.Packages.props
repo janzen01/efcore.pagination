@@ -23,8 +23,12 @@
   <!-- Test-only. Sqlite tracks the same EF Core version as the engine. -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
-    <!-- Transitive pin: the version EF Core's Sqlite provider resolves (2.1.11) carries GHSA-2m69-gcr7-jv3q,
-         a high-severity advisory in the bundled SQLite. 2.1.12 is the first release outside the affected range. -->
+    <!-- Transitive pin: a floor at 2.1.12, the first release outside GHSA-2m69-gcr7-jv3q's affected
+         range (<= 2.1.11, a high-severity advisory in the bundled SQLite). EF Core's Sqlite provider
+         resolves 2.1.12 on its own at the version pinned above, so the pin is belt-and-braces today
+         and blocks a downgrade should a future provider relax its own floor. Do not raise it: 2.1.12
+         is exactly EF Core's floor, and diverging means testing a native build it does not ship
+         against. -->
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.0" />
