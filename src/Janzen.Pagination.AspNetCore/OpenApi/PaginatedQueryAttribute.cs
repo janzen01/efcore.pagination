@@ -12,8 +12,9 @@ public abstract class PaginatedQueryAttribute : Attribute {
 
 	/// <summary>
 	///     The <see cref="IPaginateConfigProvider" /> supplying this operation's config.
-	///     <see cref="PaginatedQueryOperationTransformer" /> activates it from the application services and documents
-	///     the pagination parameters from <see cref="IPaginateConfigProvider.GetConfig" />.
+	///     <see cref="PaginatedQueryOperationTransformer" /> resolves it from the container first and activates it
+	///     only when nothing is registered, then documents the pagination parameters from
+	///     <see cref="IPaginateConfigProvider.GetConfig" />.
 	/// </summary>
 	public Type ConfigProviderType { get; }
 

@@ -18,8 +18,16 @@ the document name and the rest of the pipeline.
 Only the ones carrying `[PaginatedQuery<TProvider>]` (controllers) or `WithPagination<TProvider>()` (Minimal
 APIs). Everything else passes through untouched.
 
-The provider is created with `ActivatorUtilities.CreateInstance`, so **a provider with a parameterless
-constructor needs no DI registration**. Register it only when its constructor takes services.
+The provider is resolved from DI and, only when nothing is registered, created with
+`ActivatorUtilities.CreateInstance` — so **a provider with a parameterless constructor needs no DI
+registration**, while a registered one is the instance that gets asked. An instance the transformer activated
+itself is disposed once its config has been read.
+
+`GetConfig()` is called **once per provider type per document generation**, not once per operation. The
+document itself is not cached: ASP.NET Core rebuilds it on every request to the OpenAPI endpoint, so a
+Swagger UI page load, a contract-test run and a monitoring probe each pay for a fresh one. Build the config
+once and return the same instance rather than building it inside `GetConfig()`, and reach for ASP.NET Core's
+own output caching on the OpenAPI endpoint if the cost shows up.
 
 Before adding anything, the transformer **removes the parameters the framework generated for
 `PaginateQuery`** — any query parameter whose name matches one of the six, or begins with `filter.`. Without
@@ -31,15 +39,15 @@ Six parameters plus a `400`, in this order:
 
 | Parameter | Shape | Built from |
 |-----------|-------|------------|
-| `page` | `integer`, minimum `1`, default `1` | fixed |
-| `limit` | `integer`, minimum `1`, **maximum `MaxLimit`**, default `DefaultLimit` | `WithLimits` |
-| `sortBy` | `array` of `string`, exploded, **enum of every `field:ASC` / `field:DESC`** | `Sortable`, `DefaultSortBy` |
-| `search` | `string` | `Searchable` |
+| `page` | `integer`, minimum `1`, default `1` | `WithMaxOffset` |
+| `limit` | `integer`, minimum `1`, **maximum `MaxLimit`**, default `DefaultLimit` — or a `oneOf` of that range and `-1` where the resource called `AllowUnlimited` | `WithLimits`, `AllowUnlimited` |
+| `sortBy` | `array` of `string`, exploded, **enum of every `field:ASC` / `field:DESC`**, maximum `MaxSortFields` items | `Sortable`, `DefaultSortBy`, `WithGuards` |
+| `search` | `string`, maximum `MaxSearchLength` characters | `Searchable`, `WithGuards` |
 | `searchBy` | `array` of `string`, exploded, enum of the searchable names | `Searchable` |
-| `filter.<field>` | `array` of `string`, exploded, one parameter **per filterable field** | `Filterable`, `FilterableMany` |
+| `filter.<field>` | `array` of `string`, exploded, one parameter **per filterable field** | `Filterable`, `FilterableMany`, `WithGuards` |
 | `400` response | `application/problem+json` with `type` / `title` / `status` / `detail` / `code`, plus `traceId` where the app sends one | fixed |
 
-Three conditions worth knowing:
+Four conditions worth knowing:
 
 - **Both search parameters are omitted** when the config declares no `Searchable` field at all. There is no
   free-text surface to document: `search` would advertise an input whose only possible answer is a `400`, and
@@ -49,6 +57,28 @@ Three conditions worth knowing:
   run time, so advertising it would be a lie.
 - **`filter.` parameters are ordered by field name** (ordinal), not by declaration order, so the document is
   stable across config edits that only move lines around.
+- **Three descriptions grow a sentence** when the matching guard is configured, which is why the `page`,
+  `limit` and `search` rows above name a builder method rather than saying "fixed": `page` under
+  [`WithMaxOffset`](/reference/configuration/#withmaxoffset), `limit` under
+  [`AllowUnlimited`](/reference/configuration/#allowunlimited), and `search` under
+  [`WithMinSearchLength`](/reference/configuration/#withminsearchlength) above 1. An unguarded resource says
+  nothing extra, so adding one of those calls shows up as a description diff in a committed artefact.
+
+The `limit` schema only grows a `oneOf` on a resource that called
+[`AllowUnlimited`](/reference/configuration/#allowunlimited), and it is the whole reason it grows one: the
+description advertises `-1` and a flat `minimum: 1` beside it is a contradiction a gateway acts on. Everywhere
+else the parameter keeps the single range it always had, because `-1` really is a `400` there.
+
+All nine [guards](/reference/configuration/#guards) reach the document. Five of them are expressible as
+JSON Schema and are published that way — `MaxLimit` as `maximum`, `MaxSortFields` as `maxItems` and
+`MaxSearchLength` as `maxLength`, alongside `DefaultLimit` as the `default` and `UnlimitedMaxRows` as the
+`-1` branch of the `oneOf` above. The rest have no keyword that fits and are published as a sentence
+instead: `MaxOffset` on `page`, `MinSearchLength` on `search`, and `MaxFilterValues` /
+`MaxFilterConditions` on every `filter.<field>`. The `page` minimum is not on either list: it is a hard 1
+the engine does not let a resource move, so there is no guard behind it to publish. A validating gateway therefore turns away
+at the edge only what the engine already answers with a `400` — with one caveat: the engine measures the
+**trimmed** search term, so a padded one can be inside `MaxSearchLength` for the engine and outside
+`maxLength` for the validator.
 
 The `400` schema documents **what that operation actually sends**, which is why it is not the same on both
 legs. `type`, `title`, `status`, `detail` and `code` are always there — `code` names the cause as a stable
@@ -93,19 +123,28 @@ filterable decimal and `status` as an enum:
 >
 > Value type: `Draft | Active | Discontinued`
 >
-> Format: `filter.status={$not:}OPERATION:VALUE`
+> Format: `filter.status=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`
+>
+> At most 100 comma-separated values in one criterion, and at most 20 filter criteria across the whole
+> request; beyond either the request returns 400.
 >
 > Available operations:
 >
 > - `$eq`
 > - `$in`
+>
+> Modifiers, available on every field:
+>
 > - `$not`
 > - `$and`
 > - `$or`
 
 An enum field documents its members as the value type, which is how a caller learns that enums are matched
-**by name**. `$not`, `$and` and `$or` are appended to every filter field, because they are modifiers rather
-than operators and are always available.
+**by name**. The grammar line is the one the
+[query-string reference](/reference/query-string/#grammar) publishes, down to the brackets: everything in it
+is optional except the operator, which is why `$null` — an operator that takes no value — is a legal
+criterion on its own. `$not`, `$and` and `$or` are listed separately because they are modifiers rather than
+operators, and are available on every field whatever its operator set.
 
 ## Types and examples
 
@@ -116,22 +155,37 @@ The CLR type of the selector decides both the documented type name and the gener
 | `string` | `string` | `text` |
 | `Guid` | `uuid` | `00000000-0000-0000-0000-000000000000` |
 | `bool` | `boolean` | `true` |
-| `short`, `int`, `long` | `integer` | `42` |
+| `byte`, `sbyte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong` | `integer` | `42` |
 | `float`, `double`, `decimal` | `number` | `9.99` |
 | `DateTime`, `DateTimeOffset` | `date-time` | `2025-01-01T00:00:00Z` |
+| `DateOnly` | `date` | `2025-01-01` |
+| `TimeOnly` | `time` | `09:00:00` |
+| `TimeSpan` | `duration` | `PT2H30M` |
+| `char` | `character` | `a` |
+| an enum | its members, joined by a pipe | the first member |
 | `Instant` ([NodaTime](../../nodatime/)) | `date-time (UTC)` | `2025-01-01T00:00:00Z` |
 | `LocalDate` ([NodaTime](../../nodatime/)) | `date` | `2025-01-01` |
-| an enum | its members, joined by a pipe | the first member |
-| anything else | the type's name | `value` |
+| `LocalDateTime` ([NodaTime](../../nodatime/)) | `date-time (local)` | `2025-01-01T00:00:00` |
+| `LocalTime` ([NodaTime](../../nodatime/)) | `time` | `09:00:00` |
+| `OffsetDateTime` ([NodaTime](../../nodatime/)) | `date-time (offset)` | `2025-01-01T00:00:00-05:00` |
+| `Duration` ([NodaTime](../../nodatime/)) | `duration` | `PT2H30M` |
+| `YearMonth` ([NodaTime](../../nodatime/)) | `year-month` | `2025-01` |
+| anything else (a type you registered yourself) | the type's name | `value` |
 
-Nullable types document as their underlying type.
+Nullable types document as their underlying type. A duration is exemplified in its ISO-8601 spelling and an
+offset date-time with a negative offset, because both forms survive being pasted into a URL unencoded: a
+literal `+` decodes to a space.
 
 The example's **operator** is `$eq` wherever the field grants it, and otherwise the lowest operator it does
-grant — except that when a [LIKE strategy](../../postgresql/) advertises a preferred operator and the field
-allows it, that one wins. So the same config documents `$eq:text` normally and `$ilike:text` once
-`UsePostgreSql()` is registered: the example follows what the deployment can actually do. The rule is
-deliberately independent of the order the operators were declared in, because this example lands in a
-consumer's committed OpenAPI document and a regenerated one is diffed against it.
+grant, `$null` last of all — except that when a [LIKE strategy](../../postgresql/) advertises a preferred
+operator and the field allows it, that one wins. So the same config documents `$eq:text` normally and
+`$ilike:text` once `UsePostgreSql()` is registered: the example follows what the deployment can actually do.
+The rule is deliberately independent of the order the operators were declared in, because this example lands
+in a consumer's committed OpenAPI document and a regenerated one is diffed against it.
+
+Two operators are not spelled `$operator:value`, because the engine does not accept them that way. `$null`
+carries no value and is exemplified bare; `$btw` takes exactly two comma-separated bounds and is exemplified
+with both.
 
 ## Badges
 
