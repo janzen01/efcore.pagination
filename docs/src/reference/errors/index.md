@@ -8,6 +8,13 @@ The messages are part of the published contract and are written to be safe to sh
 field and the operator, never a column, a table, a CLR type or an inner exception. An echoed value is
 truncated and stripped of control characters before it reaches the message.
 
+What they **do** name, deliberately, is the ceiling a request exceeded — `at most 100 values`,
+`between 1 and 50`, `at most 10000 rows may be skipped`. Telling a client the limit it just crossed is the
+whole point of the message, and hiding it would make these errors unactionable; the same numbers are
+published in the generated OpenAPI document anyway. A deployment that must not disclose its guard values has
+`ProblemDetailsOptions.CustomizeProblemDetails` to strip them, which is an application decision rather than a
+library default.
+
 Every row below also carries a **code** — the `PaginateQueryError` member the engine rejected with, emitted
 as the `code` member of the 400 payload. Branch on the code, not on the prose: the prose is contract but it
 is English, and one code stands for several messages. See

@@ -19,6 +19,15 @@ worth checking:
 4. **You declared the wrong kind.** `Sortable` does not make a field filterable, and neither makes it
    searchable. Each is a separate declaration.
 
+## A `.When(...)` gate stopped applying
+
+The inverse symptom, and it has one cause worth checking before any other: **declaring the same name twice
+for the same kind replaces the earlier declaration silently**, and what is replaced may be the gated one. A
+second `.Filterable("isHidden", …)` with no `.When(...)` leaves the field ungated, and `Build()` does not
+catch it — the `When`-requires-`ShowBadge` check inspects only the declarations that survived, and the
+survivor has no `When`. Search the config for a second declaration of that name; the replacement may sit in a
+shared helper rather than next to the original.
+
 ## Sorting is ignored, or wrong
 
 - **`sortBy` replaces the defaults, it does not merge with them.** A request that sends any `sortBy` drops
