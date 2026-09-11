@@ -88,8 +88,13 @@ public static class PaginateFilterOperators {
 		// what the engine can build is the engine's own knowledge.
 		if (Comparable.Contains(core) || (PaginateTypeSupport.IsRegisteredSimpleType(core) && IsOrdered(core))) return Close(Range, nullable);
 
+		// The derivation runs while the builder runs — the shorthand passes For(...) as an argument — so a
+		// registration that lands after Create(...) is too late. Naming that here is the point: the first
+		// sentence alone reads as "hard-code the list", which silently gives up the widening the shorthand exists for.
 		throw new ArgumentException(
-			$"Filter operators cannot be derived for type '{core.Name}'. Declare the field with an explicit operator list.",
+			$"Filter operators cannot be derived for type '{core.Name}'. Declare the field with an explicit operator list. "
+			+ "A type that must be registered first (UseNodaTime, RegisterSimpleType) has to be registered before "
+			+ "PaginateConfig<T>.Create runs: the shorthand derives its operators while the builder runs, not at Build().",
 			paramName);
 
 	}

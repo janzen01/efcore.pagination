@@ -1,4 +1,5 @@
 using Janzen.Pagination.EntityFrameworkCore;
+using Janzen.Pagination.EntityFrameworkCore.Engine;
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using NodaTime;
@@ -12,8 +13,8 @@ namespace Janzen.Pagination.NodaTime;
 /// <summary>
 ///     Registers NodaTime support with the Janzen.Pagination engine: value parsing for filters, leaf-type
 ///     classification for projection, and projection conversions onto the BCL types a DTO holds. Call once at
-///     startup before serving requests — e.g. <c>services.AddPagination(p =&gt; p.UseNodaTime())</c> — or call
-///     <see cref="Register" /> directly for non-DI hosts.
+///     startup, before the first configuration is built — e.g. <c>services.AddPagination(p =&gt; p.UseNodaTime())</c>
+///     — or call <see cref="Register" /> directly for non-DI hosts.
 /// </summary>
 /// <remarks>
 ///     Supported: <see cref="Instant" />, <see cref="LocalDate" />, <see cref="LocalDateTime" />,
@@ -26,7 +27,9 @@ namespace Janzen.Pagination.NodaTime;
 public static class PaginateNodaTime {
 
 	private readonly static Lock Gate = new();
-	private static bool _registered;
+	// Volatile because the fast path below reads it outside the lock: it is the publication point for every
+	// registration written before it, and a plain bool guards no earlier write.
+	private static volatile bool _registered;
 
 	// One row per conversion, so the nullable composition below is written once. Every pair goes NodaTime -> BCL:
 	// entities hold NodaTime, DTOs consume BCL types, and nothing has asked for the reverse.
@@ -35,13 +38,16 @@ public static class PaginateNodaTime {
 		(typeof(LocalDate), typeof(DateOnly), nameof(LocalDate.ToDateOnly)),
 		(typeof(LocalDateTime), typeof(DateTime), nameof(LocalDateTime.ToDateTimeUnspecified)),
 		(typeof(LocalTime), typeof(TimeOnly), nameof(LocalTime.ToTimeOnly)),
-		(typeof(OffsetDateTime), typeof(DateTimeOffset), nameof(OffsetDateTime.ToDateTimeOffset))
+		(typeof(OffsetDateTime), typeof(DateTimeOffset), nameof(OffsetDateTime.ToDateTimeOffset)),
+		(typeof(Duration), typeof(TimeSpan), nameof(Duration.ToTimeSpan))
 	];
 
 	/// <summary>
 	///     Registers NodaTime support with the pagination engine, for hosts without dependency injection. Idempotent
 	///     and process-wide: the first call registers, later ones are no-ops. Call once at startup, before the first
-	///     query runs; in a DI host, <c>UseNodaTime()</c> inside <c>AddPagination(...)</c> calls this for you.
+	///     <c>PaginateConfig&lt;TEntity&gt;</c> is built — the operator-less <c>Filterable</c> shorthand derives its
+	///     operator set while the builder runs, so a later registration is too late; in a DI host,
+	///     <c>UseNodaTime()</c> inside <c>AddPagination(...)</c> calls this for you.
 	/// </summary>
 	public static void Register() {
 
@@ -95,28 +101,22 @@ public static class PaginateNodaTime {
 	/// <summary>
 	///     Reads a duration in either NodaTime's own round-trip form (<c>2:30:00</c>) or ISO-8601 (<c>PT2H30M</c>),
 	///     mirroring how the engine reads a <see cref="TimeSpan" />. NodaTime ships no ISO-8601 duration pattern —
-	///     <c>DurationPattern.JsonRoundtrip</c> is the colon form despite the name — so the ISO leg goes through
-	///     <see cref="XmlConvert" />.
+	///     <c>DurationPattern.JsonRoundtrip</c> is the colon form despite the name — so the ISO leg is the engine's
+	///     own reader, which goes through <see cref="XmlConvert" />. Note the two spellings do not share a
+	///     resolution: the colon form is native and resolves to a nanosecond, the ISO form to 100 ns.
 	/// </summary>
 	private static object ParseDuration(string value) {
 
 		var roundtrip = DurationPattern.JsonRoundtrip.Parse(value);
 		if (roundtrip.Success) return roundtrip.Value;
 
-		// Years and months are calendar-dependent and XmlConvert answers them with fixed approximations — P1M is
-		// exactly thirty days, P1Y exactly 365. A filter for "a month" silently becoming a filter for thirty days
-		// is worse than a 400, so those designators are refused rather than approximated.
-		int time = value.IndexOf('T', StringComparison.Ordinal);
-		var datePart = time < 0 ? value.AsSpan() : value.AsSpan(0, time);
-
-		if (datePart.ContainsAny('Y', 'M')) {
-			throw new PaginateQueryException($"Value '{value}' is not a valid duration: a duration in years or months has no fixed length.");
-		}
-
+		// The ISO leg is the engine's own: years and months are calendar-dependent and XmlConvert answers them
+		// with fixed approximations, so the same refusal applies to a Duration as to a TimeSpan. One
+		// implementation, and the clause below keeps this package's own 400 wording.
 		try {
-			return Duration.FromTimeSpan(XmlConvert.ToTimeSpan(value));
+			return Duration.FromTimeSpan(PaginateValueConverter.ParseIsoDuration(value, "is not a valid duration"));
 		} catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException) {
-			throw new PaginateQueryException($"Value '{value}' is not a valid duration.");
+			throw new PaginateQueryException($"Value '{value}' is not a valid duration.", ex);
 		}
 
 	}

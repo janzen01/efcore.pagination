@@ -67,6 +67,24 @@ public sealed class OperatorDerivationTests {
 
 	}
 
+	/// <summary>
+	///     The derivation runs while the builder runs, so a registration that lands after
+	///     <c>Create(...)</c> is already too late. The message has to say so: the developer is standing at
+	///     this exception, and its first sentence alone sends them to hard-code the operator list instead.
+	/// </summary>
+	[Fact]
+	public void The_derivation_failure_names_the_registration_deadline() {
+
+		var exception = Assert.Throws<ArgumentException>(PaginateFilterOperators.For<Category>);
+
+		Assert.Contains(
+			"A type that must be registered first (UseNodaTime, RegisterSimpleType) has to be registered before "
+			+ "PaginateConfig<T>.Create runs: the shorthand derives its operators while the builder runs, not at Build().",
+			exception.Message,
+			StringComparison.Ordinal);
+
+	}
+
 	[Fact]
 	public void An_underivable_type_throws_rather_than_guessing() {
 
