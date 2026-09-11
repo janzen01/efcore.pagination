@@ -5,6 +5,7 @@ using Janzen.Pagination.EntityFrameworkCore.Model;
 using NodaTime;
 using NodaTime.Text;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Xml;
 
@@ -49,6 +50,8 @@ public static class PaginateNodaTime {
 	///     operator set while the builder runs, so a later registration is too late; in a DI host,
 	///     <c>UseNodaTime()</c> inside <c>AddPagination(...)</c> calls this for you.
 	/// </summary>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static void Register() {
 
 		if (_registered) return;
@@ -130,6 +133,8 @@ public static class PaginateNodaTime {
 	///     Builds a NodaTime → BCL projection for one of the supported pairs, preserving nullability where both sides
 	///     are nullable; returns <see langword="null" /> when no pair applies.
 	/// </summary>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	private static Expression? BuildConversion(Expression sourceValue, Type targetType) {
 
 		var sourceUnderlying = Nullable.GetUnderlyingType(sourceValue.Type) ?? sourceValue.Type;
