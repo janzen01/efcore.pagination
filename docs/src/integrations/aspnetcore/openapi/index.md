@@ -33,10 +33,10 @@ Six parameters plus a `400`, in this order:
 |-----------|-------|------------|
 | `page` | `integer`, minimum `1`, default `1` | fixed |
 | `limit` | `integer`, minimum `1`, **maximum `MaxLimit`**, default `DefaultLimit` | `WithLimits` |
-| `sortBy` | `array` of `string`, exploded, **enum of every `field:ASC` / `field:DESC`** | `Sortable`, `DefaultSortBy` |
-| `search` | `string` | `Searchable` |
+| `sortBy` | `array` of `string`, exploded, **enum of every `field:ASC` / `field:DESC`**, maximum `MaxSortFields` items | `Sortable`, `DefaultSortBy`, `WithGuards` |
+| `search` | `string`, maximum `MaxSearchLength` characters | `Searchable`, `WithGuards` |
 | `searchBy` | `array` of `string`, exploded, enum of the searchable names | `Searchable` |
-| `filter.<field>` | `array` of `string`, exploded, one parameter **per filterable field** | `Filterable`, `FilterableMany` |
+| `filter.<field>` | `array` of `string`, exploded, one parameter **per filterable field** | `Filterable`, `FilterableMany`, `WithGuards` |
 | `400` response | `application/problem+json` with `type` / `title` / `status` / `detail` / `code`, plus `traceId` where the app sends one | fixed |
 
 Three conditions worth knowing:
@@ -49,6 +49,15 @@ Three conditions worth knowing:
   run time, so advertising it would be a lie.
 - **`filter.` parameters are ordered by field name** (ordinal), not by declaration order, so the document is
   stable across config edits that only move lines around.
+
+All nine [guards](/reference/configuration/#withguards) reach the document. Five of them are expressible as
+JSON Schema and are published that way — `MaxLimit` as `maximum`, `MaxSortFields` as `maxItems` and
+`MaxSearchLength` as `maxLength`, alongside `DefaultLimit` and the `page` minimum. The rest have no keyword
+that fits and are published as a sentence instead: `MaxOffset` on `page`, `MinSearchLength` on `search`, and
+`MaxFilterValues` / `MaxFilterConditions` on every `filter.<field>`. A validating gateway therefore turns away
+at the edge only what the engine already answers with a `400` — with one caveat: the engine measures the
+**trimmed** search term, so a padded one can be inside `MaxSearchLength` for the engine and outside
+`maxLength` for the validator.
 
 The `400` schema documents **what that operation actually sends**, which is why it is not the same on both
 legs. `type`, `title`, `status`, `detail` and `code` are always there — `code` names the cause as a stable

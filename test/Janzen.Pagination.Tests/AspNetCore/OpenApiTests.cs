@@ -72,7 +72,7 @@ public sealed class PerConfigStrategyProvider : IPaginateConfigProvider<Product>
 
 }
 
-/// <summary>A resource with all three of the guards that change what the parameter descriptions say.</summary>
+/// <summary>A resource with every guard that changes what the document says, all on non-default values.</summary>
 public sealed class GuardedConfigProvider : IPaginateConfigProvider<Product> {
 
 	public PaginateConfig<Product> GetConfig() {
@@ -82,7 +82,12 @@ public sealed class GuardedConfigProvider : IPaginateConfigProvider<Product> {
 			.WithMaxOffset(5_000)
 			.WithMinSearchLength(3)
 			.AllowUnlimited(2_000)
-			.Searchable("name", p => p.Name));
+			// Every value differs from the engine's own default, so an assertion cannot pass on the default by
+			// accident: 100 / 20 / 5 / 256.
+			.WithGuards(maxFilterValues: 25, maxFilterConditions: 8, maxSortFields: 3, maxSearchLength: 120)
+			.Sortable("rank", p => p.Rank)
+			.Searchable("name", p => p.Name)
+			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
 	}
 
 }
@@ -456,6 +461,36 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		Assert.Contains("At most 5000 rows may be skipped", this.Description("/guarded", "page"), StringComparison.Ordinal);
 		Assert.Contains("Send -1 with page=1", this.Description("/guarded", "limit"), StringComparison.Ordinal);
 		Assert.Contains("at least 3 characters after trimming", this.Description("/guarded", "search"), StringComparison.Ordinal);
+
+	}
+
+	private JsonElement Schema(string path, string name) {
+		return this.Parameters(path).EnumerateArray()
+			.Single(parameter => parameter.GetProperty("name").GetString() == name)
+			.GetProperty("schema");
+	}
+
+	[Fact]
+	public void The_request_shape_guards_reach_the_schema() {
+
+		// The transformer read five of the nine guards and never these. A client generated from the document
+		// happily sent six sortBy values or a 300-character search term and met the ceiling only as a 400 the
+		// document had never mentioned -- while the transformer's own summary says the published parameters
+		// cannot drift from what the engine enforces.
+		Assert.Equal(3, this.Schema("/guarded", "sortBy").GetProperty("maxItems").GetInt32());
+		Assert.Equal(120, this.Schema("/guarded", "search").GetProperty("maxLength").GetInt32());
+
+	}
+
+	[Fact]
+	public void The_filter_list_and_request_ceilings_reach_the_description() {
+
+		// Neither has a JSON Schema keyword that fits -- one bounds the elements inside a single string value,
+		// the other spans parameters -- so they follow the pattern WithMaxOffset already set and go in the prose.
+		string description = this.Description("/guarded", "filter.status");
+
+		Assert.Contains("25", description, StringComparison.Ordinal);
+		Assert.Contains("8 filter criteria", description, StringComparison.Ordinal);
 
 	}
 

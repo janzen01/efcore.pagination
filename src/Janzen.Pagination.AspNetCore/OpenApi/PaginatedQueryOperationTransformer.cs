@@ -77,7 +77,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		var likeStrategy = config.LikeStrategy ?? PaginateLikeDefaults.Strategy;
 
 		foreach (var field in config.FilterableFields.OrderBy(field => field.Name, StringComparer.Ordinal)) {
-			operation.Parameters.Add(CreateFilterParameter(field, likeStrategy));
+			operation.Parameters.Add(CreateFilterParameter(config, field, likeStrategy));
 		}
 
 		AddValidationErrorResponse(operation, context);
@@ -211,6 +211,9 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 					Type = JsonSchemaType.String,
 					Enum = BuildSortEnum(config)
 				},
+				// Only request-supplied sorts count towards the guard, and the schema describes exactly those --
+				// the default below and the configured tie-breaker are not measured against it.
+				MaxItems = config.MaxSortFields,
 				Default = BuildDefaultSort(config)
 			}
 		};
@@ -225,7 +228,12 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				: "Search term to filter result values.",
 			Required = false,
 			Schema = new OpenApiSchema {
-				Type = JsonSchemaType.String
+				Type = JsonSchemaType.String,
+				// The engine measures the *trimmed* term, which no schema keyword can express, so this is the
+				// conservative reading of the same ceiling: a validating gateway turns a padded term away a few
+				// characters before the engine would. MinSearchLength stays prose-only for that reason -- as a
+				// minLength it would reject padding the engine trims off and then accepts.
+				MaxLength = config.MaxSearchLength
 			}
 		};
 	}
@@ -254,7 +262,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		};
 	}
 
-	private static OpenApiParameter CreateFilterParameter(PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
+	private static OpenApiParameter CreateFilterParameter(IPaginateConfig config, PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
 		string operators = string.Join('\n', BuildOperatorTokens(field).Select(token => $"- `{token}`"));
 		var value = DescribeValueType(field.Type);
 		var preferred = likeStrategy.PreferredExampleOperator;
@@ -293,6 +301,8 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			                Value type: `{{value.Name}}`
 
 			                Format: `{{PaginateQueryParams.FilterPrefix}}{{field.Name}}={$not:}OPERATION:VALUE`
+
+			                At most {{config.MaxFilterValues}} comma-separated values in one criterion, and at most {{config.MaxFilterConditions}} filter criteria across the whole request; beyond either the request returns 400.
 
 			                Available operations:
 
