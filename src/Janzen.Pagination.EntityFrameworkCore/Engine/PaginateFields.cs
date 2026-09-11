@@ -3,6 +3,7 @@ using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.EntityFrameworkCore;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -27,6 +28,8 @@ internal sealed record PaginateSearchField<TEntity>(string Name, Expression<Func
 	public bool? Condition { get; set; }
 }
 
+[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 internal abstract class PaginateFilterField(
 	string name,
 	Type type,
@@ -37,7 +40,7 @@ internal abstract class PaginateFilterField(
 	public bool? Condition { get; set; }
 
 	private readonly static MethodInfo EnumerableContainsMethod =
-		PaginateExpressionUtils.GetMethodByParameterCount(typeof(Enumerable), nameof(Enumerable.Contains), 2);
+		PaginateExpressionUtils.GetMethodByParameterCount(typeof(Enumerable).GetMethods(), nameof(Enumerable.Contains), 2);
 
 	// The range branch below is reached for exactly two types, so these are two process constants rather than a
 	// per-criterion name lookup.
@@ -405,6 +408,8 @@ internal abstract class PaginateFilterField(
 
 }
 
+[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 internal sealed class PaginateScalarFilterField<TEntity, TValue>(
 	string name,
 	Expression<Func<TEntity, TValue>> selector,
@@ -421,6 +426,8 @@ internal sealed class PaginateScalarFilterField<TEntity, TValue>(
 
 }
 
+[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 internal sealed class PaginateCollectionFilterField<TEntity, TElement>(
 	string name,
 	Expression<Func<TEntity, IEnumerable<TElement>>> collectionSelector,
@@ -430,7 +437,7 @@ internal sealed class PaginateCollectionFilterField<TEntity, TElement>(
 ) : PaginateFilterField(name, type, operators) {
 
 	private readonly static MethodInfo EnumerableAnyMethod = PaginateExpressionUtils
-		.GetMethodByParameterCount(typeof(Enumerable), nameof(Enumerable.Any), 2)
+		.GetMethodByParameterCount(typeof(Enumerable).GetMethods(), nameof(Enumerable.Any), 2)
 		.MakeGenericMethod(typeof(TElement));
 
 	public override Expression BuildExpression(ParameterExpression entity, PaginateFilterCriterion criterion, PaginateExpressionContext context, int maxFilterValues) {

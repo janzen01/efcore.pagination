@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 
 namespace Janzen.Pagination.EntityFrameworkCore.Engine;
@@ -28,6 +29,7 @@ internal static class PaginateNullSafeRewriter {
 	///     nullable intermediate. A value-typed result comes back lifted to <see cref="Nullable{T}" />, so a caller
 	///     must read the returned expression's type rather than assume the member's own.
 	/// </summary>
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static Expression Rewrite(Expression body, ParameterExpression root) {
 
 		// The chain, outermost first on the way down and reversed into evaluation order as it goes.
@@ -50,6 +52,7 @@ internal static class PaginateNullSafeRewriter {
 	///     call sites that pass a selector on rather than splicing its body. Returns <paramref name="selector" />
 	///     unchanged when there is nothing to guard.
 	/// </summary>
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static LambdaExpression Rewrite(LambdaExpression selector) {
 
 		var parameter = selector.Parameters[0];
@@ -60,6 +63,7 @@ internal static class PaginateNullSafeRewriter {
 	}
 
 	/// <summary>Builds the guarded form, or <see langword="null" /> when no intermediate in the chain can be null.</summary>
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	private static Expression? Build(List<MemberExpression> chain, ParameterExpression root) {
 
 		// Every step but the last is an intermediate, and only a reference-typed one can be null — a chain

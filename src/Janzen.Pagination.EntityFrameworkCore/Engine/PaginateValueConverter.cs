@@ -1,6 +1,7 @@
 using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using System.Xml;
@@ -54,6 +55,8 @@ internal static class PaginateValueConverter {
 	///     model closely enough that probing a few fields reconstructs it, and the field name is the token the
 	///     caller actually sent.
 	/// </summary>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static object? Convert(string value, Type targetType, string field) {
 
 		var type = Nullable.GetUnderlyingType(targetType) ?? targetType;
@@ -189,6 +192,8 @@ internal static class PaginateValueConverter {
 
 	}
 
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	private static bool TryParseParsable(Type type, string value, string field, out object? result) {
 
 		var parser = ParsableParsers.GetOrAdd(type, BuildParsableParser);
@@ -203,6 +208,8 @@ internal static class PaginateValueConverter {
 
 	}
 
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	private static Func<string, string, object?>? BuildParsableParser(Type type) {
 
 		// IParsable<TSelf> only — a type parsing into something other than itself is not what this fallback is for.

@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
 
 using System.Collections.Frozen;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net;
 using System.Runtime.CompilerServices;
@@ -109,7 +110,9 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	// Weak keys, so a finished scope takes its entry with it.
 	private readonly ConditionalWeakTable<IServiceProvider, Dictionary<Type, IPaginateConfig>> _configsPerDocument = new();
 
-	private IPaginateConfig GetConfig(IServiceProvider services, Type providerType) {
+	private IPaginateConfig GetConfig(
+		IServiceProvider services,
+		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type providerType) {
 
 		var configs = this._configsPerDocument.GetValue(services, static _ => []);
 
@@ -402,13 +405,11 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 		if (config.DefaultSortBy.Count == 0) return null;
 
-		var array = new JsonArray();
-
-		foreach (var sort in config.DefaultSortBy) {
-			array.Add($"{sort.Field}:{PaginateExpressionUtils.FormatDirection(sort.Direction)}");
-		}
-
-		return array;
+		// Spelled as a JsonNode element rather than array.Add(string): the ICollection<JsonNode?> overload takes a
+		// node, while Add<T> boxes an arbitrary T into a JsonValue and is [RequiresUnreferencedCode] for it. Same
+		// shape as BuildSortEnum above, and the node is a string either way.
+		return [.. config.DefaultSortBy
+			.Select(JsonNode (sort) => JsonValue.Create($"{sort.Field}:{PaginateExpressionUtils.FormatDirection(sort.Direction)}"))];
 
 	}
 
@@ -455,17 +456,22 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			_ when t == typeof(TimeSpan) => ("duration", "PT2H30M", "PT8H"),
 			_ when t == typeof(char) => ("character", "a", "z"),
 			// Above the probes below on purpose: no NodaTime type is an enum, and this way an enum field does not
-			// pay a resolve-by-name lookup for every NodaTime type before reaching its arm.
+			// walk all seven name comparisons before reaching its arm.
+			//
+			// FullName rather than t.Assembly.GetType("NodaTime.X"): the two answer identically -- GetType resolves
+			// within t's own assembly, so it returns t exactly when t's full name is the one asked for -- but
+			// Assembly.GetType is [RequiresUnreferencedCode], which made seven IL2026 out of a comparison needing no
+			// reflection at all. The package still holds no reference to NodaTime.
 			_ when t.IsEnum => DescribeEnum(t),
-			_ when t == t.Assembly.GetType("NodaTime.Instant") => ("date-time (UTC)", "2025-01-01T00:00:00Z", "2025-12-31T23:59:59Z"),
-			_ when t == t.Assembly.GetType("NodaTime.LocalDate") => ("date", "2025-01-01", "2025-12-31"),
-			_ when t == t.Assembly.GetType("NodaTime.LocalDateTime") => ("date-time (local)", "2025-01-01T00:00:00", "2025-12-31T23:59:59"),
-			_ when t == t.Assembly.GetType("NodaTime.LocalTime") => ("time", "09:00:00", "17:00:00"),
+			_ when t.FullName is "NodaTime.Instant" => ("date-time (UTC)", "2025-01-01T00:00:00Z", "2025-12-31T23:59:59Z"),
+			_ when t.FullName is "NodaTime.LocalDate" => ("date", "2025-01-01", "2025-12-31"),
+			_ when t.FullName is "NodaTime.LocalDateTime" => ("date-time (local)", "2025-01-01T00:00:00", "2025-12-31T23:59:59"),
+			_ when t.FullName is "NodaTime.LocalTime" => ("time", "09:00:00", "17:00:00"),
 			// A negative offset, because a literal '+' in a query string decodes to a space: the example is there to
 			// be copied into a URL, and "+02:00" would arrive as " 02:00".
-			_ when t == t.Assembly.GetType("NodaTime.OffsetDateTime") => ("date-time (offset)", "2025-01-01T00:00:00-05:00", "2025-12-31T23:59:59-05:00"),
-			_ when t == t.Assembly.GetType("NodaTime.Duration") => ("duration", "PT2H30M", "PT8H"),
-			_ when t == t.Assembly.GetType("NodaTime.YearMonth") => ("year-month", "2025-01", "2025-12"),
+			_ when t.FullName is "NodaTime.OffsetDateTime" => ("date-time (offset)", "2025-01-01T00:00:00-05:00", "2025-12-31T23:59:59-05:00"),
+			_ when t.FullName is "NodaTime.Duration" => ("duration", "PT2H30M", "PT8H"),
+			_ when t.FullName is "NodaTime.YearMonth" => ("year-month", "2025-01", "2025-12"),
 			// A consumer-registered type: the parser is the consumer's, so there is no form this package can name.
 			_ => (t.Name, "value", null)
 		};

@@ -3,6 +3,7 @@ using Janzen.Pagination.EntityFrameworkCore.Model;
 
 using Microsoft.EntityFrameworkCore;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -20,6 +21,10 @@ internal static class PaginateExpressionUtils {
 	// Every pattern operator and every searched field parameterises a string by construction, and closing a
 	// generic method is the expensive half of this call -- so that one instantiation is resolved once here rather
 	// than per criterion.
+	[UnconditionalSuppressMessage("Trimming", "IL2060",
+		Justification = "The type argument is the literal typeof(string) and EF.Parameter<T> places no member requirement on T, so there is nothing for the trimmer to preserve beyond the method itself.")]
+	[UnconditionalSuppressMessage("AOT", "IL3050",
+		Justification = "string is a reference type, so this instantiation shares the canonical code the runtime already has; no new native code is generated.")]
 	private readonly static MethodInfo StringParameterMethod = ParameterMethod.MakeGenericMethod(typeof(string));
 
 	private readonly static MethodInfo OrderByMethod = GetQueryableOrderMethod(nameof(Queryable.OrderBy));
@@ -31,6 +36,8 @@ internal static class PaginateExpressionUtils {
 	///     Wraps a value expression in <see cref="EF.Parameter{T}" /> so EF Core translates it as a SQL parameter instead
 	///     of an inlined literal (better plan reuse). Only valid inside EF queries.
 	/// </summary>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static Expression ToDatabaseParameter(Expression value) {
 		return Expression.Call(value.Type == typeof(string) ? StringParameterMethod : ParameterMethod.MakeGenericMethod(value.Type), value);
 	}
@@ -73,6 +80,8 @@ internal static class PaginateExpressionUtils {
 	///     <c>Accept-Language</c> header instead. On a relational provider the comparer is the column's collation
 	///     and there is nothing here to choose.
 	/// </summary>
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static IQueryable<TEntity> ApplyOrder<TEntity>(IQueryable<TEntity> query, LambdaExpression selector, bool descending, bool first, bool useDatabaseFunctions) {
 
 		if (!useDatabaseFunctions && selector.Body.Type == typeof(string)) {
@@ -172,13 +181,22 @@ internal static class PaginateExpressionUtils {
 
 	}
 
-	/// <summary>Resolves a method overload by name and parameter count; <c>Single</c> guards against ambiguous matches.</summary>
-	public static MethodInfo GetMethodByParameterCount(Type type, string name, int parameterCount) {
-		return type
-			.GetMethods()
-			.Single(method => method.Name == name && method.GetParameters().Length == parameterCount);
+	/// <summary>
+	///     Resolves a method overload by name and parameter count; <c>Single</c> guards against ambiguous matches.
+	///     Takes the overload set rather than the declaring <see cref="Type" /> so every caller keeps its
+	///     <c>typeof(X).GetMethods()</c> literal: trim analysis reads that form and preserves exactly those methods,
+	///     where a <see cref="Type" /> arriving through a parameter can only be answered by annotating it, which
+	///     would demand every public method of the framework type — several of which are themselves trim-unsafe.
+	/// </summary>
+	public static MethodInfo GetMethodByParameterCount(MethodInfo[] methods, string name, int parameterCount) {
+		return methods.Single(method => method.Name == name && method.GetParameters().Length == parameterCount);
 	}
 
-	private static MethodInfo GetQueryableOrderMethod(string name) { return GetMethodByParameterCount(typeof(Queryable), name, 2); }
+	// The enumeration is metadata only: four overloads are picked out by name and parameter count, and none of
+	// the RequiresUnreferencedCode members Queryable also declares (AsQueryable, chiefly) is ever called from
+	// here. Preserving the overload set is what the lookup needs and all it needs.
+	[UnconditionalSuppressMessage("Trimming", "IL2026",
+		Justification = "Queryable's public methods are enumerated to resolve four ordering overloads by name; the trim-unsafe members the enumeration also preserves are never invoked.")]
+	private static MethodInfo GetQueryableOrderMethod(string name) { return GetMethodByParameterCount(typeof(Queryable).GetMethods(), name, 2); }
 
 }

@@ -1,5 +1,7 @@
 using Janzen.Pagination.EntityFrameworkCore.Configuration;
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace Janzen.Pagination.AspNetCore.OpenApi;
 
 /// <summary>
@@ -16,9 +18,16 @@ public abstract class PaginatedQueryAttribute : Attribute {
 	///     only when nothing is registered, then documents the pagination parameters from
 	///     <see cref="IPaginateConfigProvider.GetConfig" />.
 	/// </summary>
+	// The annotation is what keeps the activation below working after trimming: a trimmer keeps a type whose
+	// constructors are never named, but not those constructors, and the integration guide's recommended shape is
+	// not to register the provider at all -- so nothing else roots the one ActivatorUtilities calls. The
+	// requirement travels from the type argument the consumer writes, through here, to CreateInstance.
+	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
 	public Type ConfigProviderType { get; }
 
-	private protected PaginatedQueryAttribute(Type configProviderType) => ConfigProviderType = configProviderType;
+	private protected PaginatedQueryAttribute(
+		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configProviderType) =>
+		ConfigProviderType = configProviderType;
 
 }
 
@@ -29,4 +38,6 @@ public abstract class PaginatedQueryAttribute : Attribute {
 ///     <c>WithPagination&lt;TProvider&gt;()</c> instead. Metadata only — no runtime effect on the query.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class PaginatedQueryAttribute<TConfigProvider>() : PaginatedQueryAttribute(typeof(TConfigProvider)) where TConfigProvider : IPaginateConfigProvider;
+public sealed class PaginatedQueryAttribute<
+	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TConfigProvider>()
+	: PaginatedQueryAttribute(typeof(TConfigProvider)) where TConfigProvider : IPaginateConfigProvider;

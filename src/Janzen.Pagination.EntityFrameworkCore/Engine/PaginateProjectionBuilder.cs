@@ -1,9 +1,12 @@
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Janzen.Pagination.EntityFrameworkCore.Engine;
 
+[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 internal static class PaginateProjectionBuilder {
 
 	public static Expression<Func<TEntity, TResult>> Build<TEntity, TResult>() { return Cache<TEntity, TResult>.Projection.Value; }
@@ -223,6 +226,8 @@ internal static class PaginateProjectionBuilder {
 	// Lazy rather than a plain static field: building it can fail on an unprojectable DTO, and a throwing field
 	// initializer would reach the caller as TypeInitializationException with the real message one level down.
 	// Lazy's default mode keeps the same build-once guarantee and rethrows the original exception unwrapped.
+	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
+	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	private static class Cache<TEntity, TResult> {
 
 		public readonly static Lazy<Expression<Func<TEntity, TResult>>> Projection = new(Create<TEntity, TResult>);

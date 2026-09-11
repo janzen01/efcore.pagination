@@ -90,6 +90,7 @@ public sealed class GuardedConfigProvider : IPaginateConfigProvider<Product> {
 			// accident: 100 / 20 / 5 / 256.
 			.WithGuards(maxFilterValues: 25, maxFilterConditions: 8, maxSortFields: 3, maxSearchLength: 120)
 			.Sortable("rank", p => p.Rank)
+			.DefaultSortBy("rank", PaginateSortDirection.Desc)
 			.Searchable("name", p => p.Name)
 			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
 	}
@@ -575,6 +576,20 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 		Assert.False(plain.TryGetProperty("oneOf", out _));
 		Assert.True(plain.TryGetProperty("minimum", out _));
+
+	}
+
+	[Fact]
+	public void The_configured_default_sort_reaches_the_sortBy_schema() {
+
+		// What a caller gets when sortBy is omitted, and the only part of the config the schema states as a
+		// value rather than a bound -- so it is also the one place the emitted array is built element by element.
+		string?[] applied = [.. this.Schema("/guarded", "sortBy").GetProperty("default").EnumerateArray().Select(entry => entry.GetString())];
+
+		Assert.Equal(["rank:DESC"], applied);
+
+		// A resource with no default says nothing rather than saying "none".
+		Assert.False(this.Schema("/products", "sortBy").TryGetProperty("default", out _));
 
 	}
 

@@ -307,9 +307,14 @@ reports it as `null` rather than empty. See
 ## Trimming & Native AOT
 
 The engine builds LINQ expression trees and uses reflection (DTO projection mapping, `MakeGenericMethod`),
-so it is **not compatible with trimming or Native AOT**. Every public `Paginate*Async`
-entry point is annotated with `[RequiresUnreferencedCode]` / `[RequiresDynamicCode]`, so consumers
-building trimmed or AOT applications get accurate analyzer warnings rather than silent runtime failures.
+so it is **not compatible with trimming or Native AOT**. Every public entry point that reaches that
+reflection is annotated with `[RequiresUnreferencedCode]` / `[RequiresDynamicCode]` — the four
+`Paginate*Async` methods, the two composers, `PaginateFilterOperators.For`, and the `Filterable` /
+`FilterableMany` builder overloads, which construct the engine's filter fields and, in the
+operator-less form, derive the operator set from the field's type. Consumers
+building trimmed or AOT applications therefore get accurate analyzer warnings rather than silent
+runtime failures, and the analyzers run on this repository's own build so the set cannot quietly fall
+behind the code.
 
 ## Debugging
 
