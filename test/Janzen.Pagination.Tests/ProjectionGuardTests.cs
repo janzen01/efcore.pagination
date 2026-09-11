@@ -19,6 +19,19 @@ public sealed class Employee {
 /// <summary>Mirrors <see cref="Employee" />, so building it naively recurses without end.</summary>
 public sealed record EmployeeDto(int Id, EmployeeDto? Manager);
 
+/// <summary>Two members of the same nested type — a repeat, not a cycle, and the recursion guard must tell them apart.</summary>
+public sealed class Bundle {
+
+	public int Id { get; set; }
+
+	public Category? Primary { get; set; }
+
+	public Category? Secondary { get; set; }
+
+}
+
+public sealed record BundleDto(int Id, CategoryDto? Primary, CategoryDto? Secondary);
+
 /// <summary>A sub-collection member, which only <c>PaginateSelectAsync</c> can produce.</summary>
 public sealed record ProductWithReviewsDto(int Id, string Name, List<ReviewDto> Reviews);
 
@@ -185,6 +198,20 @@ public sealed class ProjectionGuardTests(OrphanFixture fixture) : IClassFixture<
 		string message = Rejects(() => PaginateProjectionBuilder.Build<Employee, EmployeeDto>());
 
 		Assert.Equal("Cannot automatically project 'Employee.Manager' into 'EmployeeDto': the type is recursive.", message);
+
+	}
+
+	[Fact]
+	public void Two_members_of_the_same_nested_type_are_not_mistaken_for_recursion() {
+
+		// The recursion guard tracks the pairs currently being built, not every pair ever seen. Forget to drop
+		// one when its object is finished and a DTO naming the same nested type twice stops building.
+		var projection = PaginateProjectionBuilder.Build<Bundle, BundleDto>();
+
+		var conditionals = new ConditionalCounter();
+		conditionals.Visit(projection.Body);
+
+		Assert.Equal(2, conditionals.Count);
 
 	}
 
