@@ -30,6 +30,11 @@
              roughly 85 % false positives here, largely CA1062 made redundant by Nullable=enable and a
              CA1034 that misfires on C# 14 extension blocks. -->
         <AnalysisModeSecurity>All</AnalysisModeSecurity>
+        <!-- AnalysisLevel is deliberately NOT pinned, so it floats with the SDK and a new one can introduce a
+             diagnostic that fails -warnaserror on a tree nobody touched. That is accepted rather than
+             overlooked: pinning freezes the analyzer set until someone remembers to raise it, Dependabot does
+             not watch this property, and a stale pin rots quietly where a reddened build is visible and
+             fixable in the open. Revisit only if a float actually costs a day. -->
         <!-- Trim/AOT analysis. Ten public members carry [RequiresUnreferencedCode] and [RequiresDynamicCode], and
              until these were set nothing checked that the set was complete: a new reflective public entry point
              compiled clean, so silence meant "declared unsafe" on the annotated members and "never analysed" on

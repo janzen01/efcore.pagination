@@ -61,6 +61,18 @@ entry, for every distinct list a client sends. If a highly selective `$in` over 
 badly, that is the mechanism — `pg_hint_plan`, a partial index, or splitting the query are the levers, not a
 library setting.
 
+## The first paginated call of a process is slow
+
+Roughly **20 ms of type initialisers plus JIT**, measured as ~24 ms for the first `ApplyPagination` against
+0.006 ms once warm — about 3 600×. Most of it is one type: the filter parser's frozen operator tables cost
+~13 ms to build, and they are built once per process, not per request.
+
+It is a constant, not a leak, and on a long-lived host it disappears into startup. It matters in two places:
+a **cold-started serverless instance**, where the first request a container ever serves pays it, and a **p99
+measured across scale-out**, where every new instance contributes one slow request. If either describes your
+deployment, issue one throwaway paginated query at startup — an `ApplyPagination` against an empty queryable
+is enough, since it composes without touching the database — and the cost moves out of the request path.
+
 ## Index the sort, including the tie-breaker
 
 The emitted `ORDER BY` is not what you declared — the tie-breaker is appended to it:
