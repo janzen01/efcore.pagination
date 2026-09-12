@@ -40,8 +40,14 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite"/>
+        <!-- Load-bearing despite the MTP runner: dropping it fails the build with "xUnit.net v3 test projects
+             must be executable", because it is what makes this project an Exe. Measured, not assumed. -->
         <PackageReference Include="Microsoft.NET.Test.Sdk"/>
         <PackageReference Include="xunit.v3"/>
+        <!-- The VSTest adapter, and `dotnet test` under MTP does not use it: the suite passes without it on
+             all three CI legs, measured on a throwaway branch. Kept anyway, because IDE test discovery is its
+             actual job and no CI leg can exercise that. It is PrivateAssets=all, so it never reaches a
+             consumer, and the only cost of keeping it is the occasional Dependabot bump. -->
         <PackageReference Include="xunit.runner.visualstudio">
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
