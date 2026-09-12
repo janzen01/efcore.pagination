@@ -48,7 +48,7 @@
 
     <!-- Package identity (PackageId and Description are set per project) -->
     <PropertyGroup>
-        <Version>10.0.3</Version>
+        <Version>10.1.0-rc.1</Version>
         <Product>Janzen.Pagination</Product>
         <Authors>Lubos Jansky</Authors>
         <Copyright>Copyright © Lubos Jansky</Copyright>
