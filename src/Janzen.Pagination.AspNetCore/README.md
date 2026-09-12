@@ -63,7 +63,7 @@ Passing the `HttpRequest` to a `Paginate*Async` call is what fills `response.Lin
 app's `UsePathBase` prefix — with every other query parameter preserved. An absent link (`previous` on page 1,
 `next` on the last page) is serialized as `null` rather than dropped, so the shape does not change per page;
 `current` echoes the request and is always there. Omit the `HttpRequest` and `Links` is `null` as a whole. For
-the [RFC 8288 header](https://janzen01.github.io/efcore.pagination/reference/response/#link-response-header-rfc-8288)
+the [RFC 8288 header](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/response/#link-response-header-rfc-8288)
 as well (a `null` `Links` writes no header):
 
 ```csharp
@@ -92,12 +92,12 @@ this.Response.AddPaginationLinkHeader(page.Links);
 though the client sent no `sortBy`, because that is where `DefaultSortBy` landed — which is exactly what a
 grid header needs to draw its arrow. Every key is always present; `null`, `[]` and `{}` carry the absent
 cases. See
-[Response contract](https://janzen01.github.io/efcore.pagination/reference/response/#the-request-echo).
+[Response contract](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/response/#the-request-echo).
 
 ### Errors
 
 Any invalid query becomes [`400 Bad Request` with `title: "Invalid
-query"`](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/#errors-as-problemdetails) and the
+query"`](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/aspnetcore/#errors-as-problemdetails) and the
 specific message as `detail` — via `PaginateExceptionFilter` for controllers (registered by `AddAspNetCore()`) or
 `PaginateExceptionEndpointFilter` for Minimal APIs (registered by `WithPagination<T>()`). Both answer
 `application/problem+json` and each is enriched exactly once by its own framework half, so an
@@ -113,13 +113,13 @@ validated.
 
 ## Documentation
 
-- [ASP.NET Core integration](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/)
-- [OpenAPI](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/openapi/)
-- [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/)
-- [Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/)
-- [Response contract](https://janzen01.github.io/efcore.pagination/reference/response/)
-- [Errors](https://janzen01.github.io/efcore.pagination/reference/errors/)
-- [Full guide](https://janzen01.github.io/efcore.pagination/)
+- [ASP.NET Core integration](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/aspnetcore/)
+- [OpenAPI](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/aspnetcore/openapi/)
+- [Getting started](https://janzen01.github.io/efcore.pagination/v10.1.x/guide/getting-started/)
+- [Query-string contract](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/query-string/)
+- [Response contract](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/response/)
+- [Errors](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/errors/)
+- [Full guide](https://janzen01.github.io/efcore.pagination/v10.1.x/)
 
 ## Debugging
 

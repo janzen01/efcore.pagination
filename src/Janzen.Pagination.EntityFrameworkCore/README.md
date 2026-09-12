@@ -55,7 +55,7 @@ query parameters) was supplied — the ASP.NET Core package builds one from `Htt
 `sortBy`, `search`, `searchBy`, `filter` after the config's defaults have been applied. That is what a grid
 header needs: a request that sent no `sortBy` still gets `"sortBy": ["name:ASC"]` back, because only the
 server knows where `DefaultSortBy` landed. See
-[Response contract](https://janzen01.github.io/efcore.pagination/reference/response/).
+[Response contract](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/response/).
 
 Off the web, navigate by `Meta` and `WithPage` instead; the result goes straight back into the engine:
 
@@ -111,7 +111,7 @@ PaginateConfigDefaults.Shared = defaults;           // ambient, read at Build() 
 A `WithLimits` / `WithGuards` / `WithX` call beats the object passed to `Create`, which beats `.Shared`, which
 beats the engine’s own constant — so a shared value is never a ceiling a config cannot raise. `AllowUnlimited`
 is deliberately not shareable: an unbounded read is a claim about one resource’s size.
-[Full reference](https://janzen01.github.io/efcore.pagination/reference/configuration/#shared-defaults)
+[Full reference](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/configuration/#shared-defaults)
 
 ## Operator defaults
 
@@ -131,7 +131,7 @@ in that release's notes. On a large table, prefer listing what you actually serv
 
 A selector may cross a navigation — `p => p.Author!.Name`, conventionally named `author.name` — and on a
 plain `IQueryable` a row whose intermediate is `null` behaves as the database would: no match, and `$null`
-matches. [Full reference](https://janzen01.github.io/efcore.pagination/reference/configuration/#nested-attributes)
+matches. [Full reference](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/configuration/#nested-attributes)
 
 ## Badges
 
@@ -244,7 +244,7 @@ filter.<field> = [$not:] [$and: | $or:] $<operator>[:<value>[,<value>…]]
 | `$btw` | comparable | inclusive range — exactly two comma-separated values |
 
 Each field whitelists its own
-[operators](https://janzen01.github.io/efcore.pagination/reference/query-string/#operator-reference); one that is not
+[operators](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/query-string/#operator-reference); one that is not
 granted for that field is a `400`.
 
 ```http
@@ -265,9 +265,9 @@ of your own works as a filter value as it stands. Register a parser only to acce
 one its `TryParse` does.
 
 The full contract is the [Query-string
-contract](https://janzen01.github.io/efcore.pagination/reference/query-string/); what each type accepts is
-[value formats](https://janzen01.github.io/efcore.pagination/reference/query-string/#value-formats), and every `400`
-a filter can produce is [Errors](https://janzen01.github.io/efcore.pagination/reference/errors/#filter-operators).
+contract](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/query-string/); what each type accepts is
+[value formats](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/query-string/#value-formats), and every `400`
+a filter can produce is [Errors](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/errors/#filter-operators).
 
 ## Composing without executing
 
@@ -290,19 +290,19 @@ var facets = await db.Products.ApplyPaginateFilters(request, config).Query
 Both return the same `PaginateComposedQuery<TEntity>` and reject exactly what `PaginateAsync` rejects, at
 compose time — except that `ApplyPaginateFilters` does not validate `sortBy`, which it never applies, and
 reports it as `null` rather than empty. See
-[Query composers](https://janzen01.github.io/efcore.pagination/reference/composers/).
+[Query composers](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/composers/).
 
 ## Documentation
 
-- [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/)
-- [Configuration](https://janzen01.github.io/efcore.pagination/guide/configuration/)
-- [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/)
-- [Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/)
-- [Response contract](https://janzen01.github.io/efcore.pagination/reference/response/)
-- [Configuration API](https://janzen01.github.io/efcore.pagination/reference/configuration/)
-- [Query composers](https://janzen01.github.io/efcore.pagination/reference/composers/)
-- [Errors](https://janzen01.github.io/efcore.pagination/reference/errors/)
-- [Cookbook](https://janzen01.github.io/efcore.pagination/recipes/)
+- [Getting started](https://janzen01.github.io/efcore.pagination/v10.1.x/guide/getting-started/)
+- [Configuration](https://janzen01.github.io/efcore.pagination/v10.1.x/guide/configuration/)
+- [Projections](https://janzen01.github.io/efcore.pagination/v10.1.x/guide/projections/)
+- [Query-string contract](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/query-string/)
+- [Response contract](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/response/)
+- [Configuration API](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/configuration/)
+- [Query composers](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/composers/)
+- [Errors](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/errors/)
+- [Cookbook](https://janzen01.github.io/efcore.pagination/v10.1.x/recipes/)
 
 ## Trimming & Native AOT
 

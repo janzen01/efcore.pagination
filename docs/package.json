@@ -9,12 +9,13 @@
     "node": ">=24.19.0"
   },
   "scripts": {
-    "docs:dev": "vitepress dev",
-    "docs:build": "vitepress build && node scripts/verify-frozen-urls.mjs && node scripts/verify-anchors.mjs",
+    "docs:dev": "node scripts/sync-archive.mjs && vitepress dev",
+    "docs:build": "node scripts/sync-archive.mjs && vitepress build && node scripts/verify-frozen-urls.mjs && node scripts/verify-anchors.mjs",
     "docs:preview": "vitepress preview"
   },
   "devDependencies": {
     "@nolebase/vitepress-plugin-enhanced-readabilities": "^2.18.2",
+    "@viteplus/versions": "^2.0.9",
     "mermaid": "^11.17.2",
     "vitepress": "2.0.0-alpha.20",
     "vitepress-plugin-mermaid": "^2.0.17",

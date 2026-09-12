@@ -79,10 +79,10 @@ projection leaf types, so the automatic projection copies them across instead of
 
 ## Documentation
 
-- [NodaTime integration](https://janzen01.github.io/efcore.pagination/integrations/nodatime/)
-- [Custom types](https://janzen01.github.io/efcore.pagination/integrations/custom-types/)
-- [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/)
-- [Full guide](https://janzen01.github.io/efcore.pagination/)
+- [NodaTime integration](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/nodatime/)
+- [Custom types](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/custom-types/)
+- [Projections](https://janzen01.github.io/efcore.pagination/v10.1.x/guide/projections/)
+- [Full guide](https://janzen01.github.io/efcore.pagination/v10.1.x/)
 
 ## Debugging
 

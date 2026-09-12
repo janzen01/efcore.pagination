@@ -23,22 +23,39 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   a change that removes the Jekyll tree from `master:/docs`,** not after — the wrong order rebuilds Jekyll
   against a tree with no site root and takes the frozen URLs down with it.
 - **The build lives in [docs-build.yml](.github/workflows/docs-build.yml) and is called twice.** `ci.yml`
-  calls it on every pull request (`upload: false`) and `docs.yml` calls it from `master` to produce the
-  artifact it deploys (`upload: true`) — one copy, so a PR verifies exactly what gets published. It is part
-  of `ci-ok`, which means the two verifiers below are a **required** gate: without them a dead link merges
+  calls it on every pull request (`upload: false`) and `docs.yml` calls it from a published release to produce
+  the artifact it deploys (`upload: true`) — one copy, so a PR verifies exactly what gets published. It is part
+  of `ci-ok`, which means the three verifiers below are a **required** gate: without them a dead link merges
   green and then renders inside a released package forever.
   Two things follow. **Guard the Pages steps on `inputs.upload`, never `github.event_name`** — inside a
   called workflow that expression is the *caller's* event, so `!= 'pull_request'` would fire on a fork PR and
-  redden a required check on a Pages API call it should never make. And **`docs.yml` is now deploy-only**, so
-  its artifact hand-off and environment wiring are no longer exercised before a merge — dispatch it once
-  after changing them.
+  redden a required check on a Pages API call it should never make. And **`docs.yml` is deploy-only**, so its
+  artifact hand-off and environment wiring are not exercised by a merge at all — now that it runs on releases
+  rather than pushes, months can pass between real runs. Dispatch it once after changing them.
+- **`docs.yml` publishes on `release: published`, general availability only — never on a push to `master`.**
+  The site root is what the 10.0.0 package READMEs point at, and nuget.org renders those permanently, so the
+  root has to describe a version somebody can install; building it from `master` would point every one of
+  those frozen links at documentation for unreleased code during the next major's development. The GA gate is
+  two conditions on the `build` job and both are load-bearing: `github.event.release.prerelease == false` is
+  the flag the maintainer actually sets, and `!contains(tag_name, '-')` is the backstop for the release
+  published with the box left unticked. `deploy` needs `build`, so it skips with it.
+  **Consequences worth knowing.** A documentation-only fix does not publish itself — it waits for the next
+  release, or a `workflow_dispatch`, and **that dispatch must be run against a tag, never against `master`**,
+  or it puts unreleased docs at the root by hand. And an `-rc.N` that opens a **new** line ships READMEs
+  pointing at a `/v<line>.x/` path that nothing has published yet; within an existing line the path is
+  already live, so this only bites at a major.
+- **`actions/checkout` in `docs-build.yml` needs `fetch-depth: 0`.** `sync-archive.mjs` reads `docs/src` out of
+  each released line's **tag**, and the default shallow checkout has none — the build dies before VitePress
+  starts. CI is the only place this is exercised, because a local clone always has its tags.
 - **`pnpm/action-setup` is passed `package_json_file: docs/package.json`.** Its default is `package.json`
   resolved against the *repository root*, which has none, and `defaults.run.working-directory` does not apply
   to a `uses:` step's inputs. Remove that input and the job dies before it reaches the build.
-- **`pnpm docs:build` is the local build**, and it ends by running `scripts/verify-frozen-urls.mjs` and then
-  `scripts/verify-anchors.mjs`. Keep all three chained: the first is the only thing standing between a rename
-  and a dead link inside a released package, the second catches what `ignoreDeadLinks` structurally cannot —
-  a link to a heading that no longer exists on a page that does. It reads ids out of `.dist` rather than
+- **`pnpm docs:build` is the local build.** It *starts* by running `scripts/sync-archive.mjs` (see *Versioned
+  copies* below) and ends by running `scripts/verify-frozen-urls.mjs` and then
+  `scripts/verify-anchors.mjs`. Keep all four chained: `verify-frozen-urls` is the only thing standing between
+  a rename and a dead link inside a released package, and `verify-anchors` catches what `ignoreDeadLinks`
+  structurally cannot — a link to a heading that no longer exists on a page that does. It reads ids out of
+  `.dist` rather than
   deriving them from the markdown, because **VitePress slugify is not GitHub slugify**: an apostrophe becomes
   a dash (`keep-a-big-table-s-page-count-cheap`) and an em dash survives into the id verbatim
   (`paginateselectmapasync-—-sql-then-finish-in-memory`). Guessing the slug is how the two dead anchors that
@@ -82,14 +99,72 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   `.npmrc` is load-bearing — it holds the `shamefully-hoist=true` without which `pnpm docs:dev` renders a
   blank page — so it is not a stale entry to tidy away. A new directory that is
   not re-included is invisible to git and therefore to the build, which then publishes a site missing that page
-  without failing. Everything else under `docs/` is local planning and stays untracked.
-- **English is the root locale** (`/`) and has to stay there: the frozen URLs have no locale prefix.
-  **There is currently no second locale.** The Czech draft lives at `docs/src/cs/index.md`, is kept out of the
-  build by `srcExclude: ['cs/**']`, and its `locales.cs` block is commented out of `config.mts`. Registering a
-  locale advertises a translation, and VitePress rewrites the current path into it *unconditionally* — with one
-  Czech page against 25 English ones the language switcher pointed at `/cs/<path>/` on every page but the home,
-  48 dead links in the built output. Restore the locale and the `srcExclude` line together, once there is
-  Czech content to switch to.
+  without failing. Everything else under `docs/` is local planning and stays untracked — including
+  `docs/archive/`, which is generated and named in the build-output block on purpose, because a directory full
+  of pages that is deliberately absent from git otherwise reads as an oversight.
+### Versioned copies
+The site is versioned by **[@viteplus/versions](https://viteplus.github.io/versions/)**: `defineVersionedConfig`
+replaces `defineConfig`, serves `docs/src` at the root, and serves every subfolder of `docs/archive/` at
+`/<name>/`. The folder name **is** the URL segment, verbatim.
+- **One copy per `X.Y` line, not per release** — `v10.0.x`, `v10.1.x`, later `v11.0.x`. The boundary sits where
+  documentation can become *untrue*, and that is the middle component: within a line the third only ever adds
+  surface, so a frozen link may name something newer than the reader has but never something that is gone.
+  Removing needs a Y bump, which gets its own copy. A copy per release would instead mean a new snapshot and
+  ~36 README link edits every single time.
+- **`docs/archive/` is generated and gitignored — never hand-edited.** `scripts/sync-archive.mjs` rebuilds it
+  before every dev server and build, reading `docs/src` out of each line's git tag, and its **manifest is the
+  `versions` array at the top of that script**. Generating rather than committing is the point: a committed
+  archive would put a second copy of all 26 pages in the tree per line, and every search across the repository
+  would have to learn to skip them. `git grep` finds one copy; ripgrep honours `.gitignore`, so it does too.
+- **The script rewrites links, and both of its guards matter.** An archived page's root-absolute links
+  (`](/guide/…`, the home layout's `link:` front matter, the four stubs' `http-equiv: refresh` targets) are
+  rewritten to sit behind the version segment. `strays` refuses a root-absolute link to an unknown section
+  *before* rewriting; `leaked` refuses a section path that survived *after* it. The post-condition is the one
+  that bites, because an unversioned link **is not a dead link** — it resolves, to the same path in the current
+  version — so neither `ignoreDeadLinks` nor `verify-anchors` can see it. Verified by disabling a rewrite rule
+  and watching `leaked` fail the build.
+- **`verify-anchors.mjs` walks the archive too**, with each root carrying its URL prefix. That catches a broken
+  fragment or a link into a stub inside an archived page. It does **not** catch version leakage — that is what
+  `leaked` above is for, and a test that assumed otherwise passed while the leak was live.
+- **`srcDir` must stay absent from `config.mts`.** The plugin reads it as the root *containing* `sources` and
+  `archive`, so the old `srcDir: './src'` sent it looking for `docs/src/src` and threw at startup. Two things
+  follow from docs/ being the source root instead: `srcExclude` is rooted there (`['*.md']`, keeping out the
+  gitignored planning notes at `docs/*.md`, which would otherwise build locally and not in CI), and
+  **`vite.publicDir` must name `src/public`** — VitePress resolves the public directory as
+  `resolve(srcDir, vite.publicDir || 'public')`, so dropping `srcDir` silently stopped publishing the favicon
+  and the logo.
+- **Never pass a flag to `vitepress dev` / `vitepress build` here.** The plugin computes its root as
+  `join(cwd, process.argv[3] ?? '', srcDir ?? '')` — `argv[3]` is meant to be the docs directory in upstream's
+  `vitepress dev docs`, and we run from inside `docs/` with no path, so it is normally undefined. Add anything
+  and it is read as a directory: `pnpm docs:dev --port 5199` dies with
+  `Source directory …\docs\--port\src does not exist`. Change the port (or anything else) through
+  `.vitepress/config.mts`, never on the command line.
+- **There are no `locales` at all, and that is deliberate.** The plugin gives every archived version its own
+  locale entry with `label: ' '`, and VitePress renders a language switcher for any site with more than one
+  labelled locale — so a `locales` block reintroduces a translations menu listing blank entries. With no
+  locales configured the plugin leaves those entries unlabelled and VitePress renders nothing. `nav`, `sidebar`
+  and `outline` therefore live in the **top-level** `themeConfig`, which is exactly the shape the plugin expects
+  when there are no locales; `lang` is top-level too. Verified in the built DOM, in both directions.
+- **Navigation is versioned automatically**, so one `nav` and one `sidebar` serve every version: the plugin
+  prefixes internal links with the version being viewed and leaves `http…` links and anything flagged
+  `skipVersioning` alone. Sidebar prefixing works by setting `base` on a group, which VitePress concatenates
+  onto each child link — with root-absolute links that is the shape to watch, but it emits clean paths here.
+  Check `.dist` for `//` in an href after touching a sidebar.
+- **Search indexes the current version only**, through `search.options._render` returning `''` for a
+  `relativePath` under `archive/`. VitePress's local search has no facet to group versions by, so indexing the
+  archive returns the same page once per line with no way to tell the hits apart. The **sitemap** drops archived
+  paths for the matching reason: while a line is current its copy is byte-identical to the root, and submitting
+  both asks a crawler to pick a canonical between two copies of one page.
+- **`editLink` is switched off for archived versions** by a post-processing loop at the bottom of `config.mts`,
+  next to the mermaid `optimizeDeps` fix. Inherited, it would offer to edit the file living at that path on
+  `master` today — different content, from a line the reader deliberately is not reading.
+- **The `VersionSwitcher` component is used rather than the built-in dropdown**, registered in
+  `.vitepress/theme/index.ts` and placed in the nav as `{ component: 'VersionSwitcher' }` with
+  `versionSwitcher: false` to suppress the built-in one. It keeps the reader on the page they were reading,
+  which is the whole point when the link that brought them came out of a package README and named a page. One
+  known wart: it builds targets from `relativePath`, so its links read `/reference/query-string/index` rather
+  than `/reference/query-string/` — served correctly by GitHub Pages, but not the canonical form, and not
+  configurable.
 - **A new file under `.vitepress/theme/` needs the dev server restarted.** HMR picks up edits to a theme that
   already existed, but not the theme appearing for the first time, and the symptom is that the stylesheet
   simply has no effect while the build output has it. Cost an evening once: the mermaid CSS below looked
@@ -110,6 +185,20 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
 - Mermaid comes from `vitepress-plugin-mermaid` via `withMermaid()`. It declares a peer on VitePress 1.x and we
   run the 2.0 alpha, so pnpm prints an unmet-peer warning; the diagrams render regardless (same pairing as the
   MDS Dynamics docs). If they ever stop rendering, that warning is the first place to look.
+- **`optimizeDeps.include` is post-processed at the bottom of `config.mts`, and both edits are about that
+  plugin's age.** It hardcodes mermaid's *dependencies* by name, from 2024, so the list drifts in both
+  directions as mermaid moves. `debug` is dropped because mermaid 11 no longer has it and Vite logged an
+  unactionable "Failed to resolve dependency" on every dev start. **`mermaid` itself is added**, and that one is
+  not cosmetic: the plugin never names the package it is a plugin for, and Vite does not crawl inside
+  `node_modules` for imports, so mermaid was served to the browser raw — and with it its CommonJS
+  dependencies, where `import fastdom from 'fastdom'` throws and **`pnpm docs:dev` renders a completely blank
+  page**. Pre-bundling mermaid pulls the whole subtree into one ES module and fixes the class, not the
+  instance; adding the individual leaf dependency instead does not work, because mermaid stays raw and the next
+  CommonJS dependency down fails the same way.
+  Two things make this easy to lose an evening to. The production build is **unaffected** — it bundles
+  properly, so `pnpm docs:build` is green either way and CI can never catch it. And the dep cache is **not** at
+  `node_modules/.vite`: VitePress points `cacheDir` at `.vitepress/cache`, so that is what to delete when
+  forcing re-optimisation, and `.vitepress/cache/deps/` is where to look to see what actually got pre-bundled.
 
 ## graphify — read the graph before the source
 The knowledge graph at `graphify-out/` (god nodes, communities, cross-file edges) is **not committed** — it is
@@ -381,10 +470,17 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    pushes, so the tag is cut from the squash-merge commit. The tag must be exactly `v$(Version)`
    (`v10.0.0-rc.1`); `publish.yml` compares them and refuses the publish otherwise, because nuget.org unlists
    but never deletes.
-2. **At a stable release only**, move each `PublicAPI.Unshipped.txt` into its `PublicAPI.Shipped.txt`. That is
+2. **At a `Y` bump only** (a new `X.Y` line), open its documentation copy in the **same PR as the version
+   bump**: in `docs/scripts/sync-archive.mjs`, pin the previously newest line to its last tag and add the new
+   line as `WORKING_TREE`; then repoint every site URL in the **four package READMEs** to `/v<new line>.x/`.
+   The root README stays on the unversioned paths — it is read on GitHub against `master`, and it ships in no
+   package. Both halves belong before the merge, because `verify-frozen-urls.mjs` runs inside `ci-ok` and
+   fails on a README URL the build does not publish. A `Z` release touches none of this: the line's copy is
+   already `WORKING_TREE`, so it picks up the release automatically.
+3. **At a stable release only**, move each `PublicAPI.Unshipped.txt` into its `PublicAPI.Shipped.txt`. That is
    what makes a later removal an RS0017 build error. Do **not** do it for an `-rc.N`: an rc-only member promoted
    to *shipped* cannot then be dropped before stable without fighting the analyzer.
-3. **`PackageValidationBaselineVersion` is bumped *after* the publish, never in the release PR.** It resolves
+4. **`PackageValidationBaselineVersion` is bumped *after* the publish, never in the release PR.** It resolves
    through a `PackageDownload`, so pointing it at a version nuget.org does not serve yet fails **restore** with
    `NU1102: Unable to find package … with version (= x.y.z)` — the release PR's own CI, before any tag exists.
    So the release ships with the baseline still naming the *previous* version, which is also what makes the
@@ -393,16 +489,16 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    superseded one (regenerate with `dotnet pack -p:ApiCompatGenerateSuppressionFile=true` rather than
    hand-editing). Skip that follow-up and the guard keeps validating against an ever-older surface, and the
    stale suppressions hide the next accidental break behind the same target. An `-rc.N` is not a baseline.
-4. Release notes go **on the GitHub release** — there is no changelog file, and `PackageReleaseNotes` points at
+5. Release notes go **on the GitHub release** — there is no changelog file, and `PackageReleaseNotes` points at
    the Releases page.
-5. Publishing authenticates by **Trusted Publishing (OIDC)**, so there is no API key anywhere. The policy lives
+6. Publishing authenticates by **Trusted Publishing (OIDC)**, so there is no API key anywhere. The policy lives
    on nuget.org under the *owner* (not per package), keyed to repository owner + repo + `publish.yml` + the
    **`nuget` environment**. That last field is optional on nuget.org's side, but it is filled in here on purpose:
    left empty, the policy would trust any run of that workflow, gated or not. Its scope is narrowed to
    `Janzen.Pagination.*`, "push only new package versions" — so a *fifth* package needs the policy widened before
    its first publish. The "pending full activation for 7 days" wait applies to **private** repositories; for a
    public one like this the policy is active immediately.
-6. `publish.yml` runs as two jobs. `build` holds no credential and does everything that executes project code —
+7. `publish.yml` runs as two jobs. `build` holds no credential and does everything that executes project code —
    the tag-vs-version guard, restore, build, test, the README pin and pack — and hands the packages on as an
    artefact. `publish` declares `environment: nuget`, so the run **stops for a manual approval** (required
    reviewer, and only a `v*` tag may deploy) before it reaches the OIDC exchange; by then the suite is already
@@ -410,7 +506,7 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    reaches nuget.org until then, which is also why a mismatched policy fails at `NuGet login` rather than
    half-way through a push. **The artefact hand-off cannot be dry-run** — `release: published` is the only
    trigger — so the first release after any change to it is its own test; cut that one as an `-rc.N`.
-7. The `publish` job records a **build provenance attestation** for every packed file, and that is where it ends:
+8. The `publish` job records a **build provenance attestation** for every packed file, and that is where it ends:
    **nothing is attached to the GitHub release.** Releases here are *immutable*, so a `gh release upload` step
    fails with `HTTP 422: Cannot upload assets to an immutable release` — learned by trying it during the
    `10.0.0` publish. Don't re-add one. Note what that costs: `gh attestation verify` compares a file digest,
@@ -418,7 +514,7 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    (`.signature.p7s`) to every package it accepts, which rewrites the archive. So the attestation is a
    standing public record that this repo produced those exact bytes, not something a consumer can check
    against a download.
-8. A **draft** release publishes nothing. `gh release edit <tag> --draft=false` is what fires the workflow.
+9. A **draft** release publishes nothing. `gh release edit <tag> --draft=false` is what fires the workflow.
    Pushing a tag on its own is inert here — no workflow watches tags.
 
 ## Testing

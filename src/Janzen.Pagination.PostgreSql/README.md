@@ -42,9 +42,9 @@ PaginateConfig<Product>.Create(b => b
 ## What it changes
 
 Three things emit a pattern match: free-text `search`, the [`$ilike` and `$sw` filter
-operators](https://janzen01.github.io/efcore.pagination/reference/query-string/#operator-reference), and
+operators](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/query-string/#operator-reference), and
 `$contains` on a string field. This package makes all of them use [`ILIKE` instead of
-`LIKE`](https://janzen01.github.io/efcore.pagination/integrations/postgresql/#like-vs-ilike). Both forms pass an
+`LIKE`](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/postgresql/#like-vs-ilike). Both forms pass an
 explicit `ESCAPE '\'`, and the engine escapes `\`, `%`, `_` and `[` in the user's value, so a search for `100%`
 matches that literal text.
 
@@ -53,9 +53,9 @@ as its example operator.
 
 ## Documentation
 
-- [PostgreSQL integration](https://janzen01.github.io/efcore.pagination/integrations/postgresql/)
-- [Query-string contract](https://janzen01.github.io/efcore.pagination/reference/query-string/)
-- [Full guide](https://janzen01.github.io/efcore.pagination/)
+- [PostgreSQL integration](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/postgresql/)
+- [Query-string contract](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/query-string/)
+- [Full guide](https://janzen01.github.io/efcore.pagination/v10.1.x/)
 
 ## Debugging
 

@@ -97,8 +97,14 @@ extraction and no token is required.
 ## Optional — the documentation site
 
 The site under `docs/` is a [VitePress](https://vitepress.dev) project, published to GitHub Pages by
-`.github/workflows/docs.yml` on every push to `master` that touches `docs/`. `pnpm` comes from corepack, pinned
-by the `packageManager` field.
+`.github/workflows/docs.yml` when a stable release is published — not on a push to `master`, so a documentation
+change goes live with the next release rather than on merge. `pnpm` comes from corepack, pinned by the
+`packageManager` field.
+
+The site is versioned: `docs/src` is the current line and is served at the site root, and one frozen copy per
+earlier line is generated into `docs/archive/` before every dev server and build. That directory is **not in
+git** — it is rebuilt from the release tags, so **a clone needs its tags** (a shallow one will not build).
+Edit `docs/src`; the archive is regenerated and any change to it is discarded.
 
 ```bash
 cd docs
