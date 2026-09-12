@@ -193,4 +193,44 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 		Assertions.HasIds(await this.Page(Query.Filter("status", "$eq:Draft", "$or:$eq:Discontinued")), 3, 5, 6);
 	}
 
+	[Theory]
+	[InlineData(1)]
+	[InlineData(2)]
+	[InlineData(100)]
+	[InlineData(1600)]
+	public async Task Repeated_modifiers_parse_to_the_same_criterion(int prefixes) {
+		// $not does not accumulate -- it is a flag, not a toggle -- so any number of them means the same thing.
+		// Locked at 1 600 as well, which is the count that fits one 8 KB request line: the walk over them is a
+		// span slice now, and this is the behaviour that must survive anyone rewriting it back.
+		string value = string.Concat(Enumerable.Repeat("$not:", prefixes)) + "$eq:Active";
+		Assertions.HasIds(await this.Page(Query.Filter("status", value)), 3, 5, 6);
+	}
+
+	[Fact]
+	public async Task Repeated_modifiers_do_not_make_parsing_cost_quadratic() {
+		// A guard, not a benchmark. Re-slicing the value as a string per modifier copied its whole tail each
+		// time, so 1 600 repeated prefixes -- one 8 KB request line -- allocated 12.9 MB, an amplification of
+		// ~1 612x over the bytes the client sent. Slicing a span allocates nothing, and the measured ratio is
+		// 1.0; the bound below is deliberately loose enough to survive a runtime's own noise and still fail
+		// hard on a return to string slicing, which scored 4 478x here.
+		await using var context = fixture.CreateContext();
+		var products = SqliteFixture.Products(context);
+
+		// Measured through the public composer rather than the parser: ApplyPagination builds the query and
+		// stops before executing it, so the loop is pure composition and the quadratic term still dominates
+		// everything else it does.
+		long Allocated(string value) {
+			var request = Query.Filter("status", value);
+			products.ApplyPagination(request, TestData.Config);   // JIT the path first
+			long before = GC.GetAllocatedBytesForCurrentThread();
+			for (int i = 0; i < 20; i++) products.ApplyPagination(request, TestData.Config);
+			return GC.GetAllocatedBytesForCurrentThread() - before;
+		}
+
+		long one = Allocated("$not:$eq:Active");
+		long many = Allocated(string.Concat(Enumerable.Repeat("$not:", 1600)) + "$eq:Active");
+
+		Assert.True(many < one * 50, $"1 600 modifiers allocated {many} bytes against {one} for one: {(double)many / one:F1}x");
+	}
+
 }

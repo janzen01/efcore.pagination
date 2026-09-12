@@ -40,6 +40,12 @@ internal static class PaginateFilterParser {
 	// Inverted from Operators at startup so the two directions cannot drift; two tokens accidentally mapped to the
 	// same operator make ToFrozenDictionary throw at type initialization. (The reverse mistake — one token listed
 	// twice in Operators — silently last-wins in the indexer initializer, so keep the token keys unique.)
+	// Span lookup over the same frozen dictionary: the modifier walk below holds the rest of the value as a
+	// ReadOnlySpan<char>, and StringComparer.OrdinalIgnoreCase is an IAlternateEqualityComparer, so the token
+	// can be matched without materialising it.
+	private readonly static FrozenDictionary<string, PaginateFilterOperator>.AlternateLookup<ReadOnlySpan<char>> OperatorLookup =
+		Operators.GetAlternateLookup<ReadOnlySpan<char>>();
+
 	private readonly static FrozenDictionary<PaginateFilterOperator, string> OperatorTokens =
 		Operators.ToFrozenDictionary(pair => pair.Value, pair => pair.Key);
 
@@ -51,32 +57,37 @@ internal static class PaginateFilterParser {
 		// is the only place one guard covers all of them: the pattern operators never reach PaginateValueConverter.
 		PaginateInputGuard.RejectNul(raw, $"Filter '{field}'");
 
-		string remaining = raw;
+		// A span, not a string. Re-slicing a string per modifier copied the whole tail each time, so the walk
+		// cost O(L^2) in the value's length: 1 600 repeated "$not:" prefixes -- one 8 KB request line, which is
+		// Kestrel's default MaxRequestLineSize -- allocated 12.9 MB before any guard could see the value. Slicing
+		// a span allocates nothing, and the two strings that are genuinely needed are materialised once, on the
+		// terminal iteration. Do not "simplify" this back to string slicing.
+		ReadOnlySpan<char> remaining = raw;
 		bool not = false;
 		PaginateFilterConnector? connector = null;
 
-		while (TryReadToken(remaining, out string token, out string afterToken)) {
+		while (TryReadToken(remaining, out var token, out var afterToken)) {
 
-			if (string.Equals(token, "$not", StringComparison.OrdinalIgnoreCase)) {
+			if (token.Equals("$not", StringComparison.OrdinalIgnoreCase)) {
 				not = true;
 				remaining = afterToken;
 				continue;
 			}
 
-			if (string.Equals(token, "$and", StringComparison.OrdinalIgnoreCase)) {
+			if (token.Equals("$and", StringComparison.OrdinalIgnoreCase)) {
 				connector = PaginateFilterConnector.And;
 				remaining = afterToken;
 				continue;
 			}
 
-			if (string.Equals(token, "$or", StringComparison.OrdinalIgnoreCase)) {
+			if (token.Equals("$or", StringComparison.OrdinalIgnoreCase)) {
 				connector = PaginateFilterConnector.Or;
 				remaining = afterToken;
 				continue;
 			}
 
-			if (!Operators.TryGetValue(token, out var filterOperator)) {
-				throw new PaginateQueryException($"Filter '{field}' uses unknown operator '{PaginateInputGuard.Echo(token)}'.") { Code = PaginateQueryError.FilterOperatorUnknown };
+			if (!OperatorLookup.TryGetValue(token, out var filterOperator)) {
+				throw new PaginateQueryException($"Filter '{field}' uses unknown operator '{PaginateInputGuard.Echo(token.ToString())}'.") { Code = PaginateQueryError.FilterOperatorUnknown };
 			}
 
 			// $null is documented as valueless and PaginateFilterField drops whatever follows it, so `$null:false`
@@ -87,11 +98,11 @@ internal static class PaginateFilterParser {
 				throw new PaginateQueryException($"Filter '{field}' does not take a value for '$null'.") { Code = PaginateQueryError.FilterCriterionMalformed };
 			}
 
-			return new PaginateFilterCriterion(filterOperator, afterToken, not, connector);
+			return new PaginateFilterCriterion(filterOperator, afterToken.ToString(), not, connector);
 
 		}
 
-		if (Operators.TryGetValue(remaining, out var terminalOperator)) {
+		if (OperatorLookup.TryGetValue(remaining, out var terminalOperator)) {
 			return terminalOperator != PaginateFilterOperator.Null
 				? throw new PaginateQueryException($"Filter '{field}' must use the format '$operator:value'.") { Code = PaginateQueryError.FilterCriterionMalformed }
 				: new PaginateFilterCriterion(terminalOperator, string.Empty, not, connector);
@@ -109,13 +120,13 @@ internal static class PaginateFilterParser {
 			: throw new ArgumentOutOfRangeException(nameof(filterOperator), filterOperator, null);
 	}
 
-	private static bool TryReadToken(string value, out string token, out string remaining) {
+	private static bool TryReadToken(ReadOnlySpan<char> value, out ReadOnlySpan<char> token, out ReadOnlySpan<char> remaining) {
 
-		int separator = value.IndexOf(':', StringComparison.Ordinal);
+		int separator = value.IndexOf(':');
 
 		if (separator <= 0) {
-			token = string.Empty;
-			remaining = string.Empty;
+			token = default;
+			remaining = default;
 			return false;
 		}
 
