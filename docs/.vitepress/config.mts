@@ -294,9 +294,15 @@ const config = withMermaid(defineVersionedConfig({
 // mermaid 11 no longer has. Vite then logs "Failed to resolve dependency: debug" on every dev start, for a
 // package that is neither installed nor needed. Dropping it from the list keeps the dev output honest --
 // a warning nobody can act on is a warning everybody learns to skip past.
+// `mermaid` is added because the plugin names mermaid's *dependencies* but not mermaid itself, and Vite does
+// not crawl inside node_modules for imports -- so mermaid was served raw, and the browser then fetched its
+// CommonJS dependencies raw too, where `import fastdom from 'fastdom'` throws and the whole page renders blank.
+// Pre-bundling mermaid pulls that entire subtree into one ES module, which fixes the class rather than the
+// instance: the plugin's hardcoded list dates from 2024 and drifts from mermaid's real dependencies with every
+// release. The production build never had the problem, which is what let it sit unnoticed.
 const include = config.vite?.optimizeDeps?.include
 if (Array.isArray(include)) {
-    config.vite!.optimizeDeps!.include = include.filter((dep) => dep !== 'debug')
+    config.vite!.optimizeDeps!.include = [...include.filter((dep) => dep !== 'debug'), 'mermaid']
 }
 
 // An archived page is docs/src as it stood at a tag, so "Edit this page on GitHub" would open the file living

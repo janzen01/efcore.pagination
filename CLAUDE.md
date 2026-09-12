@@ -185,6 +185,20 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
 - Mermaid comes from `vitepress-plugin-mermaid` via `withMermaid()`. It declares a peer on VitePress 1.x and we
   run the 2.0 alpha, so pnpm prints an unmet-peer warning; the diagrams render regardless (same pairing as the
   MDS Dynamics docs). If they ever stop rendering, that warning is the first place to look.
+- **`optimizeDeps.include` is post-processed at the bottom of `config.mts`, and both edits are about that
+  plugin's age.** It hardcodes mermaid's *dependencies* by name, from 2024, so the list drifts in both
+  directions as mermaid moves. `debug` is dropped because mermaid 11 no longer has it and Vite logged an
+  unactionable "Failed to resolve dependency" on every dev start. **`mermaid` itself is added**, and that one is
+  not cosmetic: the plugin never names the package it is a plugin for, and Vite does not crawl inside
+  `node_modules` for imports, so mermaid was served to the browser raw — and with it its CommonJS
+  dependencies, where `import fastdom from 'fastdom'` throws and **`pnpm docs:dev` renders a completely blank
+  page**. Pre-bundling mermaid pulls the whole subtree into one ES module and fixes the class, not the
+  instance; adding the individual leaf dependency instead does not work, because mermaid stays raw and the next
+  CommonJS dependency down fails the same way.
+  Two things make this easy to lose an evening to. The production build is **unaffected** — it bundles
+  properly, so `pnpm docs:build` is green either way and CI can never catch it. And the dep cache is **not** at
+  `node_modules/.vite`: VitePress points `cacheDir` at `.vitepress/cache`, so that is what to delete when
+  forcing re-optimisation, and `.vitepress/cache/deps/` is where to look to see what actually got pre-bundled.
 
 ## graphify — read the graph before the source
 The knowledge graph at `graphify-out/` (god nodes, communities, cross-file edges) is **not committed** — it is
