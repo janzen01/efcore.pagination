@@ -71,6 +71,10 @@ available the day it is written — but it means a member described here may not
 installed yet. Nothing is removed from the site when it ships; the gap runs the other way, and it closes at
 the next release. Check the [Releases](https://github.com/janzen01/efcore.pagination/releases) page when a
 call you copied from here does not compile.
+
+A member added after the first stable release of this line carries its version beside its heading —
+<Badge type="tip" text="10.1.0" /> — so the gap is visible without leaving the page. An unmarked member has
+been there since `10.0.0`.
 :::
 
 ## Packages

@@ -179,14 +179,20 @@ See [`WithLikeStrategy`](/reference/configuration/#withlikestrategy) for the ful
 
 The other route — leave the portable strategy in place everywhere and get case-insensitivity from the column
 collation — is **version-bounded on PostgreSQL**. It works on **18.6 or later**: `LIKE` gained support for
-nondeterministic collations in 18.0, wildcards included, and 18.6 is the floor because 18.0–18.5 mishandle an
+nondeterministic collations in 18.0, wildcards included, and 18.6 is the floor because 18.0–18.4 mishandle an
 escaped backslash — precisely the byte sequence this engine's escaping produces for a caller value containing
-`\`. Wire it from EF Core with `UseCollation` on the property. On **17 and earlier the route does not exist**:
-a deterministic collation never folds `LIKE`, and a nondeterministic one is rejected by it, so the
-alternatives there are a `citext` column or a per-provider strategy.
+`\`. Upstream's own wording for the 18.6 fix is that `LIKE` treated the escaped backslash "as effectively not
+there", which is a pattern that degenerates toward matching everything rather than one that matches nothing.
+There is no 18.5: PostgreSQL went 18.4 → 18.6. Wire it from EF Core with `UseCollation` on the property.
+On **17 and earlier the route does not exist**: a deterministic collation never folds `LIKE`, and a
+nondeterministic one is rejected by it outright — measured on 15.19, 16.15 and 17.11, which all answer
+`ERROR: nondeterministic collations are not supported for LIKE` — so the alternatives there are a `citext`
+column or a per-provider strategy.
 
 Note the asymmetry before reaching for both at once: `ILIKE` does **not** support nondeterministic collations
-on any major, so the collation route and `.UsePostgreSql()` are alternatives rather than a combination.
+on any major, so the collation route and `.UsePostgreSql()` are alternatives rather than a combination. That
+is measured rather than inferred: 15.19, 16.15, 17.11 and 18.6 all refuse it with SQLSTATE `0A000`, including
+the majors where `LIKE` accepts the same column.
 
 ## Testing it
 

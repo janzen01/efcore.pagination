@@ -36,6 +36,20 @@ lies about production.
 So **assert the set, not the order**, unless the test data pins the sort keys unambiguously. LINQ-to-Objects
 orders strings with the current culture's comparer, which is not what the database will do.
 
+**`double.NaN` is the sharpest case of that, and the one no in-process leg can warn you about.** Sorting a
+`double` column containing one puts it in a different place on each leg, measured with the same rows through
+this engine:
+
+| leg | ascending order of `NaN`, `±∞`, finite values and `null` |
+|---|---|
+| LINQ-to-Objects | `null`, **`NaN`**, `-∞`, finite, `+∞` — `Comparer<double>.Default` ranks `NaN` below everything |
+| SQLite | `null`, `-∞`, finite, `+∞` — it cannot store one at all, and `Microsoft.Data.Sqlite` refuses the insert with `Cannot store 'NaN' values.` |
+| PostgreSQL | `-∞`, finite, `+∞`, **`NaN`**, `null` — `NaN` compares greater than every number, and nulls sort last |
+
+Equality does *not* diverge: `EqualityComparer<double>.Default.Equals(NaN, NaN)` and PostgreSQL's
+`'NaN' = 'NaN'` are both true, so `$eq` agrees everywhere. Only ordering disagrees. If a sortable field can
+hold a `NaN`, neither of the in-process legs will show you what the server does with it.
+
 A field that crosses a navigation — `p => p.Category!.Name` — works here too, and a row whose intermediate is
 `null` is treated the way a database treats it: the comparison does not match, a search skips the row, a sort
 orders it as null, and `$null` **does** match it. That parity is deliberate, so a config exercised against a
