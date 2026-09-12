@@ -581,7 +581,16 @@ way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server rea
 3. Touched the public API? Update the affected package `README.md`, the XML docs and `docs/src/guide/` — a public-API
    change is a versioning decision. Run `dotnet pack Janzen.Pagination.slnx -c Release --no-build`: package
    validation compares the packed assembly against the released baseline, so an accidental break surfaces here
-   rather than in `publish.yml` after the tag exists. A **deliberate** break is recorded, not silenced by hand —
+   rather than in `publish.yml` after the tag exists.
+   **Read "touched the public API" as the emitted metadata, not the signature list**, and pack whenever a
+   `public` member's *shape* changed even though its signature did not. Rewriting an auto-property's accessor by
+   hand drops `CompilerGeneratedAttribute` from it, which package validation reports as `CP0014`; the edit that
+   did it looked like an implementation detail and passed build, test and the docs build untouched.
+   **Only the ubuntu CI leg runs `Pack`** — it is `skipped` on windows and macOS — so a local Windows loop cannot
+   substitute for it, and a green three-OS matrix does not mean three machines validated the packages.
+   `Microsoft.NET.ApiCompat.ValidatePackage.semaphore` under each project's `obj/` makes a repeat pack a no-op, so
+   delete those and pass `-v:n` when you need to *see* `APICompat ran successfully` rather than assume it.
+   A **deliberate** break is recorded, not silenced by hand —
    `dotnet pack -p:ApiCompatGenerateSuppressionFile=true` writes the project's `CompatibilitySuppressions.xml`,
    and that file then reads as the release's breaking-change inventory.
 4. `graphify update .` to refresh the graph.
