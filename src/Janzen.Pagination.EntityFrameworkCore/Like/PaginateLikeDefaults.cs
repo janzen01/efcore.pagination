@@ -35,12 +35,17 @@ public static class PaginateLikeDefaults {
 	///     and would otherwise fail on the next request rather than at the assignment. Assign
 	///     <see cref="Portable" /> to go back to the library's own default.
 	/// </summary>
+	// Defaulted on first read rather than by an initializer, for the reason EscapeCharacter above is
+	// expression-bodied. `= Portable` made correctness rest on Portable being declared higher up the file:
+	// static initializers run in declaration order, so a reorder would have assigned null here -- and
+	// silently, because a property initializer writes the backing field and never calls the setter, so the
+	// ThrowIfNull below could not see it. Reading through ?? has no order to get wrong.
 	public static IPaginateLikeStrategy Strategy {
-		get;
+		get => field ??= Portable;
 		set {
 			ArgumentNullException.ThrowIfNull(value);
 			field = value;
 		}
-	} = Portable;
+	}
 
 }

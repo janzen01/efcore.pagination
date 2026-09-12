@@ -477,8 +477,10 @@ public static class PaginateQueryableExtensions {
 	// exact size of the page plus a copy, on top of the List whose backing array is already there -- and
 	// past ~10 600 reference elements (85 000 / 8) both of them are LOH allocations. Every consumer of
 	// this takes IReadOnlyList<T>, PaginatedResponse<T>.Items included, so the array was never the shape
-	// anything needed. Do not "tidy" it back to ToArrayAsync.
-	private static async Task<IReadOnlyList<T>> ToListAsync<T>(IQueryable<T> query, CancellationToken ct) {
+	// anything needed. Do not "tidy" it back to ToArrayAsync. Named Materialize rather than ToListAsync so it
+	// cannot be confused with the EF Core extension it calls one line below: that one binds by instance
+	// syntax, so giving this helper a `this` parameter would turn the call into unbounded recursion.
+	private static async Task<IReadOnlyList<T>> MaterializeAsync<T>(IQueryable<T> query, CancellationToken ct) {
 
 		ct.ThrowIfCancellationRequested();
 
@@ -520,7 +522,7 @@ public static class PaginateQueryableExtensions {
 
 			var selector = PaginateProjectionBuilder.Build<TEntity, TResult>();
 
-			return source.PaginateCoreAsync(request, config, (query, token) => ToListAsync(query.Select(selector), token), linkContext, ct);
+			return source.PaginateCoreAsync(request, config, (query, token) => MaterializeAsync(query.Select(selector), token), linkContext, ct);
 
 		}
 
@@ -553,7 +555,7 @@ public static class PaginateQueryableExtensions {
 			ArgumentNullException.ThrowIfNull(config);
 			ArgumentNullException.ThrowIfNull(selector);
 
-			return source.PaginateCoreAsync(request, config, (query, token) => ToListAsync(query.Select(selector), token), linkContext, ct);
+			return source.PaginateCoreAsync(request, config, (query, token) => MaterializeAsync(query.Select(selector), token), linkContext, ct);
 
 		}
 
@@ -587,7 +589,7 @@ public static class PaginateQueryableExtensions {
 			ArgumentNullException.ThrowIfNull(postMap);
 
 			return source.PaginateCoreAsync(request, config,
-				async Task<IReadOnlyList<TResult>> (query, token) => (await ToListAsync(query.Select(selector), token).ConfigureAwait(false)).Select(postMap).ToList(),
+				async Task<IReadOnlyList<TResult>> (query, token) => (await MaterializeAsync(query.Select(selector), token).ConfigureAwait(false)).Select(postMap).ToList(),
 				linkContext, ct);
 
 		}
@@ -623,7 +625,7 @@ public static class PaginateQueryableExtensions {
 
 			return source.PaginateCoreAsync(request, config, async Task<IReadOnlyList<TResult>> (query, token) => {
 				// Read-only list path: do not track the materialized entities (avoids change-tracker pollution + snapshots).
-				var entities = await ToListAsync(AsNoTrackingIfSupported(query), token).ConfigureAwait(false);
+				var entities = await MaterializeAsync(AsNoTrackingIfSupported(query), token).ConfigureAwait(false);
 				return entities.Select(projector).ToList();
 			}, linkContext, ct);
 		}

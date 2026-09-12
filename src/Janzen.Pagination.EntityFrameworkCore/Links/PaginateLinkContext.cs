@@ -69,8 +69,10 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 
 	/// <summary>Hashes the same members <see cref="Equals(PaginateLinkContext)" /> compares, so equal contexts hash equal.</summary>
 	public override int GetHashCode() {
+		// No null branch on Path: ValidatePath refuses one from both the initializer and the init accessor,
+		// which is the same invariant Equals above relies on.
 		return HashCode.Combine(
-			this.Path is null ? 0 : StringComparer.Ordinal.GetHashCode(this.Path),
+			StringComparer.Ordinal.GetHashCode(this.Path),
 			PaginateStructuralEquality.PairListHash(this.QueryParameters));
 	}
 
@@ -108,7 +110,22 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 		IReadOnlyList<KeyValuePair<string, string>> queryParameters) {
 
 		ArgumentNullException.ThrowIfNull(queryParameters, nameof(QueryParameters));
-		return queryParameters;
+
+		// Copied, not captured. This record hand-writes value equality, and a caller who keeps their list and
+		// adds to it afterwards would change the value of a constructed context underneath it: two contexts
+		// that compared equal stop being equal, and one used as a dictionary key can no longer be found
+		// because its hash moved. Path is a string and cannot do that; this member could.
+		var copy = queryParameters.ToArray();
+
+		// Both halves reach Uri.EscapeDataString in PaginateLinkBuilder, which throws on null. Unchecked, a
+		// pair built with a null surfaced as an ArgumentNullException from inside pagination -- a 500 for a
+		// server-side wiring mistake, on a type that already refuses a bad Path eagerly for that same reason.
+		for (int index = 0; index < copy.Length; index++) {
+			if (copy[index].Key is null) throw new ArgumentException($"Query parameter at index {index} has a null key.", nameof(QueryParameters));
+			if (copy[index].Value is null) throw new ArgumentException($"Query parameter '{copy[index].Key}' has a null value.", nameof(QueryParameters));
+		}
+
+		return copy;
 
 	}
 

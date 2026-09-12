@@ -42,7 +42,10 @@ internal static class PaginateFilterParser {
 	// twice in Operators — silently last-wins in the indexer initializer, so keep the token keys unique.)
 	// Span lookup over the same frozen dictionary: the modifier walk below holds the rest of the value as a
 	// ReadOnlySpan<char>, and StringComparer.OrdinalIgnoreCase is an IAlternateEqualityComparer, so the token
-	// can be matched without materialising it.
+	// can be matched without materialising it. That is a constraint on Operators, not a free choice: give it a
+	// comparer that is not an IAlternateEqualityComparer and this line throws from the type initializer, so the
+	// first filtered request of the process dies with a TypeInitializationException naming neither the comparer
+	// nor the edit. Keep the two together.
 	private readonly static FrozenDictionary<string, PaginateFilterOperator>.AlternateLookup<ReadOnlySpan<char>> OperatorLookup =
 		Operators.GetAlternateLookup<ReadOnlySpan<char>>();
 
