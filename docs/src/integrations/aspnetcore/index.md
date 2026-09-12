@@ -101,6 +101,23 @@ db.Products.PaginateSelectMapAsync(request, config, selector, postMap, this.Requ
 db.Products.PaginateMapAsync(request, config, projector, this.Request, ct);
 ```
 
+**With both packages' usings in scope, do not pass a bare `null` in that position.** The mirror takes an
+`HttpRequest` where the core method takes a `PaginateLinkContext?`, `null` converts to both, and neither is
+better, so the call does not compile:
+
+```csharp
+db.Products.PaginateAsync<Product, ProductDto>(request, config, null, ct);
+// error CS0121: The call is ambiguous between ...PaginateHttpRequestExtensions... and
+//               ...PaginateQueryableExtensions...
+```
+
+Name the argument, or leave it out — either compiles, and both mean "no links":
+
+```csharp
+db.Products.PaginateAsync<Product, ProductDto>(request, config, linkContext: null, ct: ct);
+db.Products.PaginateAsync<Product, ProductDto>(request, config, ct: ct);
+```
+
 ## Minimal APIs
 
 ```csharp
@@ -114,7 +131,7 @@ app.MapGet("/products", async (HttpContext http, AppDbContext db, CancellationTo
 - `WithPagination<TProvider>()` does two things: attaches the `[PaginatedQuery]` metadata so the operation
   transformer documents the parameters and the `400`, and adds `PaginateExceptionEndpointFilter` so a
   `PaginateQueryException` becomes a Problem Details response instead of a `500`.
-- **It also takes a route group**, so a set of endpoints is marked once rather than per handler. Applying it to
+- **It also takes a route group** <Badge type="tip" text="10.1.0" />, so a set of endpoints is marked once rather than per handler. Applying it to
   the group is not optional decoration: an endpoint mapped inside a group that was never marked carries neither
   the metadata nor the filter, so its `?page=0` escapes as a `500`.
 

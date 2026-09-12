@@ -22,7 +22,7 @@ published in the generated OpenAPI document anyway. A deployment that must not d
 `ProblemDetailsOptions.CustomizeProblemDetails` to strip them, which is an application decision rather than a
 library default.
 
-Every row below also carries a **code** — the `PaginateQueryError` member the engine rejected with, emitted
+Every row below also carries a **code** <Badge type="tip" text="10.1.0" /> — the `PaginateQueryError` member the engine rejected with, emitted
 as the `code` member of the 400 payload. Branch on the code, not on the prose: the prose is contract but it
 is English, and one code stands for several messages. See
 [ASP.NET Core → Errors](/integrations/aspnetcore/#errors-as-problemdetails) for where it lands on the wire.

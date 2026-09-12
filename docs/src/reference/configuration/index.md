@@ -98,6 +98,22 @@ defaults below:
 .WithGuards(maxFilterValues: 500)     // large $in lists on this resource, everything else default
 ```
 
+::: warning `MaxFilterValues` is also an expression-tree depth
+`$contains` on a collection field folds one predicate per value into a left-leaning `AND` chain, so the
+guard's value **is** the depth of the tree the provider is handed. The default of 100 is far below every
+ceiling below; raising it a long way is not. Measured, one value count per process:
+
+| `maxFilterValues` | SQLite | LINQ-to-Objects |
+|---:|---|---|
+| 100 (default) … 900 | fine | fine |
+| 1 000 | `SQLite Error 1: 'Expression tree is too large (maximum depth 1000)'`, surfacing as a `500` | fine |
+| 10 000 | — | **`StackOverflowException` while compiling the expression, which kills the process** |
+
+The second one cannot be caught: .NET terminates on a stack overflow by design, so no handler, middleware or
+`try` block sees it. If you raise this guard past a few hundred, keep the value well inside your provider's
+limit and test the in-memory leg at the same number.
+:::
+
 What each one actually counts is where the surprises live:
 
 | Guard | Default | Counted over | Exceeded → |
@@ -117,7 +133,7 @@ What each one actually counts is where the surprises live:
 ---
 
 
-### `WithMinSearchLength`
+### `WithMinSearchLength` <Badge type="tip" text="10.1.0" />
 
 ```csharp
 .WithMinSearchLength(3)
@@ -141,7 +157,7 @@ trimmed, so a pattern is measured **as sent**, and the rejection reads
 **Rejects at configuration time:** a value below 1 → `ArgumentOutOfRangeException`; a value above
 `MaxSearchLength` → `InvalidOperationException` at `Build()`, naming both numbers.
 
-### `WithMaxOffset`
+### `WithMaxOffset` <Badge type="tip" text="10.1.0" />
 
 ```csharp
 .WithMaxOffset(50_000)
@@ -155,7 +171,7 @@ It is a ceiling on the offset rather than on the page number on purpose. The off
 pays for, and which page a given offset corresponds to moves with `limit` — at `maxOffset: 100`, page 11 is
 reachable at `limit=10` and page 4 is not at `limit=50`.
 
-### `AllowUnlimited`
+### `AllowUnlimited` <Badge type="tip" text="10.1.0" />
 
 ```csharp
 .AllowUnlimited(maxRows: 5_000)
@@ -189,7 +205,7 @@ shared default for it, unlike every other guard on this page.
 
 ---
 
-## Shared defaults
+## Shared defaults <Badge type="tip" text="10.1.0" />
 
 Every limit and guard above can come from a shared object instead of being retyped per configuration. Two
 ways in, and they compose:
@@ -529,7 +545,7 @@ stops being conditional, look for a second declaration of the same name before l
 
 ## Pattern matching
 
-### `WithLikeStrategy`
+### `WithLikeStrategy` <Badge type="tip" text="10.1.0" />
 
 ```csharp
 .WithLikeStrategy(PaginateLikeDefaults.Portable)

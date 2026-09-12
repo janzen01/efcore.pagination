@@ -47,7 +47,31 @@ Four cases where the predicate the engine emits is not the one the checklist abo
 and one plan-cache entry serve every cardinality. That is deliberate and is not configurable — EF Core 10's
 `UseParameterizedCollectionMode` and `EF.Constant(...)` do not reach it, because the engine wraps the array in
 `EF.Parameter` before EF sees it. Without the wrap the values would be inlined as literals and you would get
-one statement per distinct list length instead.
+one statement per distinct list length instead. The emitted shape is `col = ANY(@p)` on PostgreSQL and
+`col IN (SELECT value FROM json_each(@p))` on SQLite, identical at 3, 30 and 100 values.
+
+**The single parameter has a cost on PostgreSQL, and it is worth knowing before you blame the index.** A
+parameter's contents are invisible to the planner, so once a statement is planned generically the row estimate
+for `= ANY(@p)` is a fixed guess rather than anything derived from the list you sent. Measured on a
+200 000-row table with a deliberately skewed distribution, a two-value `$in` matching 2 324 rows was planned
+for **37 265** — a 16× over-estimate, enough to move the planner off a plan that suits the rows actually
+returned. Inlined literals would estimate almost exactly, which is the trade EF Core 10 made when it moved its
+own default; this engine keeps the parameter because the alternative is a new query text, and a new plan-cache
+entry, for every distinct list a client sends. If a highly selective `$in` over a large skewed table plans
+badly, that is the mechanism — `pg_hint_plan`, a partial index, or splitting the query are the levers, not a
+library setting.
+
+## The first paginated call of a process is slow
+
+Roughly **20 ms of type initialisers plus JIT**, measured as ~24 ms for the first `ApplyPagination` against
+0.006 ms once warm — about 3 600×. Most of it is one type: the filter parser's frozen operator tables cost
+~13 ms to build, and they are built once per process, not per request.
+
+It is a constant, not a leak, and on a long-lived host it disappears into startup. It matters in two places:
+a **cold-started serverless instance**, where the first request a container ever serves pays it, and a **p99
+measured across scale-out**, where every new instance contributes one slow request. If either describes your
+deployment, issue one throwaway paginated query at startup — an `ApplyPagination` against an empty queryable
+is enough, since it composes without touching the database — and the cost moves out of the request path.
 
 ## Index the sort, including the tie-breaker
 

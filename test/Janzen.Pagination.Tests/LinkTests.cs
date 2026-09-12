@@ -140,6 +140,47 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 	}
 
 	/// <summary>
+	///     The query parameters are guarded the same way the path is, and for the same reason: both halves of a
+	///     pair reach <c>Uri.EscapeDataString</c> in the link builder, which throws on <see langword="null" />.
+	///     Unchecked, the mistake is made at construction and paid for on the first request, as an unmapped
+	///     <see cref="ArgumentNullException" /> from inside pagination — a 500 for a server wiring bug.
+	/// </summary>
+	[Fact]
+	public void A_null_key_or_value_is_refused_at_construction() {
+
+		var nullKey = Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/products", [new(null!, "asc")]));
+		Assert.Contains("index 0", nullKey.Message, StringComparison.Ordinal);
+
+		var nullValue = Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/products", [new("sortBy", null!)]));
+		Assert.Contains("sortBy", nullValue.Message, StringComparison.Ordinal);
+
+		// And through `with`, which is the path a field initializer alone would not cover.
+		var context = new PaginateLinkContext("/products", [new("sortBy", "id:ASC")]);
+		Assert.Throws<ArgumentException>(() => context with { QueryParameters = [new("sortBy", null!)] });
+
+	}
+
+	/// <summary>
+	///     The parameter list is copied, not captured. This record compares by value, so a caller who keeps their
+	///     list and adds to it afterwards would otherwise change a constructed context underneath it — two equal
+	///     contexts stop being equal, and one used as a dictionary key can no longer be found.
+	/// </summary>
+	[Fact]
+	public void The_parameter_list_is_copied_rather_than_captured() {
+
+		var supplied = new List<KeyValuePair<string, string>> { new("sortBy", "id:ASC") };
+		var context = new PaginateLinkContext("/products", supplied);
+		int before = context.GetHashCode();
+
+		supplied.Add(new("search", "widget"));
+
+		Assert.Single(context.QueryParameters);
+		Assert.Equal(before, context.GetHashCode());
+		Assert.Equal(context, new PaginateLinkContext("/products", [new("sortBy", "id:ASC")]));
+
+	}
+
+	/// <summary>
 	///     <c>with</c> runs the same guard construction does. A record's synthesized copy constructor copies every
 	///     field verbatim, so a guard kept in a field initializer is carried across as "already validated" and the
 	///     member the caller actually changed is never looked at — the shape that let an unescaped path through.

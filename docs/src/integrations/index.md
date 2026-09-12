@@ -13,6 +13,17 @@ and every package in this section is nothing more than a pre-built use of one:
 None of them changes what a `PaginateConfig<T>` looks like. A config written against SQL Server works
 unchanged on PostgreSQL; only the emitted SQL differs.
 
+::: info Which engines this is measured against
+Three legs run in this repository's own suite: **PostgreSQL** (15.19, 16.15, 17.11 and 18.6), **SQLite**, and
+a plain `IQueryable` over a list. Every claim about those is measured, and the PostgreSQL pages say which
+server a given one was measured on.
+
+Statements about **SQL Server, Oracle, MySQL and Synapse** — collation behaviour, the default escape
+character, `[` opening a character range — are read from those engines' own documentation and have **not**
+been executed against this library. They are the best information available and are believed correct; they
+are not evidence of the same kind. Provider legs for them are planned, and this note narrows as they land.
+:::
+
 ## Non-EF `IQueryable`
 
 Before any of that, there is one adaptation the engine makes on its own. It checks whether the source's
@@ -24,7 +35,7 @@ provider is Entity Framework Core's own `EntityQueryProvider` and takes a differ
 | `$eq` and `$in` on a string | the column's collation decides | `Expression.Equal` / `Enumerable.Contains` — **ordinal, case-sensitive** |
 | `$lt` / `$gt` / `$btw` on a string | the column's collation decides | `StringComparison.InvariantCulture` |
 | filter values | wrapped in `EF.Parameter` for plan reuse | plain constants |
-| count / materialise | `CountAsync` / `ToArrayAsync` | synchronous `Count` / `ToArray`, wrapped in a completed task |
+| count / materialise | `CountAsync` / `ToListAsync` | synchronous `Count` / `ToList`, wrapped in a completed task |
 
 So the whole pipeline — filters, search, sort, paging, projection — runs against an in-memory list, which
 makes unit-testing a `PaginateConfig<T>` cheap. See [Testing your pagination](/recipes/testing/).

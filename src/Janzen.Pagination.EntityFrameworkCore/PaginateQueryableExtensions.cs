@@ -420,7 +420,7 @@ public static class PaginateQueryableExtensions {
 		// Long arithmetic before the clamp: maxRows + 1 overflows for a ceiling at int.MaxValue, and Take with a
 		// negative count returns nothing -- so an unlimited read would have answered zero rows and a zero count,
 		// silently, with no exception anywhere. Clamped, the fetch is simply unbounded in practice and the
-		// items.Length > maxRows check can never fire, which is the honest reading of that ceiling.
+		// items.Count > maxRows check can never fire, which is the honest reading of that ceiling.
 		int take = (int)Math.Min((long)config.UnlimitedMaxRows!.Value + 1, int.MaxValue);
 
 		return query.Take(take);
@@ -472,13 +472,21 @@ public static class PaginateQueryableExtensions {
 		return Task.FromResult(query.Count());
 	}
 
-	private static async Task<T[]> ToArrayAsync<T>(IQueryable<T> query, CancellationToken ct) {
+	// Deliberately a list, not an array. EF Core's ToArrayAsync is literally
+	// `(await source.ToListAsync(ct)).ToArray()`, so asking it for an array buys a second allocation the
+	// exact size of the page plus a copy, on top of the List whose backing array is already there -- and
+	// past ~10 600 reference elements (85 000 / 8) both of them are LOH allocations. Every consumer of
+	// this takes IReadOnlyList<T>, PaginatedResponse<T>.Items included, so the array was never the shape
+	// anything needed. Do not "tidy" it back to ToArrayAsync. Named Materialize rather than ToListAsync so it
+	// cannot be confused with the EF Core extension it calls one line below: that one binds by instance
+	// syntax, so giving this helper a `this` parameter would turn the call into unbounded recursion.
+	private static async Task<IReadOnlyList<T>> MaterializeAsync<T>(IQueryable<T> query, CancellationToken ct) {
 
 		ct.ThrowIfCancellationRequested();
 
 		var items = query.Provider is IAsyncQueryProvider
-			? await query.ToArrayAsync(ct).ConfigureAwait(false)
-			: query.ToArray();
+			? await query.ToListAsync(ct).ConfigureAwait(false)
+			: query.ToList();
 
 		// The only await in the engine with consumer code on its far side: PaginateSelectMapAsync's postMap and
 		// PaginateMapAsync's projector both run over what this returns. Checking again here is what stops them
@@ -514,7 +522,7 @@ public static class PaginateQueryableExtensions {
 
 			var selector = PaginateProjectionBuilder.Build<TEntity, TResult>();
 
-			return source.PaginateCoreAsync(request, config, (query, token) => ToArrayAsync(query.Select(selector), token), linkContext, ct);
+			return source.PaginateCoreAsync(request, config, (query, token) => MaterializeAsync(query.Select(selector), token), linkContext, ct);
 
 		}
 
@@ -547,7 +555,7 @@ public static class PaginateQueryableExtensions {
 			ArgumentNullException.ThrowIfNull(config);
 			ArgumentNullException.ThrowIfNull(selector);
 
-			return source.PaginateCoreAsync(request, config, (query, token) => ToArrayAsync(query.Select(selector), token), linkContext, ct);
+			return source.PaginateCoreAsync(request, config, (query, token) => MaterializeAsync(query.Select(selector), token), linkContext, ct);
 
 		}
 
@@ -581,7 +589,7 @@ public static class PaginateQueryableExtensions {
 			ArgumentNullException.ThrowIfNull(postMap);
 
 			return source.PaginateCoreAsync(request, config,
-				async (query, token) => (await ToArrayAsync(query.Select(selector), token).ConfigureAwait(false)).Select(postMap).ToArray(),
+				async Task<IReadOnlyList<TResult>> (query, token) => (await MaterializeAsync(query.Select(selector), token).ConfigureAwait(false)).Select(postMap).ToList(),
 				linkContext, ct);
 
 		}
@@ -615,10 +623,10 @@ public static class PaginateQueryableExtensions {
 			ArgumentNullException.ThrowIfNull(config);
 			ArgumentNullException.ThrowIfNull(projector);
 
-			return source.PaginateCoreAsync(request, config, async (query, token) => {
+			return source.PaginateCoreAsync(request, config, async Task<IReadOnlyList<TResult>> (query, token) => {
 				// Read-only list path: do not track the materialized entities (avoids change-tracker pollution + snapshots).
-				var entities = await ToArrayAsync(AsNoTrackingIfSupported(query), token).ConfigureAwait(false);
-				return entities.Select(projector).ToArray();
+				var entities = await MaterializeAsync(AsNoTrackingIfSupported(query), token).ConfigureAwait(false);
+				return entities.Select(projector).ToList();
 			}, linkContext, ct);
 		}
 
@@ -699,7 +707,7 @@ public static class PaginateQueryableExtensions {
 		[RequiresDynamicCode(AotIncompatibleMessage)]
 		private async Task<PaginatedResponse<TResult>> PaginateCoreAsync<TResult>(PaginateQuery request,
 			PaginateConfig<TEntity> config,
-			Func<IQueryable<TEntity>, CancellationToken, Task<TResult[]>> project,
+			Func<IQueryable<TEntity>, CancellationToken, Task<IReadOnlyList<TResult>>> project,
 			PaginateLinkContext? linkContext,
 			CancellationToken ct
 		) {
@@ -719,7 +727,7 @@ public static class PaginateQueryableExtensions {
 
 			int totalItems;
 			int totalPages;
-			TResult[] items;
+			IReadOnlyList<TResult> items;
 
 			if (limit == PaginateQuery.UnlimitedLimit) {
 
@@ -729,11 +737,11 @@ public static class PaginateQueryableExtensions {
 				int maxRows = config.UnlimitedMaxRows!.Value;
 				items = await project(ApplyCeiling(ApplySorts(query, sorts.Keys), limit, config), ct).ConfigureAwait(false);
 
-				if (items.Length > maxRows) {
+				if (items.Count > maxRows) {
 					throw new PaginateQueryException($"The unlimited read is too large: this resource returns at most {maxRows} rows for 'limit=-1'.") { Code = PaginateQueryError.UnlimitedReadTooLarge };
 				}
 
-				totalItems = items.Length;
+				totalItems = items.Count;
 				totalPages = totalItems == 0 ? 0 : 1;
 
 			} else {
@@ -753,7 +761,7 @@ public static class PaginateQueryableExtensions {
 			}
 
 			// itemsPerPage echoes what the page actually holds rather than the requested -1, which is not a size.
-			int itemsPerPage = limit == PaginateQuery.UnlimitedLimit ? items.Length : limit;
+			int itemsPerPage = limit == PaginateQuery.UnlimitedLimit ? items.Count : limit;
 
 			// totalPages stays the honest count of pages the data has; navigation reports the ones a caller may
 			// actually ask for. Without this split, a config with WithMaxOffset hands out a 'next' link and a
@@ -761,7 +769,7 @@ public static class PaginateQueryableExtensions {
 			// into a hard error instead of the end of the collection.
 			int navigablePages = NavigablePages(totalPages, limit, config);
 
-			var meta = new PaginatedMeta(totalItems, items.Length, itemsPerPage, totalPages, page) {
+			var meta = new PaginatedMeta(totalItems, items.Count, itemsPerPage, totalPages, page) {
 				SortBy          = sorts.Tokens,
 				Search          = search,
 				SearchBy        = searchBy,
