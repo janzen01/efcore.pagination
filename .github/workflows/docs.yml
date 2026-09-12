@@ -6,16 +6,16 @@ name: Docs
 # Deploy only. The build itself lives in docs-build.yml and runs on every pull request through ci.yml,
 # where it is part of the required check -- so what lands here has already been verified. The trade-off
 # is deliberate: the *deploy* wiring below (artifact hand-off, environment, concurrency) is no longer
-# exercised before a merge, only by dispatching this workflow.
+# exercised before a merge, only by dispatching this workflow -- and now not even on every merge, so it
+# goes months between real runs. Dispatch it once after changing anything below.
+#
+# Published on release, not on push. The site root is what the 10.0.0 package READMEs point at, and those
+# renders on nuget.org are permanent -- so the root has to describe a version somebody can install. Building
+# it from master would mean that during the next major's development every one of those frozen links led to
+# documentation for code that is not released yet.
 on:
-  push:
-    branches: [ master ]
-    paths:
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
-      # Without this a fix to the shared build merges without deploying, and the published site stays
-      # stale until the next commit that happens to touch docs/.
-      - '.github/workflows/docs-build.yml'
+  release:
+    types: [ published ]
   workflow_dispatch:
 
 permissions:
@@ -30,10 +30,21 @@ concurrency:
 
 jobs:
   build:
+    # General availability only: a prerelease must not replace the public documentation, because the site
+    # root is what an installed, released package points a reader at. Both halves are needed. `prerelease`
+    # is the flag on the GitHub release, which is what the maintainer actually sets; the tag test is the
+    # backstop for the release that gets published with the box left unticked, since every prerelease
+    # version here carries a semver suffix (`-rc.1`, `-preview.1`) and no stable one does.
+    # A dispatch is exempt -- it is the deliberate escape hatch, and it must be run against a tag.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+        || (github.event.release.prerelease == false
+            && !contains(github.event.release.tag_name, '-'))
     uses: ./.github/workflows/docs-build.yml
     with:
       upload: true
 
+  # Skipped with `build`, because a skipped dependency leaves this unsatisfied rather than green.
   deploy:
     needs: build
     runs-on: ubuntu-latest
