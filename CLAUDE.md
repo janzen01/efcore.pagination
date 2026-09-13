@@ -270,10 +270,25 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
 - **The `VersionSwitcher` component is used rather than the built-in dropdown**, registered in
   `.vitepress/theme/index.ts` and placed in the nav as `{ component: 'VersionSwitcher' }` with
   `versionSwitcher: false` to suppress the built-in one. It keeps the reader on the page they were reading,
-  which is the whole point when the link that brought them came out of a package README and named a page. One
-  known wart: it builds targets from `relativePath`, so its links read `/reference/query-string/index` rather
-  than `/reference/query-string/` — served correctly by GitHub Pages (measured: that form, the trailing-slash
-  form and `/index.html` all answer 200), but not the canonical form, and not configurable.
+  which is the whole point when the link that brought them came out of a package README and named a page.
+  **It lives in `.vitepress/theme/components/VersionSwitcher.vue` — our copy of the packaged component**,
+  because neither the ordering nor the labels are configurable upstream: the menu is built straight off the
+  `versions` Set, whose order is whatever `readdirSync` returned (alphabetical, so oldest first), and each
+  entry's text *is* its path segment, so a label cannot be smuggled in without breaking the link. Two
+  behaviours are ours and both should survive a version bump of the package. **Newest first**, sorted on the
+  `X.Y` in `v<major>.<minor>.x` rather than as a string, so `v10.9.x` does not fall below `v10.10.x` the
+  first time a line reaches double digits. And **`latest` is a label, not a destination**: upstream offered
+  the current version as its own entry named after `versionsConfig.current`, so the menu read `latest`,
+  `v10.0.x`, `v10.1.x` — three items for two lines, with nothing saying the first two are the same pages.
+  The newest line's archived copy is byte-identical to the root while it is current, so the two collapse into
+  one entry, `v10.1.x (Latest)`, **linking to the root**: that is what the sitemap advertises and what every
+  page's canonical names, so the switcher must not send readers to the duplicate instead. The consequence to
+  expect is that on `/v<newest>.x/` itself no entry is marked active, because the entry points at the root —
+  the button still reads the active label.
+  One known wart, inherited and left as-is: targets are built from `relativePath`, so links read
+  `/reference/query-string/index` rather than `/reference/query-string/` — served correctly by GitHub Pages
+  (measured: that form, the trailing-slash form and `/index.html` all answer 200), but not the canonical
+  form, which is why `transformPageData` emits a canonical at all.
 - **Every content page carries a `<link rel="canonical">`, emitted by `transformPageData` in `config.mts`.**
   That is what the wart above makes necessary: the switcher links the `/index` form from every page of every
   version, so without it each page is crawlable at two addresses while the sitemap advertises one. One tag in

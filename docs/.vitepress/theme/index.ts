@@ -9,7 +9,7 @@ import {
 
 import '@nolebase/vitepress-plugin-enhanced-readabilities/client/style.css'
 
-import VersionSwitcher from '@viteplus/versions/components/version-switcher.component.vue'
+import VersionSwitcher from './components/VersionSwitcher.vue'
 
 import './mermaid.css'
 
@@ -22,7 +22,9 @@ import './mermaid.css'
 // per-reader and persisted client-side; nothing about the published pages changes.
 //
 // VersionSwitcher is referenced by name from the nav in config.mts (`{ component: 'VersionSwitcher' }`), which
-// is why it has to be registered globally here rather than imported where it is used.
+// is why it has to be registered globally here rather than imported where it is used. It is our own copy of
+// @viteplus/versions' component rather than the packaged one: the ordering and the labels are not
+// configurable there. See the header of that file.
 export default {
     extends: DefaultTheme,
     Layout: () =>
