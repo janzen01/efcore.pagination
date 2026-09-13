@@ -20,25 +20,38 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname, relative, posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { configuredSrcExclude } from './src-exclude.mjs'
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const src = join(root, 'src')
+const archive = join(root, 'archive')
 const dist = join(root, '.dist')
 
 const walk = (dir) => readdirSync(dir, { withFileTypes: true })
 	.flatMap((entry) => entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)])
 
-// A page `srcExclude` keeps out of the build emits no ids, so checking a fragment link written in one is
-// guaranteed to fail -- a required-check failure on a file the config deliberately excludes. The patterns are read
-// out of config.mts rather than restated here; if that list is ever renamed away this falls back to checking
-// everything, which is the behaviour before this check existed and fails loudly rather than silently.
-const excluded = [...(readFileSync(join(root, '.vitepress', 'config.mts'), 'utf8')
-	.match(/srcExclude:\s*\[([^\]]*)\]/)?.[1]
-	.matchAll(/['"]([^'"]+)['"]/g) ?? [])].map(([, pattern]) => pattern.replace(/\*+$/, ''))
+// docs/src is served at the site root; every copy scripts/sync-archive.mjs generates under docs/archive/<version>/
+// is served at /<version>/. The archive is checked as well, and that is not ceremony: its links are rewritten
+// from root-absolute to version-absolute by that script, and one it fails to rewrite still resolves -- to the
+// page at the same path in the *current* version. That is a different version's content under a frozen URL, and
+// nothing else in the pipeline notices, because the page it lands on genuinely exists.
+const roots = [
+	{ dir: src, prefix: '' },
+	...(existsSync(archive) ? readdirSync(archive, { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.map((entry) => ({ dir: join(archive, entry.name), prefix: `${entry.name}/` }))
+		: [])
+]
 
-const isExcluded = (file) => {
-	const path = relative(src, file).replaceAll('\\', '/')
-	return excluded.some((prefix) => path.startsWith(prefix))
-}
+// A page `srcExclude` keeps out of the build emits no ids, so checking a fragment link written in one is
+// guaranteed to fail -- a required-check failure on a file the config deliberately excludes. The patterns come
+// from scripts/src-exclude.mjs, which is also what sync-archive.mjs uses: this file and that one and VitePress
+// itself were reading the same option three different ways, and every disagreement was a page one tool treated
+// as real and another did not. Paths are compared relative to docs/, which is what `srcExclude` is relative to
+// -- the config sets no `srcDir`, so VitePress treats docs/ itself as the source root.
+const excluded = configuredSrcExclude()
+
+const isExcluded = (file) => excluded(relative(root, file).replaceAll('\\', '/'))
 
 const idCache = new Map()
 
@@ -52,12 +65,14 @@ const idsOf = (page) => {
 	return idCache.get(page)
 }
 
-const pages = walk(src).filter((f) => f.endsWith('.md') && !isExcluded(f))
-
-const addressOf = (file) => {
-	const dir = relative(src, dirname(file)).replaceAll('\\', '/')
-	return dir === '' ? '/' : `/${dir}/`
+const addressOf = (from, prefix, file) => {
+	const dir = relative(from, dirname(file)).replaceAll('\\', '/')
+	return dir === '' ? `/${prefix}` : `/${prefix}${dir}/`
 }
+
+const pages = roots.flatMap(({ dir, prefix }) => walk(dir)
+	.filter((file) => file.endsWith('.md') && !isExcluded(file))
+	.map((file) => ({ file, address: addressOf(dir, prefix, file) })))
 
 // A stub is a page that meta-refreshes away in its own front matter -- read only that block, so a page merely
 // quoting the meta in its prose is not one. Derived rather than listed, so a stub added later is covered without
@@ -65,21 +80,26 @@ const addressOf = (file) => {
 const frontMatter = (text) => text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? ''
 
 const stubs = new Set(pages
-	.filter((file) => /http-equiv:\s*refresh/.test(frontMatter(readFileSync(file, 'utf8'))))
-	.map(addressOf))
+	.filter(({ file }) => /http-equiv:\s*refresh/.test(frontMatter(readFileSync(file, 'utf8'))))
+	.map(({ address }) => address))
 
 const broken = []
 const atStub = []
 let checked = 0
 
-for (const file of pages) {
+for (const { file, address: base } of pages) {
 
 	const text = readFileSync(file, 'utf8')
-	const base = addressOf(file)
 	const resolve = (target) => target.startsWith('/') ? target : posix.normalize(base + target)
 
 	// Markdown links carrying a fragment. Bare `#anchor` means this page.
 	for (const [, href] of text.matchAll(/\]\(([^)\s]*#[^)\s]+)\)/g)) {
+
+		// An external link brings its own fragment. Resolved as a site path it asks for a page like
+		// `guide/https:/www.rfc-editor.org/rfc/rfc8288` and fails the build on a link that is perfectly
+		// fine -- and since this now walks the archive, such a link inside a frozen tag would redden a
+		// required check with no file in the working tree to edit. The stub loop below already skips these.
+		if (/^[a-z][a-z0-9+.-]*:/i.test(href)) continue
 
 		const [target, anchor] = href.split('#')
 		const resolved = target === '' ? base : resolve(target)
@@ -101,7 +121,7 @@ for (const file of pages) {
 		const resolved = resolve(href.split('#')[0])
 		const address = resolved.endsWith('/') ? resolved : `${resolved}/`
 
-		if (stubs.has(address) && addressOf(file) !== address) atStub.push(`${relative(root, file)} -> ${href}   (${address})`)
+		if (stubs.has(address) && base !== address) atStub.push(`${relative(root, file)} -> ${href}   (${address})`)
 
 	}
 

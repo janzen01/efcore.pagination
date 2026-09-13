@@ -65,18 +65,20 @@ query parameters, operator names and response envelope.
 > the **10.x** line, pairing with .NET 10 and EF Core 10. Older lines are not maintained in parallel, and
 > release notes live on the [Releases](https://github.com/janzen01/efcore.pagination/releases) page.
 
-::: warning This site describes `master`, not the newest package
-It is rebuilt from the default branch on every documentation change, which is what keeps a correction
-available the day it is written — but it means a member described here may not be in the version you have
-installed yet. Nothing is removed from the site when it ships; the gap runs the other way, and it closes at
-the next release. Check the [Releases](https://github.com/janzen01/efcore.pagination/releases) page when a
-call you copied from here does not compile.
+::: warning This site is versioned — check which copy you are reading
+Nothing here describes unreleased code: the site is published when a **stable** release is, so the root always
+shows the newest one — and a prerelease you installed with `--prerelease` may be ahead of what it says. Every
+released line also keeps its own copy at `/v<line>.x/`, this one included, and the version picker in the
+navigation moves between them without losing your place on the page. From `10.1.0` on, the links inside a
+package README name that package's own line, so a reader arriving from nuget.org lands in the right copy
+already. The `10.0.x` READMEs predate the versioned copies and point here, to the root — if you installed one
+of those, open `/v10.0.x/` from the picker to read what shipped with it.
 
-A member added in `10.1.0` or later carries its version beside its heading —
-<Badge type="tip" text="10.1.0" /> — so the gap is visible without leaving the page. An unmarked member
-predates `10.1.0`; it does **not** follow that it dates from `10.0.0`, because `10.0.1` and `10.0.2` added
-public surface of their own and are not marked individually. The
-[Releases](https://github.com/janzen01/efcore.pagination/releases) page has what each one carried.
+Within a line the third component only ever adds, so a member can be newer than the package you installed but
+never gone from it. One that arrived after the line opened carries its version beside its heading —
+<Badge type="tip" text="10.1.0" /> — so the gap is visible without leaving the page; an unmarked member
+predates the line. The [Releases](https://github.com/janzen01/efcore.pagination/releases) page has what each
+one carried.
 :::
 
 ## Packages

@@ -21,9 +21,13 @@ jobs:
       run:
         working-directory: docs
     steps:
+      # fetch-depth: 0 is load-bearing, not a precaution. docs/scripts/sync-archive.mjs materialises one copy
+      # of the site per released line by reading docs/src out of that line's tag, and the default shallow
+      # checkout has no tags to read -- the build would fail before VitePress ever starts.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       # package_json_file is resolved against the REPOSITORY ROOT, which has no package.json -- the one
       # carrying `packageManager` lives in docs/. The `defaults.run.working-directory` above does not

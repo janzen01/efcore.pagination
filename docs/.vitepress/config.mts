@@ -1,5 +1,91 @@
-import { defineConfig } from 'vitepress'
+import { execFile } from 'node:child_process'
+import { existsSync, readdirSync } from 'node:fs'
+import { resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import type { Plugin } from 'vite'
+import { defineVersionedConfig } from '@viteplus/versions'
 import { withMermaid } from 'vitepress-plugin-mermaid'
+
+// Dev only. scripts/sync-archive.mjs runs once before `vitepress dev`, which left the newest line's copy
+// serving a start-up snapshot: the manifest defines that line as the working tree, but an edit to docs/src
+// only ever reached the site root. `/v<line>.x/` is exactly the page an author opens to check that the version
+// rewriting behaved, so a stale render reads as "my change did not take effect". The script writes only files
+// whose bytes changed, so a save costs one HMR update rather than a rebuilt archive.
+const syncArchiveOnEdit: Plugin = {
+    name: 'janzen-sync-archive',
+    apply: 'serve',
+    configureServer(server) {
+        const script = fileURLToPath(new URL('../scripts/sync-archive.mjs', import.meta.url))
+
+        // `resolve` drops the trailing slash, so the separator has to be put back. Without it a sibling
+        // directory whose name merely begins with `src` matches too -- and `docs/*` is deny-by-default
+        // precisely so local planning directories can live beside the site.
+        const sources = resolve(fileURLToPath(new URL('../src/', import.meta.url))) + sep
+
+        let pending: NodeJS.Timeout | undefined
+        let running = false
+        let missed = false
+        let closed = false
+
+        // One run at a time, with a single catch-up if edits arrived while it was working. Two overlapping
+        // runs each prune whatever their own run did not produce, so the one that started earlier can delete
+        // a page the later one has just written -- and nothing would then schedule the sync that puts it back.
+        const sync = () => {
+            if (closed || running) {
+                missed = !closed
+                return
+            }
+
+            running = true
+            execFile(process.execPath, [script], (error, _stdout, stderr) => {
+                running = false
+                if (error && !closed) server.config.logger.error(stderr || error.message)
+                if (missed) {
+                    missed = false
+                    sync()
+                }
+            })
+        }
+
+        // Only docs/src is watched. The script writes into docs/archive, which VitePress also watches now that
+        // docs/ is the source root -- reacting to that would feed the script its own output.
+        server.watcher.on('all', (_event, file) => {
+            if (!resolve(file).startsWith(sources)) return
+            clearTimeout(pending)
+            pending = setTimeout(sync, 150)
+        })
+
+        // A save usually precedes Ctrl+C, so a sync is often still in flight here. Clearing the timer alone
+        // left its callback free to schedule one more run against a server that no longer exists.
+        server.httpServer?.once('close', () => {
+            closed = true
+            missed = false
+            clearTimeout(pending)
+        })
+    }
+}
+
+// Every released line is served from its own copy under docs/archive/<segment>/, generated before the build by
+// scripts/sync-archive.mjs. The plugin discovers them by reading that directory, and the directory name is the
+// URL segment verbatim -- so this list is also what distinguishes an archived locale from a real one below.
+const archiveDir = new URL('../archive/', import.meta.url)
+const archived = existsSync(archiveDir)
+    ? readdirSync(archiveDir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
+    : []
+
+// The published origin, in one place. It is the canonical href, the sitemap hostname, and -- as its path --
+// the `base` every built URL carries and the prefix on the favicon. Those were four literals before, so a
+// custom domain or a repository rename had to find all of them; miss the canonical and every page names an
+// authoritative copy at an address that no longer exists, while the sitemap correctly advertises the new one.
+// Nothing checks the canonical, so that combination stays green and actively misdirects.
+const site = 'https://janzen01.github.io/efcore.pagination/'
+const base = new URL(site).pathname
+
+// A page that asks not to be indexed must not also name itself authoritative: the two are contradictory
+// signals, and the redirect stubs already say it three ways (robots, site search, sitemap).
+const noindexed = (head: unknown[][] = []) =>
+    head.some(([, attrs]) => (attrs as { name?: string, content?: string })?.name === 'robots'
+        && String((attrs as { content?: string })?.content ?? '').includes('noindex'))
 
 // The URLs below ship inside the 10.0.0 package READMEs on nuget.org, which nuget.org renders per version
 // forever. The obligation is that each of them keeps answering -- not that this file keeps owning them.
@@ -118,29 +204,69 @@ const cookbookSidebar = [
     }
 ]
 
-const config = withMermaid(defineConfig({
+const config = withMermaid(defineVersionedConfig({
     title: 'Janzen.Pagination',
     description: 'Dynamic, configuration-driven pagination, filtering and sorting for EF Core and ASP.NET Core',
 
     // Project page, not a user page: everything is served under the repository name.
-    base: '/efcore.pagination/',
-    srcDir: './src',
+    base,
+    lang: 'en-US',
     outDir: './.dist',
 
-    // The Czech translation is a single landing page, so the `cs` locale is not registered (see below)
-    // and its draft must not build either -- it would otherwise be published as an English-locale page
-    // with English chrome and lang="en-US". Kept in the repository rather than deleted: phase 3 removes
-    // this line and restores the locale block.
-    srcExclude: ['cs/**'],
+    // `srcDir` is deliberately absent. @viteplus/versions reads it as the root *containing* `sources` and
+    // `archive`, so `./src` would send it looking for docs/src/src and throw at startup. The cost is that
+    // VitePress now treats docs/ itself as the source root, which is why `srcExclude` below is rooted there
+    // and has to keep out the stray planning notes that live at docs/*.md and are gitignored.
+
+    // The current line is served from `sources` at the root, so the URLs frozen in the 10.0.0 READMEs keep
+    // answering; each subfolder of `archive` is served at /<name>/. `versionSwitcher` is false because the
+    // built-in dropdown always lands on a version's home page -- the VersionSwitcher component in the nav
+    // keeps the reader on the page they were reading.
+    versionsConfig: {
+        current: 'latest',
+        sources: 'src',
+        archive: 'archive',
+        versionSwitcher: false
+    },
+
+    // Rooted at docs/, not docs/src/, because of the missing `srcDir` above.
+    // `*.md` keeps out the local planning notes dropped at the top of docs/: they are gitignored, so they
+    // exist on a maintainer's machine and not in CI, and without this the two builds would differ.
+    // `.dist` and `.vitepress/cache` are inside the source root for the same reason, and nothing else covers
+    // them -- VitePress's own default ignores `**/node_modules/**` and `**/dist/**`, and this output directory
+    // is `.dist`. They hold no markdown today; one `.md` left in `src/public/` would be copied into `.dist`
+    // by a build and become a page at the site root on the next one, archived under every version with it.
+    srcExclude: ['*.md', '.dist', '.vitepress/cache'],
 
     // GitHub Pages serves /foo from foo.html without a redirect, so extension-less links are safe here.
     cleanUrls: true,
 
     // VitePress only emits sitemap.xml when a hostname is set. The base belongs in it: these URLs are
     // advertised in PackageProjectUrl and in all four package READMEs on nuget.org.
+    // GitHub Pages answers a page at three addresses -- `/x/`, `/x/index` and `/x/index.html` -- and the
+    // version switcher links the middle one, because it builds its targets from `relativePath`. That form is
+    // not configurable and it does resolve (measured against the live site: all three return 200), so the
+    // duplication is what is left to deal with: without this every page is crawlable twice, and with three
+    // versions that is 78 pages at two addresses each. One tag per built file covers all of its addresses.
+    // Archived pages point at themselves, not at the root: they are a different version's content, and saying
+    // otherwise would be a lie the moment the line they belong to stops being the newest.
+    transformPageData(pageData) {
+        const head = (pageData.frontmatter.head ?? []).filter(([, attrs]) => attrs?.rel !== 'canonical')
+
+        if (noindexed(head)) return
+
+        const route = pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
+
+        pageData.frontmatter.head = [...head, ['link', { rel: 'canonical', href: `${site}${route}` }]]
+    },
+
+    // Archived versions are dropped as a whole rather than stub by stub. While a line is the current one its
+    // archived copy is byte-identical to the root, so advertising both is asking a crawler to pick a canonical
+    // between two copies of the same page. They stay reachable and linkable -- just not submitted.
     sitemap: {
-        hostname: 'https://janzen01.github.io/efcore.pagination/',
-        transformItems: (items) => items.filter((item) => !redirectStubs.includes(item.url))
+        hostname: site,
+        transformItems: (items) => items.filter((item) =>
+            !redirectStubs.includes(item.url) && !archived.some((version) => item.url.startsWith(`${version}/`)))
     },
 
     // A dead link fails the build. With cross-page links written by hand, that is the only thing standing
@@ -150,7 +276,7 @@ const config = withMermaid(defineConfig({
     lastUpdated: true,
 
     head: [
-        ['link', { rel: 'icon', type: 'image/svg+xml', href: '/efcore.pagination/icon.svg' }],
+        ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}icon.svg` }],
         ['meta', { name: 'theme-color', content: '#512BD4' }]
     ],
 
@@ -158,99 +284,110 @@ const config = withMermaid(defineConfig({
     // than let Node require it -- Node cannot load a .vue file. Both halves are needed: without `exclude`
     // the dev server pre-bundles it and the menu never mounts, without `noExternal` the production build
     // fails while rendering.
+    // @viteplus/versions ships the VersionSwitcher component the same way, so it needs the same pairing.
     vite: {
+        // VitePress resolves the public directory as `resolve(srcDir, vite.publicDir || 'public')`, and dropping
+        // `srcDir` moved srcDir from docs/src to docs -- which silently stopped publishing docs/src/public and
+        // took the favicon and the logo with it. Named here rather than moving the directory, so that one copy
+        // keeps serving every version from the site root.
+        publicDir: 'src/public',
+
+        plugins: [syncArchiveOnEdit],
+
         optimizeDeps: {
-            exclude: ['@nolebase/vitepress-plugin-enhanced-readabilities/client']
+            exclude: ['@nolebase/vitepress-plugin-enhanced-readabilities/client', '@viteplus/versions']
         },
         ssr: {
-            noExternal: [/@nolebase\//]
+            noExternal: [/@nolebase\//, /@viteplus\//]
         }
     },
 
-    locales: {
-        root: {
-            label: 'English',
-            lang: 'en-US',
-            themeConfig: {
-                nav: [
-                    { text: 'Home', link: '/' },
-                    {
-                        text: 'Guide',
-                        items: [
-                            { text: 'Overview', link: guide.overview },
-                            { text: 'Getting started', link: guide.gettingStarted },
-                            { text: 'Configuration', link: guide.configuration },
-                            { text: 'Projections', link: guide.projections }
-                        ]
-                    },
-                    {
-                        text: 'Integrations',
-                        items: [
-                            { text: 'Overview', link: integrations.overview },
-                            { text: 'ASP.NET Core', link: integrations.aspnetcore },
-                            { text: 'ASP.NET Core — OpenAPI', link: integrations.openapi },
-                            { text: 'PostgreSQL', link: integrations.postgresql },
-                            { text: 'NodaTime', link: integrations.nodatime },
-                            { text: 'Custom types', link: integrations.customTypes }
-                        ]
-                    },
-                    {
-                        text: 'Reference',
-                        items: [
-                            { text: 'Query-string contract', link: reference.queryString },
-                            { text: 'Response contract', link: reference.response },
-                            { text: 'Configuration API', link: reference.configuration },
-                            { text: 'Query composers', link: reference.composers },
-                            { text: 'Errors', link: reference.errors }
-                        ]
-                    },
-                    {
-                        text: 'Cookbook',
-                        items: [
-                            { text: 'Recipes', link: cookbook.recipes },
-                            { text: 'Without ASP.NET Core', link: cookbook.withoutAspNetCore }
-                        ]
-                    },
-                    {
-                        text: 'NuGet',
-                        items: [
-                            { text: 'EntityFrameworkCore', link: packages.core },
-                            { text: 'AspNetCore', link: packages.aspnetcore },
-                            { text: 'PostgreSql', link: packages.postgresql },
-                            { text: 'NodaTime', link: packages.nodatime }
-                        ]
-                    }
-                ],
-                sidebar: {
-                    '/guide/': guideSidebar,
-                    '/integrations/': integrationsSidebar,
-                    '/reference/': referenceSidebar,
-                    '/recipes/': cookbookSidebar
-                },
-                outline: { level: [2, 3], label: 'On this page' }
-            }
-        }
-
-        // The `cs` locale is deliberately absent until there is Czech content to switch to. VitePress
-        // rewrites the current path into the other locale unconditionally, so with one Czech page and
-        // 25 English ones the language switcher pointed at /cs/<path>/ on every page but the home --
-        // 48 links in the built output, every one of them a 404. Registering a locale advertises a
-        // translation; one landing page is not one. The draft stays at docs/src/cs/index.md, excluded
-        // from the build by `srcExclude` above, and phase 3 restores this block alongside it.
-    },
 
     themeConfig: {
         logo: '/icon.svg',
+
+        // Every version indexes itself, and nothing more is needed: the plugin gives each archived version its
+        // own locale, and VitePress builds one index per locale -- so a search on /v10.0.x/ only ever sees
+        // /v10.0.x/, and the root index carries no archived page. The duplicate-hits-across-versions problem
+        // this was once guarded against cannot occur. Blanking `archive/` instead left every archived page with
+        // a search box over an empty index (documentCount: 0), including the copy every package README points
+        // a reader at.
         search: { provider: 'local' },
         socialLinks: [{ icon: 'github', link: 'https://github.com/janzen01/efcore.pagination' }],
+        // `:path` is substituted with VitePress's `filePath`, which is relative to `srcDir` -- and dropping
+        // `srcDir` above moved that from `guide/index.md` to `src/guide/index.md`. So the pattern stops at
+        // `docs/`: leaving the old `docs/src/` here spells every link `docs/src/src/...`, which is a GitHub
+        // 404 on every page, and nothing in `docs:build` reads an edit link to notice.
         editLink: {
-            pattern: 'https://github.com/janzen01/efcore.pagination/edit/master/docs/src/:path',
+            pattern: 'https://github.com/janzen01/efcore.pagination/edit/master/docs/:path',
             text: 'Edit this page on GitHub'
         },
         footer: {
             message: 'Released under the MIT License.',
             copyright: 'Copyright © Lubos Jansky'
-        }
+        },
+
+        nav: [
+            { text: 'Home', link: '/' },
+            {
+                text: 'Guide',
+                items: [
+                    { text: 'Overview', link: guide.overview },
+                    { text: 'Getting started', link: guide.gettingStarted },
+                    { text: 'Configuration', link: guide.configuration },
+                    { text: 'Projections', link: guide.projections }
+                ]
+            },
+            {
+                text: 'Integrations',
+                items: [
+                    { text: 'Overview', link: integrations.overview },
+                    { text: 'ASP.NET Core', link: integrations.aspnetcore },
+                    { text: 'ASP.NET Core — OpenAPI', link: integrations.openapi },
+                    { text: 'PostgreSQL', link: integrations.postgresql },
+                    { text: 'NodaTime', link: integrations.nodatime },
+                    { text: 'Custom types', link: integrations.customTypes }
+                ]
+            },
+            {
+                text: 'Reference',
+                items: [
+                    { text: 'Query-string contract', link: reference.queryString },
+                    { text: 'Response contract', link: reference.response },
+                    { text: 'Configuration API', link: reference.configuration },
+                    { text: 'Query composers', link: reference.composers },
+                    { text: 'Errors', link: reference.errors }
+                ]
+            },
+            {
+                text: 'Cookbook',
+                items: [
+                    { text: 'Recipes', link: cookbook.recipes },
+                    { text: 'Without ASP.NET Core', link: cookbook.withoutAspNetCore }
+                ]
+            },
+            {
+                text: 'NuGet',
+                items: [
+                    { text: 'EntityFrameworkCore', link: packages.core },
+                    { text: 'AspNetCore', link: packages.aspnetcore },
+                    { text: 'PostgreSql', link: packages.postgresql },
+                    { text: 'NodaTime', link: packages.nodatime }
+                ]
+            },
+
+            // Registered in .vitepress/theme/index.ts. Unlike the built-in dropdown this keeps the
+            // reader on the page they were reading, which is the whole point when the link that
+            // brought them here came out of a package README and names a specific page.
+            { component: 'VersionSwitcher' }
+        ],
+        sidebar: {
+            '/guide/': guideSidebar,
+            '/integrations/': integrationsSidebar,
+            '/reference/': referenceSidebar,
+            '/recipes/': cookbookSidebar
+        },
+        outline: { level: [2, 3], label: 'On this page' }
     }
 }))
 
@@ -258,9 +395,24 @@ const config = withMermaid(defineConfig({
 // mermaid 11 no longer has. Vite then logs "Failed to resolve dependency: debug" on every dev start, for a
 // package that is neither installed nor needed. Dropping it from the list keeps the dev output honest --
 // a warning nobody can act on is a warning everybody learns to skip past.
+// `mermaid` is added because the plugin names mermaid's *dependencies* but not mermaid itself, and Vite does
+// not crawl inside node_modules for imports -- so mermaid was served raw, and the browser then fetched its
+// CommonJS dependencies raw too, where `import fastdom from 'fastdom'` throws and the whole page renders blank.
+// Pre-bundling mermaid pulls that entire subtree into one ES module, which fixes the class rather than the
+// instance: the plugin's hardcoded list dates from 2024 and drifts from mermaid's real dependencies with every
+// release. The production build never had the problem, which is what let it sit unnoticed.
 const include = config.vite?.optimizeDeps?.include
 if (Array.isArray(include)) {
-    config.vite!.optimizeDeps!.include = include.filter((dep) => dep !== 'debug')
+    config.vite!.optimizeDeps!.include = [...include.filter((dep) => dep !== 'debug'), 'mermaid']
+}
+
+// An archived page is docs/src as it stood at a tag, so "Edit this page on GitHub" would open the file living
+// at that path on master today -- different content, from a line the reader deliberately is not reading, with
+// no way to tell from the page that it happened. The plugin gives every archived version its own locale, which
+// is where the inherited link has to be switched off.
+for (const version of archived) {
+    const locale = config.locales?.[version]
+    if (locale) (locale.themeConfig ??= {}).editLink = false
 }
 
 export default config
