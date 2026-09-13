@@ -306,19 +306,20 @@ const config = withMermaid(defineVersionedConfig({
     themeConfig: {
         logo: '/icon.svg',
 
-        // Only the current version is indexed. Indexing the archive too would return the same page once per
-        // line for every query, and VitePress's local search has no facet to group or filter them by -- the
-        // reader would get three identical-looking hits and no way to tell which is which. A reader who wants
-        // an older page gets there from a README link or the version switcher, both of which are exact.
-        search: {
-            provider: 'local',
-            options: {
-                _render: (src, env, md) => env.relativePath.startsWith('archive/') ? '' : md.render(src, env)
-            }
-        },
+        // Every version indexes itself, and nothing more is needed: the plugin gives each archived version its
+        // own locale, and VitePress builds one index per locale -- so a search on /v10.0.x/ only ever sees
+        // /v10.0.x/, and the root index carries no archived page. The duplicate-hits-across-versions problem
+        // this was once guarded against cannot occur. Blanking `archive/` instead left every archived page with
+        // a search box over an empty index (documentCount: 0), including the copy every package README points
+        // a reader at.
+        search: { provider: 'local' },
         socialLinks: [{ icon: 'github', link: 'https://github.com/janzen01/efcore.pagination' }],
+        // `:path` is substituted with VitePress's `filePath`, which is relative to `srcDir` -- and dropping
+        // `srcDir` above moved that from `guide/index.md` to `src/guide/index.md`. So the pattern stops at
+        // `docs/`: leaving the old `docs/src/` here spells every link `docs/src/src/...`, which is a GitHub
+        // 404 on every page, and nothing in `docs:build` reads an edit link to notice.
         editLink: {
-            pattern: 'https://github.com/janzen01/efcore.pagination/edit/master/docs/src/:path',
+            pattern: 'https://github.com/janzen01/efcore.pagination/edit/master/docs/:path',
             text: 'Edit this page on GitHub'
         },
         footer: {
