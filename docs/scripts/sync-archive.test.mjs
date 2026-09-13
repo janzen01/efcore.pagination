@@ -85,11 +85,25 @@ test('leaked names the section path, and passes a versioned link', () => {
 test('an absolute site URL is reported as its own case', () => {
 	// None of the rewrites key off a hostname, so this stays unversioned; `leaked` alone could only describe
 	// it as a fragment of the hostname.
-	assert.deepEqual(
-		siteAbsolute('See [it](https://janzen01.github.io/efcore.pagination/guide/).'),
-		['https://janzen01.github.io/efcore.pagination/guide/'])
+	const page = 'See [it](https://janzen01.github.io/efcore.pagination/guide/).'
+
+	assert.deepEqual(siteAbsolute(page), ['https://janzen01.github.io/efcore.pagination/guide/'])
+
+	// Called a second time on matching input, because the pattern is a module-level `g` regex shared by every
+	// page: `matchAll` works on a clone today, but switching this to `.test()` or `.exec()` would make it
+	// stateful and silently skip every other page's URL -- a leak going unreported, which is the one outcome
+	// this check exists to prevent. Asserting against non-matching input would pass either way.
+	assert.deepEqual(siteAbsolute(page), ['https://janzen01.github.io/efcore.pagination/guide/'])
 
 	assert.deepEqual(siteAbsolute('The [Releases](https://github.com/janzen01/efcore.pagination/releases) page.'), [])
+})
+
+test('a header with no usable size is refused as itself', () => {
+	// Unchecked, the offset goes to NaN and the next read restarts from the top of the stream, so the failure
+	// surfaces as the sha check complaining about response order -- a bug in git that is not there.
+	assert.throws(
+		() => parseBatchStream(Buffer.from('aaa blob\nx\n'), [{ sha: 'aaa', path: 'guide/index.md' }]),
+		/no usable size for docs\/src\/guide\/index\.md/)
 })
 
 // `git cat-file --batch` framing. The contents are located by the length in each header rather than by

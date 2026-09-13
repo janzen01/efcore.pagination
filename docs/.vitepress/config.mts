@@ -73,6 +73,20 @@ const archived = existsSync(archiveDir)
     ? readdirSync(archiveDir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
     : []
 
+// The published origin, in one place. It is the canonical href, the sitemap hostname, and -- as its path --
+// the `base` every built URL carries and the prefix on the favicon. Those were four literals before, so a
+// custom domain or a repository rename had to find all of them; miss the canonical and every page names an
+// authoritative copy at an address that no longer exists, while the sitemap correctly advertises the new one.
+// Nothing checks the canonical, so that combination stays green and actively misdirects.
+const site = 'https://janzen01.github.io/efcore.pagination/'
+const base = new URL(site).pathname
+
+// A page that asks not to be indexed must not also name itself authoritative: the two are contradictory
+// signals, and the redirect stubs already say it three ways (robots, site search, sitemap).
+const noindexed = (head: unknown[][] = []) =>
+    head.some(([, attrs]) => (attrs as { name?: string, content?: string })?.name === 'robots'
+        && String((attrs as { content?: string })?.content ?? '').includes('noindex'))
+
 // The URLs below ship inside the 10.0.0 package READMEs on nuget.org, which nuget.org renders per version
 // forever. The obligation is that each of them keeps answering -- not that this file keeps owning them.
 // A page may move; what has to stay behind is something published at the old path, either the page itself
@@ -195,7 +209,7 @@ const config = withMermaid(defineVersionedConfig({
     description: 'Dynamic, configuration-driven pagination, filtering and sorting for EF Core and ASP.NET Core',
 
     // Project page, not a user page: everything is served under the repository name.
-    base: '/efcore.pagination/',
+    base,
     lang: 'en-US',
     outDir: './.dist',
 
@@ -237,19 +251,20 @@ const config = withMermaid(defineVersionedConfig({
     // Archived pages point at themselves, not at the root: they are a different version's content, and saying
     // otherwise would be a lie the moment the line they belong to stops being the newest.
     transformPageData(pageData) {
+        const head = (pageData.frontmatter.head ?? []).filter(([, attrs]) => attrs?.rel !== 'canonical')
+
+        if (noindexed(head)) return
+
         const route = pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
 
-        pageData.frontmatter.head = [
-            ...(pageData.frontmatter.head ?? []).filter(([, attrs]) => attrs?.rel !== 'canonical'),
-            ['link', { rel: 'canonical', href: `https://janzen01.github.io/efcore.pagination/${route}` }]
-        ]
+        pageData.frontmatter.head = [...head, ['link', { rel: 'canonical', href: `${site}${route}` }]]
     },
 
     // Archived versions are dropped as a whole rather than stub by stub. While a line is the current one its
     // archived copy is byte-identical to the root, so advertising both is asking a crawler to pick a canonical
     // between two copies of the same page. They stay reachable and linkable -- just not submitted.
     sitemap: {
-        hostname: 'https://janzen01.github.io/efcore.pagination/',
+        hostname: site,
         transformItems: (items) => items.filter((item) =>
             !redirectStubs.includes(item.url) && !archived.some((version) => item.url.startsWith(`${version}/`)))
     },
@@ -261,7 +276,7 @@ const config = withMermaid(defineVersionedConfig({
     lastUpdated: true,
 
     head: [
-        ['link', { rel: 'icon', type: 'image/svg+xml', href: '/efcore.pagination/icon.svg' }],
+        ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}icon.svg` }],
         ['meta', { name: 'theme-color', content: '#512BD4' }]
     ],
 

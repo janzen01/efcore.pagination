@@ -188,11 +188,15 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   `leaked` above is for, and a test that assumed otherwise passed while the leak was live.
 - **`srcDir` must stay absent from `config.mts`.** The plugin reads it as the root *containing* `sources` and
   `archive`, so the old `srcDir: './src'` sent it looking for `docs/src/src` and threw at startup. Two things
-  follow from docs/ being the source root instead: `srcExclude` is rooted there (`['*.md']`, keeping out the
-  gitignored planning notes at `docs/*.md`, which would otherwise build locally and not in CI), and
-  **`vite.publicDir` must name `src/public`** — VitePress resolves the public directory as
-  `resolve(srcDir, vite.publicDir || 'public')`, so dropping `srcDir` silently stopped publishing the favicon
-  and the logo.
+  follow from docs/ being the source root instead. **`srcExclude` is rooted there and every entry earns its
+  place** — `['*.md', '.dist', '.vitepress/cache']`. `*.md` keeps out the gitignored planning notes at
+  `docs/*.md`, which would otherwise build locally and not in CI. The other two are the build output and the
+  dep cache, which the move pulled inside the source root and which nothing else covers: VitePress's own
+  default ignores `**/node_modules/**` and `**/dist/**`, and this `outDir` is `.dist`. Neither holds markdown
+  today, but one `.md` left in `src/public/` is copied into `.dist` by a build and becomes a page at the site
+  root on the next one, archived under every version with it. And **`vite.publicDir` must name `src/public`** —
+  VitePress resolves the public directory as `resolve(srcDir, vite.publicDir || 'public')`, so dropping
+  `srcDir` silently stopped publishing the favicon and the logo.
 - **Never pass a flag to `vitepress dev` / `vitepress build` here.** The plugin computes its root as
   `join(cwd, process.argv[3] ?? '', srcDir ?? '')` — `argv[3]` is meant to be the docs directory in upstream's
   `vitepress dev docs`, and we run from inside `docs/` with no path, so it is normally undefined. Add anything
@@ -223,8 +227,18 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   `versionSwitcher: false` to suppress the built-in one. It keeps the reader on the page they were reading,
   which is the whole point when the link that brought them came out of a package README and named a page. One
   known wart: it builds targets from `relativePath`, so its links read `/reference/query-string/index` rather
-  than `/reference/query-string/` — served correctly by GitHub Pages, but not the canonical form, and not
-  configurable.
+  than `/reference/query-string/` — served correctly by GitHub Pages (measured: that form, the trailing-slash
+  form and `/index.html` all answer 200), but not the canonical form, and not configurable.
+- **Every content page carries a `<link rel="canonical">`, emitted by `transformPageData` in `config.mts`.**
+  That is what the wart above makes necessary: the switcher links the `/index` form from every page of every
+  version, so without it each page is crawlable at two addresses while the sitemap advertises one. One tag in
+  the built file covers all of that file's addresses. **Archived pages point at themselves**, not at the root —
+  they are a different version's content, and saying otherwise becomes a lie the moment their line stops being
+  the newest. The four redirect stubs are **skipped**: they already say "do not index" three ways, and pairing
+  `noindex` with a canonical sends a crawler contradictory instructions. The published origin is the `site`
+  constant at the top of the file, which also produces `base`, the favicon prefix and `sitemap.hostname` —
+  it was four literals, and the canonical is the one nothing checks, so a rename that missed it would leave
+  every page naming an address that no longer exists while the sitemap correctly advertised the new one.
 - **A new file under `.vitepress/theme/` needs the dev server restarted.** HMR picks up edits to a theme that
   already existed, but not the theme appearing for the first time, and the symptom is that the stylesheet
   simply has no effect while the build output has it. Cost an evening once: the mermaid CSS below looked

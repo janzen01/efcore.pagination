@@ -152,7 +152,8 @@ export const parseBatchStream = (stream, entries) => {
 			throw new Error(`git cat-file --batch stopped after ${contents.length} of ${entries.length} objects.`)
 		}
 
-		const [answered, type, size] = stream.toString('utf8', offset, headerEnd).split(' ')
+		const header = stream.toString('utf8', offset, headerEnd)
+		const [answered, type, rawSize] = header.split(' ')
 
 		if (type !== 'blob') {
 			throw new Error(`git cat-file --batch answered "${type}" for docs/src/${path}. ` +
@@ -166,8 +167,17 @@ export const parseBatchStream = (stream, entries) => {
 				'file after this one would be archived under the wrong path.')
 		}
 
-		contents.push(stream.subarray(headerEnd + 1, headerEnd + 1 + Number(size)))
-		offset = headerEnd + 1 + Number(size) + 1
+		const size = Number(rawSize)
+
+		// Checked because the failure is otherwise reported as something it is not: a non-numeric size makes
+		// the offset NaN, the next read restarts from the top of the stream, and what surfaces is the sha
+		// check complaining about response order -- sending the reader after a bug in git that is not there.
+		if (!Number.isInteger(size) || size < 0) {
+			throw new Error(`git cat-file --batch gave no usable size for docs/src/${path}: "${header}".`)
+		}
+
+		contents.push(stream.subarray(headerEnd + 1, headerEnd + 1 + size))
+		offset = headerEnd + 1 + size + 1
 	}
 
 	return contents
