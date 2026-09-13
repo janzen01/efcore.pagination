@@ -319,6 +319,21 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
 - Mermaid comes from `vitepress-plugin-mermaid` via `withMermaid()`. It declares a peer on VitePress 1.x and we
   run the 2.0 alpha, so pnpm prints an unmet-peer warning; the diagrams render regardless (same pairing as the
   MDS Dynamics docs). If they ever stop rendering, that warning is the first place to look.
+- **`withMermaid()` reads two separate keys and they are not interchangeable.** `mermaid` is the runtime
+  config handed to `mermaid.initialize()`; `mermaidPlugin` is the markdown rule's own options. Setting
+  `class` under the first does nothing at all -- the rule only ever reads `mermaidPlugin.class`.
+- **The diagrams are `mermaid-diagram`, not `mermaid`, and that class is what keeps them rendering.** On the
+  2.0 alpha, SSR emits the component with no SVG yet -- `<div class="…"></div>` inside a `<Suspense>` -- and
+  hydration re-creates it rather than adopting it, so the server's empty copy is orphaned in the DOM. While
+  the class was `mermaid` that orphan matched mermaid's own sweep, which parsed it, found nothing, and
+  replaced it with its error graphic: **every page carrying a diagram rendered the diagram and then
+  "Syntax error in text" underneath it**. The diagram sources were never wrong -- all six parse cleanly, and
+  the rendered one beside the error proves it. `startOnLoad: false` does **not** close this; it was tried and
+  the sweep still ran. Renaming the class does, because the component renders explicitly by id and never
+  needs to be found by selector. The orphan stays in the DOM as a zero-height empty div.
+  Two consequences. `.vitepress/theme/mermaid.css` is written against `.mermaid-diagram`, so the two must be
+  renamed together. And the symptom is invisible to every check in `docs:build` -- it appears only in a
+  browser, so it is what the rendered-DOM check exists for.
 - **`optimizeDeps.include` is post-processed at the bottom of `config.mts`, and both edits are about that
   plugin's age.** It hardcodes mermaid's *dependencies* by name, from 2024, so the list drifts in both
   directions as mermaid moves. `debug` is dropped because mermaid 11 no longer has it and Vite logged an
