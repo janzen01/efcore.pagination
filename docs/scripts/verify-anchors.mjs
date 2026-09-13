@@ -95,6 +95,12 @@ for (const { file, address: base } of pages) {
 	// Markdown links carrying a fragment. Bare `#anchor` means this page.
 	for (const [, href] of text.matchAll(/\]\(([^)\s]*#[^)\s]+)\)/g)) {
 
+		// An external link brings its own fragment. Resolved as a site path it asks for a page like
+		// `guide/https:/www.rfc-editor.org/rfc/rfc8288` and fails the build on a link that is perfectly
+		// fine -- and since this now walks the archive, such a link inside a frozen tag would redden a
+		// required check with no file in the working tree to edit. The stub loop below already skips these.
+		if (/^[a-z][a-z0-9+.-]*:/i.test(href)) continue
+
 		const [target, anchor] = href.split('#')
 		const resolved = target === '' ? base : resolve(target)
 		const page = (resolved.replace(/\/+$/, '') || '/').slice(1)
