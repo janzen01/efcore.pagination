@@ -9,7 +9,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { isSkipped, leaked, parseBatchStream, siteAbsolute, strays, versioned } from './sync-archive.mjs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+import {
+	archiveWriter, blobsAt, isSkipped, leaked, parseBatchStream, siteAbsolute, strays, versioned
+} from './sync-archive.mjs'
 import { expandDirectoryPatterns, readSrcExcludePatterns, srcExcludeMatcher } from './src-exclude.mjs'
 
 const SEGMENT = 'v10.1.x'
@@ -187,4 +193,61 @@ test('strays reports a root-absolute link to an unknown section', () => {
 	assert.deepEqual(strays('[a](/faq/ "FAQ")'), ['/faq/'], 'a title must not hide the destination')
 	assert.deepEqual(strays('[a](</faq/>)'), ['/faq/'], 'nor may angle brackets')
 	assert.deepEqual(strays('[a](/guide/ "Guide")'), [], 'a known section is still rewritten, not reported')
+})
+
+// The three below are the writer's side effects, which the rest of this file deliberately does not have: every
+// other case is a pure function. They had been verified once by hand and left nothing behind to notice a
+// regression -- disabling prune, or the byte comparison in write, kept the suite green.
+
+const scratch = (body) => {
+	const root = mkdtempSync(join(tmpdir(), 'janzen-archive-'))
+	try {
+		body(root)
+	} finally {
+		rmSync(root, { recursive: true, force: true })
+	}
+}
+
+test('an unchanged file is left alone and what the run did not produce is pruned', () => scratch((root) => {
+	const page = join(root, 'guide', 'index.html')
+	const stale = join(root, 'guide', 'gone', 'index.html')
+
+	mkdirSync(join(root, 'guide', 'gone'), { recursive: true })
+	writeFileSync(stale, 'old')
+
+	const { write, prune } = archiveWriter()
+
+	assert.equal(write(page, Buffer.from('one')), true, 'a new file is written')
+	assert.equal(write(page, Buffer.from('one')), false, 'identical bytes must not be rewritten')
+	assert.equal(write(page, Buffer.from('two')), true, 'changed bytes are written')
+
+	prune(root)
+
+	assert.equal(readFileSync(page, 'utf8'), 'two')
+	assert.equal(existsSync(stale), false, 'a page this run did not produce is removed')
+	assert.equal(existsSync(join(root, 'guide', 'gone')), false, 'and the directory it emptied goes with it')
+}))
+
+test('a case-only rename does not delete the page that replaced it', {
+	skip: process.platform === 'win32' ? false : 'needs a case-insensitive filesystem'
+}, () => scratch((root) => {
+	// NTFS keeps the old directory name through mkdirSync, so the listing and `written` disagree on spelling
+	// and an exact compare deleted the file this run had just written.
+	mkdirSync(join(root, 'guide', 'FAQ'), { recursive: true })
+	writeFileSync(join(root, 'guide', 'FAQ', 'index.html'), 'old')
+
+	const { write, prune } = archiveWriter()
+
+	write(join(root, 'guide', 'faq', 'index.html'), Buffer.from('new'))
+	prune(root)
+
+	assert.equal(readFileSync(join(root, 'guide', 'faq', 'index.html'), 'utf8'), 'new')
+}))
+
+test('a ref that carries no docs/src yields nothing rather than failing', () => {
+	// v10.0.0 predates this site. `git ls-tree` exits 0 with empty output for a path a ref simply does not
+	// have, so it is not an error the caller's catch can see: main() reads the empty result and refuses the
+	// manifest entry. Without that guard the segment writes nothing and prune deletes the whole archived
+	// version, with the run printing its success line and exiting 0.
+	assert.deepEqual(blobsAt('v10.0.0'), [])
 })

@@ -189,7 +189,7 @@ export const parseBatchStream = (stream, entries) => {
 
 // One `git ls-tree` and one `git cat-file --batch`, rather than a `git show` per file. `-z` keeps git from
 // quoting a path it considers unusual, which would otherwise be sliced apart as if it were a plain name.
-const blobsAt = (ref) => {
+export const blobsAt = (ref) => {
 	let listing
 
 	// Only the ref lookup can fail for want of a shallow clone's missing tags, so only it carries that remedy.
@@ -243,32 +243,54 @@ const fail = (lines) => {
 	process.exit(1)
 }
 
-const main = () => {
+// NTFS keeps a directory's existing name through `mkdirSync({ recursive: true })`, so after a case-only
+// rename in docs/src the listing still returns the old spelling while `written` holds the new one. Compared
+// exactly, prune then deleted the very file this run had just written -- the page vanished from the archive
+// and the build died on the sidebar link to it. Compare the way the filesystem does.
+//
+// Known ceiling: the surviving file keeps the old directory's spelling, so the local archive serves it at the
+// old-cased URL. Invisible on Windows, and CI builds the archive from git where the spelling is right; the
+// full fix is renaming the directory, which is more than the defect is worth. `rm -rf docs/archive` clears it.
+const sameFile = process.platform === 'win32'
+	? (path) => path.toLowerCase()
+	: (path) => path
 
-	const excluded = configuredSrcExclude()
+/**
+ * The archive writer: idempotent writes plus a prune of whatever the run did not produce. Together they are
+ * what lets the dev server re-run this on every save -- an unchanged page costs nothing, and a page renamed or
+ * deleted in docs/src cannot linger in an archived copy and keep being published at its frozen URL.
+ */
+export const archiveWriter = () => {
 	const written = new Set()
 
 	const write = (target, contents) => {
-		written.add(target)
-		if (existsSync(target) && readFileSync(target).equals(contents)) return
+		written.add(sameFile(target))
+		if (existsSync(target) && readFileSync(target).equals(contents)) return false
 		mkdirSync(dirname(target), { recursive: true })
 		writeFileSync(target, contents)
+		return true
 	}
 
-	// Removes whatever this run did not produce, so a page renamed or deleted in docs/src does not linger in an
-	// archived copy and keep being published.
 	const prune = (dir) => {
 		if (!existsSync(dir)) return
 		for (const entry of readdirSync(dir, { withFileTypes: true })) {
 			const path = join(dir, entry.name)
 			if (!entry.isDirectory()) {
-				if (!written.has(path)) rmSync(path)
+				if (!written.has(sameFile(path))) rmSync(path)
 				continue
 			}
 			prune(path)
 			if (readdirSync(path).length === 0) rmSync(path, { recursive: true })
 		}
 	}
+
+	return { write, prune, written }
+}
+
+const main = () => {
+
+	const excluded = configuredSrcExclude()
+	const { write, prune, written } = archiveWriter()
 
 	const found = []
 

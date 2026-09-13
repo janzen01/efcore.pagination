@@ -47,12 +47,21 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   two conditions on the `build` job and both are load-bearing: `github.event.release.prerelease == false` is
   the flag the maintainer actually sets, and `!contains(tag_name, '-')` is the backstop for the release
   published with the box left unticked. `deploy` needs `build`, so it skips with it.
+  **Every clause names its own event**, and that is load-bearing rather than tidy. Written as
+  `prerelease == false` alone the gate was fail-open for any event carrying no release payload: GitHub casts
+  both `null` and `false` to 0, so the comparison is true when there is no release at all, and
+  `contains(null, '-')` is false to match — a `push:` trigger added later would have sailed through the gate
+  whose whole purpose is to stop exactly that. **A dispatch is gated too**, on the only thing it can get wrong
+  that a release cannot: a *tag* with a semver suffix is refused, a branch may publish. That asymmetry is the
+  point — the dispatch is the escape hatch for a documentation-only fix, and it has to stay usable from
+  `master`.
   **The same rule is asserted a second time as the first step of `deploy`**, and that duplication is
-  deliberate: the gate cannot be tested before the event it guards, because a `workflow_dispatch`
-  short-circuits on the first clause and never reaches the release half — a real release is the first thing
-  that evaluates it. If the expression were wrong in the permissive direction it would put a prerelease at the
-  site root, the one outcome this workflow exists to prevent, so the step turns that into a red release rather
-  than a silent publish. If it ever fires, the `if:` on `build` is what is wrong, not the step.
+  deliberate: the gate cannot be tested before the event it guards — a real release is the first thing that
+  evaluates its release half. If the expression were wrong in the permissive direction it would put a
+  prerelease at the site root, the one outcome this workflow exists to prevent, so the step turns that into a
+  red release rather than a silent publish. If it ever fires, the `if:` on `build` is what is wrong, not the
+  step. It runs on **both** events: guarded on `github.event_name == 'release'` it was disarmed on exactly the
+  path a human drives, where the ref is picked by hand from a dialog that defaults to a branch.
   **Consequences worth knowing.** A documentation-only fix does not publish itself — it waits for the next
   release, or a `workflow_dispatch`, and **that dispatch must be run against a tag, never against `master`**,
   or it puts unreleased docs at the root by hand. And an `-rc.N` that opens a **new** line ships READMEs
@@ -165,8 +174,12 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   explicit devDependency for this rather than a transitive one borrowed from Vite. The hardcoded `cs/` and
   `public/` skips stay: `public/` is shared site chrome, and `cs/` is a page no pattern covers any more but old
   tags still carry.
-- **`scripts/sync-archive.test.mjs` covers the pure halves**, run by `pnpm docs:test` and chained first in
-  `docs:build`, so `ci-ok` gates them. Every case in it is one that had been verified once by hand — by editing
+- **`scripts/sync-archive.test.mjs` covers the pure halves plus the writer**, run by `pnpm docs:test` and
+  chained first in `docs:build`, so `ci-ok` gates them. `docs:test` **names the file rather than globbing**:
+  `node --test` with a pattern that matches nothing reports zero tests and exits 0, so a rename would have
+  taken the gate with it silently. The writer's three cases (idempotent writes, pruning, the case-only rename)
+  work in a temp directory through the exported `archiveWriter`, which is why that closure was lifted out of
+  `main()` at all — disabling either behaviour used to leave the suite green. Every case in it is one that had been verified once by hand — by editing
   the config, building, and reverting — which left nothing behind to notice a regression; the two `srcExclude`
   cases above are there because both of those failure modes shipped and were only caught by review. The main
   body of `sync-archive.mjs` is behind an `import.meta.url` guard so the helpers can be imported without it.
@@ -186,7 +199,13 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   produce as `<sha> missing`, which has no size, so reading naively archives that page empty and leaves every
   later one unaligned. A partial clone — `actions/checkout` takes a `filter` input — is how that happens.
 - **Writes are idempotent and anything unwritten is pruned.** A file is touched only when its bytes change, and
-  whatever the run did not produce is deleted, so a renamed page cannot linger in an archived copy. That is
+  whatever the run did not produce is deleted, so a renamed page cannot linger in an archived copy. **Pruning
+  compares the way the filesystem does**: NTFS keeps a directory's existing name through
+  `mkdirSync({ recursive: true })`, so after a case-only rename in `docs/src` the listing returns the old
+  spelling while the written set holds the new one — compared exactly, prune deleted the very file the run had
+  just written and the build then died on the sidebar link to it. Known ceiling: the surviving file keeps the
+  old spelling, so a local archive serves it at the old-cased URL. Invisible on Windows, and CI builds the
+  archive from git where the spelling is right; `rm -rf docs/archive` clears it. That is
   what lets the dev server re-run the script on every edit — measured: no source change rewrites nothing, one
   edited page rewrites exactly one archived file — and it keeps a `docs:build` in one terminal from yanking the
   archive out from under a `docs:dev` in another.
