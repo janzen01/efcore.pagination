@@ -90,7 +90,11 @@ const patternsFor = (segment) => {
 // downstream would catch it: the target exists, so `ignoreDeadLinks` is satisfied and verify-anchors resolves
 // it to a real page.
 export const strays = (text) => [
-	...[...text.matchAll(/\]\((\/[^)\s]*)\)/g)],
+	// The destination is read without requiring the closing paren, because a link may carry a title
+	// (`](/faq/ "FAQ")`) or wrap the target in angle brackets. Demanding `)` made this blind to exactly those
+	// two forms while `versioned` rewrote them happily -- so a titled link to an unknown section was archived
+	// still pointing at the current version, which is the one thing this check exists to refuse.
+	...[...text.matchAll(/\]\(<?(\/[^)\s>]*)/g)],
 	...[...text.matchAll(/^\s*(?:link|src):\s+(\/\S*)/gm)]
 ]
 	.map(([, link]) => link)
@@ -215,9 +219,24 @@ const blobsAt = (ref) => {
 	return parseBatchStream(stream, entries).map((contents, index) => [entries[index].path, contents])
 }
 
-const contentsOf = (ref) => ref === WORKING_TREE
-	? walk(src).map((file) => [relative(src, file).replaceAll('\\', '/'), readFileSync(file)])
-	: blobsAt(ref)
+// The newest line is read from disk rather than from a ref, because it is the content being edited -- but
+// only the files git knows about. Archiving whatever happens to sit under docs/src would put an untracked
+// draft into the archive, build it, and let verify-frozen-urls report a package README's URL as satisfied
+// from a page CI does not have -- and that URL is what the next release freezes on nuget.org forever.
+// Filtering the walk rather than reading the index directly keeps a locally deleted file simply absent.
+const contentsOf = (ref) => {
+	if (ref !== WORKING_TREE) return blobsAt(ref)
+
+	const tracked = new Set(git(['ls-files', '-z', '--', 'docs/src']).toString('utf8')
+		.split('\0')
+		.filter(Boolean)
+		.map((path) => path.slice('docs/src/'.length)))
+
+	return walk(src)
+		.map((file) => [relative(src, file).replaceAll('\\', '/'), file])
+		.filter(([path]) => tracked.has(path))
+		.map(([path, file]) => [path, readFileSync(file)])
+}
 
 const fail = (lines) => {
 	for (const line of lines) console.error(line)

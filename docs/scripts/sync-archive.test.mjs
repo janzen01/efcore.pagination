@@ -24,6 +24,14 @@ test('a bare directory pattern excludes what is under it', () => {
 	assert.equal(srcExcludeMatcher(['src/drafts'])('src/guide/index.md'), false)
 })
 
+test('a wildcard directory pattern excludes what is under it', () => {
+	// tinyglobby prunes a matching directory whole, wildcard or not -- measured on a fixture that actually has
+	// one, which is what the earlier check lacked. Skipping expansion for anything merely ending in `*` left
+	// this shape unexpanded, so the pages stayed out of the site root and were published under a frozen prefix.
+	assert.equal(srcExcludeMatcher(['src/draft*'])('src/drafts/index.md'), true)
+	assert.equal(srcExcludeMatcher(['src/draft*'])('src/guide/index.md'), false)
+})
+
 test('wildcard patterns keep their own meaning', () => {
 	const excluded = srcExcludeMatcher(['*.md'])
 
@@ -34,6 +42,8 @@ test('wildcard patterns keep their own meaning', () => {
 test('expanding a pattern leaves an existing wildcard alone', () => {
 	assert.deepEqual(expandDirectoryPatterns(['src/drafts/**']), ['src/drafts/**'])
 	assert.deepEqual(expandDirectoryPatterns(['src/drafts']), ['src/drafts', 'src/drafts/**'])
+	assert.deepEqual(expandDirectoryPatterns(['src/draft*']), ['src/draft*', 'src/draft*/**'],
+		'a single trailing star is a directory name, not a recursive match')
 })
 
 test('srcExclude is read out of a config', () => {
@@ -41,6 +51,16 @@ test('srcExclude is read out of a config', () => {
 	assert.deepEqual(readSrcExcludePatterns("srcExclude: [\n  '*.md',\n  'src/drafts/**'\n],"), ['*.md', 'src/drafts/**'])
 	assert.deepEqual(readSrcExcludePatterns('    cleanUrls: true,'), [], 'absent means nothing is excluded')
 	assert.deepEqual(readSrcExcludePatterns('    srcExclude: [],'), [], 'an empty array is not a parse failure')
+
+	// This config is half prose and quotes option values verbatim, so an unanchored match read a comment as
+	// the option: the scripts then excluded one list while VitePress applied another.
+	assert.deepEqual(
+		readSrcExcludePatterns(`
+	// withheld with srcExclude: ['cs/**'] until 10.1.0
+	srcExclude: ['*.md', '.dist'],
+`),
+		['*.md', '.dist'],
+		'a commented-out occurrence must not win over the real option')
 })
 
 test('a srcExclude this parser cannot read is an error, not an empty list', () => {
@@ -161,4 +181,10 @@ test('strays reports a root-absolute link to an unknown section', () => {
 	assert.deepEqual(strays('[a](/faq/)'), ['/faq/'])
 	assert.deepEqual(strays('[a](/guide/)'), [], 'a known section is rewritten, not reported')
 	assert.deepEqual(strays('[a](https://example.com/guide/)'), [], 'only root-absolute links')
+
+	// `versioned` rewrites a titled link, so this had to see one too -- otherwise a titled link to a section
+	// it does not know stayed pointing at the current version, archived under a frozen URL, unreported.
+	assert.deepEqual(strays('[a](/faq/ "FAQ")'), ['/faq/'], 'a title must not hide the destination')
+	assert.deepEqual(strays('[a](</faq/>)'), ['/faq/'], 'nor may angle brackets')
+	assert.deepEqual(strays('[a](/guide/ "Guide")'), [], 'a known section is still rewritten, not reported')
 })

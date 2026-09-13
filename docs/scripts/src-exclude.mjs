@@ -32,14 +32,19 @@ const configPath = join(docs, '.vitepress', 'config.mts')
  * read, so a reformatting that defeats the regex fails the build instead of silently excluding nothing.
  */
 export const readSrcExcludePatterns = (config) => {
-	const list = config.match(/srcExclude:\s*\[([^\]]*)\]/)?.[1]
+	// Anchored to the start of a line, so a `//`-commented occurrence cannot win over the real option. This
+	// config is half prose and its comments quote option values verbatim -- `srcExclude: ['cs/**']` is a line
+	// it used to carry -- and an unanchored match took the first one anywhere in the file. That is the same
+	// fail-open this module exists to close: the scripts would exclude one list while VitePress applied another.
+	const list = config.match(/^\s*srcExclude:\s*\[([^\]]*)\]/m)?.[1]
 
 	if (list === undefined) {
 		if (/\bsrcExclude\b/.test(config)) {
 			throw new Error('`srcExclude` is in the config but not as a readable array literal. ' +
-				'This parser reads quoted strings inside `srcExclude: [ ... ]`; a variable, a spread or a ' +
-				'template literal defeats it, and treating that as "nothing is excluded" publishes the pages ' +
-				'the option exists to withhold.')
+				'This parser reads quoted strings inside a `srcExclude: [ ... ]` that starts a line; a ' +
+				'variable, a spread, a template literal or an option written inline after something else ' +
+				'defeats it, and treating that as "nothing is excluded" publishes the pages the option ' +
+				'exists to withhold.')
 		}
 
 		return []
@@ -62,7 +67,10 @@ export const readSrcExcludePatterns = (config) => {
 export const expandDirectoryPatterns = (patterns) => patterns.flatMap((pattern) => {
 	const trimmed = pattern.replace(/\/+$/, '')
 
-	return trimmed.endsWith('*') ? [pattern] : [pattern, `${trimmed}/**`]
+	// Only an already-recursive pattern is left alone. `endsWith('*')` was too broad: it also caught a
+	// wildcard *directory* like `src/draft*`, which tinyglobby prunes whole and picomatch does not, so the
+	// pages under it stayed excluded from the site root and were published under a frozen version prefix.
+	return trimmed.endsWith('**') ? [pattern] : [pattern, `${trimmed}/**`]
 })
 
 /** A predicate over docs-root-relative paths. Never matches when nothing is excluded. */
