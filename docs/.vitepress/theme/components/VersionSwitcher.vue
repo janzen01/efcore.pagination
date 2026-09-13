@@ -17,7 +17,7 @@
 // Vendored rather than wrapped: the labels would otherwise have to be smuggled in through the `versions`
 // Set, whose members are also used as path segments. Keep it in step with upstream when the package moves --
 // the path building below is theirs, unchanged, including the `/index` shape the canonical tag exists for.
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useData, useRouter } from 'vitepress'
 import VPFlyout from 'vitepress/dist/client/theme-default/components/VPFlyout.vue'
 import VPMenuLink from 'vitepress/dist/client/theme-default/components/VPMenuLink.vue'
@@ -36,6 +36,19 @@ const props = defineProps<Props>()
 const router = useRouter()
 const { site } = useData()
 const isOpen = ref(false)
+
+// Rendered only after mount, and that is not a nicety. Everything below reads router and site state --
+// `relativePath`, `localeIndex`, and a `versions` Set the plugin injects as a nav-item prop -- which do not
+// line up between the server render and the client's first render. Vue then bails out of hydrating the nav
+// and re-creates the tree from there down, which left the server's copy of everything after the nav bar
+// orphaned in the DOM: a second sidebar, a second content column and a second footer on every page of every
+// version. Matching the server (render nothing) until mounted makes the first client render agree, so
+// hydration completes and the switcher appears a tick later -- which is invisible for a nav control.
+const mounted = ref(false)
+
+onMounted(() => {
+	mounted.value = true
+})
 
 const LATEST = ' (Latest)'
 
@@ -118,7 +131,7 @@ function toggle(): void {
 </script>
 
 <template>
-    <template v-if="hasVersions">
+    <template v-if="mounted && hasVersions">
         <!-- Desktop flyout -->
         <VPFlyout
             v-if="!screenMenu"
