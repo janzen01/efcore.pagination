@@ -22,6 +22,14 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   `gh api --method PUT repos/janzen01/efcore.pagination/pages -f build_type=workflow`. **Do it before merging
   a change that removes the Jekyll tree from `master:/docs`,** not after — the wrong order rebuilds Jekyll
   against a tree with no site root and takes the frozen URLs down with it.
+- **The `github-pages` environment needs a `v*` **tag** deployment policy**, and this is the second piece of
+  repository state no file here can set. Publishing moved to `release: published`, where `github.ref` is
+  `refs/tags/v10.1.0` — but the environment shipped with two *branch* policies (`master`, `gh-pages`) and
+  none for tags, so `deploy` was refused by the environment gate before `deploy-pages` ever ran, whatever the
+  workflow said. Added with
+  `gh api --method POST repos/janzen01/efcore.pagination/environments/github-pages/deployment-branch-policies -f name='v*' -f type='tag'`.
+  Re-check it if the environment is ever recreated: the symptom is a red `deploy` reading
+  "Branch v10.1.0 is not allowed to deploy to github-pages", which names a branch for what is a tag.
 - **The build lives in [docs-build.yml](.github/workflows/docs-build.yml) and is called twice.** `ci.yml`
   calls it on every pull request (`upload: false`) and `docs.yml` calls it from a published release to produce
   the artifact it deploys (`upload: true`) — one copy, so a PR verifies exactly what gets published. It is part
@@ -49,7 +57,11 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   release, or a `workflow_dispatch`, and **that dispatch must be run against a tag, never against `master`**,
   or it puts unreleased docs at the root by hand. And an `-rc.N` that opens a **new** line ships READMEs
   pointing at a `/v<line>.x/` path that nothing has published yet; within an existing line the path is
-  already live, so this only bites at a major.
+  already live, so this bites at **every new `X.Y` line**, not only at a major — `10.1.0` is one, and its
+  READMEs already name `/v10.1.x/`. The order that works: merge, dispatch `docs.yml` so the path goes live,
+  then cut the tag. Until a tag carries the current `docs.yml`, that dispatch has to run against `master`,
+  because a dispatch executes the workflow file living at the ref it is given and every existing tag still
+  carries the old push-triggered copy.
 - **`actions/checkout` in `docs-build.yml` needs `fetch-depth: 0`.** `sync-archive.mjs` reads `docs/src` out of
   each released line's **tag**, and the default shallow checkout has none — the build dies before VitePress
   starts. CI is the only place this is exercised, because a local clone always has its tags.
@@ -139,10 +151,15 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   `archive/<version>/…` on their own: read naively, an excluded draft stays out of the root and is published
   under a frozen version prefix, with a green build. Two behaviours in that module are load-bearing and neither
   is plain picomatch's:
-  **a bare directory excludes what is under it** (VitePress passes `srcExclude` to tinyglobby as `ignore`,
-  where `src/drafts` covers `src/drafts/index.md`; picomatch alone does not, and that gap published the pages),
-  and **a config the parser cannot read throws** rather than returning an empty list, because failing open here
-  fails in the direction that publishes them. That throw is caught inside `configuredSrcExclude`, which prints
+  **a directory pattern excludes what is under it, wildcard or not** (VitePress passes `srcExclude` to
+  tinyglobby as `ignore`, where `src/drafts` *and* `src/draft*` each cover `src/drafts/index.md`; picomatch
+  alone does neither, and that gap published the pages). Only an already-recursive `**` is left unexpanded —
+  keying that off a trailing `*` instead reopened the hole for the wildcard form, and the check that was
+  supposed to catch it measured against a fixture with no such directory, so every pattern passed it
+  vacuously. And **a config the parser cannot read throws** rather than returning an empty list, because
+  failing open here fails in the direction that publishes them. The array is matched **anchored to the start
+  of a line**, for the same reason: this file is half prose and its comments quote option values verbatim, so
+  an unanchored match read a commented-out `srcExclude: ['cs/**']` as the option. That throw is caught inside `configuredSrcExclude`, which prints
   it and exits: both callers are command-line tools that can only abort, and left to propagate it reached one
   as a clean diagnostic and the other as a raw stack naming a file the reader never ran. `picomatch` is an
   explicit devDependency for this rather than a transitive one borrowed from Vite. The hardcoded `cs/` and
@@ -153,6 +170,12 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   the config, building, and reverting — which left nothing behind to notice a regression; the two `srcExclude`
   cases above are there because both of those failure modes shipped and were only caught by review. The main
   body of `sync-archive.mjs` is behind an `import.meta.url` guard so the helpers can be imported without it.
+- **The working-tree leg reads only tracked files.** Every pinned line comes out of git; the newest one is read
+  off disk, because it is the content being edited — but filtered through `git ls-files`, so an untracked draft
+  under `docs/src` cannot be archived. Without that filter a local build published a page CI does not have, and
+  `verify-frozen-urls.mjs` then reported a package README URL as satisfied from it — and that URL is what the
+  next release freezes on nuget.org permanently. Filtering the walk rather than reading the index directly
+  keeps a locally deleted file simply absent instead of throwing.
 - **Reading a tagged line costs one `git ls-tree -z` and one `git cat-file --batch`**, not a `git show` per
   file. `-z` also stops git quoting a path it considers unusual, which the per-file form would have sliced
   apart as a name. Measured: a full run went from ~790ms to ~170ms, which matters because the dev server runs
@@ -214,10 +237,13 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   `skipVersioning` alone. Sidebar prefixing works by setting `base` on a group, which VitePress concatenates
   onto each child link — with root-absolute links that is the shape to watch, but it emits clean paths here.
   Check `.dist` for `//` in an href after touching a sidebar.
-- **Search indexes the current version only**, through `search.options._render` returning `''` for a
-  `relativePath` under `archive/`. VitePress's local search has no facet to group versions by, so indexing the
-  archive returns the same page once per line with no way to tell the hits apart. The **sitemap** drops archived
-  paths for the matching reason: while a line is current its copy is byte-identical to the root, and submitting
+- **Every version indexes itself, and `search` carries no options at all.** The plugin gives each archived
+  version its own locale and VitePress builds one index per locale, so a search on `/v10.0.x/` only ever sees
+  `/v10.0.x/` and the root index holds no archived page — the duplicate-hits-across-versions problem cannot
+  arise, and the `_render` that used to blank `archive/` was guarding against it. What that actually did was
+  leave every archived page with a search box over an empty index (`documentCount: 0`), the copy every package
+  README points a reader at included. Measured after removing it: root 210 documents, `v10.0.x` 196,
+  `v10.1.x` 210, and zero archived paths in the root index. The **sitemap** drops archived paths for the matching reason: while a line is current its copy is byte-identical to the root, and submitting
   both asks a crawler to pick a canonical between two copies of one page.
 - **`editLink` is switched off for archived versions** by a post-processing loop at the bottom of `config.mts`,
   next to the mermaid `optimizeDeps` fix. Inherited, it would offer to edit the file living at that path on

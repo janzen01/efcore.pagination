@@ -101,8 +101,10 @@ The site under `docs/` is a [VitePress](https://vitepress.dev) project, publishe
 change goes live with the next release rather than on merge. `pnpm` comes from corepack, pinned by the
 `packageManager` field.
 
-The site is versioned: `docs/src` is the current line and is served at the site root, and one frozen copy per
-earlier line is generated into `docs/archive/` before every dev server and build. That directory is **not in
+The site is versioned: `docs/src` is the current line and is served at the site root, and one copy per
+released line — the current one included — is generated into `docs/archive/` and served at `/v<line>.x/`
+before every dev server and build. The current line's copy is read from the working tree, but only the files
+git tracks, so an untracked draft cannot be archived and advertised from a build CI will not reproduce. That directory is **not in
 git** — it is rebuilt from the release tags, so **a clone needs its tags** (a shallow one will not build).
 Edit `docs/src`; the archive is regenerated and any change to it is discarded.
 
@@ -125,8 +127,14 @@ tags look like `v10.1.0` — see *Versioning* in [CLAUDE.md](CLAUDE.md) for the 
 
 1. Move the entries from each `src/*/PublicAPI.Unshipped.txt` into the matching `PublicAPI.Shipped.txt`. This is what
    marks the surface as released; `RS0017` then fails the build if a member is later removed.
-2. Bump `Version` in [Directory.Build.props](Directory.Build.props) and commit.
-3. Tag and publish the release:
+2. Bump `Version` in [Directory.Build.props](Directory.Build.props) and open a pull request — `master` takes
+   no direct pushes, so the tag is cut from the squash-merge commit.
+3. **At a `Y` bump only** (a new `X.Y` line), in the same pull request: pin the previously newest line to its
+   last tag in `docs/scripts/sync-archive.mjs`, add the new line as `WORKING_TREE`, and repoint every site URL
+   in the four package READMEs to `/v<new line>.x/`. Skipping this leaves the previous line pinned to
+   `WORKING_TREE`, which then serves the *newer* line's content under the older line's frozen URL. Then
+   dispatch `docs.yml` so `/v<new line>.x/` is live **before** the packages that advertise it are pushed.
+4. Tag and publish the release:
 
 ```powershell
 git tag v10.1.0

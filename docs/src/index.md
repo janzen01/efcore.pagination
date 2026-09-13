@@ -67,9 +67,12 @@ query parameters, operator names and response envelope.
 
 ::: warning This site is versioned — check which copy you are reading
 Nothing here describes unreleased code: the site is published when a **stable** release is, so the root always
-shows the newest one — and a prerelease you installed with `--prerelease` may be ahead of what it says. Every line that came before keeps its own copy at `/v<line>.x/`, and the version picker in the
-navigation moves between them without losing your place on the page. The links inside a package README point
-at that package's own line, so a reader who arrives from nuget.org is already in the right copy.
+shows the newest one — and a prerelease you installed with `--prerelease` may be ahead of what it says. Every
+released line also keeps its own copy at `/v<line>.x/`, this one included, and the version picker in the
+navigation moves between them without losing your place on the page. From `10.1.0` on, the links inside a
+package README name that package's own line, so a reader arriving from nuget.org lands in the right copy
+already. The `10.0.x` READMEs predate the versioned copies and point here, to the root — if you installed one
+of those, open `/v10.0.x/` from the picker to read what shipped with it.
 
 Within a line the third component only ever adds, so a member can be newer than the package you installed but
 never gone from it. One that arrived after the line opened carries its version beside its heading —
