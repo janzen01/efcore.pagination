@@ -36,9 +36,18 @@ jobs:
     # backstop for the release that gets published with the box left unticked, since every prerelease
     # version here carries a semver suffix (`-rc.1`, `-preview.1`) and no stable one does.
     # A dispatch is exempt -- it is the deliberate escape hatch, and it must be run against a tag.
+    # Each event names itself, so anything added later is refused until it is thought about. Written as
+    # `prerelease == false` alone this was fail-open for every event carrying no release payload: GitHub casts
+    # both `null` and `false` to 0, so the comparison is true when there is no release at all, and
+    # `contains(null, '-')` is false to match.
+    #
+    # A dispatch is the escape hatch for a documentation-only fix, so a branch may publish -- but a *tag* with
+    # a semver suffix may not, which is the one thing a dispatch could otherwise do that a release cannot.
     if: >-
-      github.event_name == 'workflow_dispatch'
-        || (github.event.release.prerelease == false
+      (github.event_name == 'workflow_dispatch'
+         && !(github.ref_type == 'tag' && contains(github.ref_name, '-')))
+        || (github.event_name == 'release'
+            && github.event.release.prerelease == false
             && !contains(github.event.release.tag_name, '-'))
     uses: ./.github/workflows/docs-build.yml
     with:
@@ -61,26 +70,40 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       # The same rule as the `if:` on `build`, asserted again where the publishing actually happens. The gate
-      # above cannot be tested before the event it guards: a dispatch short-circuits on the first clause, so
-      # the release half is first evaluated by a real release, and a mistake there would put a prerelease at
-      # the site root -- the one outcome this workflow exists to prevent. Restating it costs a second and
-      # turns that mistake into a red release instead of a silent publish. If this ever fires, the expression
-      # on `build` is wrong, not this step.
+      # above cannot be tested before the event it guards -- a real release is the first thing that evaluates
+      # its release half -- and a mistake there would put a prerelease at the site root, the one outcome this
+      # workflow exists to prevent. Restating it costs a second and turns that mistake into a red release
+      # instead of a silent publish. If this ever fires, the expression on `build` is wrong, not this step.
+      #
+      # It runs on both events now. Guarded on `github.event_name == 'release'` it was disarmed on exactly the
+      # path a human drives, where the ref is chosen by hand in a dialog that defaults to a branch.
       - name: Refuse to publish a prerelease
-        if: github.event_name == 'release'
         env:
+          EVENT: ${{ github.event_name }}
           PRERELEASE: ${{ github.event.release.prerelease }}
           TAG: ${{ github.event.release.tag_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          case "$TAG" in
-            *-*) suffixed=yes ;;
-            *)   suffixed=no  ;;
-          esac
-          if [ "$PRERELEASE" != "false" ] || [ "$suffixed" = yes ]; then
-            echo "::error::$TAG is a prerelease (prerelease=$PRERELEASE, semver suffix=$suffixed); the gate on the build job should have skipped this run."
-            exit 1
+          name=""
+          if [ "$EVENT" = release ]; then
+            name=$TAG
+            if [ "$PRERELEASE" != false ]; then
+              echo "::error::$TAG is flagged as a prerelease; the gate on the build job should have skipped this run."
+              exit 1
+            fi
+          elif [ "$REF_TYPE" = tag ]; then
+            name=$REF_NAME
           fi
-          echo "$TAG is a stable release."
+
+          case "$name" in
+            *-*)
+              echo "::error::$name carries a semver suffix; the gate on the build job should have skipped this run."
+              exit 1
+              ;;
+          esac
+
+          echo "${name:-$REF_NAME} may publish to the site root."
 
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
