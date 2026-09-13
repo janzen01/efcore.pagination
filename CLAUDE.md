@@ -285,6 +285,18 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   page's canonical names, so the switcher must not send readers to the duplicate instead. The consequence to
   expect is that on `/v<newest>.x/` itself no entry is marked active, because the entry points at the root —
   the button still reads the active label.
+  **It renders only after mount, and that is load-bearing.** Everything it computes reads router and site
+  state -- `relativePath`, `localeIndex`, and the `versions` Set the plugin injects as a nav-item prop --
+  which do not line up between the server render and the client's first render. Vue bailed out of hydrating
+  the nav and re-created the tree from there down, leaving the server's copy of everything after the nav bar
+  **orphaned in the DOM**: a second sidebar, a second content column and a second footer, on every page of
+  every version, with `Hydration completed but contains mismatches` in the console. Matching the server
+  (rendering nothing) until `onMounted` makes the first client render agree, hydration completes, and the
+  switcher appears a tick later -- invisible for a nav control. Measured before and after with
+  `--dump-dom`: `class="VPContent"` twice per page, once after.
+  Two traps when re-testing this. The duplication is **site-wide**, so a page with no diagram and no badge
+  still shows it -- do not conclude from one page that the content is at fault. And it is invisible to
+  `docs:build`; only the rendered DOM shows it.
   One known wart, inherited and left as-is: targets are built from `relativePath`, so links read
   `/reference/query-string/index` rather than `/reference/query-string/` — served correctly by GitHub Pages
   (measured: that form, the trailing-slash form and `/index.html` all answer 200), but not the canonical
@@ -322,15 +334,19 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
 - **`withMermaid()` reads two separate keys and they are not interchangeable.** `mermaid` is the runtime
   config handed to `mermaid.initialize()`; `mermaidPlugin` is the markdown rule's own options. Setting
   `class` under the first does nothing at all -- the rule only ever reads `mermaidPlugin.class`.
-- **The diagrams are `mermaid-diagram`, not `mermaid`, and that class is what keeps them rendering.** On the
-  2.0 alpha, SSR emits the component with no SVG yet -- `<div class="…"></div>` inside a `<Suspense>` -- and
-  hydration re-creates it rather than adopting it, so the server's empty copy is orphaned in the DOM. While
-  the class was `mermaid` that orphan matched mermaid's own sweep, which parsed it, found nothing, and
-  replaced it with its error graphic: **every page carrying a diagram rendered the diagram and then
-  "Syntax error in text" underneath it**. The diagram sources were never wrong -- all six parse cleanly, and
-  the rendered one beside the error proves it. `startOnLoad: false` does **not** close this; it was tried and
-  the sweep still ran. Renaming the class does, because the component renders explicitly by id and never
-  needs to be found by selector. The orphan stays in the DOM as a zero-height empty div.
+- **The diagrams are `mermaid-diagram`, not `mermaid`, and that rename is a second line of defence rather
+  than the fix it was first taken for.** The symptom was that **every page carrying a diagram rendered the
+  diagram and then "Syntax error in text" underneath it**. The sources were never wrong -- all six parse
+  cleanly, and the correct rendering beside the error proves it: mermaid's own sweep had found a stray,
+  empty `.mermaid` div and replaced it with its error graphic. `startOnLoad: false` does **not** close that;
+  it was tried and the sweep still ran. Renaming does, because the component renders explicitly by id and
+  never needs to be found by a selector.
+  **Where that stray div came from was diagnosed wrongly at first**, and the wrong answer is recorded here
+  because it is the one a reader will reach for again: it looked like the mermaid component's own
+  `<Suspense>` failing to hydrate. It was not. The whole page was being duplicated -- see the
+  VersionSwitcher note above -- and the second `.mermaid` div was one symptom among a second sidebar, a
+  second content column and a second footer. Fixing the switcher removes the stray div at the source. The
+  rename stays anyway: it costs nothing and it keeps mermaid's global sweep off anything it did not create.
   Two consequences. `.vitepress/theme/mermaid.css` is written against `.mermaid-diagram`, so the two must be
   renamed together. And the symptom is invisible to every check in `docs:build` -- it appears only in a
   browser, so it is what the rendered-DOM check exists for.
