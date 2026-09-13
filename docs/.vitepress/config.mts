@@ -280,6 +280,20 @@ const config = withMermaid(defineVersionedConfig({
         ['meta', { name: 'theme-color', content: '#512BD4' }]
     ],
 
+    // Mermaid must not sweep the DOM for `.mermaid` elements on load. The plugin renders each diagram
+    // explicitly from its own component, so the sweep finds nothing it is responsible for -- except the
+    // empty `<div class="mermaid">` that SSR leaves behind. `<Suspense>` renders the component with no SVG
+    // yet, hydration then re-creates it rather than adopting it, and the server's copy is orphaned in the
+    // DOM. Left to `startOnLoad`, mermaid parsed that empty div and replaced it with its own error graphic:
+    // every page carrying a diagram showed a rendered diagram *and* "Syntax error in text" underneath it.
+    // The diagram sources were never the problem -- all six parse cleanly.
+    mermaid: { startOnLoad: false },
+
+    // `mermaidPlugin` is the markdown rule's options; `mermaid` above is the runtime config handed to
+    // `mermaid.initialize`. The class matters because mermaid's own sweep selects `.mermaid`, and the
+    // diagrams do not need to be found that way -- the plugin's component renders each one explicitly by id.
+    mermaidPlugin: { class: 'mermaid-diagram' },
+
     // Nolebase enhanced-readabilities ships raw .vue in its dist, so Vite has to bundle it for SSR rather
     // than let Node require it -- Node cannot load a .vue file. Both halves are needed: without `exclude`
     // the dev server pre-bundles it and the menu never mounts, without `noExternal` the production build
