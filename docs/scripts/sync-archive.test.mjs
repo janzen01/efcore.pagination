@@ -98,28 +98,27 @@ const batch = (...blobs) => Buffer.concat(blobs.flatMap(([sha, body]) => [
 	Buffer.from(`${sha} blob ${Buffer.byteLength(body)}\n`), Buffer.from(body), Buffer.from('\n')
 ]))
 
-test('the batch stream is split by length, not by scanning', () => {
-	const parsed = parseBatchStream(batch(['aaa', 'hello'], ['bbb', 'world']), ['a.md', 'b.md'])
+const asked = (...blobs) => blobs.map(([sha], index) => ({ sha, path: `page-${index}.md` }))
 
-	assert.deepEqual(parsed.map((buffer) => buffer.toString()), ['hello', 'world'])
+const read = (...blobs) => parseBatchStream(batch(...blobs), asked(...blobs))
+
+test('the batch stream is split by length, not by scanning', () => {
+	assert.deepEqual(read(['aaa', 'hello'], ['bbb', 'world']).map((b) => b.toString()), ['hello', 'world'])
 })
 
 test('an empty blob does not shift the files after it', () => {
 	// Nothing in the repository is zero-byte today, so this branch never runs against real git output.
-	const parsed = parseBatchStream(batch(['aaa', 'one'], ['bbb', ''], ['ccc', 'three']), ['a.md', 'b.md', 'c.md'])
-
-	assert.deepEqual(parsed.map((buffer) => buffer.toString()), ['one', '', 'three'])
+	assert.deepEqual(read(['aaa', 'one'], ['bbb', ''], ['ccc', 'three']).map((b) => b.toString()), ['one', '', 'three'])
 })
 
 test('a blob whose body looks like a header is read whole', () => {
 	const body = 'text\ndeadbeef blob 99\nmore'
-	const parsed = parseBatchStream(batch(['aaa', body], ['bbb', 'after']), ['a.md', 'b.md'])
 
-	assert.deepEqual(parsed.map((buffer) => buffer.toString()), [body, 'after'])
+	assert.deepEqual(read(['aaa', body], ['bbb', 'after']).map((b) => b.toString()), [body, 'after'])
 })
 
 test('multi-byte content is measured in bytes', () => {
-	const [parsed] = parseBatchStream(batch(['aaa', 'příliš žluťoučký']), ['a.md'])
+	const [parsed] = read(['aaa', 'příliš žluťoučký'])
 
 	assert.equal(parsed.toString(), 'příliš žluťoučký')
 	assert.equal(parsed.length, 23)
@@ -129,10 +128,19 @@ test('an object git cannot produce is refused, naming the file', () => {
 	// A partial clone answers `<sha> missing`, which has no size: read naively that archives this page empty
 	// and leaves every later one unaligned.
 	assert.throws(
-		() => parseBatchStream(Buffer.from('deadbeef missing\n'), ['guide/index.md']),
+		() => parseBatchStream(Buffer.from('deadbeef missing\n'), [{ sha: 'deadbeef', path: 'guide/index.md' }]),
 		/missing.*guide\/index\.md/s)
 
-	assert.throws(() => parseBatchStream(batch(['aaa', 'one']), ['a.md', 'b.md']), /stopped after 1 of 2/)
+	assert.throws(() => parseBatchStream(batch(['aaa', 'one']), asked(['aaa', 'one'], ['bbb', 'two'])),
+		/stopped after 1 of 2/)
+})
+
+test('an answer out of request order is refused rather than mapped', () => {
+	// Positional mapping is the whole mechanism: silently accepting this would write each page's text under
+	// another page's URL, and every one of those URLs is a real page, so nothing downstream would notice.
+	assert.throws(
+		() => parseBatchStream(batch(['bbb', 'second']), [{ sha: 'aaa', path: 'guide/index.md' }]),
+		/answered for bbb where aaa \(docs\/src\/guide\/index\.md\)/)
 })
 
 test('strays reports a root-absolute link to an unknown section', () => {

@@ -277,6 +277,7 @@ once after cloning; the git hooks then keep it current. Hooks enforce graphify-f
 | Restore            | `dotnet restore Janzen.Pagination.slnx`                       |
 | Build              | `dotnet build Janzen.Pagination.slnx -c Release -warnaserror` |
 | Test               | `dotnet test Janzen.Pagination.slnx -c Release`               |
+| Test the docs scripts | `pnpm docs:test` (in `docs/`; `docs:build` runs it first)  |
 | Pack               | `dotnet pack Janzen.Pagination.slnx -c Release -o ./artifacts` |
 | Refresh code graph | `graphify update .`                                           |
 

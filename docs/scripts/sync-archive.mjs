@@ -66,6 +66,25 @@ const SITE = 'https://janzen01.github.io/efcore.pagination/'
 
 const SECTION_PATH = new RegExp(`^/(?:${SECTIONS})/`)
 
+// `matchAll` works on an internal clone and `replace` resets `lastIndex`, so a `g`-flagged pattern is safe to
+// share. The segment-dependent ones are built once per version rather than once per page: `versioned` and
+// `leaked` are called for every file, and recompiling three fixed patterns 78 times a run bought nothing.
+const SITE_URL = new RegExp(`${SITE.replace(/[.]/g, '\\.')}\\S*`, 'g')
+
+const patterns = new Map()
+
+const patternsFor = (segment) => {
+	if (!patterns.has(segment)) {
+		patterns.set(segment, {
+			leak: new RegExp(`(.{0,${segment.length + 1}})(/(?:${SECTIONS})/)`, 'g'),
+			markdownLink: new RegExp(`\\]\\((/(?:${SECTIONS})/)`, 'g'),
+			frontMatterLink: new RegExp(`^(\\s*link:\\s+)(/(?:${SECTIONS})/)`, 'gm')
+		})
+	}
+
+	return patterns.get(segment)
+}
+
 // A root-absolute link to something this script does not know how to version. Left unrewritten it would
 // silently point back at the root -- at the newest release rather than at this version -- and nothing
 // downstream would catch it: the target exists, so `ignoreDeadLinks` is satisfied and verify-anchors resolves
@@ -81,7 +100,7 @@ export const strays = (text) => [
 // same leak wearing a hostname, and it is easy to write by accident because every package README is full of
 // them -- so it is reported as its own case rather than left to `leaked`, which could only describe it as a
 // fragment of the hostname.
-export const siteAbsolute = (text) => [...text.matchAll(new RegExp(`${SITE.replace(/[.]/g, '\\.')}\\S*`, 'g'))]
+export const siteAbsolute = (text) => [...text.matchAll(SITE_URL)]
 	.map(([link]) => link.replace(/[).,;:!?]+$/, ''))
 
 // The post-condition, checked on the rewritten text: every section path in an archived page must sit behind
@@ -90,15 +109,15 @@ export const siteAbsolute = (text) => [...text.matchAll(new RegExp(`${SITE.repla
 // verify-anchors finds a real heading on a real page. Measured before being written: the content mentions
 // these paths only inside links, never in prose, so this is exact rather than noisy.
 export const leaked = (text, segment) =>
-	[...text.matchAll(new RegExp(`(.{0,${segment.length + 1}})(/(?:${SECTIONS})/)`, 'g'))]
+	[...text.matchAll(patternsFor(segment).leak)]
 		.filter(([, before]) => !before.endsWith(`/${segment}`))
 		.map(([, , path]) => path)
 
 export const versioned = (text, segment) => text
 	// Markdown links written root-absolute, which is how the guide crosses a section boundary.
-	.replace(new RegExp(`\\]\\((/(?:${SECTIONS})/)`, 'g'), `](/${segment}$1`)
+	.replace(patternsFor(segment).markdownLink, `](/${segment}$1`)
 	// The home layout carries its links in front matter instead, as `link:` under hero actions and features.
-	.replace(new RegExp(`^(\\s*link:\\s+)(/(?:${SECTIONS})/)`, 'gm'), `$1/${segment}$2`)
+	.replace(patternsFor(segment).frontMatterLink, `$1/${segment}$2`)
 	// The four redirect stubs meta-refresh to an absolute target, `base` included.
 	.replace(/url=\/efcore\.pagination\//g, `url=/efcore.pagination/${segment}/`)
 
@@ -115,24 +134,36 @@ const walk = (dir) => readdirSync(dir, { withFileTypes: true })
  * Refusing a non-`blob` answer is the point of the type check. Git reports an object it cannot produce as
  * `<sha> missing`, which has no size: read naively that yields an empty buffer for this file and leaves every
  * later one unaligned, so the run would archive a blank page and then die without naming anything.
+ *
+ * The sha in each header is checked against the one that was asked for. Positional mapping is the whole
+ * mechanism here, and if it ever slipped every page's text would be written under a different page's URL --
+ * both of them real pages, so `ignoreDeadLinks`, verify-anchors and verify-frozen-urls would all stay green.
+ * Git answers one line per request, in order; this is what makes that an assumption the run can rely on.
  */
-export const parseBatchStream = (stream, paths) => {
+export const parseBatchStream = (stream, entries) => {
 	const contents = []
 	let offset = 0
 
-	while (contents.length < paths.length) {
+	while (contents.length < entries.length) {
+		const { sha, path } = entries[contents.length]
 		const headerEnd = stream.indexOf(0x0a, offset)
 
 		if (headerEnd === -1) {
-			throw new Error(`git cat-file --batch stopped after ${contents.length} of ${paths.length} objects.`)
+			throw new Error(`git cat-file --batch stopped after ${contents.length} of ${entries.length} objects.`)
 		}
 
-		const [, type, size] = stream.toString('utf8', offset, headerEnd).split(' ')
+		const [answered, type, size] = stream.toString('utf8', offset, headerEnd).split(' ')
 
 		if (type !== 'blob') {
-			throw new Error(`git cat-file --batch answered "${type}" for docs/src/${paths[contents.length]}. ` +
+			throw new Error(`git cat-file --batch answered "${type}" for docs/src/${path}. ` +
 				'A partial clone fetches blobs on demand and reports one missing when it cannot; clone without ' +
 				'a filter, or run `git fetch` to bring the objects down.')
+		}
+
+		if (answered !== sha) {
+			throw new Error(`git cat-file --batch answered for ${answered} where ${sha} ` +
+				`(docs/src/${path}) was asked for. The responses are no longer in request order, so every ` +
+				'file after this one would be archived under the wrong path.')
 		}
 
 		contents.push(stream.subarray(headerEnd + 1, headerEnd + 1 + Number(size)))
@@ -145,8 +176,20 @@ export const parseBatchStream = (stream, paths) => {
 // One `git ls-tree` and one `git cat-file --batch`, rather than a `git show` per file. `-z` keeps git from
 // quoting a path it considers unusual, which would otherwise be sliced apart as if it were a plain name.
 const blobsAt = (ref) => {
-	const entries = git(['ls-tree', '-r', '-z', ref, '--', 'docs/src'])
-		.toString('utf8')
+	let listing
+
+	// Only the ref lookup can fail for want of a shallow clone's missing tags, so only it carries that remedy.
+	// Reading the blobs fails for its own reasons and says so itself; sharing one handler put the wrong advice
+	// first, telling a reader to fetch tags they already had.
+	try {
+		listing = git(['ls-tree', '-r', '-z', ref, '--', 'docs/src']).toString('utf8')
+	} catch (error) {
+		throw new Error(`git could not read ${ref} -- a shallow clone has no tags, and this needs them. ` +
+			'Fetch them with `git fetch --tags`, or in a workflow give actions/checkout `fetch-depth: 0`.\n\n' +
+			error.message)
+	}
+
+	const entries = listing
 		.split('\0')
 		.filter(Boolean)
 		.map((record) => {
@@ -157,10 +200,9 @@ const blobsAt = (ref) => {
 
 	if (entries.length === 0) return []
 
-	const paths = entries.map(({ path }) => path)
 	const stream = git(['cat-file', '--batch'], { input: `${entries.map(({ sha }) => sha).join('\n')}\n` })
 
-	return parseBatchStream(stream, paths).map((contents, index) => [paths[index], contents])
+	return parseBatchStream(stream, entries).map((contents, index) => [entries[index].path, contents])
 }
 
 const contentsOf = (ref) => ref === WORKING_TREE
@@ -209,8 +251,6 @@ const main = () => {
 		} catch (error) {
 			fail([
 				`\nCannot read docs/src at ${ref ?? 'the working tree'} for ${segment}.\n`,
-				'A shallow clone has no tags, and this needs them. Fetch them with `git fetch --tags`,\n' +
-				'or in a workflow give actions/checkout `fetch-depth: 0`.\n',
 				`${error.message}\n`
 			])
 		}

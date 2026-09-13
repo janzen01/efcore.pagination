@@ -215,16 +215,36 @@ const config = withMermaid(defineVersionedConfig({
         versionSwitcher: false
     },
 
-    // Rooted at docs/, not docs/src/, because of the missing `srcDir` above. It keeps out the local planning
-    // notes dropped at the top of docs/: they are gitignored, so they exist on a maintainer's machine and not
-    // in CI, and without this the two builds would differ.
-    srcExclude: ['*.md'],
+    // Rooted at docs/, not docs/src/, because of the missing `srcDir` above.
+    // `*.md` keeps out the local planning notes dropped at the top of docs/: they are gitignored, so they
+    // exist on a maintainer's machine and not in CI, and without this the two builds would differ.
+    // `.dist` and `.vitepress/cache` are inside the source root for the same reason, and nothing else covers
+    // them -- VitePress's own default ignores `**/node_modules/**` and `**/dist/**`, and this output directory
+    // is `.dist`. They hold no markdown today; one `.md` left in `src/public/` would be copied into `.dist`
+    // by a build and become a page at the site root on the next one, archived under every version with it.
+    srcExclude: ['*.md', '.dist', '.vitepress/cache'],
 
     // GitHub Pages serves /foo from foo.html without a redirect, so extension-less links are safe here.
     cleanUrls: true,
 
     // VitePress only emits sitemap.xml when a hostname is set. The base belongs in it: these URLs are
     // advertised in PackageProjectUrl and in all four package READMEs on nuget.org.
+    // GitHub Pages answers a page at three addresses -- `/x/`, `/x/index` and `/x/index.html` -- and the
+    // version switcher links the middle one, because it builds its targets from `relativePath`. That form is
+    // not configurable and it does resolve (measured against the live site: all three return 200), so the
+    // duplication is what is left to deal with: without this every page is crawlable twice, and with three
+    // versions that is 78 pages at two addresses each. One tag per built file covers all of its addresses.
+    // Archived pages point at themselves, not at the root: they are a different version's content, and saying
+    // otherwise would be a lie the moment the line they belong to stops being the newest.
+    transformPageData(pageData) {
+        const route = pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
+
+        pageData.frontmatter.head = [
+            ...(pageData.frontmatter.head ?? []).filter(([, attrs]) => attrs?.rel !== 'canonical'),
+            ['link', { rel: 'canonical', href: `https://janzen01.github.io/efcore.pagination/${route}` }]
+        ]
+    },
+
     // Archived versions are dropped as a whole rather than stub by stub. While a line is the current one its
     // archived copy is byte-identical to the root, so advertising both is asking a crawler to pick a canonical
     // between two copies of the same page. They stay reachable and linkable -- just not submitted.

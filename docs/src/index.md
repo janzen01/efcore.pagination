@@ -66,8 +66,8 @@ query parameters, operator names and response envelope.
 > release notes live on the [Releases](https://github.com/janzen01/efcore.pagination/releases) page.
 
 ::: warning This site is versioned — check which copy you are reading
-Nothing here describes unreleased code: the site is published when a release is, so the root always shows the
-newest one. Every line that came before keeps its own copy at `/v<line>.x/`, and the version picker in the
+Nothing here describes unreleased code: the site is published when a **stable** release is, so the root always
+shows the newest one — and a prerelease you installed with `--prerelease` may be ahead of what it says. Every line that came before keeps its own copy at `/v<line>.x/`, and the version picker in the
 navigation moves between them without losing your place on the page. The links inside a package README point
 at that package's own line, so a reader who arrives from nuget.org is already in the right copy.
 
