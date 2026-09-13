@@ -17,6 +17,9 @@ importers:
       mermaid:
         specifier: ^11.17.2
         version: 11.17.2
+      picomatch:
+        specifier: ^4.0.7
+        version: 4.0.7
       vitepress:
         specifier: 2.0.0-alpha.20
         version: 2.0.0-alpha.20(less@4.9.1)(postcss@8.5.28)

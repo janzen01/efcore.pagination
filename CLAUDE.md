@@ -25,7 +25,7 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
 - **The build lives in [docs-build.yml](.github/workflows/docs-build.yml) and is called twice.** `ci.yml`
   calls it on every pull request (`upload: false`) and `docs.yml` calls it from a published release to produce
   the artifact it deploys (`upload: true`) — one copy, so a PR verifies exactly what gets published. It is part
-  of `ci-ok`, which means the three verifiers below are a **required** gate: without them a dead link merges
+  of `ci-ok`, which means the verifiers below are a **required** gate: without them a dead link merges
   green and then renders inside a released package forever.
   Two things follow. **Guard the Pages steps on `inputs.upload`, never `github.event_name`** — inside a
   called workflow that expression is the *caller's* event, so `!= 'pull_request'` would fire on a fork PR and
@@ -39,6 +39,12 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   two conditions on the `build` job and both are load-bearing: `github.event.release.prerelease == false` is
   the flag the maintainer actually sets, and `!contains(tag_name, '-')` is the backstop for the release
   published with the box left unticked. `deploy` needs `build`, so it skips with it.
+  **The same rule is asserted a second time as the first step of `deploy`**, and that duplication is
+  deliberate: the gate cannot be tested before the event it guards, because a `workflow_dispatch`
+  short-circuits on the first clause and never reaches the release half — a real release is the first thing
+  that evaluates it. If the expression were wrong in the permissive direction it would put a prerelease at the
+  site root, the one outcome this workflow exists to prevent, so the step turns that into a red release rather
+  than a silent publish. If it ever fires, the `if:` on `build` is what is wrong, not the step.
   **Consequences worth knowing.** A documentation-only fix does not publish itself — it waits for the next
   release, or a `workflow_dispatch`, and **that dispatch must be run against a tag, never against `master`**,
   or it puts unreleased docs at the root by hand. And an `-rc.N` that opens a **new** line ships READMEs
@@ -50,9 +56,10 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
 - **`pnpm/action-setup` is passed `package_json_file: docs/package.json`.** Its default is `package.json`
   resolved against the *repository root*, which has none, and `defaults.run.working-directory` does not apply
   to a `uses:` step's inputs. Remove that input and the job dies before it reaches the build.
-- **`pnpm docs:build` is the local build.** It *starts* by running `scripts/sync-archive.mjs` (see *Versioned
-  copies* below) and ends by running `scripts/verify-frozen-urls.mjs` and then
-  `scripts/verify-anchors.mjs`. Keep all four chained: `verify-frozen-urls` is the only thing standing between
+- **`pnpm docs:build` is the local build.** It *starts* by running the script tests and then
+  `scripts/sync-archive.mjs` (see *Versioned copies* below), and ends by running
+  `scripts/verify-frozen-urls.mjs` and then
+  `scripts/verify-anchors.mjs`. Keep all five chained: `verify-frozen-urls` is the only thing standing between
   a rename and a dead link inside a released package, and `verify-anchors` catches what `ignoreDeadLinks`
   structurally cannot — a link to a heading that no longer exists on a page that does. It reads ids out of
   `.dist` rather than
@@ -90,10 +97,9 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   the guards table, is the thing this rule exists to prevent.
 - **Navigation lives in `config.mts`**, not in front matter. **Content** pages carry no front matter at all;
   VitePress takes the title from the first `#` heading. The exceptions are structural and each has to be one:
-  `docs/src/index.md` is `layout: home` and is front matter almost end to end, the four redirect stubs carry
-  the `head` refresh plus `search: false` / `robots: noindex` described above, and `docs/src/cs/index.md` is
-  the excluded draft. A new page has to be added to the sidebar by hand, or it is reachable only by link and
-  search.
+  `docs/src/index.md` is `layout: home` and is front matter almost end to end, and the four redirect stubs
+  carry the `head` refresh plus `search: false` / `robots: noindex` described above. A new page has to be added
+  to the sidebar by hand, or it is reachable only by link and search.
 - **`.gitignore` keeps `docs/*` deny-by-default** and re-includes the project by name (`!docs/src/`,
   `!docs/.vitepress/`, `!docs/scripts/`, `!docs/package.json`, `!docs/.npmrc`, `!docs/pnpm-lock.yaml`).
   `.npmrc` is load-bearing — it holds the `shamefully-hoist=true` without which `pnpm docs:dev` renders a
@@ -116,13 +122,67 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   `versions` array at the top of that script**. Generating rather than committing is the point: a committed
   archive would put a second copy of all 26 pages in the tree per line, and every search across the repository
   would have to learn to skip them. `git grep` finds one copy; ripgrep honours `.gitignore`, so it does too.
-- **The script rewrites links, and both of its guards matter.** An archived page's root-absolute links
+- **The script rewrites links, and all three of its guards matter.** An archived page's root-absolute links
   (`](/guide/…`, the home layout's `link:` front matter, the four stubs' `http-equiv: refresh` targets) are
-  rewritten to sit behind the version segment. `strays` refuses a root-absolute link to an unknown section
-  *before* rewriting; `leaked` refuses a section path that survived *after* it. The post-condition is the one
-  that bites, because an unversioned link **is not a dead link** — it resolves, to the same path in the current
-  version — so neither `ignoreDeadLinks` nor `verify-anchors` can see it. Verified by disabling a rewrite rule
-  and watching `leaked` fail the build.
+  rewritten to sit behind the version segment. `strays` refuses a root-absolute link to an unknown section and
+  `siteAbsolute` refuses the site's own `https://janzen01.github.io/…` URL, both *before* rewriting; `leaked`
+  refuses a section path that survived *after* it. The post-condition is the one that bites, because an
+  unversioned link **is not a dead link** — it resolves, to the same path in the current version — so neither
+  `ignoreDeadLinks` nor `verify-anchors` can see it. Verified by disabling a rewrite rule and watching `leaked`
+  fail the build. **Write in-site links root-relative, never as the site's absolute URL**: none of the rewrites
+  key off a hostname, so an absolute one is the same leak wearing a different shape — which is why it is
+  reported as its own case instead of being left to `leaked`, which could only name a fragment of the hostname.
+- **`srcExclude` has exactly one reading, in `scripts/src-exclude.mjs`**, used by `sync-archive.mjs` and
+  `verify-anchors.mjs` alike. It was being interpreted three ways — VitePress globs it, and each script had its
+  own regex and its own matcher — and every disagreement was a page one tool treated as real and another did
+  not. The patterns are rooted at `docs/` and written against `src/…`, so they cannot match
+  `archive/<version>/…` on their own: read naively, an excluded draft stays out of the root and is published
+  under a frozen version prefix, with a green build. Two behaviours in that module are load-bearing and neither
+  is plain picomatch's:
+  **a bare directory excludes what is under it** (VitePress passes `srcExclude` to tinyglobby as `ignore`,
+  where `src/drafts` covers `src/drafts/index.md`; picomatch alone does not, and that gap published the pages),
+  and **a config the parser cannot read throws** rather than returning an empty list, because failing open here
+  fails in the direction that publishes them. That throw is caught inside `configuredSrcExclude`, which prints
+  it and exits: both callers are command-line tools that can only abort, and left to propagate it reached one
+  as a clean diagnostic and the other as a raw stack naming a file the reader never ran. `picomatch` is an
+  explicit devDependency for this rather than a transitive one borrowed from Vite. The hardcoded `cs/` and
+  `public/` skips stay: `public/` is shared site chrome, and `cs/` is a page no pattern covers any more but old
+  tags still carry.
+- **`scripts/sync-archive.test.mjs` covers the pure halves**, run by `pnpm docs:test` and chained first in
+  `docs:build`, so `ci-ok` gates them. Every case in it is one that had been verified once by hand — by editing
+  the config, building, and reverting — which left nothing behind to notice a regression; the two `srcExclude`
+  cases above are there because both of those failure modes shipped and were only caught by review. The main
+  body of `sync-archive.mjs` is behind an `import.meta.url` guard so the helpers can be imported without it.
+- **Reading a tagged line costs one `git ls-tree -z` and one `git cat-file --batch`**, not a `git show` per
+  file. `-z` also stops git quoting a path it considers unusual, which the per-file form would have sliced
+  apart as a name. Measured: a full run went from ~790ms to ~170ms, which matters because the dev server runs
+  this on every save — and cheap enough that the watcher just runs the whole thing rather than carrying a flag
+  to skip the tagged lines.
+  `parseBatchStream` locates each blob by the **length in its header**, never by scanning, because a page may
+  contain a line shaped like one. It also **refuses a non-`blob` answer**: git reports an object it cannot
+  produce as `<sha> missing`, which has no size, so reading naively archives that page empty and leaves every
+  later one unaligned. A partial clone — `actions/checkout` takes a `filter` input — is how that happens.
+- **Writes are idempotent and anything unwritten is pruned.** A file is touched only when its bytes change, and
+  whatever the run did not produce is deleted, so a renamed page cannot linger in an archived copy. That is
+  what lets the dev server re-run the script on every edit — measured: no source change rewrites nothing, one
+  edited page rewrites exactly one archived file — and it keeps a `docs:build` in one terminal from yanking the
+  archive out from under a `docs:dev` in another.
+- **The dev server re-syncs the newest line on every edit**, through the `janzen-sync-archive` Vite plugin in
+  `config.mts` (`apply: 'serve'`). Without it the script's single run before `vitepress dev` left `/v<line>.x/`
+  serving a start-up snapshot while the root followed edits — and that versioned page is exactly what an author
+  opens to check the rewriting, so the stale render reads as "my change did not take effect". Three details are
+  each load-bearing. It watches **`docs/src` only**, compared with the separator appended — the script writes
+  into `docs/archive`, which VitePress also watches now that `docs/` is the source root, and `resolve` drops a
+  trailing slash, so without the separator a sibling like `docs/src-notes/` matches too. It runs **one sync at
+  a time** with a single catch-up, because two overlapping runs each prune whatever their own run did not
+  produce, and the earlier one then deletes a page the later one has just written with nothing scheduled to put
+  it back. And it **clears that flag on `close`**, so a sync still in flight when the server stops cannot
+  schedule one more against a server that is gone — a save usually precedes Ctrl+C, so that is the common case
+  rather than the rare one.
+- **A manifest entry whose ref carries no `docs/src` is refused with its own message.** `git ls-tree` exits 0
+  with empty output for a path a ref simply does not have, so it is not an error the surrounding `catch` can
+  see; unguarded it surfaced as a raw ENOENT stack from the summary walk. `v10.0.0` is a real instance — it
+  predates this site — and the release checklist invites adding older lines.
 - **`verify-anchors.mjs` walks the archive too**, with each root carrying its URL prefix. That catches a broken
   fragment or a link into a stub inside an archived page. It does **not** catch version leakage — that is what
   `leaked` above is for, and a test that assumed otherwise passed while the leak was live.

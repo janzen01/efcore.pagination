@@ -20,6 +20,8 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname, relative, posix } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { configuredSrcExclude } from './src-exclude.mjs'
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const src = join(root, 'src')
 const archive = join(root, 'archive')
@@ -42,19 +44,14 @@ const roots = [
 ]
 
 // A page `srcExclude` keeps out of the build emits no ids, so checking a fragment link written in one is
-// guaranteed to fail -- a required-check failure on a file the config deliberately excludes. The patterns are read
-// out of config.mts rather than restated here; if that list is ever renamed away this falls back to checking
-// everything, which is the behaviour before this check existed and fails loudly rather than silently.
-const excluded = [...(readFileSync(join(root, '.vitepress', 'config.mts'), 'utf8')
-	.match(/srcExclude:\s*\[([^\]]*)\]/)?.[1]
-	.matchAll(/['"]([^'"]+)['"]/g) ?? [])].map(([, pattern]) => pattern.replace(/\*+$/, ''))
+// guaranteed to fail -- a required-check failure on a file the config deliberately excludes. The patterns come
+// from scripts/src-exclude.mjs, which is also what sync-archive.mjs uses: this file and that one and VitePress
+// itself were reading the same option three different ways, and every disagreement was a page one tool treated
+// as real and another did not. Paths are compared relative to docs/, which is what `srcExclude` is relative to
+// -- the config sets no `srcDir`, so VitePress treats docs/ itself as the source root.
+const excluded = configuredSrcExclude()
 
-// Compared against the path relative to docs/, because that is what `srcExclude` is relative to: the config
-// sets no `srcDir`, so VitePress treats docs/ itself as the source root.
-const isExcluded = (file) => {
-	const path = relative(root, file).replaceAll('\\', '/')
-	return excluded.some((prefix) => path.startsWith(prefix))
-}
+const isExcluded = (file) => excluded(relative(root, file).replaceAll('\\', '/'))
 
 const idCache = new Map()
 

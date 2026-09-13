@@ -110,6 +110,7 @@ Edit `docs/src`; the archive is regenerated and any change to it is discarded.
 cd docs
 pnpm install
 pnpm docs:dev      # local preview with hot reload
+pnpm docs:test     # the script tests alone, which docs:build runs first
 pnpm docs:build    # what CI runs
 ```
 

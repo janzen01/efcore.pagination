@@ -60,5 +60,27 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # The same rule as the `if:` on `build`, asserted again where the publishing actually happens. The gate
+      # above cannot be tested before the event it guards: a dispatch short-circuits on the first clause, so
+      # the release half is first evaluated by a real release, and a mistake there would put a prerelease at
+      # the site root -- the one outcome this workflow exists to prevent. Restating it costs a second and
+      # turns that mistake into a red release instead of a silent publish. If this ever fires, the expression
+      # on `build` is wrong, not this step.
+      - name: Refuse to publish a prerelease
+        if: github.event_name == 'release'
+        env:
+          PRERELEASE: ${{ github.event.release.prerelease }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          case "$TAG" in
+            *-*) suffixed=yes ;;
+            *)   suffixed=no  ;;
+          esac
+          if [ "$PRERELEASE" != "false" ] || [ "$suffixed" = yes ]; then
+            echo "::error::$TAG is a prerelease (prerelease=$PRERELEASE, semver suffix=$suffixed); the gate on the build job should have skipped this run."
+            exit 1
+          fi
+          echo "$TAG is a stable release."
+
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

@@ -1,6 +1,69 @@
+import { execFile } from 'node:child_process'
 import { existsSync, readdirSync } from 'node:fs'
+import { resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import type { Plugin } from 'vite'
 import { defineVersionedConfig } from '@viteplus/versions'
 import { withMermaid } from 'vitepress-plugin-mermaid'
+
+// Dev only. scripts/sync-archive.mjs runs once before `vitepress dev`, which left the newest line's copy
+// serving a start-up snapshot: the manifest defines that line as the working tree, but an edit to docs/src
+// only ever reached the site root. `/v<line>.x/` is exactly the page an author opens to check that the version
+// rewriting behaved, so a stale render reads as "my change did not take effect". The script writes only files
+// whose bytes changed, so a save costs one HMR update rather than a rebuilt archive.
+const syncArchiveOnEdit: Plugin = {
+    name: 'janzen-sync-archive',
+    apply: 'serve',
+    configureServer(server) {
+        const script = fileURLToPath(new URL('../scripts/sync-archive.mjs', import.meta.url))
+
+        // `resolve` drops the trailing slash, so the separator has to be put back. Without it a sibling
+        // directory whose name merely begins with `src` matches too -- and `docs/*` is deny-by-default
+        // precisely so local planning directories can live beside the site.
+        const sources = resolve(fileURLToPath(new URL('../src/', import.meta.url))) + sep
+
+        let pending: NodeJS.Timeout | undefined
+        let running = false
+        let missed = false
+        let closed = false
+
+        // One run at a time, with a single catch-up if edits arrived while it was working. Two overlapping
+        // runs each prune whatever their own run did not produce, so the one that started earlier can delete
+        // a page the later one has just written -- and nothing would then schedule the sync that puts it back.
+        const sync = () => {
+            if (closed || running) {
+                missed = !closed
+                return
+            }
+
+            running = true
+            execFile(process.execPath, [script], (error, _stdout, stderr) => {
+                running = false
+                if (error && !closed) server.config.logger.error(stderr || error.message)
+                if (missed) {
+                    missed = false
+                    sync()
+                }
+            })
+        }
+
+        // Only docs/src is watched. The script writes into docs/archive, which VitePress also watches now that
+        // docs/ is the source root -- reacting to that would feed the script its own output.
+        server.watcher.on('all', (_event, file) => {
+            if (!resolve(file).startsWith(sources)) return
+            clearTimeout(pending)
+            pending = setTimeout(sync, 150)
+        })
+
+        // A save usually precedes Ctrl+C, so a sync is often still in flight here. Clearing the timer alone
+        // left its callback free to schedule one more run against a server that no longer exists.
+        server.httpServer?.once('close', () => {
+            closed = true
+            missed = false
+            clearTimeout(pending)
+        })
+    }
+}
 
 // Every released line is served from its own copy under docs/archive/<segment>/, generated before the build by
 // scripts/sync-archive.mjs. The plugin discovers them by reading that directory, and the directory name is the
@@ -193,6 +256,8 @@ const config = withMermaid(defineVersionedConfig({
         // took the favicon and the logo with it. Named here rather than moving the directory, so that one copy
         // keeps serving every version from the site root.
         publicDir: 'src/public',
+
+        plugins: [syncArchiveOnEdit],
 
         optimizeDeps: {
             exclude: ['@nolebase/vitepress-plugin-enhanced-readabilities/client', '@viteplus/versions']

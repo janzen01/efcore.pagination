@@ -1,7 +1,7 @@
 // Materialises docs/archive/<version>/ from git, so the site can serve one frozen copy per released line.
 //
 // The archive is a build artefact, not repository content: it is gitignored and rebuilt before every `vitepress
-// dev` and `vitepress build`. That is the whole point. A committed archive would put a second copy of all 28
+// dev` and `vitepress build`. That is the whole point. A committed archive would put a second copy of all 26
 // pages in the tree for every line ever released, and every grep, every editor search and every code-reading
 // tool would then have to be told to ignore them. Generating instead means there is nothing to ignore.
 //
@@ -13,11 +13,17 @@
 // The boundary is the *library's* breaking-change component, not the release number: within one line the third
 // component only ever adds surface, so a frozen link can name something newer than the reader has, but never
 // something that no longer exists. Removing needs a new line, which gets its own copy.
+//
+// Writes are idempotent: a file is only touched when its bytes change, and anything the run did not produce is
+// pruned. That is what lets the dev server re-run this on every edit without a storm of HMR updates, and what
+// keeps a `docs:build` in one terminal from yanking the archive out from under a `docs:dev` in another.
 
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { configuredSrcExclude } from './src-exclude.mjs'
 
 const docs = join(dirname(fileURLToPath(import.meta.url)), '..')
 const root = join(docs, '..')
@@ -36,10 +42,17 @@ const versions = [
 	{ segment: 'v10.0.x', ref: 'v10.0.3' }
 ]
 
-// Content that is not part of a version. `public/` is site chrome, served from the site root where one copy
-// serves every version. `cs/` was an abandoned Czech landing page: it is gone from docs/src, but tags up to
-// v10.0.3 still carry it, and without this skip those archives would publish it as an English-locale page.
-const skipped = (path) => path.startsWith('cs/') || path.startsWith('public/')
+// `public/` is site chrome, served from the site root where one copy serves every version. `cs/` was an
+// abandoned Czech landing page: it is gone from docs/src, so no `srcExclude` pattern covers it any more, but
+// tags up to v10.0.3 still carry it and those archives would otherwise publish it as an English-locale page.
+const ALWAYS_SKIPPED = ['cs/', 'public/']
+
+/**
+ * Whether a path relative to docs/src is kept out of an archived copy. `excluded` is a matcher over
+ * docs-root-relative paths, which is the shape `srcExclude` is written in.
+ */
+export const isSkipped = (path, excluded) =>
+	ALWAYS_SKIPPED.some((prefix) => path.startsWith(prefix)) || excluded(`src/${path}`)
 
 // The only root-absolute in-site links the content actually contains, measured rather than assumed. Anything
 // else that looks absolute is reported instead of rewritten -- see `strays`.
@@ -49,42 +62,39 @@ const SECTIONS = 'guide|integrations|recipes|reference'
 // the site root for every version.
 const SHARED_ASSETS = new Set(['/icon.svg'])
 
-const git = (args) => execFileSync('git', args, { cwd: root, maxBuffer: 1 << 28 })
+const SITE = 'https://janzen01.github.io/efcore.pagination/'
 
-const filesAt = (ref) => git(['ls-tree', '-r', '--name-only', ref, '--', 'docs/src'])
-	.toString('utf8')
-	.split('\n')
-	.filter(Boolean)
-	.map((path) => path.slice('docs/src/'.length))
+const SECTION_PATH = new RegExp(`^/(?:${SECTIONS})/`)
 
-const walk = (dir) => readdirSync(dir, { withFileTypes: true })
-	.flatMap((entry) => entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)])
-
-const contentsOf = (ref) => ref === WORKING_TREE
-	? walk(src).map((file) => [relative(src, file).replaceAll('\\', '/'), readFileSync(file)])
-	: filesAt(ref).map((path) => [path, git(['show', `${ref}:docs/src/${path}`])])
-
-// A link this script does not know how to version. Left unrewritten it would silently point back at the root
-// -- at the newest release rather than at this version -- and nothing downstream would catch it: the target
-// exists, so `ignoreDeadLinks` is satisfied and verify-anchors resolves it to a real page.
-const strays = (text) => [
+// A root-absolute link to something this script does not know how to version. Left unrewritten it would
+// silently point back at the root -- at the newest release rather than at this version -- and nothing
+// downstream would catch it: the target exists, so `ignoreDeadLinks` is satisfied and verify-anchors resolves
+// it to a real page.
+export const strays = (text) => [
 	...[...text.matchAll(/\]\((\/[^)\s]*)\)/g)],
 	...[...text.matchAll(/^\s*(?:link|src):\s+(\/\S*)/gm)]
 ]
 	.map(([, link]) => link)
-	.filter((link) => !new RegExp(`^/(?:${SECTIONS})/`).test(link) && !SHARED_ASSETS.has(link))
+	.filter((link) => !SECTION_PATH.test(link) && !SHARED_ASSETS.has(link))
+
+// The site's own absolute URL, which none of the rewrites touch: they all key off a leading slash. It is the
+// same leak wearing a hostname, and it is easy to write by accident because every package README is full of
+// them -- so it is reported as its own case rather than left to `leaked`, which could only describe it as a
+// fragment of the hostname.
+export const siteAbsolute = (text) => [...text.matchAll(new RegExp(`${SITE.replace(/[.]/g, '\\.')}\\S*`, 'g'))]
+	.map(([link]) => link.replace(/[).,;:!?]+$/, ''))
 
 // The post-condition, checked on the rewritten text: every section path in an archived page must sit behind
 // this version's segment. This is the check that actually bites. An unversioned section link is not a dead
 // link -- it resolves, to the same path in the *current* version -- so `ignoreDeadLinks` is satisfied and
 // verify-anchors finds a real heading on a real page. Measured before being written: the content mentions
 // these paths only inside links, never in prose, so this is exact rather than noisy.
-const leaked = (text, segment) =>
-	[...text.matchAll(new RegExp(`(.{0,${segment.length + 1}})/(?:${SECTIONS})/`, 'g'))]
+export const leaked = (text, segment) =>
+	[...text.matchAll(new RegExp(`(.{0,${segment.length + 1}})(/(?:${SECTIONS})/)`, 'g'))]
 		.filter(([, before]) => !before.endsWith(`/${segment}`))
-		.map(([match]) => match.trim())
+		.map(([, , path]) => path)
 
-const versioned = (text, segment) => text
+export const versioned = (text, segment) => text
 	// Markdown links written root-absolute, which is how the guide crosses a section boundary.
 	.replace(new RegExp(`\\]\\((/(?:${SECTIONS})/)`, 'g'), `](/${segment}$1`)
 	// The home layout carries its links in front matter instead, as `link:` under hero actions and features.
@@ -92,59 +102,179 @@ const versioned = (text, segment) => text
 	// The four redirect stubs meta-refresh to an absolute target, `base` included.
 	.replace(/url=\/efcore\.pagination\//g, `url=/efcore.pagination/${segment}/`)
 
-const found = []
+const git = (args, options) => execFileSync('git', args, { cwd: root, maxBuffer: 1 << 28, ...options })
 
-rmSync(archive, { recursive: true, force: true })
+const walk = (dir) => readdirSync(dir, { withFileTypes: true })
+	.flatMap((entry) => entry.isDirectory() ? walk(join(dir, entry.name)) : [join(dir, entry.name)])
 
-for (const { segment, ref } of versions) {
+/**
+ * Splits a `git cat-file --batch` stream into one buffer per requested object. Each answer is
+ * `<sha> <type> <size>\n`, the bytes, then a newline, so the contents are found by length rather than by
+ * scanning -- a blob may contain anything, header-shaped lines included.
+ *
+ * Refusing a non-`blob` answer is the point of the type check. Git reports an object it cannot produce as
+ * `<sha> missing`, which has no size: read naively that yields an empty buffer for this file and leaves every
+ * later one unaligned, so the run would archive a blank page and then die without naming anything.
+ */
+export const parseBatchStream = (stream, paths) => {
+	const contents = []
+	let offset = 0
 
-	let entries
-	try {
-		entries = contentsOf(ref)
-	} catch (error) {
-		console.error(`\nCannot read docs/src at ${ref ?? 'the working tree'} for ${segment}.\n`)
-		console.error('A shallow clone has no tags, and this needs them. Fetch them with `git fetch --tags`,\n' +
-			'or in a workflow give actions/checkout `fetch-depth: 0`.\n')
-		console.error(`${error.message}\n`)
-		process.exit(1)
-	}
+	while (contents.length < paths.length) {
+		const headerEnd = stream.indexOf(0x0a, offset)
 
-	for (const [path, contents] of entries) {
-
-		if (skipped(path)) continue
-
-		const target = join(archive, segment, path)
-		mkdirSync(dirname(target), { recursive: true })
-
-		if (!path.endsWith('.md')) {
-			writeFileSync(target, contents)
-			continue
+		if (headerEnd === -1) {
+			throw new Error(`git cat-file --batch stopped after ${contents.length} of ${paths.length} objects.`)
 		}
 
-		const text = contents.toString('utf8')
-		for (const link of strays(text)) found.push(`  ${segment}/${path} -> ${link}   (unknown section)`)
+		const [, type, size] = stream.toString('utf8', offset, headerEnd).split(' ')
 
-		const rewritten = versioned(text, segment)
-		for (const link of leaked(rewritten, segment)) found.push(`  ${segment}/${path} -> ${link}   (still unversioned)`)
+		if (type !== 'blob') {
+			throw new Error(`git cat-file --batch answered "${type}" for docs/src/${paths[contents.length]}. ` +
+				'A partial clone fetches blobs on demand and reports one missing when it cannot; clone without ' +
+				'a filter, or run `git fetch` to bring the objects down.')
+		}
 
-		writeFileSync(target, rewritten)
-
+		contents.push(stream.subarray(headerEnd + 1, headerEnd + 1 + Number(size)))
+		offset = headerEnd + 1 + Number(size) + 1
 	}
 
+	return contents
 }
 
-if (found.length > 0) {
-	console.error('\nThese links would leave an archived page pointing back out of its own version:\n')
-	for (const line of found) console.error(line)
-	console.error('\nAn unversioned link lands on the same path in the current version -- a different release\n' +
-		'under a frozen URL -- and nothing downstream catches it, because the page it reaches exists.\n' +
-		'"unknown section": add it to SECTIONS, or to SHARED_ASSETS if it is served from the site root.\n' +
-		'"still unversioned": the link uses a syntax `versioned` does not rewrite yet.\n')
+// One `git ls-tree` and one `git cat-file --batch`, rather than a `git show` per file. `-z` keeps git from
+// quoting a path it considers unusual, which would otherwise be sliced apart as if it were a plain name.
+const blobsAt = (ref) => {
+	const entries = git(['ls-tree', '-r', '-z', ref, '--', 'docs/src'])
+		.toString('utf8')
+		.split('\0')
+		.filter(Boolean)
+		.map((record) => {
+			const [meta, path] = record.split('\t')
+
+			return { sha: meta.split(' ')[2], path: path.slice('docs/src/'.length) }
+		})
+
+	if (entries.length === 0) return []
+
+	const paths = entries.map(({ path }) => path)
+	const stream = git(['cat-file', '--batch'], { input: `${entries.map(({ sha }) => sha).join('\n')}\n` })
+
+	return parseBatchStream(stream, paths).map((contents, index) => [paths[index], contents])
+}
+
+const contentsOf = (ref) => ref === WORKING_TREE
+	? walk(src).map((file) => [relative(src, file).replaceAll('\\', '/'), readFileSync(file)])
+	: blobsAt(ref)
+
+const fail = (lines) => {
+	for (const line of lines) console.error(line)
 	process.exit(1)
 }
 
-const built = versions.map(({ segment }) => segment).join(', ')
-const pages = versions.reduce((total, { segment }) =>
-	total + walk(join(archive, segment)).filter((file) => file.endsWith('.md')).length, 0)
+const main = () => {
 
-console.log(`Archived ${pages} pages across ${versions.length} versions (${built}).`)
+	const excluded = configuredSrcExclude()
+	const written = new Set()
+
+	const write = (target, contents) => {
+		written.add(target)
+		if (existsSync(target) && readFileSync(target).equals(contents)) return
+		mkdirSync(dirname(target), { recursive: true })
+		writeFileSync(target, contents)
+	}
+
+	// Removes whatever this run did not produce, so a page renamed or deleted in docs/src does not linger in an
+	// archived copy and keep being published.
+	const prune = (dir) => {
+		if (!existsSync(dir)) return
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			const path = join(dir, entry.name)
+			if (!entry.isDirectory()) {
+				if (!written.has(path)) rmSync(path)
+				continue
+			}
+			prune(path)
+			if (readdirSync(path).length === 0) rmSync(path, { recursive: true })
+		}
+	}
+
+	const found = []
+
+	for (const { segment, ref } of versions) {
+
+		let entries
+		try {
+			entries = contentsOf(ref)
+		} catch (error) {
+			fail([
+				`\nCannot read docs/src at ${ref ?? 'the working tree'} for ${segment}.\n`,
+				'A shallow clone has no tags, and this needs them. Fetch them with `git fetch --tags`,\n' +
+				'or in a workflow give actions/checkout `fetch-depth: 0`.\n',
+				`${error.message}\n`
+			])
+		}
+
+		// `git ls-tree` exits 0 with no output for a ref that simply has no such path, so this is not an error
+		// the catch above can see. It is a real possibility rather than paranoia: v10.0.0 predates this site
+		// and carries nothing under docs/src, and the release checklist invites adding older lines.
+		if (entries.length === 0) {
+			fail([
+				`\n${segment} would be empty: ${ref ?? 'the working tree'} carries no files under docs/src.\n`,
+				'A tag from before the VitePress site existed has nothing to archive -- v10.0.0 is one of those.\n' +
+				'Point the entry at a ref that has the documentation, or drop it from `versions`.\n'
+			])
+		}
+
+		for (const [path, contents] of entries) {
+
+			if (isSkipped(path, excluded)) continue
+
+			const target = join(archive, segment, path)
+
+			if (!path.endsWith('.md')) {
+				write(target, contents)
+				continue
+			}
+
+			const text = contents.toString('utf8')
+			const rewritten = versioned(text, segment)
+
+			const report = (links, reason) => {
+				for (const link of new Set(links)) found.push(`  ${segment}/${path} -> ${link}   (${reason})`)
+			}
+
+			report(strays(text), 'unknown section')
+			report(siteAbsolute(text), 'absolute site URL')
+			report(leaked(rewritten, segment), 'still unversioned')
+
+			write(target, Buffer.from(rewritten, 'utf8'))
+
+		}
+
+	}
+
+	// Pruning the whole archive rather than each segment is what drops a segment that has left the manifest.
+	prune(archive)
+
+	if (found.length > 0) {
+		fail([
+			'\nThese links would leave an archived page pointing back out of its own version:\n',
+			...found,
+			'\nAn unversioned link lands on the same path in the current version -- a different release\n' +
+			'under a frozen URL -- and nothing downstream catches it, because the page it reaches exists.\n' +
+			'"unknown section": add it to SECTIONS, or to SHARED_ASSETS if it is served from the site root.\n' +
+			'"absolute site URL": write it as a root-relative link, so the rewrites can version it.\n' +
+			'"still unversioned": the link uses a syntax `versioned` does not rewrite yet.\n'
+		])
+	}
+
+	const built = versions.map(({ segment }) => segment).join(', ')
+	const pages = [...written].filter((file) => file.endsWith('.md')).length
+
+	console.log(`Archived ${pages} pages across ${versions.length} versions (${built}).`)
+
+}
+
+// Importable for scripts/sync-archive.test.mjs, which exercises the pure helpers above without the side effects.
+if (process.argv[1] !== undefined && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) main()
