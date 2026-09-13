@@ -10,7 +10,7 @@
   },
   "scripts": {
     "docs:dev": "node scripts/sync-archive.mjs && vitepress dev",
-    "docs:test": "node --test \"scripts/*.test.mjs\"",
+    "docs:test": "node --test scripts/sync-archive.test.mjs",
     "docs:build": "pnpm docs:test && node scripts/sync-archive.mjs && vitepress build && node scripts/verify-frozen-urls.mjs && node scripts/verify-anchors.mjs",
     "docs:preview": "vitepress preview"
   },
