@@ -71,6 +71,12 @@ dotnet add package Janzen.Pagination.EntityFrameworkCore
 dotnet add package Janzen.Pagination.AspNetCore
 ```
 
+Prereleases carry a `-preview.N` or `-rc.N` suffix — add `--prerelease` to install one.
+
+This is the `11.x` line, targeting .NET 11 and EF Core 11. Its documentation is published with the stable
+release; until then the linked `10.1.x` pages apply, and the differences are listed in the
+[release notes](https://github.com/janzen01/efcore.pagination/releases).
+
 ```csharp
 // 1. Declare the contract for an entity. This is the whole allow-list.
 public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Product> {

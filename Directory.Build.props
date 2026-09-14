@@ -53,7 +53,7 @@
 
     <!-- Package identity (PackageId and Description are set per project) -->
     <PropertyGroup>
-        <Version>10.1.0</Version>
+        <Version>11.0.0-preview.1</Version>
         <Product>Janzen.Pagination</Product>
         <Authors>Lubos Jansky</Authors>
         <Copyright>Copyright © Lubos Jansky</Copyright>
@@ -102,7 +102,7 @@
     -->
     <PropertyGroup>
         <EnablePackageValidation>true</EnablePackageValidation>
-        <PackageValidationBaselineVersion>10.0.3</PackageValidationBaselineVersion>
+        <PackageValidationBaselineVersion>10.1.0</PackageValidationBaselineVersion>
         <!-- Attribute changes are invisible to the other guard: the PublicAPI.*.txt grammar records
              accessibility, signature, default values and nullability, and has no slot for an attribute
              at all. Ten members carry [RequiresUnreferencedCode] and [RequiresDynamicCode] as part of

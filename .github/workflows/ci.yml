@@ -1,10 +1,10 @@
 name: CI
 
 on:
-  # `push` is scoped to master, so a feature-branch push fires `pull_request` only and there is no
-  # double run to cancel.
+  # `push` is scoped to the line branches (master and release/*), so a feature-branch push fires
+  # `pull_request` only and there is no double run to cancel.
   push:
-    branches: [ master ]
+    branches: [ master, 'release/*' ]
   pull_request:
 
 permissions:

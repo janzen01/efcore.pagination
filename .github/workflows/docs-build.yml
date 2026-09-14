@@ -29,6 +29,24 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      # The site root describes the newest *stable* line, and a checkout is deployed as its root. The
+      # release gate in docs.yml already refuses a prerelease release, but a dispatch is gated only on the
+      # ref it is given -- and while a new line is being prepared (a branch whose <Version> is
+      # 11.0.0-preview.N) a dispatch from that branch would put unreleased docs at the root by hand. So
+      # the checkout itself is asked: a prerelease <Version> never deploys, whatever event brought it here.
+      # Guarded on inputs.upload rather than the event, like the Pages steps below: on a pull request this
+      # workflow only verifies, and a preview version must stay buildable there.
+      - name: Refuse to deploy a checkout whose version is a prerelease
+        if: inputs.upload
+        working-directory: .
+        run: |
+          V=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' Directory.Build.props)
+          case "$V" in
+            *-*) echo "refusing to deploy: <Version> is $V, a prerelease"; exit 1 ;;
+            "")  echo "refusing to deploy: no <Version> found in Directory.Build.props"; exit 1 ;;
+          esac
+          echo "deploying docs for version $V"
+
       # package_json_file is resolved against the REPOSITORY ROOT, which has no package.json -- the one
       # carrying `packageManager` lives in docs/. The `defaults.run.working-directory` above does not
       # help: it applies to `run:` steps only, never to a `uses:` step's inputs. Without this the action
