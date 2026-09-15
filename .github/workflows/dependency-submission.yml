@@ -1,0 +1,48 @@
+name: Dependency submission
+
+# Replaces GitHub's "Automatic dependency submission", which is switched off in the repository settings.
+# That feature restores with whatever .NET SDK the hosted runner ships, and the runner only ever carries
+# the GA SDK -- so from the day a line targets a framework that is still in preview until that framework's
+# GA, every one of its runs died with NETSDK1045 and the dependency graph for that line stopped updating.
+# Running the same detector here lets the SDK be chosen like everywhere else in this repository.
+#
+# The NuGet detector reads project.assets.json, so the restore has to succeed: a line whose restore is
+# known-red (a provider pinning a build nuget.org does not serve) has no graph until it is green, which is
+# the same outcome the automatic feature would have produced, only with the real reason in the log.
+on:
+  push:
+    branches: [ master, 'release/*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The dependency submission API is a write to the repository's dependency graph.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The newest line's SDK. It restores the older line's net10.0 projects too, so one copy of this file
+      # serves both branches; `dotnet-quality: preview` goes when the framework reaches GA.
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '11.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Restore
+        run: dotnet restore Janzen.Pagination.slnx
+
+      # The docs' pnpm lockfile is read by the dependency graph natively; NuGet with central package
+      # management is not, which is the whole reason this job exists.
+      - name: Submit the NuGet dependency snapshot
+        uses: advanced-security/component-detection-dependency-submission-action@b282c67b1008fde9b60da4bdfcd8849613e293b2 # v0.1.6
+        with:
+          detectorsCategories: NuGet

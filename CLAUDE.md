@@ -603,6 +603,12 @@ independent of each other — consumers pick the extensions they need:
 - **GitHub Actions are pinned to a full commit SHA**, with the version in a trailing comment
   (`uses: actions/checkout@3d3c42e… # v7.0.1`). Never replace a SHA with a tag — see *Intentional decisions*.
   Dependabot bumps the SHA and the comment together; minor and patch flow through, a major is a decision.
+- **The dependency graph is fed by `dependency-submission.yml`, not by GitHub's automatic submission**, which
+  is switched off in the repository settings (repository state, like the Pages settings). The automatic feature
+  restores with the SDK the hosted runner ships, which is only ever the GA one, so a line targeting a preview
+  framework lost its graph with `NETSDK1045` on every push until that framework's GA. The workflow runs the
+  same detector after `setup-dotnet` picks the SDK; it needs the restore to succeed, so a known-red line has no
+  snapshot until it is green. One copy serves both line branches: the newest SDK restores the older TFM too.
 
 ## Versioning
 The package version's **first component tracks the .NET / EF Core major it targets** — a `10.x` package pairs with
@@ -829,7 +835,7 @@ way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server rea
   sensitive enough to justify stripping it from a response.
 - **Actions are SHA-pinned and `dependabot.yml` ignores nothing for them.** A tag is a moving pointer the upstream
   owner can repoint; `publish.yml` exchanges an OIDC token for a live nuget.org push key, so anything running in that
-  job can publish under the maintainer's name. All three workflows are pinned so the convention has no exceptions to
+  job can publish under the maintainer's name. Every workflow is pinned so the convention has no exceptions to
   remember. Don't "tidy" a SHA back into `@v7`, and don't re-add an `ignore` for minor/patch — a SHA doesn't follow
   releases, so ignoring those updates freezes the pins permanently.
 - **`publish.yml` triggers on `release: published` only**, and `TAG` reads `github.event.release.tag_name` with **no**
