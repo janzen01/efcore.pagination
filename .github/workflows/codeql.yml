@@ -2,7 +2,7 @@ name: CodeQL
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, 'release/*' ]
   pull_request:
   schedule:
     # Weekly, so new queries also run against code that has not changed.

@@ -38,7 +38,8 @@ const WORKING_TREE = null
 // Segment -> git ref. The segment is the URL path verbatim, and it is frozen the moment a README advertising
 // it reaches nuget.org, so it is never renamed -- only added to.
 const versions = [
-	{ segment: 'v10.1.x', ref: WORKING_TREE },
+	{ segment: 'v11.0.x', ref: WORKING_TREE },
+	{ segment: 'v10.1.x', ref: 'v10.1.0' },
 	{ segment: 'v10.0.x', ref: 'v10.0.3' }
 ]
 

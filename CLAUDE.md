@@ -64,7 +64,10 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   path a human drives, where the ref is picked by hand from a dialog that defaults to a branch.
   **Consequences worth knowing.** A documentation-only fix does not publish itself — it waits for the next
   release, or a `workflow_dispatch`, and **that dispatch must be run against a tag, never against `master`**,
-  or it puts unreleased docs at the root by hand. And an `-rc.N` that opens a **new** line ships READMEs
+  or it puts unreleased docs at the root by hand. `docs-build.yml` backs that rule with a third gate, on the
+  **checkout** rather than the event: a `<Version>` carrying a `-` refuses to deploy. It exists for the window
+  in which a new line is being prepared — a branch whose version is `11.0.0-preview.N` — where the ref-based
+  gates would let a dispatch through. And an `-rc.N` that opens a **new** line ships READMEs
   pointing at a `/v<line>.x/` path that nothing has published yet; within an existing line the path is
   already live, so this bites at **every new `X.Y` line**, not only at a major — `10.1.0` is one, and its
   READMEs already name `/v10.1.x/`. The order that works: merge, dispatch `docs.yml` so the path goes live,
@@ -617,8 +620,29 @@ The package version's **first component tracks the .NET / EF Core major it targe
   `EF.Functions`, so a rebuild against the new EF Core major is needed regardless of the version scheme: a `net10.0`
   assembly loaded against EF Core 11 can fail at runtime. Dependabot opens the `Microsoft.EntityFrameworkCore` major
   PR, which is the reminder; CI then says whether it is a plain retarget or a real port.
-- **Older lines are not maintained in parallel.** `10.x` stays available on nuget.org as published; backport only on
-  request.
+- **Two lines live in the repository at once, and the branch names say which is which.** `master` is always the
+  newest line; the previous one lives on `release/<X>.x` (`release/10.x`). The one ruleset targets
+  `~DEFAULT_BRANCH` **and** `refs/heads/release/*`, so both take PRs only, squash-merged, with `ci-ok` green,
+  and `ci.yml` runs its `push` leg on both. `publish.yml` and `docs.yml` are tag-driven and need nothing per
+  branch — trusted publishing is keyed to the workflow file and the `nuget` environment, not to a branch.
+  **Dependabot is the exception**: it reads `dependabot.yml` from the default branch only, so the servicing
+  line's block (`target-branch: release/10.x`, framework majors ignored) lives in `master`'s copy.
+  A new line is opened *before* it can be the default: it is prepared on `release/<X+1>.x` while `master`
+  is still the old line, and the two are swapped by **renaming** (`master` → `release/<X>.x`, then
+  `release/<X+1>.x` → `master`, then re-point the default branch). A rename carries open PRs' base and
+  draft releases along, needs no merge method beyond squash, and the ruleset follows because it targets the
+  default branch symbolically. The one precondition: no open PR may have either branch as its *head* — GitHub
+  closes those.
+- **A feature is delivered to both lines while the previous one is in its parallel window** — until three
+  months after the newer line's stable release (`11.0.0` GA + 3 months); after that the previous line takes
+  fixes on request only. The mechanics are fixed by the ruleset: linear history plus squash-only rule out a
+  merge-forward, so a feature is **one PR into the older line first, then a forward-port** —
+  `git cherry-pick -x <squash sha>` onto a branch off the newer line, a second PR with the same title and
+  `Forward-port of #<PR>` in its body. Oldest first because the newer line accumulates the renames and
+  breaks of its major, so the forward-port is where the conflicts belong. Each line carries its own
+  `<Version>`, its own `PublicAPI.Unshipped.txt` and its own `docs/src`, so a feature edits all three on each
+  branch. A change that exists only for the newer line (its breaking-change bundle) is an ordinary PR with
+  no counterpart.
 - **No four-part versions.** NuGet drops a zero fourth component (`10.1.0.0` *is* `10.1.0`) and treats `1`, `1.0`,
   `1.0.0` and `1.0.0.0` as equal, so the component count would flicker per release. Three components only.
 - Version lives in `<Version>` in [Directory.Build.props](Directory.Build.props) — there is **no MinVer** here.
@@ -643,9 +667,23 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    package. Both halves belong before the merge, because `verify-frozen-urls.mjs` runs inside `ci-ok` and
    fails on a README URL the build does not publish. A `Z` release touches none of this: the line's copy is
    already `WORKING_TREE`, so it picks up the release automatically.
+   **A new major is the one exception to the README half.** Its documentation is not published until its
+   stable release (the site root is the newest stable line, and a prerelease never deploys), so a
+   `/v11.0.x/` link in a preview package's README would be dead for months. The previews therefore keep
+   the previous line's `/v10.1.x/` links, with a sentence saying so, and the repoint to `/v11.0.x/` is part of
+   the stable release PR — where it is due anyway. `verify-frozen-urls.mjs` is satisfied because the previous
+   line is pinned to its tag in the manifest.
+   **While two lines are live, every release of the older line owes one more PR into `master`**: bump that
+   line's pin in `sync-archive.mjs` (`v10.1.x: 'v10.1.1'`) so the archived copy matches the newest 10.x. The
+   older line's own docs deploy stays on until the newer line's stable release and is switched off in that
+   release's checklist — after that the site is `master`'s alone, and a servicing release of the old line
+   must never rebuild the root from its tag.
 3. **At a stable release only**, move each `PublicAPI.Unshipped.txt` into its `PublicAPI.Shipped.txt`. That is
    what makes a later removal an RS0017 build error. Do **not** do it for an `-rc.N`: an rc-only member promoted
    to *shipped* cannot then be dropped before stable without fighting the analyzer.
+   **At the line's first stable release** (`11.0.0`), also move `global.json` off the preview SDK: `11.0.100`,
+   `allowPrerelease` removed — that one file is what every workflow and the automatic dependency submission
+   install from.
 4. **`PackageValidationBaselineVersion` is bumped *after* the publish, never in the release PR.** It resolves
    through a `PackageDownload`, so pointing it at a version nuget.org does not serve yet fails **restore** with
    `NU1102: Unable to find package … with version (= x.y.z)` — the release PR's own CI, before any tag exists.
@@ -689,8 +727,13 @@ neither needing Docker:
 
 > **[global.json](global.json) is load-bearing**: it selects the **Microsoft.Testing.Platform** runner for `dotnet test`.
 > MTP v2 dropped the VSTest bridge on the .NET 10 SDK, so without that file *every* `dotnet test` here — yours, `ci.yml`
-> and the guard inside `publish.yml` — fails with `Testing with VSTest target is no longer supported`. It pins no SDK
-> version and is not meant to.
+> and the guard inside `publish.yml` — fails with `Testing with VSTest target is no longer supported`. **It also pins the SDK**, and that
+> pin is the single source of the .NET version for every workflow: each `setup-dotnet` reads `global-json-file:
+> global.json`, and so does GitHub's *automatic dependency submission*, which has no file in this repository and
+> takes the SDK from nowhere else — without the pin it restored with the runner's GA SDK and died with
+> `NETSDK1045` on every push while the line targeted a preview framework. While the framework is in preview the
+> version is the exact rc build (setup-dotnet installs a prerelease pin verbatim; `rollForward` only lets a local
+> `dotnet` accept a newer 11.0.x); at GA it becomes `11.0.100` and `allowPrerelease` goes.
 
 - **SQLite in-memory** — most tests. Real SQL translation, so it is what catches "the expression cannot be translated",
   and it exercises the engine's `UseDatabaseFunctions` path (`EF.Functions.Like`, `EF.Parameter`).

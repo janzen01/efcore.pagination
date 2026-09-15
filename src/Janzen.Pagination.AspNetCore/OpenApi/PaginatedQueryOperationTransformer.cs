@@ -179,7 +179,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 		operation.Responses["400"] = new OpenApiResponse {
 			Description = "The pagination query parameters were invalid.",
-			Content = new Dictionary<string, OpenApiMediaType> {
+			Content = new Dictionary<string, IOpenApiMediaType> {
 				[PaginateExceptionFilter.ProblemJson] = new OpenApiMediaType {
 					Schema = new OpenApiSchema {
 						Type = JsonSchemaType.Object,
