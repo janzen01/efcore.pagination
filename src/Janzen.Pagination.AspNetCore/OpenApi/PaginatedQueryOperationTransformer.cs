@@ -533,11 +533,12 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			: (string.Join(" | ", members), members[0], members[^1]);
 	}
 
-	// Renders an optional field badge as a <code> chip appended to the parameter description. The API reference
-	// sanitizer (Scalar uses GitHub-flavored Markdown / rehype-sanitize) strips inline style and every class except
-	// one matching /^language-/ on <code>. So a badge is a <code> chip carrying that class, and the consumer colors
-	// it through the reference UI's custom CSS. ShowBadge guarantees the class starts with "language-". Without a
-	// class it's a neutral code chip. Name and class are HTML-encoded so a stray character can't break the markup.
+	// Renders an optional field badge as a <code> chip appended to the parameter description, carrying the
+	// configured class verbatim; the consumer colors it through the reference UI's custom CSS. Which classes a
+	// renderer keeps is its own rule (Scalar's sanitizer, for one, drops every class on <code> except
+	// /^language-/), and the library does not second-guess it -- the guidance lives in the docs, not in a guard.
+	// Without a class it's a neutral code chip. Name and class are HTML-encoded so a stray character can't break
+	// the markup.
 	private static string RenderBadge(PaginateBadge? badge) {
 		if (badge is null) return string.Empty;
 

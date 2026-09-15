@@ -7,8 +7,8 @@ namespace Janzen.Pagination.EntityFrameworkCore.Configuration;
 /// <remarks>
 ///     Two ways to use it, and they compose. Pass one explicitly to
 ///     <see cref="PaginateConfig{TEntity}.Create(PaginateConfigDefaults, System.Action{PaginateConfigBuilder{TEntity}})" />
-///     and only the configurations naming it are affected; assign <see cref="Shared" /> once at startup and every
-///     configuration built afterwards picks it up, including those built outside dependency injection.
+///     and only the configurations naming it are affected; assign <see cref="Shared" /> once at startup, and every
+///     configuration built afterward picks it up, including those built outside dependency injection.
 ///     Resolution runs outward from the most specific: a <c>WithLimits</c> / <c>WithGuards</c> / <c>WithX</c> call
 ///     on the builder beats the object handed to <c>Create</c>, which beats <see cref="Shared" />, which beats the
 ///     engine's constant. So a shared default never silently overrides a value someone wrote down, and any
@@ -27,7 +27,7 @@ public sealed record PaginateConfigDefaults {
 	///     Applies to every configuration built after it is assigned, unless that configuration passes its own
 	///     defaults object or sets the value directly. Assign it once during startup, before the first
 	///     configuration is built: a configuration resolves its values at <c>Build()</c> time and does not
-	///     re-read this afterwards. Assigning <see langword="null" /> throws; assign a new instance rather than
+	///     re-read this afterward. Assigning <see langword="null" /> throws; assign a new instance rather than
 	///     mutating, which is what a <c>with</c> expression on this record is for.
 	/// </summary>
 	public static PaginateConfigDefaults Shared {
