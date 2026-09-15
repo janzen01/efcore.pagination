@@ -145,10 +145,10 @@ metadata and render as chips in the API reference UI (e.g. Scalar):
 .Filterable("id", p => p.Id, PaginateFilterOperator.Eq).ShowBadge("Stable", "language-stable")
 ```
 
-`ShowBadge` targets the field declared immediately before it. The library imposes no palette — you color the chip via
-your API reference's **custom CSS**. The class **must start with `language-`**: it is the only class prefix Scalar's
-markdown sanitizer keeps in a parameter description (inline styles and other classes are stripped), so `ShowBadge`
-throws otherwise. Then register e.g. `.language-public { background:#277A2C; color:#fff; border-radius:4px; padding:1px 6px }`.
+`ShowBadge` targets the field declared immediately before it. The library imposes no palette and does not validate
+the class — you color the chip via your API reference's **custom CSS**, and which classes survive is that UI's rule.
+With Scalar, use a `language-` prefix: its markdown sanitizer keeps no other class on inline code. Then register e.g.
+`.language-public { background:#277A2C; color:#fff; border-radius:4px; padding:1px 6px }`.
 
 ## Conditional fields (RBAC)
 

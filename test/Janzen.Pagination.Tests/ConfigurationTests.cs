@@ -168,15 +168,15 @@ public sealed class ConfigurationTests {
 	}
 
 	[Fact]
-	public void A_badge_class_must_carry_the_language_prefix() {
+	public void A_badge_class_is_kept_verbatim() {
 
-		// It is the only prefix an API reference's markdown sanitizer keeps on an inline code element, so a
-		// class that does not start with it would silently render unstyled.
-		var exception = Assert.Throws<ArgumentException>(() => Build(b => b
+		// Which classes an API reference UI keeps is that UI's rule (Scalar keeps only language-*), not this
+		// library's: a generic library cannot know the consumer's renderer, so the class passes through untouched.
+		var config = Build(b => b
 			.WithLimits(10, 10)
-			.Sortable("id", p => p.Id).ShowBadge("Admin", "admin-chip")));
+			.Sortable("id", p => p.Id).ShowBadge("Admin", "admin-chip"));
 
-		Assert.StartsWith("Badge cssClass must start with \"language-\"", exception.Message);
+		Assert.Equal("admin-chip", config.SortableFields.Single().Badge?.CssClass);
 
 	}
 

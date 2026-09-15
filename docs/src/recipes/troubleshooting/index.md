@@ -74,8 +74,9 @@ Single-value operators take everything after the operator's colon verbatim, comm
   `WithPagination<T>()`, so the transformer skipped it.
 - **`searchBy` is missing**: the config calls `IgnoreSearchByInQueryParam()`, which removes it from the
   contract, so documenting it would be wrong.
-- **A badge renders as literal text**: the class does not start with `language-`, or it is on something other
-  than a description. See [OpenAPI → Badges](/integrations/aspnetcore/openapi/#badges).
+- **A badge renders as literal text**: the reference UI's sanitizer dropped the class — in Scalar only a
+  `language-*` class survives on inline code — or it is on something other than a description. See
+  [OpenAPI → Badges](/integrations/aspnetcore/openapi/#badges).
 
 ## Something threw a `500`, not a `400`
 

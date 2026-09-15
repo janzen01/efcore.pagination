@@ -204,11 +204,11 @@ public sealed record PaginateSort(string Field, PaginateSortDirection Direction)
 /// <summary>
 ///     An optional presentation badge attached to a field: a <paramref name="Name" /> label and an optional
 ///     <paramref name="CssClass" />. Surfaced in the OpenAPI metadata and rendered as a chip by the API reference UI;
-///     the class is how you color it, via the renderer's custom CSS. When set it must start with <c>language-</c>
-///     (see <see cref="PaginateConfigBuilder{TEntity}.ShowBadge" />).
+///     the class is how you color it, via the renderer's custom CSS. It is passed through verbatim; which classes a
+///     given renderer keeps is the renderer's rule (see <see cref="PaginateConfigBuilder{TEntity}.ShowBadge" />).
 /// </summary>
 /// <param name="Name">The chip's label text.</param>
-/// <param name="CssClass">Optional CSS class to color the chip. When set it <b>must</b> start with <c>language-</c>; <see langword="null" /> gives a neutral chip.</param>
+/// <param name="CssClass">Optional CSS class to color the chip, emitted verbatim; <see langword="null" /> gives a neutral chip.</param>
 public sealed record PaginateBadge(string Name, string? CssClass);
 
 /// <summary>
@@ -321,24 +321,27 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 		DefaultSortBy = defaultSortBy;
 		_sortableFields = sortableFields;
 		_searchableFields = searchableFields;
-		_defaultSearchFields = searchableFields.Values.Where(field => field.Condition != false).ToArray();
+		_defaultSearchFields = [.. searchableFields.Values.Where(field => field.Condition != false)];
 		_filterableFields = filterableFields;
 		IgnoreSearchByInQueryParam = ignoreSearchByInQueryParam;
 		TieBreakerSelector = tieBreakerSelector;
 		TieBreakerDirection = tieBreakerDirection;
 		LikeStrategy = likeStrategy;
 
-		SortableFields = sortableFields.Values
-			.Select(field => new PaginateFieldMetadata(field.Name, field.Type, field.Badge))
-			.ToArray();
+		SortableFields = [
+			.. sortableFields.Values
+				.Select(field => new PaginateFieldMetadata(field.Name, field.Type, field.Badge))
+		];
 
-		SearchableFields = searchableFields.Values
-			.Select(field => new PaginateFieldMetadata(field.Name, typeof(string), field.Badge))
-			.ToArray();
+		SearchableFields = [
+			.. searchableFields.Values
+				.Select(field => new PaginateFieldMetadata(field.Name, typeof(string), field.Badge))
+		];
 
-		FilterableFields = filterableFields.Values
-			.Select(field => new PaginateFilterFieldMetadata(field.Name, field.Type, field.Operators, field.Badge))
-			.ToArray();
+		FilterableFields = [
+			.. filterableFields.Values
+				.Select(field => new PaginateFilterFieldMetadata(field.Name, field.Type, field.Operators, field.Badge))
+		];
 
 		// The sort side of _defaultSearchFields, and for the same reason: a default sort disabled by When(false)
 		// is skipped rather than fatal, and that filter is a pure function of the config. Built here -- after
@@ -731,18 +734,14 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	///     Attaches a <see cref="PaginateBadge" /> to the field declared immediately before this call — e.g.
 	///     <c>.Sortable("slug", a =&gt; a.Slug).ShowBadge("Public", "language-public")</c>. The badge is surfaced in the
 	///     generated OpenAPI metadata and rendered as a chip by the API reference UI. <paramref name="cssClass" /> is an
-	///     optional CSS class you then color via the renderer's custom CSS; when set it <b>must</b> start with
-	///     <c>language-</c> — the only class prefix the API reference sanitizer keeps in a description — otherwise this
-	///     throws. Omit it for a neutral chip. Throws if called before any field.
+	///     optional CSS class you then color via the renderer's custom CSS. It is emitted verbatim and not validated:
+	///     which classes survive is the renderer's rule, not this library's (Scalar, for one, keeps only
+	///     <c>language-*</c> on inline code). Omit it for a neutral chip. Throws if called before any field.
 	/// </summary>
 	public PaginateConfigBuilder<TEntity> ShowBadge(string name, string? cssClass = null) {
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		if (_lastField is null) {
 			throw new InvalidOperationException("ShowBadge must be called immediately after a Sortable, Searchable, or Filterable field.");
-		}
-
-		if (cssClass is not null && !cssClass.StartsWith("language-", StringComparison.Ordinal)) {
-			throw new ArgumentException("Badge cssClass must start with \"language-\" — other classes are stripped by the API reference sanitizer.", nameof(cssClass));
 		}
 
 		_lastField.Badge = new PaginateBadge(name, cssClass);
