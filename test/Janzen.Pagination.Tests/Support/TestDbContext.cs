@@ -2,6 +2,8 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
+using System.Data.Common;
+
 namespace Janzen.Pagination.Tests.Support;
 
 public sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options) {
@@ -38,12 +40,7 @@ public sealed class SqliteFixture : IAsyncLifetime {
 		_connection = new SqliteConnection("Filename=:memory:");
 		await _connection.OpenAsync();
 
-		_options = new DbContextOptionsBuilder<TestDbContext>()
-			.UseSqlite(_connection)
-			// Price exists for equality only; SQLite compares decimals lexically, so nothing orders or
-			// ranges over it and the warning about that is noise here.
-			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
-			.Options;
+		_options = Options();
 
 		await using var context = CreateContext();
 		await context.Database.EnsureCreatedAsync();
@@ -59,15 +56,26 @@ public sealed class SqliteFixture : IAsyncLifetime {
 	///     <see cref="ComposerTests" /> needs it, to check the claim the composers rest on: that the query they hand
 	///     back unexecuted is the query the engine executes.
 	/// </summary>
-	public TestDbContext CreateLoggingContext(ICollection<string> executedSql) {
+	public TestDbContext CreateLoggingContext(ICollection<string> executedSql) { return new TestDbContext(Options(builder => builder.LogTo(line => executedSql.Add(line), [RelationalEventId.CommandExecuted]))); }
 
-		var options = new DbContextOptionsBuilder<TestDbContext>()
+	/// <summary>
+	///     A context whose every command genuinely suspends before it runs. SQLite's async API completes
+	///     synchronously, so without this no <c>await</c> in the engine ever yields and a test about where its
+	///     continuations resume would pass whatever the engine did.
+	/// </summary>
+	public TestDbContext CreateYieldingContext() { return new TestDbContext(Options(builder => builder.AddInterceptors(new YieldingInterceptor()))); }
+
+	// Every context of this fixture shares one connection and one warning policy; the variants only add to it.
+	private DbContextOptions<TestDbContext> Options(Action<DbContextOptionsBuilder<TestDbContext>>? extend = null) {
+
+		var builder = new DbContextOptionsBuilder<TestDbContext>()
 			.UseSqlite(_connection)
-			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
-			.LogTo(line => executedSql.Add(line), [RelationalEventId.CommandExecuted])
-			.Options;
+			// Price exists for equality only; SQLite compares decimals lexically, so nothing orders or
+			// ranges over it and the warning about that is noise here.
+			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration));
 
-		return new TestDbContext(options);
+		extend?.Invoke(builder);
+		return builder.Options;
 
 	}
 
@@ -75,5 +83,31 @@ public sealed class SqliteFixture : IAsyncLifetime {
 	public static IQueryable<Product> Products(TestDbContext context) { return context.Products.AsNoTracking(); }
 
 	public async ValueTask DisposeAsync() { await _connection.DisposeAsync(); }
+
+	// Task.Delay rather than Task.Yield: a delay is still pending when it is awaited, and ConfigureAwait(false)
+	// keeps the interceptor itself from posting to whatever context the caller installed.
+	private sealed class YieldingInterceptor : DbCommandInterceptor {
+
+		public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+			DbCommand command,
+			CommandEventData eventData,
+			InterceptionResult<DbDataReader> result,
+			CancellationToken cancellationToken = default
+		) {
+			await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+			return result;
+		}
+
+		public override async ValueTask<InterceptionResult<object>> ScalarExecutingAsync(
+			DbCommand command,
+			CommandEventData eventData,
+			InterceptionResult<object> result,
+			CancellationToken cancellationToken = default
+		) {
+			await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+			return result;
+		}
+
+	}
 
 }

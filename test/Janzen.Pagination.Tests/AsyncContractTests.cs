@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore.Query;
 
 using System.Collections;
 using System.Linq.Expressions;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Janzen.Pagination.Tests;
 
@@ -37,11 +39,62 @@ public sealed class AsyncContractTests {
 
 	}
 
+	/// <summary>
+	///     The packages are compiled with runtime async (<c>Directory.Build.targets</c>), which leaves no
+	///     compiler-generated state machine behind: a method still carrying <see cref="AsyncStateMachineAttribute" />
+	///     means a project fell off the flag. The engine's shared body is checked for the runtime's own marker as
+	///     well, so the scan cannot pass merely because it found no async code, and the four entry points for the
+	///     absence of it -- only an <c>async</c> method is rewritten, which is what keeps their argument guards eager.
+	/// </summary>
+	[Fact]
+	public void The_packages_are_runtime_async_and_the_entry_points_stay_plain() {
+
+		Assembly[] packages = [
+			typeof(PaginateQueryableExtensions).Assembly,
+			typeof(Janzen.Pagination.AspNetCore.Filters.PaginateExceptionEndpointFilter).Assembly,
+			typeof(Janzen.Pagination.EntityFrameworkCore.DependencyInjection.PaginationBuilderPostgreSqlExtensions).Assembly,
+			typeof(Janzen.Pagination.NodaTime.PaginateNodaTime).Assembly
+		];
+
+		const BindingFlags everything = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+
+		var stateMachines = packages
+			.SelectMany(assembly => assembly.GetTypes())
+			.SelectMany(type => type.GetMethods(everything))
+			.Where(method => method.IsDefined(typeof(AsyncStateMachineAttribute), inherit: false))
+			.Select(method => $"{method.DeclaringType}.{method.Name}")
+			.ToList();
+
+		Assert.Empty(stateMachines);
+
+		var methods = typeof(PaginateQueryableExtensions).GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+
+		Assert.True(methods.Single(method => method.Name == "PaginateCoreAsync").GetMethodImplementationFlags().HasFlag(MethodImplAttributes.Async));
+
+		string[] entryPoints = ["PaginateAsync", "PaginateSelectAsync", "PaginateSelectMapAsync", "PaginateMapAsync"];
+		var found = methods.Where(method => entryPoints.Contains(method.Name)).ToList();
+
+		// Counted, so a rename or a change in how extension blocks are lowered cannot empty the loop into a pass.
+		Assert.Equal(entryPoints.Length, found.Count);
+
+		foreach (var entryPoint in found) {
+			Assert.False(entryPoint.GetMethodImplementationFlags().HasFlag(MethodImplAttributes.Async), entryPoint.Name);
+		}
+
+	}
+
 	[Fact]
 	public async Task A_request_error_is_still_delivered_through_the_task() {
-		// The mirror of the test above: moving the argument guards must not drag the request validation with
+
+		// The mirror of the null-argument test: moving the argument guards must not drag the request validation with
 		// them. An invalid page stays a faulted task, which is what the ASP.NET Core filters translate.
-		await Assert.ThrowsAsync<PaginateQueryException>(() => Source().PaginateAsync<Product, ProductDto>(new PaginateQuery { Page = 0 }, TestData.Config, null, TestContext.Current.CancellationToken));
+		// The task is taken before it is awaited, because Assert.ThrowsAsync also catches a synchronous throw
+		// from its delegate and so cannot tell the two apart -- this line is what does.
+		var task = Source().PaginateAsync<Product, ProductDto>(new PaginateQuery { Page = 0 }, TestData.Config, null, TestContext.Current.CancellationToken);
+
+		Assert.True(task.IsFaulted);
+		await Assert.ThrowsAsync<PaginateQueryException>(() => task);
+
 	}
 
 	/// <summary>
@@ -147,6 +200,140 @@ public sealed class EfInternalCouplingTests : IClassFixture<SqliteFixture> {
 			probed.IsInstanceOfType(SqliteFixture.Products(context).Provider),
 			"an EF Core queryable's provider is no longer an EntityQueryProvider."
 		);
+
+	}
+
+}
+
+/// <summary>
+///     The promise the projections guide makes: a consumer's <c>projector</c> and <c>postMap</c> continue on a
+///     thread-pool thread, never on the caller's <see cref="SynchronizationContext" />. What keeps it is
+///     <c>ConfigureAwait(false)</c> on the engine's awaits, and nothing else pinned it -- dropping one left the
+///     suite green, because SQLite completes its async calls synchronously and no await ever yielded.
+/// </summary>
+public sealed class ContinuationContextTests : IClassFixture<SqliteFixture> {
+
+	private readonly SqliteFixture _fixture;
+
+	public ContinuationContextTests(SqliteFixture fixture) { _fixture = fixture; }
+
+	[Fact]
+	public async Task The_projector_does_not_resume_on_the_callers_context() {
+
+		await using var context = _fixture.CreateYieldingContext();
+		var recording = new RecordingContext();
+		SynchronizationContext? seen = recording;
+
+		await StartUnder(recording, () => SqliteFixture.Products(context).PaginateMapAsync(
+			new PaginateQuery(),
+			TestData.Config,
+			product => {
+				seen = SynchronizationContext.Current;
+				return product.Id;
+			},
+			null,
+			TestContext.Current.CancellationToken
+		));
+
+		Assert.Null(seen);
+		Assert.Equal(0, recording.Posts);
+
+	}
+
+	[Fact]
+	public async Task The_post_map_does_not_resume_on_the_callers_context() {
+
+		await using var context = _fixture.CreateYieldingContext();
+		var recording = new RecordingContext();
+		SynchronizationContext? seen = recording;
+
+		await StartUnder(recording, () => SqliteFixture.Products(context).PaginateSelectMapAsync(
+			new PaginateQuery(),
+			TestData.Config,
+			product => product.Id,
+			id => {
+				seen = SynchronizationContext.Current;
+				return id;
+			},
+			null,
+			TestContext.Current.CancellationToken
+		));
+
+		Assert.Null(seen);
+		Assert.Equal(0, recording.Posts);
+
+	}
+
+	/// <summary>
+	///     An unlimited read issues no count, so its first suspending await is the materialization itself -- a
+	///     different <c>ConfigureAwait(false)</c> from the one the paged tests above end up exercising, because once
+	///     the count has moved to the pool every later await already runs with no context to capture.
+	/// </summary>
+	[Fact]
+	public async Task The_projector_does_not_resume_on_the_callers_context_on_an_unlimited_read() {
+
+		var config = PaginateConfig<Product>.Create(b => b.WithLimits(10, 50).WithTieBreaker(p => p.Id).AllowUnlimited(100));
+
+		await using var context = _fixture.CreateYieldingContext();
+		var recording = new RecordingContext();
+		SynchronizationContext? seen = recording;
+
+		await StartUnder(recording, () => SqliteFixture.Products(context).PaginateMapAsync(
+			new PaginateQuery { Limit = PaginateQuery.UnlimitedLimit },
+			config,
+			product => {
+				seen = SynchronizationContext.Current;
+				return product.Id;
+			},
+			null,
+			TestContext.Current.CancellationToken
+		));
+
+		Assert.Null(seen);
+		Assert.Equal(0, recording.Posts);
+
+	}
+
+	// The context is installed only while the engine's synchronous prefix runs, which is where an await would
+	// capture it. Awaiting the task is left to the caller's own context, so the test's await posts nothing here.
+	private static Task StartUnder(SynchronizationContext context, Func<Task> start) {
+
+		var prior = SynchronizationContext.Current;
+		SynchronizationContext.SetSynchronizationContext(context);
+
+		try {
+			return start();
+		} finally {
+			SynchronizationContext.SetSynchronizationContext(prior);
+		}
+
+	}
+
+	/// <summary>Counts every post and still runs it, as a UI context would, so a capturing await is seen rather than deadlocked.</summary>
+	private sealed class RecordingContext : SynchronizationContext {
+
+		private int _posts;
+
+		public int Posts => Volatile.Read(ref _posts);
+
+		public override void Post(SendOrPostCallback d, object? state) {
+
+			Interlocked.Increment(ref _posts);
+
+			// Restored afterward: a pool thread left carrying this context would hand it to whatever runs there next.
+			ThreadPool.QueueUserWorkItem(_ => {
+
+				SetSynchronizationContext(this);
+
+				try {
+					d(state);
+				} finally {
+					SetSynchronizationContext(null);
+				}
+
+			});
+
+		}
 
 	}
 
