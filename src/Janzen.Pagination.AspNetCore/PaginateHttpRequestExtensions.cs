@@ -38,13 +38,14 @@ public static class PaginateHttpRequestExtensions {
 
 			ArgumentNullException.ThrowIfNull(request);
 
-			// Indexed rather than LINQ: the lambda captured `key`, so a Select over StringValues allocated a
-			// display class and a delegate per query-string key — including keys the binder ignores.
-			// StringValues is an IReadOnlyList<string?>, so its indexer costs nothing.
+			// Indexed rather than LINQ, although the IDE offers the conversion: the lambda captured `key`, so a
+			// Select over StringValues allocated a display class and a delegate per query-string key, boxed the
+			// struct to reach IEnumerable, and handed AddRange an iterator it cannot pre-size — on every request,
+			// including keys the binder ignores. StringValues is an IReadOnlyList<string?>, so its indexer costs nothing.
 			List<KeyValuePair<string, string>> query = new(request.Query.Count);
 
 			foreach ((string key, var values) in request.Query) {
-				query.AddRange(values.Select(value => new KeyValuePair<string, string>(key, value ?? string.Empty)));
+				for (int index = 0; index < values.Count; index++) query.Add(new KeyValuePair<string, string>(key, values[index] ?? string.Empty));
 			}
 
 			// The path base belongs in the link: an app mounted under UsePathBase("/api") would otherwise hand clients
