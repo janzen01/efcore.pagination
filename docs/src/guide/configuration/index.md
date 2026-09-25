@@ -136,7 +136,13 @@ without you writing the join:
 
 ```csharp
 // ?filter.tag=$eq:dotnet  → products carrying at least one tag named "dotnet"
-.FilterableMany("tag", p => p.Tags, t => t.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
+.FilterableMany(
+    "tag",
+    p => p.Tags,
+    t => t.Name,
+    PaginateFilterOperator.Eq,
+    PaginateFilterOperator.In
+)
 ```
 
 The first lambda picks the collection, the second picks the value on one element, and the engine builds the

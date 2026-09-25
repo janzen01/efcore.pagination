@@ -40,7 +40,8 @@ services.AddOpenApi(options => options.AddOperationTransformer<PaginatedQueryOpe
 // HttpContext.RequestAborted for free; pass it so a disconnected client stops the database work.
 [HttpGet]
 [PaginatedQuery<ProductConfigProvider>]
-public Task<PaginatedResponse<ProductDto>> Get([FromQuery] PaginateQuery request, CancellationToken ct) => _dbContext.Products.PaginateAsync<Product, ProductDto>(request, _config, HttpContext.Request, ct);
+public Task<PaginatedResponse<ProductDto>> Get([FromQuery] PaginateQuery request, CancellationToken ct) =>
+    _dbContext.Products.PaginateAsync<Product, ProductDto>(request, _config, HttpContext.Request, ct);
 ```
 
 ### Minimal API

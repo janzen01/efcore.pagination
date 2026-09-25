@@ -79,7 +79,8 @@ Two static fields cover two roles. If the gate is a set of independent flags rat
 ```csharp
 private static readonly ConcurrentDictionary<bool, PaginateConfig<Article>> ByModerator = new();
 
-public static PaginateConfig<Article> For(bool isModerator) => ByModerator.GetOrAdd(isModerator, Build);
+public static PaginateConfig<Article> For(bool isModerator) =>
+    ByModerator.GetOrAdd(isModerator, Build);
 ```
 
 Key it on the **permissions**, never on the user. One config per distinct combination of gates is the whole
@@ -89,7 +90,14 @@ rather than in the config.
 ## Filter by a value on a child collection
 
 ```csharp
-.FilterableMany("tag", a => a.Tags, t => t.Slug, PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.ILike)
+.FilterableMany(
+    "tag",
+    a => a.Tags,
+    t => t.Slug,
+    PaginateFilterOperator.Eq,
+    PaginateFilterOperator.In,
+    PaginateFilterOperator.ILike
+)
 ```
 
 ```http

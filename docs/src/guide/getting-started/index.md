@@ -141,7 +141,13 @@ public sealed class ProductController(AppDbContext db) : ControllerBase {
 
     [HttpGet]
     [PaginatedQuery<ProductPaginateConfigProvider>]   // documents the query parameters in OpenAPI
-    public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) => db.Products.PaginateAsync<Product, ProductDto>(request, ProductPaginateConfigProvider.Config, this.Request, ct);
+    public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) =>
+        db.Products.PaginateAsync<Product, ProductDto>(
+            request,
+            ProductPaginateConfigProvider.Config,
+            this.Request,
+            ct
+        );
 
 }
 ```

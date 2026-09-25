@@ -143,7 +143,9 @@ await db.Products.PaginateSelectAsync(request, config, p => new ProductSummary(
     p.DiscontinuedAt.HasValue                                               // Instant? → DateTimeOffset?
         ? p.DiscontinuedAt.Value.ToDateTimeOffset()
         : (DateTimeOffset?)null,
-    p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.PostedAt.ToDateTimeOffset())).ToList()   // conversion inside the collection
+    p.Reviews.Select(r => new ReviewDto(
+        r.Id, r.Reviewer, r.PostedAt.ToDateTimeOffset()          // conversion inside the collection
+    )).ToList()
 ), ct: ct);
 ```
 
@@ -184,7 +186,12 @@ O(page size), not O(table).
 ## `PaginateMapAsync` — the full entity, mapped in memory
 
 ```csharp
-var page = await db.Products.PaginateMapAsync(request, config, product => ProductDto.FromEntity(product, _pricingService), ct: ct);
+var page = await db.Products.PaginateMapAsync(
+    request,
+    config,
+    product => ProductDto.FromEntity(product, _pricingService),
+    ct: ct
+);
 ```
 
 This materializes **every column of every page entity** and then maps them. Reach for it only when the mapping

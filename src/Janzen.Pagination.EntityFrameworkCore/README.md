@@ -90,7 +90,13 @@ var next = response.Meta.HasNextPage
 
 ```csharp
 // Filter articles by any of their tags: ?filter.tag=$in:dotnet,efcore
-.FilterableMany("tag", a => a.Tags, t => t.Slug, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
+.FilterableMany(
+    "tag",
+    a => a.Tags,
+    t => t.Slug,
+    PaginateFilterOperator.Eq,
+    PaginateFilterOperator.In
+)
 
 // Tighter guards than the defaults (100 / 20 / 5 / 256)
 .WithGuards(maxFilterValues: 25, maxSortFields: 3)   // an omitted guard is left unset, not reset

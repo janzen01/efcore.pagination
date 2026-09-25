@@ -433,7 +433,14 @@ Filters the entity by a value on **any element** of a child collection, translat
 
 ```csharp
 // ?filter.tag=$eq:dotnet  → articles that have at least one tag named "dotnet"
-.FilterableMany("tag", a => a.Tags, t => t.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.ILike)
+.FilterableMany(
+    "tag",
+    a => a.Tags,
+    t => t.Name,
+    PaginateFilterOperator.Eq,
+    PaginateFilterOperator.In,
+    PaginateFilterOperator.ILike
+)
 
 // ?filter.reviewerId=$in:a,b → orders reviewed by any of these people
 .FilterableMany("reviewerId", o => o.Reviews, r => r.ReviewerId,

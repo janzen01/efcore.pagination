@@ -97,7 +97,13 @@ builder.Services.AddPagination(pagination => pagination.AddAspNetCore());
 //    (omit it and `links` is null — `meta` alone carries the paging state).
 [HttpGet]
 [PaginatedQuery<ProductPaginateConfigProvider>]
-public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) => db.Products.PaginateAsync<Product, ProductDto>(request, ProductPaginateConfigProvider.Config, this.Request, ct);
+public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) =>
+    db.Products.PaginateAsync<Product, ProductDto>(
+        request,
+        ProductPaginateConfigProvider.Config,
+        this.Request,
+        ct
+    );
 ```
 
 ```json
