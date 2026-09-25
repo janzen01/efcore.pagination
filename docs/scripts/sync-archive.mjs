@@ -31,15 +31,18 @@ const src = join(docs, 'src')
 const archive = join(docs, 'archive')
 
 // The newest line has no tag of its own, so it is whatever docs/src holds right now. That is correct in both
-// places it matters: locally it is what you are editing, and in CI the deploy runs on `release: published`,
-// where the checkout *is* the tag being released. A line only gets pinned to a tag once a newer line exists.
-const WORKING_TREE = null
+// places it matters: locally it is what you are editing, and in CI the deploy checks out the newest tag in the
+// repository before it builds (docs-build.yml), so the working tree *is* that release. A line only moves off
+// the working tree once a newer line exists.
+export const WORKING_TREE = null
 
-// Segment -> git ref. The segment is the URL path verbatim, and it is frozen the moment a README advertising
-// it reaches nuget.org, so it is never renamed -- only added to.
-const versions = [
+// Segment -> where its docs/src comes from. The segment is the URL path verbatim, and it is frozen the moment a
+// README advertising it reaches nuget.org, so it is never renamed and never dropped -- only added to. An older
+// line names its tag *prefix* rather than a tag: the newest release of that line is found at build time (see
+// `newestOf`), so a servicing release reaches its archived copy with the next deploy and nobody edits this list.
+export const versions = [
 	{ segment: 'v10.1.x', ref: WORKING_TREE },
-	{ segment: 'v10.0.x', ref: 'v10.0.3' }
+	{ segment: 'v10.0.x', line: 'v10.0.' }
 ]
 
 // `public/` is site chrome, served from the site root where one copy serves every version. `cs/` was an
@@ -219,6 +222,26 @@ export const blobsAt = (ref) => {
 	return parseBatchStream(stream, entries).map((contents, index) => [entries[index].path, contents])
 }
 
+// The release to archive a line from, out of its tags as git sorts them: newest first, with
+// `versionsort.suffix=-` so a prerelease sorts below its own release (plain version order puts 11.0.0-rc.10
+// above 11.0.0). The newest stable release wins; a line that has only prereleases so far gets the newest one.
+export const newestOf = (tags) => tags.find((tag) => !tag.includes('-')) ?? tags[0]
+
+const tagsOf = (line) => git(['-c', 'versionsort.suffix=-', 'tag', '-l', `${line}*`, '--sort=-v:refname'])
+	.toString('utf8')
+	.split('\n')
+	.filter(Boolean)
+
+// A manifest entry's ref: its pinned tag, the working tree, or the newest release of its line.
+const refOf = ({ ref, line }) => {
+	if (line === undefined) return ref
+
+	const found = newestOf(tagsOf(line))
+	if (found === undefined) throw new Error(`no tag starts with ${line} -- a shallow clone has no tags, and this needs them`)
+
+	return found
+}
+
 // The newest line is read from disk rather than from a ref, because it is the content being edited -- but
 // only the files git knows about. Archiving whatever happens to sit under docs/src would put an untracked
 // draft into the archive, build it, and let verify-frozen-urls report a package README's URL as satisfied
@@ -293,15 +316,20 @@ const main = () => {
 	const { write, prune, written } = archiveWriter()
 
 	const found = []
+	const sources = []
 
-	for (const { segment, ref } of versions) {
+	for (const entry of versions) {
 
+		const { segment } = entry
+		let ref
 		let entries
 		try {
+			ref = refOf(entry)
 			entries = contentsOf(ref)
+			sources.push(`${segment} from ${ref ?? 'the working tree'}`)
 		} catch (error) {
 			fail([
-				`\nCannot read docs/src at ${ref ?? 'the working tree'} for ${segment}.\n`,
+				`\nCannot read docs/src at ${ref ?? (entry.line ? `the newest ${entry.line}* tag` : 'the working tree')} for ${segment}.\n`,
 				`${error.message}\n`
 			])
 		}
@@ -360,7 +388,7 @@ const main = () => {
 		])
 	}
 
-	const built = versions.map(({ segment }) => segment).join(', ')
+	const built = sources.join(', ')
 	const pages = [...written].filter((file) => file.endsWith('.md')).length
 
 	console.log(`Archived ${pages} pages across ${versions.length} versions (${built}).`)

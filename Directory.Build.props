@@ -72,10 +72,12 @@
 
     <!-- Package metadata (NuGet listing) -->
     <PropertyGroup>
-        <!-- The documentation site (GitHub Pages, built from master /docs), not the repository: this is the
-             "Project website" link on nuget.org. The repository stays reachable there as "Source repository",
-             which comes from RepositoryUrl above. -->
-        <PackageProjectUrl>https://janzen01.github.io/efcore.pagination/</PackageProjectUrl>
+        <!-- The documentation site, not the repository: this is the "Project website" link on nuget.org. The
+             repository stays reachable there as "Source repository", which comes from RepositoryUrl above.
+             It names this line's own copy, not the site root: the root is the newest release of any line, a
+             preview included, and nuget.org shows this link beside the version for good. Repoint it with the
+             package READMEs when a new X.Y line opens; verify-frozen-urls.mjs checks it exists. -->
+        <PackageProjectUrl>https://janzen01.github.io/efcore.pagination/v10.1.x/</PackageProjectUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <!-- Shared by all four packages. The value is the path inside the package, not in the repo:

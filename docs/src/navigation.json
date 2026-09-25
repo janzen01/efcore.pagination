@@ -1,0 +1,102 @@
+{
+  "nav": [
+    { "text": "Home", "link": "/" },
+    {
+      "text": "Guide",
+      "items": [
+        { "text": "Overview", "link": "/guide/" },
+        { "text": "Getting started", "link": "/guide/getting-started/" },
+        { "text": "Configuration", "link": "/guide/configuration/" },
+        { "text": "Projections", "link": "/guide/projections/" }
+      ]
+    },
+    {
+      "text": "Integrations",
+      "items": [
+        { "text": "Overview", "link": "/integrations/" },
+        { "text": "ASP.NET Core", "link": "/integrations/aspnetcore/" },
+        { "text": "ASP.NET Core — OpenAPI", "link": "/integrations/aspnetcore/openapi/" },
+        { "text": "PostgreSQL", "link": "/integrations/postgresql/" },
+        { "text": "NodaTime", "link": "/integrations/nodatime/" },
+        { "text": "Custom types", "link": "/integrations/custom-types/" }
+      ]
+    },
+    {
+      "text": "Reference",
+      "items": [
+        { "text": "Query-string contract", "link": "/reference/query-string/" },
+        { "text": "Response contract", "link": "/reference/response/" },
+        { "text": "Configuration API", "link": "/reference/configuration/" },
+        { "text": "Query composers", "link": "/reference/composers/" },
+        { "text": "Errors", "link": "/reference/errors/" }
+      ]
+    },
+    {
+      "text": "Cookbook",
+      "items": [
+        { "text": "Recipes", "link": "/recipes/" },
+        { "text": "Without ASP.NET Core", "link": "/recipes/without-aspnetcore/" }
+      ]
+    },
+    {
+      "text": "NuGet",
+      "items": [
+        { "text": "EntityFrameworkCore", "link": "https://www.nuget.org/packages/Janzen.Pagination.EntityFrameworkCore" },
+        { "text": "AspNetCore", "link": "https://www.nuget.org/packages/Janzen.Pagination.AspNetCore" },
+        { "text": "PostgreSql", "link": "https://www.nuget.org/packages/Janzen.Pagination.PostgreSql" },
+        { "text": "NodaTime", "link": "https://www.nuget.org/packages/Janzen.Pagination.NodaTime" }
+      ]
+    }
+  ],
+  "sidebar": {
+    "/guide/": [
+      {
+        "text": "Guide",
+        "items": [
+          { "text": "Overview", "link": "/guide/" },
+          { "text": "Getting started", "link": "/guide/getting-started/" },
+          { "text": "Configuration", "link": "/guide/configuration/" },
+          { "text": "Projections", "link": "/guide/projections/" }
+        ]
+      }
+    ],
+    "/integrations/": [
+      {
+        "text": "Integrations",
+        "items": [
+          { "text": "Overview", "link": "/integrations/" },
+          { "text": "ASP.NET Core", "link": "/integrations/aspnetcore/" },
+          { "text": "ASP.NET Core — OpenAPI", "link": "/integrations/aspnetcore/openapi/" },
+          { "text": "PostgreSQL", "link": "/integrations/postgresql/" },
+          { "text": "NodaTime", "link": "/integrations/nodatime/" },
+          { "text": "Custom types", "link": "/integrations/custom-types/" }
+        ]
+      }
+    ],
+    "/reference/": [
+      {
+        "text": "Reference",
+        "items": [
+          { "text": "Query-string contract", "link": "/reference/query-string/" },
+          { "text": "Response contract", "link": "/reference/response/" },
+          { "text": "Configuration API", "link": "/reference/configuration/" },
+          { "text": "Query composers", "link": "/reference/composers/" },
+          { "text": "Errors", "link": "/reference/errors/" }
+        ]
+      }
+    ],
+    "/recipes/": [
+      {
+        "text": "Cookbook",
+        "items": [
+          { "text": "Recipes", "link": "/recipes/" },
+          { "text": "Without ASP.NET Core", "link": "/recipes/without-aspnetcore/" },
+          { "text": "Performance and indexing", "link": "/recipes/performance/" },
+          { "text": "Testing", "link": "/recipes/testing/" },
+          { "text": "Troubleshooting", "link": "/recipes/troubleshooting/" },
+          { "text": "From nestjs-paginate", "link": "/recipes/migration/" }
+        ]
+      }
+    ]
+  }
+}

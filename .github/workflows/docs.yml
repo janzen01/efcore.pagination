@@ -9,10 +9,11 @@ name: Docs
 # exercised before a merge, only by dispatching this workflow -- and now not even on every merge, so it
 # goes months between real runs. Dispatch it once after changing anything below.
 #
-# Published on release, not on push. The site root is what the 10.0.0 package READMEs point at, and those
-# renders on nuget.org are permanent -- so the root has to describe a version somebody can install. Building
-# it from master would mean that during the next major's development every one of those frozen links led to
-# documentation for code that is not released yet.
+# Published on release, not on push, and always from the newest release in the repository (docs-build.yml checks
+# it out): the site root is the newest line -- a preview included -- and every older line is an archived copy
+# under /v<X.Y>.x/, which is what each package's README and project URL point at. A release of *either* line
+# redeploys the whole site that way, so a 10.x servicing release refreshes /v10.1.x/ without touching the root.
+# Building from master instead would publish documentation for code no release has shipped.
 on:
   release:
     types: [ published ]
@@ -30,25 +31,15 @@ concurrency:
 
 jobs:
   build:
-    # General availability only: a prerelease must not replace the public documentation, because the site
-    # root is what an installed, released package points a reader at. Both halves are needed. `prerelease`
-    # is the flag on the GitHub release, which is what the maintainer actually sets; the tag test is the
-    # backstop for the release that gets published with the box left unticked, since every prerelease
-    # version here carries a semver suffix (`-rc.1`, `-preview.1`) and no stable one does.
-    # A dispatch is exempt -- it is the deliberate escape hatch, and it must be run against a tag.
-    # Each event names itself, so anything added later is refused until it is thought about. Written as
-    # `prerelease == false` alone this was fail-open for every event carrying no release payload: GitHub casts
-    # both `null` and `false` to 0, so the comparison is true when there is no release at all, and
-    # `contains(null, '-')` is false to match.
+    # Every event names itself, so anything added later is refused until it is thought about: written loosely,
+    # a condition here was once fail-open for any event carrying no release payload. A prerelease deploys too,
+    # on purpose -- the preview of a new major is meant to be used, and its docs with it.
     #
-    # A dispatch is the escape hatch for a documentation-only fix, so a branch may publish -- but a *tag* with
-    # a semver suffix may not, which is the one thing a dispatch could otherwise do that a release cannot.
-    if: >-
-      (github.event_name == 'workflow_dispatch'
-         && !(github.ref_type == 'tag' && contains(github.ref_name, '-')))
-        || (github.event_name == 'release'
-            && github.event.release.prerelease == false
-            && !contains(github.event.release.tag_name, '-'))
+    # A dispatch is safe from any branch, because the build ignores the ref and takes the newest tag -- but not
+    # against an old *tag*: the workflow file that runs is the one at the dispatched ref, and a tag from before
+    # this logic (v10.1.1 and older) would rebuild itself and put that release back at the root. Dispatch from
+    # master.
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/docs-build.yml
     with:
       upload: true
@@ -59,8 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # A job-level permissions block REPLACES the workflow-level one rather than merging with it, so
-    # contents: read has to be repeated here. deploy-pages does not check anything out today, but the
-    # omission would only surface as a failure once someone adds a step that does.
+    # contents: read has to be repeated here -- the check below checks the repository out.
     permissions:
       contents: read
       pages: write
@@ -69,41 +59,25 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # The same rule as the `if:` on `build`, asserted again where the publishing actually happens. The gate
-      # above cannot be tested before the event it guards -- a real release is the first thing that evaluates
-      # its release half -- and a mistake there would put a prerelease at the site root, the one outcome this
-      # workflow exists to prevent. Restating it costs a second and turns that mistake into a red release
-      # instead of a silent publish. If this ever fires, the expression on `build` is wrong, not this step.
-      #
-      # It runs on both events now. Guarded on `github.event_name == 'release'` it was disarmed on exactly the
-      # path a human drives, where the ref is chosen by hand in a dialog that defaults to a branch.
-      - name: Refuse to publish a prerelease
+      # The build decides what is deployed, and fails unless it checked out the newest tag. This asks the same
+      # question again without trusting it, for the one way that decision can go wrong silently: the two lines'
+      # copies of docs-build.yml drifting apart. A release runs its own tag's copy, so a 10.x copy that lost the
+      # checkout step would build 10.x and put it at the root over the newer line -- and would report no tag here.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          sparse-checkout: Directory.Build.props
+          sparse-checkout-cone-mode: false
+
+      - name: Confirm the build took the newest release
         env:
-          EVENT: ${{ github.event_name }}
-          PRERELEASE: ${{ github.event.release.prerelease }}
-          TAG: ${{ github.event.release.tag_name }}
-          REF_TYPE: ${{ github.ref_type }}
-          REF_NAME: ${{ github.ref_name }}
+          BUILT: ${{ needs.build.outputs.tag }}
         run: |
-          name=""
-          if [ "$EVENT" = release ]; then
-            name=$TAG
-            if [ "$PRERELEASE" != false ]; then
-              echo "::error::$TAG is flagged as a prerelease; the gate on the build job should have skipped this run."
-              exit 1
-            fi
-          elif [ "$REF_TYPE" = tag ]; then
-            name=$REF_NAME
-          fi
-
-          case "$name" in
-            *-*)
-              echo "::error::$name carries a semver suffix; the gate on the build job should have skipped this run."
-              exit 1
-              ;;
-          esac
-
-          echo "${name:-$REF_NAME} may publish to the site root."
+          NEWEST=$(git -c versionsort.suffix=- tag -l 'v*' --sort=-v:refname | head -n 1)
+          [ -n "$BUILT" ] || { echo "::error::the build reported no tag -- its copy of docs-build.yml has drifted from this line's"; exit 1; }
+          [ "$BUILT" = "$NEWEST" ] || { echo "::error::the build took $BUILT, but the newest release is $NEWEST"; exit 1; }
+          echo "deploying $BUILT"
 
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

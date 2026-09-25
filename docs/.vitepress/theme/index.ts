@@ -9,6 +9,7 @@ import {
 
 import '@nolebase/vitepress-plugin-enhanced-readabilities/client/style.css'
 
+import PreviewBanner from './components/PreviewBanner.vue'
 import VersionSwitcher from './components/VersionSwitcher.vue'
 
 import './mermaid.css'
@@ -25,12 +26,17 @@ import './mermaid.css'
 // is why it has to be registered globally here rather than imported where it is used. It is our own copy of
 // @viteplus/versions' component rather than the packaged one: the ordering and the labels are not
 // configurable there. See the header of that file.
+//
+// PreviewBanner sits above the content of every page -- the doc layout and the home layout each have their own
+// slot for it -- and renders only at the root while the newest release is a prerelease.
 export default {
     extends: DefaultTheme,
     Layout: () =>
         h(DefaultTheme.Layout, null, {
             'nav-bar-content-after': () => h(NolebaseEnhancedReadabilitiesMenu),
-            'nav-screen-content-after': () => h(NolebaseEnhancedReadabilitiesScreenMenu)
+            'nav-screen-content-after': () => h(NolebaseEnhancedReadabilitiesScreenMenu),
+            'doc-before': () => h(PreviewBanner),
+            'home-hero-before': () => h(PreviewBanner)
         }),
     enhanceApp: ({ app }) => {
         app.component('VersionSwitcher', VersionSwitcher)

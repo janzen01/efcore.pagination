@@ -38,7 +38,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
 
       - name: Restore
         run: dotnet restore Janzen.Pagination.slnx
@@ -88,14 +88,21 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      # This job holds no checkout, so nothing here pins an SDK: without it the push below runs on whatever
+      # This job runs no project code, so the checkout is one file: global.json, which is the single
+      # source of the SDK version for every workflow here. Without it the push below would run on whatever
       # the runner image happens to ship. That is the one step in the repository that cannot be dry-run —
       # `release: published` is the only trigger — so a missing SDK would surface with the tag already cut
       # and a human already through the approval gate.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: global.json
+          sparse-checkout-cone-mode: false
+
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
 
       - name: Download the packages
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

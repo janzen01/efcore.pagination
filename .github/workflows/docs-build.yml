@@ -1,7 +1,8 @@
 name: Docs build
 
 # The VitePress build, called from two places: ci.yml verifies it on every pull request, docs.yml builds
-# the artifact it deploys from master. One copy, so the thing a PR verifies is the thing that gets published.
+# the artifact it deploys from the newest release. One copy, so the thing a PR verifies is the thing that gets
+# published.
 on:
   workflow_call:
     inputs:
@@ -9,6 +10,10 @@ on:
         description: Produce the GitHub Pages artifact for a caller that is going to deploy it.
         type: boolean
         default: false
+    outputs:
+      tag:
+        description: The release this run built, when it built one to deploy -- docs.yml checks it independently.
+        value: ${{ jobs.build.outputs.tag }}
 
 permissions:
   contents: read
@@ -17,6 +22,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.newest.outputs.tag }}
     defaults:
       run:
         working-directory: docs
@@ -28,6 +35,29 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+
+      # A deploy builds the newest release in the repository, never the ref the event happened to bring. Two lines
+      # publish into one site: a 10.x servicing release fires this from its own tag, and building that tag would
+      # put 10.x back at the root over a newer line. So the site is rebuilt from the newest tag, whichever line it
+      # belongs to, and the older lines arrive as archived copies -- sync-archive.mjs finds each line's newest
+      # release itself. `versionsort.suffix=-` is what sorts a prerelease below its own release; plain version
+      # order puts 11.0.0-rc.10 above 11.0.0. The Version check then catches a tag cut from the wrong commit.
+      #
+      # It runs before pnpm and Node are set up, so they read the lockfile of the tree being built. And it runs
+      # from the *event's* copy of this file, not the newest tag's: a release of either line executes its own
+      # branch's steps against the other line's tree, which is why this file must stay identical on both.
+      - name: Check out the newest release
+        id: newest
+        if: inputs.upload
+        working-directory: .
+        run: |
+          TAG=$(git -c versionsort.suffix=- tag -l 'v*' --sort=-v:refname | head -n 1)
+          [ -n "$TAG" ] || { echo "::error::no v* tag to deploy"; exit 1; }
+          git checkout --quiet --detach "refs/tags/$TAG"
+          V=$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' Directory.Build.props)
+          [ "v$V" = "$TAG" ] || { echo "::error::$TAG carries <Version>$V</Version>"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "deploying $TAG"
 
       # package_json_file is resolved against the REPOSITORY ROOT, which has no package.json -- the one
       # carrying `packageManager` lives in docs/. The `defaults.run.working-directory` above does not

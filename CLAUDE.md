@@ -29,7 +29,9 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   workflow said. Added with
   `gh api --method POST repos/janzen01/efcore.pagination/environments/github-pages/deployment-branch-policies -f name='v*' -f type='tag'`.
   Re-check it if the environment is ever recreated: the symptom is a red `deploy` reading
-  "Branch v10.1.0 is not allowed to deploy to github-pages", which names a branch for what is a tag.
+  "Branch v10.1.0 is not allowed to deploy to github-pages", which names a branch for what is a tag. The
+  `master` branch policy stays, because a dispatch from `master` is the sanctioned way to redeploy (see below);
+  `gh-pages` names a branch that no longer exists and goes.
 - **The build lives in [docs-build.yml](.github/workflows/docs-build.yml) and is called twice.** `ci.yml`
   calls it on every pull request (`upload: false`) and `docs.yml` calls it from a published release to produce
   the artifact it deploys (`upload: true`) — one copy, so a PR verifies exactly what gets published. It is part
@@ -40,37 +42,36 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   redden a required check on a Pages API call it should never make. And **`docs.yml` is deploy-only**, so its
   artifact hand-off and environment wiring are not exercised by a merge at all — now that it runs on releases
   rather than pushes, months can pass between real runs. Dispatch it once after changing them.
-- **`docs.yml` publishes on `release: published`, general availability only — never on a push to `master`.**
-  The site root is what the 10.0.0 package READMEs point at, and nuget.org renders those permanently, so the
-  root has to describe a version somebody can install; building it from `master` would point every one of
-  those frozen links at documentation for unreleased code during the next major's development. The GA gate is
-  two conditions on the `build` job and both are load-bearing: `github.event.release.prerelease == false` is
-  the flag the maintainer actually sets, and `!contains(tag_name, '-')` is the backstop for the release
-  published with the box left unticked. `deploy` needs `build`, so it skips with it.
-  **Every clause names its own event**, and that is load-bearing rather than tidy. Written as
-  `prerelease == false` alone the gate was fail-open for any event carrying no release payload: GitHub casts
-  both `null` and `false` to 0, so the comparison is true when there is no release at all, and
-  `contains(null, '-')` is false to match — a `push:` trigger added later would have sailed through the gate
-  whose whole purpose is to stop exactly that. **A dispatch is gated too**, on the only thing it can get wrong
-  that a release cannot: a *tag* with a semver suffix is refused, a branch may publish. That asymmetry is the
-  point — the dispatch is the escape hatch for a documentation-only fix, and it has to stay usable from
-  `master`.
-  **The same rule is asserted a second time as the first step of `deploy`**, and that duplication is
-  deliberate: the gate cannot be tested before the event it guards — a real release is the first thing that
-  evaluates its release half. If the expression were wrong in the permissive direction it would put a
-  prerelease at the site root, the one outcome this workflow exists to prevent, so the step turns that into a
-  red release rather than a silent publish. If it ever fires, the `if:` on `build` is what is wrong, not the
-  step. It runs on **both** events: guarded on `github.event_name == 'release'` it was disarmed on exactly the
-  path a human drives, where the ref is picked by hand from a dialog that defaults to a branch.
-  **Consequences worth knowing.** A documentation-only fix does not publish itself — it waits for the next
-  release, or a `workflow_dispatch`, and **that dispatch must be run against a tag, never against `master`**,
-  or it puts unreleased docs at the root by hand. And an `-rc.N` that opens a **new** line ships READMEs
-  pointing at a `/v<line>.x/` path that nothing has published yet; within an existing line the path is
-  already live, so this bites at **every new `X.Y` line**, not only at a major — `10.1.0` is one, and its
-  READMEs already name `/v10.1.x/`. The order that works: merge, dispatch `docs.yml` so the path goes live,
-  then cut the tag. Until a tag carries the current `docs.yml`, that dispatch has to run against `master`,
-  because a dispatch executes the workflow file living at the ref it is given and every existing tag still
-  carries the old push-triggered copy.
+- **`docs.yml` publishes on `release: published` — of either line, a prerelease included — and always builds the
+  newest release in the repository.** The root is the newest release of any line: during a new major's preview
+  that is the preview, because the preview is meant to be used and its documentation with it. What keeps that
+  honest for everyone else is that **no package points at the root**: each line's READMEs and its
+  `<PackageProjectUrl>` name that line's own copy (`/v10.1.x/`, `/v11.0.x/`), and the root carries a banner
+  pointing at the stable line while its release is a prerelease (`PreviewBanner.vue`, root locale only). The
+  packages from before this (10.0.0–10.1.1 project URLs, the 10.0.x READMEs) are exactly who that banner is for.
+  This is a deliberate departure from the usual "root = latest stable, preview under /next": the preview window
+  is short and nothing new points at the root.
+  **The build ignores the event's ref.** `docs-build.yml` checks out the newest `v*` tag
+  (`git -c versionsort.suffix=- tag --sort=-v:refname`; plain version order puts `11.0.0-rc.10` above `11.0.0`)
+  before Node and pnpm are set up, and fails unless that tag's `<Version>` matches it. It reports the tag as an
+  output, and `deploy` recomputes the newest tag from its own checkout and refuses a mismatch or a missing
+  output — a second check that does not trust the first, for the one silent failure left: the two lines'
+  copies of `docs-build.yml` drifting apart. A 10.x servicing release
+  therefore redeploys the 11.x tree, whose archive picks up the new `v10.1.*` tag by itself (see *Versioned
+  copies*) — the root never goes back to an older line. Two consequences. **`docs-build.yml` must stay
+  identical on both lines**: a release executes the workflow file at *its own* tag, so 10.x's copy of these
+  steps runs against the 11.x tree. And **a dispatch is safe from any branch but never against an old tag** — the
+  workflow that runs is the one at the dispatched ref, and a tag from before this logic (`v10.1.1` and older)
+  rebuilds itself and puts that release back at the root. Dispatch from `master`; the `github-pages`
+  environment allows `master` and tags `v*`. That same dispatch is how the deploy wiring gets exercised after a
+  change, since a release is otherwise the only trigger.
+  **Every clause of the `if:` on `build` names its own event**, and that is load-bearing rather than tidy:
+  written loosely, the old gate was fail-open for any event carrying no release payload, because GitHub casts
+  both `null` and `false` to 0. Anything added later is refused until someone thinks about it.
+  **Consequences worth knowing.** A documentation-only fix publishes with the next release of either line, or
+  with a dispatch from `master` — which builds the newest *tag*, so the fix must already be in a tag. And a
+  release that opens a **new** `X.Y` line ships READMEs pointing at a `/v<line>.x/` path; the release's own docs
+  deploy publishes it, which is why the `nuget` approval waits for that deploy (*Releasing*).
 - **`actions/checkout` in `docs-build.yml` needs `fetch-depth: 0`.** `sync-archive.mjs` reads `docs/src` out of
   each released line's **tag**, and the default shallow checkout has none — the build dies before VitePress
   starts. CI is the only place this is exercised, because a local clone always has its tags.
@@ -116,7 +117,8 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   are per package, the cookbook is task-shaped. A corollary that is easy to violate: **every fact has exactly
   one home** and the other pages link to it. A per-method enumeration inside the guide, or a second copy of
   the guards table, is the thing this rule exists to prevent.
-- **Navigation lives in `config.mts`**, not in front matter. **Content** pages carry no front matter at all;
+- **Navigation lives in `docs/src/navigation.json`**, not in front matter and no longer in `config.mts` — see
+  *Navigation is versioned with the pages* below. **Content** pages carry no front matter at all;
   VitePress takes the title from the first `#` heading. The exceptions are structural and each has to be one:
   `docs/src/index.md` is `layout: home` and is front matter almost end to end, and the four redirect stubs
   carry the `head` refresh plus `search: false` / `robots: noindex` described above. A new page has to be added
@@ -137,10 +139,14 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   documentation can become *untrue*, and that is the middle component: within a line the third only ever adds
   surface, so a frozen link may name something newer than the reader has but never something that is gone.
   Removing needs a Y bump, which gets its own copy. A copy per release would instead mean a new snapshot and
-  ~36 README link edits every single time.
+  ~36 README link edits every single time. **A segment is never dropped from the manifest**: the packages of
+  that line name it in their READMEs and in `<PackageProjectUrl>`, and nuget.org renders both for as long as
+  the version exists. `verify-frozen-urls.mjs` holds the published ones in its history lists.
 - **`docs/archive/` is generated and gitignored — never hand-edited.** `scripts/sync-archive.mjs` rebuilds it
   before every dev server and build, reading `docs/src` out of each line's git tag, and its **manifest is the
-  `versions` array at the top of that script**. Generating rather than committing is the point: a committed
+  `versions` array at the top of that script**. An older line is named by its tag *prefix* (`line: 'v10.1.'`),
+  not by a tag: `newestOf` picks the line's newest stable release, or its newest prerelease while it has no
+  stable one, so a servicing release reaches its archived copy with the next deploy and nobody edits the list. Generating rather than committing is the point: a committed
   archive would put a second copy of all 26 pages in the tree per line, and every search across the repository
   would have to learn to skip them. `git grep` finds one copy; ripgrep honors `.gitignore`, so it does too.
 - **The script rewrites links, and all three of its guards matter.** An archived page's root-absolute links
@@ -251,19 +257,30 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   locales configured the plugin leaves those entries unlabeled and VitePress renders nothing. `nav`, `sidebar`
   and `outline` therefore live in the **top-level** `themeConfig`, which is exactly the shape the plugin expects
   when there are no locales; `lang` is top-level too. Verified in the built DOM, in both directions.
-- **Navigation is versioned automatically**, so one `nav` and one `sidebar` serve every version: the plugin
-  prefixes internal links with the version being viewed and leaves `http…` links and anything flagged
-  `skipVersioning` alone. Sidebar prefixing works by setting `base` on a group, which VitePress concatenates
-  onto each child link — with root-absolute links that is the shape to watch, but it emits clean paths here.
-  Check `.dist` for `//` in an href after touching a sidebar.
+- **Navigation is versioned with the pages.** `docs/src/navigation.json` holds `nav` and `sidebar`, and
+  `sync-archive.mjs` copies it into each archived line **verbatim**, like every non-markdown file, so each
+  version is rendered with the navigation it was written against — a page the newest line adds, renames or
+  drops no longer appears in, or vanishes from, every older copy. `scripts/navigation.mjs` keys the copies the
+  way the plugin reads them, and three details in it are load-bearing. The links stay **as authored**: the
+  plugin prefixes internal links with the version itself (a `base` on each sidebar group, which VitePress
+  concatenates onto each child link; a joined path on each nav link) and leaves `http…` links and anything
+  flagged `skipVersioning` alone, so a rewrite would publish `/v10.1.x/v10.1.x/…`. A nav is keyed by the
+  **bare** segment (`'v10.1.x'`) — `'/v10.1.x/'` silently falls back to the root nav. And every nav carries
+  its own `VersionSwitcher`, because the plugin only injects the version list into a component it finds in
+  that locale's nav. A tag without the file (`v10.1.1` and older) gets the root navigation, which is what it
+  was built with. Verified by editing one archived copy's label and building: only that version showed it.
+  The root file is imported by `config.mts`, so editing it restarts the dev server. Check `.dist` for `//`
+  in an href after touching it.
 - **Every version indexes itself, and `search` carries no options at all.** The plugin gives each archived
   version its own locale and VitePress builds one index per locale, so a search on `/v10.0.x/` only ever sees
   `/v10.0.x/` and the root index holds no archived page — the duplicate-hits-across-versions problem cannot
   arise, and the `_render` that used to blank `archive/` was guarding against it. What that actually did was
   leave every archived page with a search box over an empty index (`documentCount: 0`), the copy every package
   README points a reader at included. Measured after removing it: root 210 documents, `v10.0.x` 196,
-  `v10.1.x` 210, and zero archived paths in the root index. The **sitemap** drops archived paths for the matching reason: while a line is current its copy is byte-identical to the root, and submitting
-  both asks a crawler to pick a canonical between two copies of one page.
+  `v10.1.x` 210, and zero archived paths in the root index. The **sitemap** drops only the newest line's archived copy, for the matching reason: it is byte-identical to
+  the root, and submitting both asks a crawler to pick a canonical between two copies of one page. Every other
+  version is different content and is submitted — with a preview at the root, `/v10.1.x/` is where the stable
+  documentation lives. Redirect stubs are dropped in every version.
 - **`editLink` is switched off for archived versions** by a post-processing loop at the bottom of `config.mts`,
   next to the mermaid `optimizeDeps` fix. Inherited, it would offer to edit the file living at that path on
   `master` today — different content, from a line the reader deliberately is not reading.
@@ -518,6 +535,11 @@ independent of each other — consumers pick the extensions they need:
 ## Conventions
 - **net10.0-only**, `Nullable=enable`, `ImplicitUsings=enable`, C# `latest` ([Directory.Build.props](Directory.Build.props)).
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
+  The EF Core family (`Microsoft.EntityFrameworkCore`, `.Relational`, `.Sqlite`) is a **range capped below the next
+  major** (`[10.0.12, 11.0.0)`), the way Npgsql caps its own: a line's engine loaded against the next EF Core major
+  can fail at runtime, and without the cap a project on the next framework installing this line resolves it silently.
+  Dependabot writes a bare version back when it bumps a range, so `api-tracking` fails a PR that drops the cap —
+  restore the range in that PR rather than relaxing the check.
 - **The tree is LF, pinned by [.gitattributes](.gitattributes)** (`* text=auto eol=lf`; `.bat`/`.cmd` carved out).
   Not cosmetic here: the parameter descriptions this library generates land in a *consumer's* committed OpenAPI
   artifact, and the transformer builds them from raw string literals, which the compiler copies **verbatim** —
@@ -613,10 +635,11 @@ independent of each other — consumers pick the extensions they need:
   a thread-pool thread — which the projections guide now promises.
 - Build must stay clean under `-warnaserror` before any commit.
 - **Commits:** small and incremental (one logical change each).
-- **`master` takes no direct pushes.** A ruleset requires a pull request with **`ci-ok`** green, signed
-  commits and linear history, and forbids force-pushing or deleting the branch. So work lands as
-  branch → PR → **squash** merge (the only merge method the repo allows), and a mistake already on `master`
-  is fixed with a follow-up commit, never with a rewrite. No approving review is required — a solo
+- **The line branches take no direct pushes.** One ruleset covers `master` and `release/*` (see *Versioning*):
+  it requires a pull request with **`ci-ok`** green, signed commits and linear history, and forbids
+  force-pushing or deleting the branch. So work lands as branch → PR → **squash** merge (the only merge method
+  the repo allows), and a mistake already on a line branch is fixed with a follow-up commit, never with a
+  rewrite. No approving review is required — a solo
   maintainer cannot approve their own PR, so demanding one would wedge the repo. Tags are a separate
   ruleset: `v*` can be created but never moved or deleted.
 - **`ci-ok` is the required check, and it aggregates rather than tests anything itself.** `build-test` runs
@@ -654,9 +677,42 @@ The package version's **first component tracks the .NET / EF Core major it targe
 - **A new .NET major means a new package line** (`11.x`). The engine touches expression trees, `EF.Parameter` and
   `EF.Functions`, so a rebuild against the new EF Core major is needed regardless of the version scheme: a `net10.0`
   assembly loaded against EF Core 11 can fail at runtime. Dependabot opens the `Microsoft.EntityFrameworkCore` major
-  PR, which is the reminder; CI then says whether it is a plain retarget or a real port.
-- **Older lines are not maintained in parallel.** `10.x` stays available on nuget.org as published; backport only on
-  request.
+  PR against `master`, which is the reminder; CI then says whether it is a plain retarget or a real port. The
+  servicing line never sees that PR — its Dependabot block ignores framework majors on purpose.
+- **Two lines live in the repository at once, and the branch names say which is which.** `master` is always the
+  newest line; the previous one lives on `release/<X>.x` (`release/10.x`). The one ruleset targets
+  `~DEFAULT_BRANCH` **and** `refs/heads/release/*`, so both take PRs only, squash-merged, with `ci-ok` green,
+  and `ci.yml` and `codeql.yml` run their `push` legs on both. `publish.yml` needs nothing per branch —
+  trusted publishing is keyed to the workflow file and the `nuget` environment, not to a branch. Three things
+  *are* branch-sensitive, and each is handled where it lives: `api-tracking` compares against the newest
+  stable tag **merged into `HEAD`**, never the newest tag in the repository, because the other line's
+  releases are not in this branch's history; the docs deploy runs from whichever line cut the release, so
+  its build steps must stay identical on both; and **Dependabot** reads `dependabot.yml` from the default
+  branch only, so the servicing line's blocks (`target-branch: release/10.x`) live in `master`'s copy.
+  A new line is opened *before* it can be the default: it is prepared on `release/<X+1>.x` while `master`
+  is still the old line, and the two are swapped by **renaming** (`master` → `release/<X>.x`, then
+  `release/<X+1>.x` → `master`, then re-point the default branch). A rename carries open PRs' base and
+  draft releases along, needs no merge method beyond squash, and the ruleset follows because it targets the
+  default branch symbolically. The one precondition: no open PR may have either branch as its *head* — GitHub
+  closes those. **The swap needs a bypass the ruleset deliberately lacks:** GitHub refuses to rename or
+  re-point the default branch while a ruleset blocks force pushes on it and names no bypass actor, which is
+  exactly this ruleset. So the *Repository admin* role is added as a bypass actor for the swap and removed
+  straight after — left in place, it would make every rule here optional for the maintainer. A rename
+  triggers no `push`, so dispatch CodeQL (`workflow_dispatch`) on both branches afterwards; the weekly
+  schedule only ever runs on the default branch.
+- **A feature is delivered to both lines while the previous one is in its parallel window** — until three
+  months after the newer line's stable release (`11.0.0` GA + 3 months); after that the previous line takes
+  fixes on request only. The mechanics are fixed by the ruleset: linear history plus squash-only rule out a
+  merge-forward, so a feature is **one PR into the older line first** — opened with `--base release/10.x`,
+  because a new PR defaults to `master` — **then a forward-port**: `git cherry-pick -x <squash sha>` onto a
+  branch off the newer line, a second PR with the same title and `Forward-port of #<PR>` in its body. Oldest
+  first because the newer line accumulates the renames and breaks of its major, so the forward-port is where
+  the conflicts belong. Each line carries its own `<Version>`, its own `PublicAPI.Unshipped.txt` and its own
+  `docs/src`, so a feature edits all three on each branch. A forward-port that adds a link to a new page into
+  a package README cannot pass `verify-frozen-urls.mjs` on `master` before the older line has released that
+  page, because `master` archives the older line from its tag — hold the README half of the forward-port
+  until then. A change that exists only for the newer line (its breaking-change bundle) is an ordinary PR
+  with no counterpart.
 - **No four-part versions.** NuGet drops a zero fourth component (`10.1.0.0` *is* `10.1.0`) and treats `1`, `1.0`,
   `1.0.0` and `1.0.0.0` as equal, so the component count would flicker per release. Three components only.
 - Version lives in `<Version>` in [Directory.Build.props](Directory.Build.props) — there is **no MinVer** here.
@@ -675,12 +731,13 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    (`v10.0.0-rc.1`); `publish.yml` compares them and refuses the publish otherwise, because nuget.org unlists
    but never deletes.
 2. **At a `Y` bump only** (a new `X.Y` line), open its documentation copy in the **same PR as the version
-   bump**: in `docs/scripts/sync-archive.mjs`, pin the previously newest line to its last tag and add the new
-   line as `WORKING_TREE`; then repoint every site URL in the **four package READMEs** to `/v<new line>.x/`.
+   bump**: in `docs/scripts/sync-archive.mjs`, turn the previously newest line into a line entry
+   (`{ segment: 'v10.1.x', line: 'v10.1.' }`) and add the new line as `WORKING_TREE`; then repoint every site URL
+   in the **four package READMEs** and `<PackageProjectUrl>` in `Directory.Build.props` to `/v<new line>.x/`.
    The root README stays on the unversioned paths — it is read on GitHub against `master`, and it ships in no
    package. Both halves belong before the merge, because `verify-frozen-urls.mjs` runs inside `ci-ok` and
    fails on a README URL the build does not publish. A `Z` release touches none of this: the line's copy is
-   already `WORKING_TREE`, so it picks up the release automatically.
+   already `WORKING_TREE`, and an older line's entry finds its newest tag at build time.
 3. **At a stable release only**, move each `PublicAPI.Unshipped.txt` into its `PublicAPI.Shipped.txt`. That is
    what makes a later removal an RS0017 build error. Do **not** do it for an `-rc.N`: an rc-only member promoted
    to *shipped* cannot then be dropped before stable without fighting the analyzer.
@@ -693,6 +750,10 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    superseded one (regenerate with `dotnet pack -p:ApiCompatGenerateSuppressionFile=true` rather than
    hand-editing). Skip that follow-up and the guard keeps validating against an ever-older surface, and the
    stale suppressions hide the next accidental break behind the same target. An `-rc.N` is not a baseline.
+   **While two lines are live, a release of the older line owes the same follow-up on `master` too**: raise the
+   newer line's baseline to the older line's release. That is what enforces the forward-port — a member the
+   older line shipped and the newer line never received then fails package validation on `master`, instead of
+   vanishing silently from the next major. Land the forward-ports first, or that PR cannot go green.
 5. Release notes go **on the GitHub release** — there is no changelog file, and `PackageReleaseNotes` points at
    the Releases page.
 6. Publishing authenticates by **Trusted Publishing (OIDC)**, so there is no API key anywhere. The policy lives
@@ -720,6 +781,18 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    against a download.
 9. A **draft** release publishes nothing. `gh release edit <tag> --draft=false` is what fires the workflow.
    Pushing a tag on its own is inert here — no workflow watches tags.
+10. **Create the release with `--target <sha>`, never a branch name and never the default.** The default target
+    is the default branch, and a draft keeps its target as text until it is published — so a 10.x release left
+    on the default would be tagged on the 11.x line, and one targeting a branch lands on whatever merged in
+    between. `publish.yml` would refuse the version mismatch, but the tag already exists by then: the tag
+    ruleset forbids deleting it and the release is immutable, so the version number is burnt for good. Use the
+    squash-merge commit whose `ci-ok` is green.
+11. **Approve the `nuget` deployment only after the docs deploy of the same release has succeeded.** Both run off
+    `release: published`; the packages' READMEs and project URL point into the site, and nuget.org renders them
+    the moment the push lands.
+12. **After the newer line's stable release, publish every older-line release with `--latest=false`.** The API
+    defaults `make_latest` to `true` for a new release, which would hand *Latest* on the Releases page back to
+    the servicing line. Before that point the older line is the newest stable one and *Latest* is right.
 
 ## Testing
 `test/Janzen.Pagination.Tests` (xunit v3) — `dotnet test Janzen.Pagination.slnx -c Release`. Two legs, both in-process,
@@ -727,8 +800,13 @@ neither needing Docker:
 
 > **[global.json](global.json) is load-bearing**: it selects the **Microsoft.Testing.Platform** runner for `dotnet test`.
 > MTP v2 dropped the VSTest bridge on the .NET 10 SDK, so without that file *every* `dotnet test` here — yours, `ci.yml`
-> and the guard inside `publish.yml` — fails with `Testing with VSTest target is no longer supported`. It pins no SDK
-> version and is not meant to.
+> and the guard inside `publish.yml` — fails with `Testing with VSTest target is no longer supported`. **It also pins
+> the SDK**, and that pin is the single source of the .NET version for every workflow: each `setup-dotnet` reads
+> `global-json-file: global.json`, and so does GitHub's *automatic dependency submission*, which has no file in this
+> repository and takes the SDK from nowhere else. On a line whose framework is GA the pin names the feature band's
+> floor with `rollForward: latestFeature` (`10.0.100`), which `setup-dotnet` installs as the newest 10.0 SDK; that is
+> also what keeps a machine with a newer major installed — a checkout of the servicing line next to `master` — from
+> building this line with the wrong SDK. A line in preview pins the exact rc build instead.
 
 - **SQLite in-memory** — most tests. Real SQL translation, so it is what catches "the expression cannot be translated",
   and it exercises the engine's `UseDatabaseFunctions` path (`EF.Functions.Like`, `EF.Parameter`).

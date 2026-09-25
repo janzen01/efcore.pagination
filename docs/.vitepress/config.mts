@@ -1,10 +1,14 @@
 import { execFile } from 'node:child_process'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vite'
 import { defineVersionedConfig } from '@viteplus/versions'
+import type { DefaultTheme } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
+import rootNavigation from '../src/navigation.json' with { type: 'json' }
+import { navigationIn, versionedNavigation } from '../scripts/navigation.mjs'
+import { versions, WORKING_TREE } from '../scripts/sync-archive.mjs'
 
 // Dev only. scripts/sync-archive.mjs runs once before `vitepress dev`, which left the newest line's copy
 // serving a start-up snapshot: the manifest defines that line as the working tree, but an edit to docs/src
@@ -73,6 +77,17 @@ const archived = existsSync(archiveDir)
     ? readdirSync(archiveDir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
     : []
 
+// Which release this build is, for the preview banner and the version menu (theme/components). The working-tree
+// line is the one at the root; the next manifest entry is the newest line before it, which a preview points
+// readers at as the stable one.
+const current = versions.find((entry) => entry.ref === WORKING_TREE)!.segment
+const version = /<Version>([^<]+)<\/Version>/.exec(readFileSync(new URL('../../Directory.Build.props', import.meta.url), 'utf8'))![1]
+const release = {
+    version,
+    prerelease: version.includes('-'),
+    stable: versions.find((entry) => entry.ref !== WORKING_TREE)?.segment
+}
+
 // The published origin, in one place. It is the canonical href, the sitemap hostname, and -- as its path --
 // the `base` every built URL carries and the prefix on the favicon. Those were four literals before, so a
 // custom domain or a repository rename had to find all of them; miss the canonical and every page names an
@@ -87,7 +102,7 @@ const noindexed = (head: unknown[][] = []) =>
     head.some(([, attrs]) => (attrs as { name?: string, content?: string })?.name === 'robots'
         && String((attrs as { content?: string })?.content ?? '').includes('noindex'))
 
-// The URLs below ship inside the 10.0.0 package READMEs on nuget.org, which nuget.org renders per version
+// The site's URLs ship inside the package READMEs on nuget.org, which nuget.org renders per version
 // forever. The obligation is that each of them keeps answering -- not that this file keeps owning them.
 // A page may move; what has to stay behind is something published at the old path, either the page itself
 // or a redirect stub (a markdown file whose `head` sets `http-equiv: refresh`). What breaks the promise is
@@ -96,13 +111,7 @@ const noindexed = (head: unknown[][] = []) =>
 // `docs/scripts/verify-frozen-urls.mjs` fails the build when one of these paths has nothing behind it.
 // Four of them are now redirect stubs rather than pages: query-string, recipes, aspnetcore and
 // providers-and-types moved into the Reference, Cookbook and Integrations sections.
-const guide = {
-    overview: '/guide/',
-    gettingStarted: '/guide/getting-started/',
-    configuration: '/guide/configuration/',
-    projections: '/guide/projections/'
-}
-
+//
 // The frozen paths that are now redirect stubs rather than pages. They must keep being published, but
 // they carry `robots: noindex` and must not be advertised in the sitemap -- submitting a URL and then
 // telling the crawler to ignore it is a contradiction search consoles report back as one.
@@ -113,96 +122,18 @@ const redirectStubs = [
     'guide/providers-and-types/'
 ]
 
-const integrations = {
-    overview: '/integrations/',
-    aspnetcore: '/integrations/aspnetcore/',
-    openapi: '/integrations/aspnetcore/openapi/',
-    postgresql: '/integrations/postgresql/',
-    nodatime: '/integrations/nodatime/',
-    customTypes: '/integrations/custom-types/'
-}
+// Registered in .vitepress/theme/index.ts. Unlike the built-in dropdown this keeps the reader on the page they were
+// reading, which is the whole point when the link that brought them here came out of a package README and names a
+// specific page. It goes into every version's nav -- see scripts/navigation.mjs.
+const versionSwitcher = { component: 'VersionSwitcher' }
 
-const reference = {
-    queryString: '/reference/query-string/',
-    response: '/reference/response/',
-    configuration: '/reference/configuration/',
-    composers: '/reference/composers/',
-    errors: '/reference/errors/'
-}
-
-const cookbook = {
-    recipes: '/recipes/',
-    withoutAspNetCore: '/recipes/without-aspnetcore/',
-    performance: '/recipes/performance/',
-    testing: '/recipes/testing/',
-    troubleshooting: '/recipes/troubleshooting/',
-    migration: '/recipes/migration/'
-}
-
-const feed = 'https://www.nuget.org/packages/Janzen.Pagination.'
-
-const packages = {
-    core: feed + 'EntityFrameworkCore',
-    aspnetcore: feed + 'AspNetCore',
-    postgresql: feed + 'PostgreSql',
-    nodatime: feed + 'NodaTime'
-}
-
-// Four sections, four sidebars. The split is by how a page is read: the guide is prose you follow once,
-// integrations are per-package and only some readers need them, the reference is looked up mid-task, and
-// the cookbook is task-shaped answers.
-const guideSidebar = [
-    {
-        text: 'Guide',
-        items: [
-            { text: 'Overview', link: guide.overview },
-            { text: 'Getting started', link: guide.gettingStarted },
-            { text: 'Configuration', link: guide.configuration },
-            { text: 'Projections', link: guide.projections }
-        ]
-    }
-]
-
-const integrationsSidebar = [
-    {
-        text: 'Integrations',
-        items: [
-            { text: 'Overview', link: integrations.overview },
-            { text: 'ASP.NET Core', link: integrations.aspnetcore },
-            { text: 'ASP.NET Core — OpenAPI', link: integrations.openapi },
-            { text: 'PostgreSQL', link: integrations.postgresql },
-            { text: 'NodaTime', link: integrations.nodatime },
-            { text: 'Custom types', link: integrations.customTypes }
-        ]
-    }
-]
-
-const referenceSidebar = [
-    {
-        text: 'Reference',
-        items: [
-            { text: 'Query-string contract', link: reference.queryString },
-            { text: 'Response contract', link: reference.response },
-            { text: 'Configuration API', link: reference.configuration },
-            { text: 'Query composers', link: reference.composers },
-            { text: 'Errors', link: reference.errors }
-        ]
-    }
-]
-
-const cookbookSidebar = [
-    {
-        text: 'Cookbook',
-        items: [
-            { text: 'Recipes', link: cookbook.recipes },
-            { text: 'Without ASP.NET Core', link: cookbook.withoutAspNetCore },
-            { text: 'Performance and indexing', link: cookbook.performance },
-            { text: 'Testing', link: cookbook.testing },
-            { text: 'Troubleshooting', link: cookbook.troubleshooting },
-            { text: 'From nestjs-paginate', link: cookbook.migration }
-        ]
-    }
-]
+const navigation = versionedNavigation(
+    rootNavigation,
+    archived
+        .map((segment) => [segment, navigationIn(fileURLToPath(new URL(segment, archiveDir)))] as const)
+        .filter(([, own]) => own !== undefined),
+    versionSwitcher
+)
 
 const config = withMermaid(defineVersionedConfig({
     title: 'Janzen.Pagination',
@@ -260,13 +191,14 @@ const config = withMermaid(defineVersionedConfig({
         pageData.frontmatter.head = [...head, ['link', { rel: 'canonical', href: `${site}${route}` }]]
     },
 
-    // Archived versions are dropped as a whole rather than stub by stub. While a line is the current one its
-    // archived copy is byte-identical to the root, so advertising both is asking a crawler to pick a canonical
-    // between two copies of the same page. They stay reachable and linkable -- just not submitted.
+    // Only the newest line's archived copy is dropped, as a whole: it is byte-identical to the root, so advertising
+    // both asks a crawler to pick a canonical between two copies of one page. Every other version is different
+    // content and is submitted -- with a preview at the root, /v10.1.x/ is where the stable documentation lives,
+    // and leaving it out would take that out of search entirely. Redirect stubs are dropped in every version.
     sitemap: {
         hostname: site,
         transformItems: (items) => items.filter((item) =>
-            !redirectStubs.includes(item.url) && !archived.some((version) => item.url.startsWith(`${version}/`)))
+            !redirectStubs.includes(item.url.replace(/^v\d+\.\d+\.x\//, '')) && !item.url.startsWith(`${current}/`))
     },
 
     // A dead link fails the build. With cross-page links written by hand, that is the only thing standing
@@ -341,67 +273,14 @@ const config = withMermaid(defineVersionedConfig({
             copyright: 'Copyright © Lubos Jansky'
         },
 
-        nav: [
-            { text: 'Home', link: '/' },
-            {
-                text: 'Guide',
-                items: [
-                    { text: 'Overview', link: guide.overview },
-                    { text: 'Getting started', link: guide.gettingStarted },
-                    { text: 'Configuration', link: guide.configuration },
-                    { text: 'Projections', link: guide.projections }
-                ]
-            },
-            {
-                text: 'Integrations',
-                items: [
-                    { text: 'Overview', link: integrations.overview },
-                    { text: 'ASP.NET Core', link: integrations.aspnetcore },
-                    { text: 'ASP.NET Core — OpenAPI', link: integrations.openapi },
-                    { text: 'PostgreSQL', link: integrations.postgresql },
-                    { text: 'NodaTime', link: integrations.nodatime },
-                    { text: 'Custom types', link: integrations.customTypes }
-                ]
-            },
-            {
-                text: 'Reference',
-                items: [
-                    { text: 'Query-string contract', link: reference.queryString },
-                    { text: 'Response contract', link: reference.response },
-                    { text: 'Configuration API', link: reference.configuration },
-                    { text: 'Query composers', link: reference.composers },
-                    { text: 'Errors', link: reference.errors }
-                ]
-            },
-            {
-                text: 'Cookbook',
-                items: [
-                    { text: 'Recipes', link: cookbook.recipes },
-                    { text: 'Without ASP.NET Core', link: cookbook.withoutAspNetCore }
-                ]
-            },
-            {
-                text: 'NuGet',
-                items: [
-                    { text: 'EntityFrameworkCore', link: packages.core },
-                    { text: 'AspNetCore', link: packages.aspnetcore },
-                    { text: 'PostgreSql', link: packages.postgresql },
-                    { text: 'NodaTime', link: packages.nodatime }
-                ]
-            },
+        // docs/src/navigation.json, keyed per version. The plugin's types describe only the flat form, so the
+        // keyed one is cast; the shape it accepts is documented in scripts/navigation.mjs.
+        nav: navigation.nav as unknown as DefaultTheme.NavItem[],
+        sidebar: navigation.sidebar,
+        outline: { level: [2, 3], label: 'On this page' },
 
-            // Registered in .vitepress/theme/index.ts. Unlike the built-in dropdown this keeps the
-            // reader on the page they were reading, which is the whole point when the link that
-            // brought them here came out of a package README and names a specific page.
-            { component: 'VersionSwitcher' }
-        ],
-        sidebar: {
-            '/guide/': guideSidebar,
-            '/integrations/': integrationsSidebar,
-            '/reference/': referenceSidebar,
-            '/recipes/': cookbookSidebar
-        },
-        outline: { level: [2, 3], label: 'On this page' }
+        // Read by PreviewBanner.vue and VersionSwitcher.vue. VitePress passes unknown themeConfig keys through.
+        release
     }
 }))
 

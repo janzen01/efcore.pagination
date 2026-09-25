@@ -14,6 +14,10 @@
 // and it links to the **root**: that is the address the sitemap advertises and the one every page's
 // canonical names, so the switcher must not send readers to the duplicate instead.
 //
+// **A preview is labeled as one.** The root is the newest release of any line, and while that is a prerelease
+// the entry reads `v11.0.x (Preview)` instead -- `(Latest)` would suggest it is the release a reader should
+// install. The flag comes from `themeConfig.release`, which config.mts derives from `<Version>`.
+//
 // Vendored rather than wrapped: the labels would otherwise have to be smuggled in through the `versions`
 // Set, whose members are also used as path segments. Keep it in step with upstream when the package moves --
 // the path building below is theirs, unchanged, including the `/index` shape the canonical tag exists for.
@@ -34,7 +38,7 @@ interface Props {
 
 const props = defineProps<Props>()
 const router = useRouter()
-const { site } = useData()
+const { site, theme } = useData()
 const isOpen = ref(false)
 
 // Rendered only after mount, and that is not a nicety. Everything below reads router and site state --
@@ -50,7 +54,7 @@ onMounted(() => {
 	mounted.value = true
 })
 
-const LATEST = ' (Latest)'
+const LATEST = computed(() => theme.value.release?.prerelease ? ' (Preview)' : ' (Latest)')
 
 // `v10.9.x` before `v10.10.x`: compared as strings those two are the wrong way round, and a `Y` bump is
 // exactly when this menu gets its next entry.
@@ -88,7 +92,7 @@ const activeVersion = computed(() => {
 // The root and the newest line's archived copy are the same content, so they read as one place.
 const activeLabel = computed(() =>
     activeVersion.value === props.versioningPlugin.currentVersion || activeVersion.value === newest.value
-        ? `${newest.value}${LATEST}`
+        ? `${newest.value}${LATEST.value}`
         : activeVersion.value
 )
 
@@ -121,7 +125,7 @@ function buildVersionPath(version: string): string {
 // Newest first, and the newest entry points at the root rather than at its own archived duplicate.
 const items = computed(() =>
     ordered.value.map((version, index) => index === 0
-        ? { text: `${version}${LATEST}`, link: buildVersionPath(props.versioningPlugin.currentVersion) }
+        ? { text: `${version}${LATEST.value}`, link: buildVersionPath(props.versioningPlugin.currentVersion) }
         : { text: version, link: buildVersionPath(version) })
 )
 
