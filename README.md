@@ -186,9 +186,10 @@ for architecture, versioning, and the decisions behind them (written for humans 
 ## Status
 
 > Versions track the framework: the first component is the **.NET / EF Core major** the package targets, so this
-> is the **10.x** line (pairing with .NET 10 and EF Core 10) rather than 1.x. Older lines are not maintained in
-> parallel. Release notes live on the [Releases](https://github.com/janzen01/efcore.pagination/releases) page —
-> there is no changelog file in the repository.
+> is the **10.x** line (pairing with .NET 10 and EF Core 10) rather than 1.x. It is serviced in parallel with the
+> newer `11.x` line, on `master`, until three months after `11.0.0`. Release notes live on the
+> [Releases](https://github.com/janzen01/efcore.pagination/releases) page — there is no changelog file in the
+> repository.
 
 Security reports go through [private vulnerability
 reporting](https://github.com/janzen01/efcore.pagination/security/advisories/new) — see [SECURITY.md](SECURITY.md).

@@ -62,17 +62,19 @@ That contract is borrowed from [nestjs-paginate](https://github.com/ppetzold/nes
 query parameters, operator names and response envelope.
 
 > Versions track the framework: the first component is the .NET / EF Core major the package targets, so this is
-> the **10.x** line, pairing with .NET 10 and EF Core 10. Older lines are not maintained in parallel, and
-> release notes live on the [Releases](https://github.com/janzen01/efcore.pagination/releases) page.
+> the **10.x** line, pairing with .NET 10 and EF Core 10. It is serviced in parallel with the newer `11.x` line
+> until three months after `11.0.0`, and release notes live on the
+> [Releases](https://github.com/janzen01/efcore.pagination/releases) page.
 
 ::: warning This site is versioned — check which copy you are reading
-Nothing here describes unreleased code: the site is published when a **stable** release is, so the root always
-shows the newest one — and a prerelease you installed with `--prerelease` may be ahead of what it says. Every
-released line also keeps its own copy at `/v<line>.x/`, this one included, and the version picker in the
-navigation moves between them without losing your place on the page. From `10.1.0` on, the links inside a
-package README name that package's own line, so a reader arriving from nuget.org lands in the right copy
-already. The `10.0.x` READMEs predate the versioned copies and point here, to the root — if you installed one
-of those, open `/v10.0.x/` from the picker to read what shipped with it.
+Nothing here describes unreleased code: the site is rebuilt from the newest release of either line, so the
+root shows the newest release there is — while a new major is in preview, that preview, with a banner pointing
+at the stable line. Every released line also keeps its own copy at `/v<line>.x/`, this one included, and the
+version picker in the navigation moves between them without losing your place on the page. From `10.1.0` on,
+the links inside a package README name that package's own line, and the packages released after `10.1.1` name
+it as their project website too, so a reader arriving from nuget.org lands in the right copy already. The
+`10.0.x` READMEs predate the versioned copies and point here, to the root — if you installed one of those,
+open `/v10.0.x/` from the picker to read what shipped with it.
 
 Within a line the third component only ever adds, so a member can be newer than the package you installed but
 never gone from it. One that arrived after the line opened carries its version beside its heading —
