@@ -78,19 +78,18 @@ public sealed class PaginateQuery {
 		Search              = this.Search,
 		SearchBy            = this.SearchBy,
 		Filters             = this.Filters,
-		ValidationError     = this.ValidationError,
-		ValidationErrorCode = this.ValidationErrorCode
+		ValidationError     = this.ValidationError
 	};
 
 	/// <summary>Parse-time validation error captured during model binding; surfaced as a 400 on execution.</summary>
-	internal string? ValidationError { get; init; }
-
-	/// <summary>Machine-readable cause of <see cref="ValidationError" />, carried to the exception it becomes.</summary>
-	internal PaginateQueryError ValidationErrorCode { get; init; }
+	internal PaginateParseError? ValidationError { get; init; }
 
 	/// <summary>Throws the captured parse-time validation error, if any.</summary>
 	internal void EnsureValid() {
-		if (ValidationError is not null) throw new PaginateQueryException(ValidationError) { Code = ValidationErrorCode };
+		if (ValidationError is { } error) throw new PaginateQueryException(error.Message) { Code = error.Code };
 	}
 
 }
+
+/// <summary>A parse-time error and its machine-readable cause, held as one value so neither can be set without the other.</summary>
+internal readonly record struct PaginateParseError(string Message, PaginateQueryError Code);

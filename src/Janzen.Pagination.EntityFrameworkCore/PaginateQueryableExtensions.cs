@@ -362,7 +362,7 @@ public static class PaginateQueryableExtensions {
 		// Asked as "is this a paging error?", not as "is it the one non-paging code we know about". The inverse
 		// reads the same today and silently gives the wrong precedence to the next non-paging code the binder
 		// learns to report, with nothing failing to say so.
-		bool pagingError = request.ValidationErrorCode
+		bool pagingError = request.ValidationError?.Code
 			is PaginateQueryError.PageOutOfRange
 			or PaginateQueryError.LimitOutOfRange
 			or PaginateQueryError.UnlimitedReadRequiresFirstPage
