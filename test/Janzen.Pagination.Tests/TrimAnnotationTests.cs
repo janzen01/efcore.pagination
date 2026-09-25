@@ -97,8 +97,7 @@ public sealed class TrimAnnotationTests {
 			typeof(PaginationBuilderNodaTimeExtensions),
 			typeof(PaginateFilterOperators),
 			typeof(PaginationRouteHandlerBuilderExtensions)
-		}
-		.SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+		}.SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
 		.Where(method => method.Name == name)
 		];
 

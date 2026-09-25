@@ -72,8 +72,7 @@ public sealed class PaginationHostFixture : IAsyncLifetime {
 		_app.MapGet("/minimal/products", async (HttpContext http, CancellationToken ct) =>
 				await TestData.Products().AsQueryable()
 					.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), DocumentedConfigProvider.Config, http.Request, ct)
-		)
-			.WithPagination<DocumentedConfigProvider>();
+		).WithPagination<DocumentedConfigProvider>();
 
 		// A route group, which is what MapGroup returns and what the second overload exists for. Before it this
 		// line did not compile: WithPagination only accepted a RouteHandlerBuilder, so a grouped endpoint could
