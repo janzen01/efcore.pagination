@@ -59,7 +59,24 @@ const frozen = [
 	['reference/response/index.html', '10.0.1'],
 
 	// 10.0.2 -- the query composers got their own reference page, named by the EntityFrameworkCore readme.
-	['reference/composers/index.html', '10.0.2']
+	['reference/composers/index.html', '10.0.2'],
+
+	// 10.1.0 -- the first versioned READMEs: every link moved behind /v10.1.x/, the line's own copy. 10.1.1 kept them.
+	['v10.1.x/index.html', '10.1.0'],
+	['v10.1.x/guide/configuration/index.html', '10.1.0'],
+	['v10.1.x/guide/getting-started/index.html', '10.1.0'],
+	['v10.1.x/guide/projections/index.html', '10.1.0'],
+	['v10.1.x/integrations/aspnetcore/index.html', '10.1.0'],
+	['v10.1.x/integrations/aspnetcore/openapi/index.html', '10.1.0'],
+	['v10.1.x/integrations/custom-types/index.html', '10.1.0'],
+	['v10.1.x/integrations/nodatime/index.html', '10.1.0'],
+	['v10.1.x/integrations/postgresql/index.html', '10.1.0'],
+	['v10.1.x/recipes/index.html', '10.1.0'],
+	['v10.1.x/reference/composers/index.html', '10.1.0'],
+	['v10.1.x/reference/configuration/index.html', '10.1.0'],
+	['v10.1.x/reference/errors/index.html', '10.1.0'],
+	['v10.1.x/reference/query-string/index.html', '10.1.0'],
+	['v10.1.x/reference/response/index.html', '10.1.0']
 ]
 
 // The deep links a package README names, frozen for the same reason and just as permanently: reword the heading and
@@ -71,7 +88,16 @@ const frozenFragments = [
 	['reference/query-string/index.html', 'operator-reference', '10.0.1'],
 	['reference/query-string/index.html', 'value-formats', '10.0.1'],
 	['reference/response/index.html', 'link-response-header-rfc-8288', '10.0.1'],
-	['reference/response/index.html', 'the-request-echo', '10.0.2']
+	['reference/response/index.html', 'the-request-echo', '10.0.2'],
+	['v10.1.x/integrations/aspnetcore/index.html', 'errors-as-problemdetails', '10.1.0'],
+	['v10.1.x/integrations/postgresql/index.html', 'like-vs-ilike', '10.1.0'],
+	['v10.1.x/reference/configuration/index.html', 'nested-attributes', '10.1.0'],
+	['v10.1.x/reference/configuration/index.html', 'shared-defaults', '10.1.0'],
+	['v10.1.x/reference/errors/index.html', 'filter-operators', '10.1.0'],
+	['v10.1.x/reference/query-string/index.html', 'operator-reference', '10.1.0'],
+	['v10.1.x/reference/query-string/index.html', 'value-formats', '10.1.0'],
+	['v10.1.x/reference/response/index.html', 'link-response-header-rfc-8288', '10.1.0'],
+	['v10.1.x/reference/response/index.html', 'the-request-echo', '10.1.0']
 ]
 
 // The list above is history: what 10.0.0 already published. This second half is the future: whatever the
@@ -80,8 +106,11 @@ const frozenFragments = [
 // check -- the same reason scripts/verify-anchors.mjs exists.
 const SITE = 'https://janzen01.github.io/efcore.pagination/'
 
+// Directory.Build.props carries <PackageProjectUrl>, the "Project website" link nuget.org shows beside every
+// package version -- frozen exactly like a README link, and read the same way.
 const readmes = [
 	join(root, 'README.md'),
+	join(root, 'Directory.Build.props'),
 	...readdirSync(join(root, 'src'), { withFileTypes: true })
 		.filter((entry) => entry.isDirectory())
 		.map((entry) => join(root, 'src', entry.name, 'README.md'))

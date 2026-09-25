@@ -137,7 +137,9 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   documentation can become *untrue*, and that is the middle component: within a line the third only ever adds
   surface, so a frozen link may name something newer than the reader has but never something that is gone.
   Removing needs a Y bump, which gets its own copy. A copy per release would instead mean a new snapshot and
-  ~36 README link edits every single time.
+  ~36 README link edits every single time. **A segment is never dropped from the manifest**: the packages of
+  that line name it in their READMEs and in `<PackageProjectUrl>`, and nuget.org renders both for as long as
+  the version exists. `verify-frozen-urls.mjs` holds the published ones in its history lists.
 - **`docs/archive/` is generated and gitignored — never hand-edited.** `scripts/sync-archive.mjs` rebuilds it
   before every dev server and build, reading `docs/src` out of each line's git tag, and its **manifest is the
   `versions` array at the top of that script**. Generating rather than committing is the point: a committed
