@@ -27,13 +27,10 @@ public static class PaginationRouteHandlerBuilderExtensions {
 	/// </summary>
 	// The pair the query entry points carry, for the same reason one level out: the marked endpoint's OpenAPI
 	// document is generated from a config the transformer builds reflectively. Without it, silence here read as
-	// "analysed and safe" beside the ten members that do warn.
+	// "analyzed and safe" beside the ten members that do warn.
 	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
-	public static RouteHandlerBuilder WithPagination<
-		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TConfigProvider>(
-		this RouteHandlerBuilder builder)
-		where TConfigProvider : IPaginateConfigProvider {
+	public static RouteHandlerBuilder WithPagination<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TConfigProvider>(this RouteHandlerBuilder builder) where TConfigProvider : IPaginateConfigProvider {
 		ArgumentNullException.ThrowIfNull(builder);
 
 		builder.WithMetadata(new PaginatedQueryAttribute<TConfigProvider>());
@@ -54,10 +51,7 @@ public static class PaginationRouteHandlerBuilderExtensions {
 	// is also an unambiguous overload against the one above, which no interface-typed receiver would be.
 	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
-	public static RouteGroupBuilder WithPagination<
-		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TConfigProvider>(
-		this RouteGroupBuilder builder)
-		where TConfigProvider : IPaginateConfigProvider {
+	public static RouteGroupBuilder WithPagination<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TConfigProvider>(this RouteGroupBuilder builder) where TConfigProvider : IPaginateConfigProvider {
 		ArgumentNullException.ThrowIfNull(builder);
 
 		builder.WithMetadata(new PaginatedQueryAttribute<TConfigProvider>());

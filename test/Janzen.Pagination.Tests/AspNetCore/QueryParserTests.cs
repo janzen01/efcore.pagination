@@ -56,12 +56,10 @@ public sealed class QueryParserTests {
 
 	[Fact]
 	public void Unknown_parameters_are_ignored() {
-
 		var query = Parse("?page=2&offset=40&utm_source=newsletter");
 
 		Assert.Equal(2, query.Page);
 		Assert.Empty(query.Filters);
-
 	}
 
 	[Fact]
@@ -148,12 +146,10 @@ public sealed class QueryParserTests {
 
 	[Fact]
 	public void The_unlimited_limit_survives_binding() {
-
 		// The binder has no configuration, so it cannot know whether this resource allows -1. Dropping it here
 		// would make AllowUnlimited unreachable over HTTP while OpenAPI advertises it; the engine is where the
 		// config-aware decision belongs, and it still refuses -1 for a resource that never opted in.
 		Assert.Equal(-1, Parse("?limit=-1").Limit);
-
 	}
 
 	[Theory]
@@ -169,13 +165,11 @@ public sealed class QueryParserTests {
 
 	[Fact]
 	public async Task A_bound_minus_one_is_answered_by_the_config_not_the_binder() {
-
 		// Refused for a resource that did not opt in -- but with the engine's range message, which is what
 		// proves the value reached it rather than dying during binding.
 		string message = await Rejects(Parse("?limit=-1"));
 
 		Assert.Equal("Query parameter 'limit' must be between 1 and 50.", message);
-
 	}
 
 	[Fact]
@@ -186,7 +180,8 @@ public sealed class QueryParserTests {
 			.Sortable("id", p => p.Id)
 			.DefaultSortBy("id")
 			.WithTieBreaker(p => p.Id)
-			.AllowUnlimited(100));
+			.AllowUnlimited(100)
+		);
 
 		var page = await TestData.Products().AsQueryable().PageAsync<ProductDto>(Parse("?limit=-1"), config);
 
@@ -196,12 +191,10 @@ public sealed class QueryParserTests {
 
 	[Fact]
 	public async Task Limit_and_page_still_reject_the_same_forms() {
-
 		// -1 is carved out of limit by matching the literal, not by loosening the number styles: AllowLeadingSign
 		// would also have started accepting "+5" on limit while page went on rejecting it.
 		Assert.Equal("Query parameter 'limit' must be a positive integer.", await Rejects(Parse("?limit=%2B5")));
 		Assert.Equal("Query parameter 'page' must be a positive integer.", await Rejects(Parse("?page=%2B5")));
-
 	}
 
 	[Fact]
@@ -225,7 +218,8 @@ public sealed class QueryParserTests {
 		// A guard, not a fail-before case -- under the old last-wins there was no filter error to outrank.
 		Assert.Equal(
 			"Query parameter 'page' must be a positive integer.",
-			await Rejects(Parse("?page=0&filter.status=$eq:Active&filter.%20status=$eq:Draft")));
+			await Rejects(Parse("?page=0&filter.status=$eq:Active&filter.%20status=$eq:Draft"))
+		);
 
 	}
 
@@ -243,25 +237,32 @@ public sealed class QueryParserTests {
 			.WithMaxOffset(100)
 			.Sortable("id", p => p.Id)
 			.WithTieBreaker(p => p.Id)
-			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq)
+		);
 
 		const string Duplicated = "&filter.status=$eq:Active&filter.%20status=$eq:Draft";
 
 		Assert.Equal(
 			"Query parameter 'page' exceeds the allowed offset for this resource: at most 100 rows may be skipped.",
 			await Assertions.RejectsAsync(() => TestData.Products().AsQueryable()
-				.PageAsync<ProductDto>(Parse($"?page=1000&limit=10{Duplicated}"), guarded)));
+				.PageAsync<ProductDto>(Parse($"?page=1000&limit=10{Duplicated}"), guarded)
+			)
+		);
 
 		Assert.Equal(
 			"Query parameter 'limit' must be between 1 and 50.",
 			await Assertions.RejectsAsync(() => TestData.Products().AsQueryable()
-				.PageAsync<ProductDto>(Parse($"?limit=9999{Duplicated}"), guarded)));
+				.PageAsync<ProductDto>(Parse($"?limit=9999{Duplicated}"), guarded)
+			)
+		);
 
 		// And the filter error is still reported once the paging ones are gone, rather than swallowed.
 		Assert.Equal(
 			"Filter for field 'status' is specified more than once.",
 			await Assertions.RejectsAsync(() => TestData.Products().AsQueryable()
-				.PageAsync<ProductDto>(Parse($"?page=1&limit=10{Duplicated}"), guarded)));
+				.PageAsync<ProductDto>(Parse($"?page=1&limit=10{Duplicated}"), guarded)
+			)
+		);
 
 	}
 

@@ -41,7 +41,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	// The site's grammar reference calls these modifiers rather than operators, and they are available on every
 	// field regardless of its operator set -- so they are a list of their own rather than three entries appended
 	// to the field's, where the emitted document offered no way to learn where they go. '\n', not
-	// Environment.NewLine: this text lands in a consumer's committed OpenAPI artefact.
+	// Environment.NewLine: this text lands in a consumer's committed OpenAPI artifact.
 	private readonly static string Modifiers = string.Join('\n', new[] { "$not", "$and", "$or" }.Select(token => $"- `{token}`"));
 
 	/// <summary>
@@ -65,7 +65,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 		if (attribute is null) return Task.CompletedTask;
 
-		var config = this.GetConfig(context.ApplicationServices, attribute.ConfigProviderType);
+		var config = GetConfig(context.ApplicationServices, attribute.ConfigProviderType);
 
 		operation.Parameters ??= [];
 		RemoveGeneratedPaginateParameters(operation.Parameters);
@@ -80,9 +80,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			operation.Parameters.Add(CreateSearchParameter(config));
 
 			// searchBy is ignored at runtime when the resource opts out, so it must not be advertised.
-			if (!config.IgnoreSearchByInQueryParam) {
-				operation.Parameters.Add(CreateSearchByParameter(config));
-			}
+			if (!config.IgnoreSearchByInQueryParam) operation.Parameters.Add(CreateSearchByParameter(config));
 		}
 
 		// Read once rather than per field: it is loop-invariant, and a configuration carrying its own strategy must
@@ -118,9 +116,10 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private IPaginateConfig GetConfig(
 		IServiceProvider services,
-		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type providerType) {
+		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type providerType
+	) {
 
-		var configs = this._configsPerDocument.GetValue(services, static _ => []);
+		var configs = _configsPerDocument.GetValue(services, static _ => []);
 
 		if (configs.TryGetValue(providerType, out var cached)) return cached;
 
@@ -145,7 +144,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	// Invalid pagination input is translated to a 400 ProblemDetails by PaginateExceptionFilter on the controller
 	// leg and PaginateExceptionEndpointFilter on the Minimal API leg, so advertise it — with the members that leg
-	// actually sends and no others. `instance` is on neither: no producer passes one and the framework synthesises
+	// actually sends and no others. `instance` is on neither: no producer passes one and the framework synthesizes
 	// none, so documenting it only taught generated clients an always-null member.
 	private static void AddValidationErrorResponse(OpenApiOperation operation, OpenApiOperationTransformerContext context) {
 
@@ -173,14 +172,15 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		// configuration and sends none, so publishing it there was the document promising a member the runtime
 		// does not send.
 		if (context.Description.ActionDescriptor is ControllerActionDescriptor
-			|| context.ApplicationServices.GetService<IProblemDetailsService>() is not null) {
+			|| context.ApplicationServices.GetService<IProblemDetailsService>() is not null
+		) {
 			properties["traceId"] = new OpenApiSchema { Type = JsonSchemaType.String };
 		}
 
 		operation.Responses["400"] = new OpenApiResponse {
 			Description = "The pagination query parameters were invalid.",
 			Content = new Dictionary<string, OpenApiMediaType> {
-				[PaginateExceptionFilter.ProblemJson] = new OpenApiMediaType {
+				[PaginateExceptionFilter.ProblemJson] = new() {
 					Schema = new OpenApiSchema {
 						Type = JsonSchemaType.Object,
 						Properties = properties
@@ -192,7 +192,9 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	}
 
 	private static void RemoveGeneratedPaginateParameters(IList<IOpenApiParameter> parameters) {
+
 		for (int i = parameters.Count - 1; i >= 0; i--) {
+
 			var parameter = parameters[i];
 			if (parameter.In != ParameterLocation.Query) continue;
 			if (parameter.Name is null) continue;
@@ -200,7 +202,9 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			if (GeneratedParameterNames.Contains(parameter.Name) || parameter.Name.StartsWith(PaginateQueryParams.FilterPrefix, StringComparison.OrdinalIgnoreCase)) {
 				parameters.RemoveAt(i);
 			}
+
 		}
+
 	}
 
 	private static OpenApiParameter CreatePageParameter(IPaginateConfig config) {
@@ -223,6 +227,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				Default = JsonValue.Create(1)
 			}
 		};
+
 	}
 
 	private static OpenApiParameter CreateLimitParameter(IPaginateConfig config) {
@@ -233,7 +238,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 		string maximum = config.MaxLimit.ToString(CultureInfo.InvariantCulture);
 
-		// A flat "minimum 1" contradicted the sentence above on any resource that opted in, and the artefact is
+		// A flat "minimum 1" contradicted the sentence above on any resource that opted in, and the artifact is
 		// read by validators as well as by renderers: a gateway doing OpenAPI request validation refused -1 at the
 		// edge, making AllowUnlimited unreachable over HTTP. Expressing "1..max, or exactly -1" needs a oneOf, and
 		// the objection to one was its rendering quality -- so it is emitted only where the resource opted in, and
@@ -264,19 +269,21 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			Required = false,
 			Schema = schema
 		};
+
 	}
 
 	private static OpenApiParameter CreateSortByParameter(IPaginateConfig config) {
+
 		return new OpenApiParameter {
 			Name = PaginateQueryParams.SortBy,
 			In = ParameterLocation.Query,
 			Description = $"""
-			               Parameter to sort by. Repeat this parameter to sort by multiple fields. The URL order defines sort priority.
+			Parameter to sort by. Repeat this parameter to sort by multiple fields. The URL order defines sort priority.
 
-			               Sortable fields:
+			Sortable fields:
 
-			               {BuildFieldDescription(config.SortableFields)}
-			               """,
+			{BuildFieldDescription(config.SortableFields)}
+			""",
 			Required = false,
 			Style = ParameterStyle.Form,
 			Explode = true,
@@ -286,15 +293,17 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 					Type = JsonSchemaType.String,
 					Enum = BuildSortEnum(config)
 				},
-				// Only request-supplied sorts count towards the guard, and the schema describes exactly those --
+				// Only request-supplied sorts count toward the guard, and the schema describes exactly those --
 				// the default below and the configured tie-breaker are not measured against it.
 				MaxItems = config.MaxSortFields,
 				Default = BuildDefaultSort(config)
 			}
 		};
+
 	}
 
 	private static OpenApiParameter CreateSearchParameter(IPaginateConfig config) {
+
 		return new OpenApiParameter {
 			Name = PaginateQueryParams.Search,
 			In = ParameterLocation.Query,
@@ -311,19 +320,21 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				MaxLength = config.MaxSearchLength
 			}
 		};
+
 	}
 
 	private static OpenApiParameter CreateSearchByParameter(IPaginateConfig config) {
+
 		return new OpenApiParameter {
 			Name = PaginateQueryParams.SearchBy,
 			In = ParameterLocation.Query,
 			Description = $"""
-			               List of configured fields to search by term. If omitted, all searchable fields are used.
+			List of configured fields to search by term. If omitted, all searchable fields are used.
 
-			               Searchable fields:
+			Searchable fields:
 
-			               {BuildFieldDescription(config.SearchableFields)}
-			               """,
+			{BuildFieldDescription(config.SearchableFields)}
+			""",
 			Required = false,
 			Style = ParameterStyle.Form,
 			Explode = true,
@@ -335,6 +346,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				}
 			}
 		};
+
 	}
 
 	// The three operators the search-length guards bound on a string field, alongside `search` itself.
@@ -344,6 +356,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	}
 
 	private static OpenApiParameter CreateFilterParameter(IPaginateConfig config, PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
+
 		string operators = string.Join('\n', BuildOperatorTokens(field).Select(token => $"- `{token}`"));
 		var value = DescribeValueType(field.Type);
 		var preferred = likeStrategy.PreferredExampleOperator;
@@ -399,36 +412,37 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		// The search guards bound these three as well as `search` itself, and a guard that is enforced but
 		// undocumented is the shape this transformer exists to remove. The floor is named only when it refuses
 		// something: at the default MinSearchLength of 1, "between 1 and 256" is a sentence that rules nothing
-		// out, and these descriptions land in a consumer's committed OpenAPI artefact — so every such repository
+		// out, and these descriptions land in a consumer's committed OpenAPI artifact — so every such repository
 		// would take a diff carrying no information. The ceiling always refuses something and is always stated.
 		string patternGuards = field.Type == typeof(string) && field.Operators.Any(IsLengthGuarded)
 			? "\n\n`$ilike`, `$sw` and `$contains` values are measured as sent — not trimmed — and "
 				+ (config.MinSearchLength > 1
 					? $"must be between {config.MinSearchLength} and {config.MaxSearchLength} characters"
-					: $"must not exceed {config.MaxSearchLength} characters")
+					: $"must not exceed {config.MaxSearchLength} characters"
+				)
 				+ "; outside that the request returns 400."
 			: string.Empty;
 
 		return new OpenApiParameter {
 			Name = $"{PaginateQueryParams.FilterPrefix}{field.Name}",
 			In = ParameterLocation.Query,
-			Description = $$"""
-			                Filter by `{{field.Name}}`.{{RenderBadge(field.Badge)}}
+			Description = $"""
+			Filter by `{field.Name}`.{RenderBadge(field.Badge)}
 
-			                Value type: `{{value.Name}}`
+			Value type: `{value.Name}`
 
-			                Format: `{{PaginateQueryParams.FilterPrefix}}{{field.Name}}=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`
+			Format: `{PaginateQueryParams.FilterPrefix}{field.Name}=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`
 
-			                At most {{config.MaxFilterValues}} comma-separated values in one criterion, and at most {{config.MaxFilterConditions}} filter criteria across the whole request; beyond either the request returns 400.{{patternGuards}}
+			At most {config.MaxFilterValues} comma-separated values in one criterion, and at most {config.MaxFilterConditions} filter criteria across the whole request; beyond either the request returns 400.{patternGuards}
 
-			                Available operations:
+			Available operations:
 
-			                {{operators}}
+			{operators}
 
-			                Modifiers, available on every field:
+			Modifiers, available on every field:
 
-			                {{Modifiers}}
-			                """,
+			{Modifiers}
+			""",
 			Required = false,
 			Style = ParameterStyle.Form,
 			Explode = true,
@@ -440,13 +454,15 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				}
 			}
 		};
+
 	}
 
 	private static JsonNode[] BuildSortEnum(IPaginateConfig config) {
 		return [.. config.SortableFields
 			.SelectMany(field => new JsonNode[] {
 				JsonValue.Create($"{field.Name}:ASC"), JsonValue.Create($"{field.Name}:DESC")
-			})];
+			})
+		];
 	}
 
 	private static JsonArray? BuildDefaultSort(IPaginateConfig config) {
@@ -457,24 +473,22 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		// node, while Add<T> boxes an arbitrary T into a JsonValue and is [RequiresUnreferencedCode] for it. Same
 		// shape as BuildSortEnum above, and the node is a string either way.
 		return [.. config.DefaultSortBy
-			.Select(JsonNode (sort) => JsonValue.Create($"{sort.Field}:{PaginateExpressionUtils.FormatDirection(sort.Direction)}"))];
+			.Select(JsonNode (sort) => JsonValue.Create($"{sort.Field}:{PaginateExpressionUtils.FormatDirection(sort.Direction)}"))
+		];
 
 	}
 
 	private static string BuildFieldDescription(IEnumerable<PaginateFieldMetadata> fields) {
 		return string.Join('\n', fields
 			.OrderBy(field => field.Name, StringComparer.Ordinal)
-			.Select(field => $"- `{field.Name}` (`{DescribeValueType(field.Type).Name}`){RenderBadge(field.Badge)}"));
+			.Select(field => $"- `{field.Name}` (`{DescribeValueType(field.Type).Name}`){RenderBadge(field.Badge)}")
+		);
 	}
 
 	private static IEnumerable<string> BuildOperatorTokens(PaginateFilterFieldMetadata field) {
-
 		// Ordered for the same reason the example is pinned: a set has no order, so an unordered list would
 		// rewrite this bullet list in a consumer's committed document whenever the backing collection changes.
-		foreach (var filterOperator in field.Operators.Order()) {
-			yield return PaginateFilterParser.GetOperatorToken(filterOperator);
-		}
-
+		return field.Operators.Order().Select(PaginateFilterParser.GetOperatorToken);
 	}
 
 	// One row per documented value type: what the description calls it, an example value its parser accepts, and
@@ -540,6 +554,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	// Without a class it's a neutral code chip. Name and class are HTML-encoded so a stray character can't break
 	// the markup.
 	private static string RenderBadge(PaginateBadge? badge) {
+
 		if (badge is null) return string.Empty;
 
 		string name = WebUtility.HtmlEncode(badge.Name);
@@ -547,6 +562,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		return string.IsNullOrEmpty(badge.CssClass)
 			? $" <code>{name}</code>"
 			: $" <code class=\"{WebUtility.HtmlEncode(badge.CssClass)}\">{name}</code>";
+
 	}
 
 }

@@ -147,7 +147,7 @@ There is therefore always an ordering: a configuration cannot be built without a
 ## `search` and `searchBy`
 
 `search` matches a substring. It is case-insensitive on PostgreSQL with the `.PostgreSql` package (see
-[PostgreSQL](/integrations/postgresql/)); without it the case behaviour is the engine's, and it is **not the
+[PostgreSQL](/integrations/postgresql/)); without it the case behavior is the engine's, and it is **not the
 same on every leg** — the table under [`$ilike`](#ilike-and-contains-on-a-string-—-contains) is the single
 home for that. The term is matched against every configured searchable field and the results OR'd together:
 
@@ -184,7 +184,7 @@ WHERE "p"."Name" LIKE @p ESCAPE '\'
 
 - `%`, `_` and `[` in the term are escaped — hence the `ESCAPE '\'` — so they match literally rather than as
   wildcards. `[` only opens a character range on SQL Server, but escaping it everywhere keeps one pattern
-  correct on the three engines this behaviour is verified against — **PostgreSQL, SQLite and SQL Server**,
+  correct on the three engines this behavior is verified against — **PostgreSQL, SQLite and SQL Server**,
   where an escaped character is read as a literal whether or not it is a wildcard. A provider that instead
   requires the escape character to be followed by `%`, `_` or itself will reject `\[`; if you deploy on one,
   supply a [strategy of your own](/integrations/postgresql/#a-strategy-of-your-own).
@@ -200,7 +200,7 @@ WHERE "p"."Name" LIKE @p ESCAPE '\'
 - `IgnoreSearchByInQueryParam()` in the config makes `searchBy` ignored entirely; search then always spans all
   searchable fields.
 
-**Search and filters are AND'ed**, with the search block parenthesised as a unit:
+**Search and filters are AND'ed**, with the search block parenthesized as a unit:
 
 ```http
 GET /products?filter.status=$eq:Active&search=widget
@@ -273,7 +273,7 @@ WHERE "p"."Status" = @p
 #### `$in` — one of
 
 Comma-separated. On SQLite the list arrives as a single JSON parameter rather than an inlined `IN (…)`, which
-is exactly the point of parameterising: one cached plan, whatever the list contains.
+is exactly the point of parameterizing: one cached plan, whatever the list contains.
 
 ```http
 ?filter.status=$in:Active,Draft
@@ -341,7 +341,7 @@ it, and the answer differs by leg.** Measured on `Widget` and `WIDGET` with `?fi
 This divergence is deliberate and is the price of a portable `LIKE`: the in-memory leg has no column and no
 collation to consult, so it cannot follow one. Do not develop case-sensitivity expectations against the
 in-memory leg — [`recipes/testing/`](/recipes/testing/) explains why SQLite in-memory is the leg to assert
-pattern behaviour on, and even there the ASCII-only limit above applies.
+pattern behavior on, and even there the ASCII-only limit above applies.
 
 #### `$contains` on a collection — set containment
 
@@ -520,7 +520,7 @@ Resolution order is **registry → built-ins → `IParsable<TSelf>` → `400`**.
 overrides a built-in one, which is what makes the table above a default rather than a ceiling.
 
 An empty value (`?filter.price=$eq:`) is a `400` on every non-`string` field, nullable or not: it used to convert
-to `null` on a nullable one, which is `$null` spelled implicitly and without the field's allow-list being asked
+to `null` on a nullable one, which is `$null` spelled implicitly and without the field's allowlist being asked
 about it. `$null` is the way to match rows with no value, and the message says so. An empty value on a `string`
 field is unchanged — there it is a value, not an absence.
 
@@ -540,7 +540,7 @@ GET /products?page=1&limit=3&sortBy=status:ASC&sortBy=rank:DESC
               &search=wid&filter.status=$eq:Active&filter.rank=$btw:20,50
 ```
 
-becomes one count and one page, both fully parameterised:
+becomes one count and one page, both fully parameterized:
 
 ```sql
 SELECT COUNT(*)

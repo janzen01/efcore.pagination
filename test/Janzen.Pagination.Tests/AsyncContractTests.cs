@@ -39,12 +39,9 @@ public sealed class AsyncContractTests {
 
 	[Fact]
 	public async Task A_request_error_is_still_delivered_through_the_task() {
-
 		// The mirror of the test above: moving the argument guards must not drag the request validation with
 		// them. An invalid page stays a faulted task, which is what the ASP.NET Core filters translate.
-		await Assert.ThrowsAsync<PaginateQueryException>(
-			() => Source().PaginateAsync<Product, ProductDto>(new PaginateQuery { Page = 0 }, TestData.Config, null, TestContext.Current.CancellationToken));
-
+		await Assert.ThrowsAsync<PaginateQueryException>(() => Source().PaginateAsync<Product, ProductDto>(new PaginateQuery { Page = 0 }, TestData.Config, null, TestContext.Current.CancellationToken));
 	}
 
 	/// <summary>
@@ -58,11 +55,9 @@ public sealed class AsyncContractTests {
 
 		var source = new NonEfAsyncQueryable<Product>(Source());
 
-		var bare = await Assert.ThrowsAsync<NotSupportedException>(
-			() => source.PaginateAsync<Product, ProductDto>(new PaginateQuery(), TestData.Config, null, TestContext.Current.CancellationToken));
+		var bare = await Assert.ThrowsAsync<NotSupportedException>(() => source.PaginateAsync<Product, ProductDto>(new PaginateQuery(), TestData.Config, null, TestContext.Current.CancellationToken));
 
-		var filtered = await Assert.ThrowsAsync<NotSupportedException>(
-			() => source.PaginateAsync<Product, ProductDto>(Query.Filter("rank", "$eq:30"), TestData.Config, null, TestContext.Current.CancellationToken));
+		var filtered = await Assert.ThrowsAsync<NotSupportedException>(() => source.PaginateAsync<Product, ProductDto>(Query.Filter("rank", "$eq:30"), TestData.Config, null, TestContext.Current.CancellationToken));
 
 		foreach (var message in new[] { bare.Message, filtered.Message }) {
 			Assert.Contains("Entity Framework Core", message, StringComparison.Ordinal);
@@ -91,7 +86,7 @@ public sealed class AsyncContractTests {
 	///     A queryable whose provider satisfies <see cref="IAsyncQueryProvider" /> without being Entity Framework
 	///     Core's — the shape a queryable-backed mocking library hands a consumer's unit test. Execution is
 	///     delegated to the wrapped in-memory queryable; the async path throws, because nothing in the engine may
-	///     reach it once the provider has been recognised as foreign.
+	///     reach it once the provider has been recognized as foreign.
 	/// </summary>
 	private sealed class NonEfAsyncQueryable<T>(IQueryable<T> inner) : IQueryable<T>, IAsyncQueryProvider {
 
@@ -131,9 +126,9 @@ public sealed class AsyncContractTests {
 /// </summary>
 public sealed class EfInternalCouplingTests : IClassFixture<SqliteFixture> {
 
-	private readonly SqliteFixture fixture;
+	private readonly SqliteFixture _fixture;
 
-	public EfInternalCouplingTests(SqliteFixture fixture) { this.fixture = fixture; }
+	public EfInternalCouplingTests(SqliteFixture fixture) { _fixture = fixture; }
 
 	[Fact]
 	public async Task The_ef_provider_type_the_engine_probes_for_still_exists_and_still_matches() {
@@ -143,12 +138,15 @@ public sealed class EfInternalCouplingTests : IClassFixture<SqliteFixture> {
 
 		Assert.True(probed is not null,
 			"EntityQueryProvider has moved or been renamed; PaginateQueryableExtensions.UseDatabaseFunctions no longer "
-			+ "recognises EF Core and every query would take the in-memory leg.");
+			+ "recognizes EF Core and every query would take the in-memory leg."
+		);
 
-		await using var context = this.fixture.CreateContext();
+		await using var context = _fixture.CreateContext();
 
-		Assert.True(probed!.IsInstanceOfType(SqliteFixture.Products(context).Provider),
-			"an EF Core queryable's provider is no longer an EntityQueryProvider.");
+		Assert.True(
+			probed.IsInstanceOfType(SqliteFixture.Products(context).Provider),
+			"an EF Core queryable's provider is no longer an EntityQueryProvider."
+		);
 
 	}
 

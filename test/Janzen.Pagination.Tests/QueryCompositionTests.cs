@@ -22,7 +22,8 @@ public sealed class QueryCompositionTests(SqliteFixture fixture) : IClassFixture
 		.WithTieBreaker(p => p.Id)
 		.Searchable("name", p => p.Name)
 		.Searchable("description", p => p.Description)
-		.Searchable("categoryName", p => p.Category!.Name));
+		.Searchable("categoryName", p => p.Category!.Name)
+	);
 
 	private static int Occurrences(string text, string token) {
 		int count = 0;
@@ -112,15 +113,16 @@ public sealed class QueryCompositionTests(SqliteFixture fixture) : IClassFixture
 	public void Contains_over_a_collection_across_a_navigation_still_matches_in_memory() {
 
 		List<Holder> holders = [
-			new Holder { Id = 1, Bag = new Bag { Tags = ["red", "small"] } },
-			new Holder { Id = 2, Bag = new Bag { Tags = ["blue"] } },
-			new Holder { Id = 3, Bag = null }
+			new() { Id = 1, Bag = new Bag { Tags = ["red", "small"] } },
+			new() { Id = 2, Bag = new Bag { Tags = ["blue"] } },
+			new() { Id = 3, Bag = null }
 		];
 
 		var config = PaginateConfig<Holder>.Create(b => b
 			.WithLimits(50, 50)
 			.WithTieBreaker(holder => holder.Id)
-			.Filterable("tags", holder => holder.Bag!.Tags, PaginateFilterOperator.Contains));
+			.Filterable("tags", holder => holder.Bag!.Tags, PaginateFilterOperator.Contains)
+		);
 
 		// The in-memory leg rewrites the selector into its null-safe form before the element type is resolved, so
 		// a precomputed element type has to stay in step with the expression actually built — and the row with no
@@ -160,7 +162,7 @@ public sealed class QueryCompositionTests(SqliteFixture fixture) : IClassFixture
 
 		public IEnumerator<T> GetEnumerator() { return inner.GetEnumerator(); }
 
-		IEnumerator IEnumerable.GetEnumerator() { return this.GetEnumerator(); }
+		IEnumerator IEnumerable.GetEnumerator() { return GetEnumerator(); }
 
 		public IQueryable CreateQuery(Expression expression) { throw new NotSupportedException("This provider composes nothing."); }
 

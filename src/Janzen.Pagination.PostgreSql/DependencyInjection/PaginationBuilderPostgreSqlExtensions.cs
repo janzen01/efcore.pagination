@@ -12,11 +12,9 @@ public static class PaginationBuilderPostgreSqlExtensions {
 	///     queries (case-insensitive search and pattern filtering). Call once inside <c>AddPagination(...)</c>.
 	/// </summary>
 	public static IPaginationBuilder UsePostgreSql(this IPaginationBuilder builder) {
-
 		ArgumentNullException.ThrowIfNull(builder);
 
 		return builder.UseLikeStrategy(new NpgsqlLikeStrategy());
-
 	}
 
 }

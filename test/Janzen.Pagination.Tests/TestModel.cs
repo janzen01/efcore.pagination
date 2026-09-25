@@ -1,5 +1,3 @@
-using Janzen.Pagination.EntityFrameworkCore.Configuration;
-using Janzen.Pagination.EntityFrameworkCore.Model;
 
 namespace Janzen.Pagination.Tests;
 
@@ -120,7 +118,7 @@ public static class TestData {
 		var food = new Category { Id = 3, Name = "Food" };
 
 		List<Product> products = [
-			new Product {
+			new() {
 				Id = 1, Name = "Widget", Description = "a basic widget", Status = ProductStatus.Active,
 				Rank = 10, Price = 9.99m, CreatedAt = Epoch.AddDays(1), Tags = ["red", "small"],
 				CategoryId = 1, Category = electronics,
@@ -130,27 +128,27 @@ public static class TestData {
 					new Review { Id = 3, ProductId = 1, Reviewer = "cid", Rating = 4 }
 				]
 			},
-			new Product {
+			new() {
 				Id = 2, Name = "Wid-gadget", Description = null, Status = ProductStatus.Active,
 				Rank = 20, Price = 19.99m, CreatedAt = Epoch.AddDays(2), Tags = ["red", "large"],
 				CategoryId = 1, Category = electronics,
 				Reviews = [new Review { Id = 4, ProductId = 2, Reviewer = "ann", Rating = 2 }]
 			},
-			new Product {
+			new() {
 				Id = 3, Name = "Gizmo", Description = "shiny gizmo", Status = ProductStatus.Draft,
 				Rank = 30, Price = 29.99m, CreatedAt = Epoch.AddDays(3), Tags = ["blue"],
 				CategoryId = 2, Category = toys
 			},
-			new Product {
+			new() {
 				Id = 4, Name = "50% off bundle", Description = "discounted", Status = ProductStatus.Active,
 				Rank = 40, Price = 5.00m, CreatedAt = Epoch.AddDays(4), Tags = [],
 				CategoryId = 2, Category = toys
 			},
-			new Product {
+			new() {
 				Id = 5, Name = "a_b_c", Description = null, Status = ProductStatus.Draft,
 				Rank = 50, Price = 1.00m, CreatedAt = Epoch.AddDays(5), Tags = ["blue", "small"]
 			},
-			new Product {
+			new() {
 				// The colon in the name is load-bearing: it proves the filter parser stops at the operator
 				// token and takes the rest of the criterion verbatim.
 				Id = 6, Name = "Doohickey: legacy", Description = "old stock", Status = ProductStatus.Discontinued,
@@ -158,12 +156,12 @@ public static class TestData {
 				DiscontinuedAt = Epoch.AddDays(200),
 				CategoryId = 1, Category = electronics
 			},
-			new Product {
+			new() {
 				Id = 7, Name = "APPLE", Description = "uppercase", Status = ProductStatus.Active,
 				Rank = 70, Price = 3.00m, CreatedAt = Epoch.AddDays(7), Tags = ["green"],
 				CategoryId = 3, Category = food
 			},
-			new Product {
+			new() {
 				Id = 8, Name = "apple pie", Description = "lowercase", Status = ProductStatus.Active,
 				Rank = 80, Price = 4.00m, CreatedAt = Epoch.AddDays(8), Tags = ["green"],
 				CategoryId = 3, Category = food
@@ -171,6 +169,7 @@ public static class TestData {
 		];
 
 		foreach (var product in products) {
+
 			product.ExternalId = ExternalId(product.Id);
 			product.IsFeatured = product.Id is 1 or 7;
 			// Derived from the id so every assertion over these can be written as a literal: ids 1..8 give
@@ -180,6 +179,7 @@ public static class TestData {
 			product.Warranty = TimeSpan.FromHours(product.Id);
 			// Only the discontinued row is retired, mirroring DiscontinuedAt — everything else stays null.
 			product.RetiredOn = product.Id == 6 ? new DateOnly(2026, 6, 30) : null;
+
 		}
 
 		return products;
@@ -202,37 +202,72 @@ public static class TestData {
 		.WithTieBreaker(p => p.Id)
 		.Searchable("name", p => p.Name)
 		.Searchable("description", p => p.Description)
-		.Filterable("id", p => p.Id,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.Between,
-			PaginateFilterOperator.GreaterThan, PaginateFilterOperator.GreaterThanOrEqual,
-			PaginateFilterOperator.LessThan, PaginateFilterOperator.LessThanOrEqual)
-		.Filterable("name", p => p.Name,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.Null,
-			PaginateFilterOperator.StartsWith, PaginateFilterOperator.ILike, PaginateFilterOperator.Contains)
-		.Filterable("description", p => p.Description,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.Null, PaginateFilterOperator.ILike)
+		.Filterable(
+			"id",
+			p => p.Id,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.In,
+			PaginateFilterOperator.Between,
+			PaginateFilterOperator.GreaterThan,
+			PaginateFilterOperator.GreaterThanOrEqual,
+			PaginateFilterOperator.LessThan,
+			PaginateFilterOperator.LessThanOrEqual
+		)
+		.Filterable(
+			"name",
+			p => p.Name,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.In,
+			PaginateFilterOperator.Null,
+			PaginateFilterOperator.StartsWith,
+			PaginateFilterOperator.ILike,
+			PaginateFilterOperator.Contains
+		)
+		.Filterable("description", p => p.Description, PaginateFilterOperator.Eq, PaginateFilterOperator.Null, PaginateFilterOperator.ILike)
 		.Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
 		// Null is allowed here on purpose: rank is a non-nullable value type, which is the case where
 		// $null can never match and $not:$null always does.
-		.Filterable("rank", p => p.Rank,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.Between,
-			PaginateFilterOperator.GreaterThan, PaginateFilterOperator.GreaterThanOrEqual,
-			PaginateFilterOperator.LessThan, PaginateFilterOperator.LessThanOrEqual,
-			PaginateFilterOperator.Null)
+		.Filterable(
+			"rank",
+			p => p.Rank,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.In,
+			PaginateFilterOperator.Between,
+			PaginateFilterOperator.GreaterThan,
+			PaginateFilterOperator.GreaterThanOrEqual,
+			PaginateFilterOperator.LessThan,
+			PaginateFilterOperator.LessThanOrEqual,
+			PaginateFilterOperator.Null
+		)
 		.Filterable("price", p => p.Price, PaginateFilterOperator.Eq)
 		.Filterable("isFeatured", p => p.IsFeatured, PaginateFilterOperator.Eq)
 		.Filterable("externalId", p => p.ExternalId, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
-		.Filterable("createdAt", p => p.CreatedAt,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.Between,
-			PaginateFilterOperator.GreaterThan, PaginateFilterOperator.LessThan)
-		.Filterable("discontinuedAt", p => p.DiscontinuedAt,
-			PaginateFilterOperator.Null, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan)
-		.Filterable("categoryName", p => p.Category!.Name,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.ILike)
+		.Filterable(
+			"createdAt",
+			p => p.CreatedAt,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.Between,
+			PaginateFilterOperator.GreaterThan,
+			PaginateFilterOperator.LessThan
+		)
+		.Filterable(
+			"discontinuedAt",
+			p => p.DiscontinuedAt,
+			PaginateFilterOperator.Null,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.GreaterThan
+		)
+		.Filterable("categoryName", p => p.Category!.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.ILike)
 		.Filterable("tags", p => p.Tags, PaginateFilterOperator.Contains)
-		.FilterableMany("reviewer", p => p.Reviews, r => r.Reviewer,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.ILike)
-		.FilterableMany("rating", p => p.Reviews, r => r.Rating,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual));
+		.FilterableMany(
+			"reviewer",
+			p => p.Reviews,
+			r => r.Reviewer,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.In,
+			PaginateFilterOperator.ILike
+		)
+		.FilterableMany("rating", p => p.Reviews, r => r.Rating, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual)
+	);
 
 }

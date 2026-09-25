@@ -15,7 +15,7 @@ namespace Janzen.Pagination.EntityFrameworkCore;
 
 /// <summary>
 ///     The four pagination entry points on <c>IQueryable&lt;TEntity&gt;</c>: <c>PaginateAsync</c>,
-///     <c>PaginateSelectAsync</c>, <c>PaginateSelectMapAsync</c> and <c>PaginateMapAsync</c>, each with an optional
+///     <c>PaginateSelectAsync</c>, <c>PaginateSelectMapAsync</c>, and <c>PaginateMapAsync</c>, each with an optional
 ///     <see cref="PaginateLinkContext" /> — the ASP.NET Core package mirrors the same four names with an
 ///     <c>HttpRequest</c> in its place. One per projection strategy, deliberately not overloads of one name, so the
 ///     call site names the strategy it uses: <c>Select</c> produces the shape in SQL, <c>Map</c> in memory over the
@@ -223,11 +223,12 @@ public static class PaginateQueryableExtensions {
 			// config precomputed that filter at Build(), so this arm is a read rather than a per-request pass.
 			sorts = config.GetEnabledDefaultSorts();
 		} else {
+
 			if (request.SortBy.Count > config.MaxSortFields) {
 				throw new PaginateQueryException($"Too many sort fields; at most {config.MaxSortFields} are allowed.") { Code = PaginateQueryError.TooManySortFields };
 			}
 
-			sorts = request.SortBy.Select(PaginateExpressionUtils.ParseSort).ToArray();
+			sorts = [.. request.SortBy.Select(PaginateExpressionUtils.ParseSort)];
 
 			// Symmetric with searchBy, whose published reason is "so a client cannot ship a typo that silently
 			// does nothing". A repeated field used to be accepted: the second key ordered nothing, consumed a
@@ -239,18 +240,21 @@ public static class PaginateQueryableExtensions {
 					throw new PaginateQueryException($"Sort field '{sort.Field}' is specified more than once.") { Code = PaginateQueryError.DuplicateSortField };
 				}
 			}
+
 		}
 
 		List<(LambdaExpression Selector, bool Descending)> keys = [];
 		List<string> tokens = [];
 
 		foreach (var sort in sorts) {
+
 			if (!config.TryGetSortableField(sort.Field, out var field)) throw new PaginateQueryException($"Sort for field '{sort.Field}' is not configured.") { Code = PaginateQueryError.SortFieldNotConfigured };
 
 			keys.Add((field.Selector, sort.Direction == PaginateSortDirection.Desc));
 			// The configured name, not the requested spelling: field lookup is case-insensitive, so echoing the
 			// request back would report 'COLOR:DESC' for a field the rest of the contract calls 'color'.
 			tokens.Add($"{field.Name}:{PaginateExpressionUtils.FormatDirection(sort.Direction)}");
+
 		}
 
 		// Appended last, so offset paging is deterministic even when the primary sort is absent or non-unique
@@ -284,6 +288,7 @@ public static class PaginateQueryableExtensions {
 		if (provider is Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryProvider) return true;
 
 		if (provider is IAsyncQueryProvider) {
+
 			// NOT a PaginateQueryException: that type is the 400 contract, and the ASP.NET Core filters turn it
 			// into a ProblemDetails whose `detail` is the message below. Nothing a caller sent can produce this —
 			// it fires only for a queryable-shaped double, which is a wiring mistake on the server — so a 400
@@ -295,6 +300,7 @@ public static class PaginateQueryableExtensions {
 				+ "the query nor evaluate it in memory. Test against a real EF Core provider, SQLite in-memory, rather than a "
 				+ "queryable-shaped double."
 			);
+
 		}
 
 		return false;
@@ -327,7 +333,7 @@ public static class PaginateQueryableExtensions {
 
 	/// <summary>
 	///     The shared front half of every path: validate, resolve the effective limit, then apply filters and search.
-	///     <c>PaginateAsync</c>, <c>ApplyPaginateFilters</c> and <c>ApplyPagination</c> all enter here, which is what
+	///     <c>PaginateAsync</c>, <c>ApplyPaginateFilters</c>, and <c>ApplyPagination</c> all enter here, which is what
 	///     keeps "what the composer shows" and "what the engine runs" from drifting apart. The sort is resolved by
 	///     each caller instead of here, because only <c>ApplyPaginateFilters</c> stops short of applying it — both
 	///     composers validate <c>sortBy</c>, only one orders by it.
@@ -342,7 +348,7 @@ public static class PaginateQueryableExtensions {
 
 		// Kept here as well as on the four entry points: the two composers are synchronous and enter through this
 		// method directly, so this is where their argument validation happens. For the async entry points these
-		// are defence in depth -- the eager copy up there is the one that runs.
+		// are defense in depth -- the eager copy up there is the one that runs.
 		ArgumentNullException.ThrowIfNull(source);
 		ArgumentNullException.ThrowIfNull(request);
 		ArgumentNullException.ThrowIfNull(config);
@@ -441,6 +447,7 @@ public static class PaginateQueryableExtensions {
 		// same; only the printed SQL differs from the request. Widen if a provider ever stores that many rows.
 		long skip = (long)(page - 1) * limit;
 		return query.Skip((int)Math.Min(skip, int.MaxValue)).Take(limit);
+
 	}
 
 	[RequiresUnreferencedCode(AotIncompatibleMessage)]
@@ -506,7 +513,8 @@ public static class PaginateQueryableExtensions {
 		/// </summary>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateAsync<TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PaginateAsync<TResult>(
+			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			PaginateLinkContext? linkContext = null,
 			CancellationToken ct = default
@@ -529,7 +537,7 @@ public static class PaginateQueryableExtensions {
 		/// <summary>
 		///     Paginates and projects each row to <typeparamref name="TResult" /> using the supplied
 		///     <paramref name="selector" /> as the query's <b>terminal</b> projection. Use for shapes the automatic
-		///     builder cannot generate — aggregates (e.g. <c>Count</c>) and one-to-many <b>sub-collection</b>
+		///     builder cannot generate — aggregates (e.g., <c>Count</c>) and one-to-many <b>sub-collection</b>
 		///     projections.
 		/// </summary>
 		/// <remarks>
@@ -543,7 +551,8 @@ public static class PaginateQueryableExtensions {
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateSelectAsync<TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PaginateSelectAsync<TResult>(
+			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Expression<Func<TEntity, TResult>> selector,
 			PaginateLinkContext? linkContext = null,
@@ -563,7 +572,7 @@ public static class PaginateQueryableExtensions {
 		///     Paginates, SQL-projects each row to an intermediate <typeparamref name="TProjection" /> via
 		///     <paramref name="selector" />, then applies <paramref name="postMap" /> in memory over the page to
 		///     produce <typeparamref name="TResult" />. Use when most of the row is SQL-translatable but a field or two
-		///     needs a computation EF cannot translate (e.g. a weighted aggregate over a sub-collection with a guard or
+		///     needs a computation EF cannot translate (e.g., a weighted aggregate over a sub-collection with a guard or
 		///     rounding): project the flat fields plus the raw ingredients, then finish them in <paramref name="postMap" />.
 		/// </summary>
 		/// <remarks>
@@ -574,7 +583,8 @@ public static class PaginateQueryableExtensions {
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateSelectMapAsync<TProjection, TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PaginateSelectMapAsync<TProjection, TResult>(
+			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Expression<Func<TEntity, TProjection>> selector,
 			Func<TProjection, TResult> postMap,
@@ -588,9 +598,13 @@ public static class PaginateQueryableExtensions {
 			ArgumentNullException.ThrowIfNull(selector);
 			ArgumentNullException.ThrowIfNull(postMap);
 
-			return source.PaginateCoreAsync(request, config,
+			return source.PaginateCoreAsync(
+				request,
+				config,
 				async Task<IReadOnlyList<TResult>> (query, token) => (await MaterializeAsync(query.Select(selector), token).ConfigureAwait(false)).Select(postMap).ToList(),
-				linkContext, ct);
+				linkContext,
+				ct
+			);
 
 		}
 
@@ -611,7 +625,8 @@ public static class PaginateQueryableExtensions {
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateMapAsync<TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PaginateMapAsync<TResult>(
+			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Func<TEntity, TResult> projector,
 			PaginateLinkContext? linkContext = null,
@@ -644,7 +659,7 @@ public static class PaginateQueryableExtensions {
 		///     validate identically. The result's <see cref="PaginateComposedQuery{TEntity}.SortBy" /> reports the
 		///     ordering that <i>would</i> apply, even though this query carries none.
 		///     What the guards do <b>not</b> do here is bound the read: <see cref="PaginateComposedQuery{TEntity}.Query" />
-		///     is the whole match set, so <c>MaxLimit</c>, <c>MaxOffset</c> and the <c>AllowUnlimited</c> row ceiling say
+		///     is the whole match set, so <c>MaxLimit</c>, <c>MaxOffset</c>, and the <c>AllowUnlimited</c> row ceiling say
 		///     nothing about how many rows enumerating it returns. Bounding that — a <c>Take</c>, a streamed export, a
 		///     background job — is the caller's, the same way the ceiling on <c>ApplyPagination</c>'s <c>limit=-1</c> is.
 		/// </remarks>
@@ -668,14 +683,14 @@ public static class PaginateQueryableExtensions {
 		///     Composes the full page query — filters, search, ordering (tie-breaker included) and
 		///     <c>Skip</c>/<c>Take</c> — and hands it back <b>unexecuted</b>, together with the request state the
 		///     engine resolved for it. This is the handle to call <c>ToQueryString()</c> on: the SQL it prints is the
-		///     filtering, ordering and paging <c>PaginateAsync</c> would run for the same request, because both compose
+		///     filtering, ordering, and paging <c>PaginateAsync</c> would run for the same request, because both compose
 		///     through one code path. The projection is not applied, so the <c>SELECT</c> list is the entity's.
 		/// </summary>
 		/// <remarks>
 		///     No count is issued and no projection is added, and unlike <c>PaginateAsync</c> there is no
 		///     short-circuit for a page past the last row — the composer describes what would run, it does not
 		///     optimize it away. Validation is the complete one, <c>sortBy</c> included. The returned
-		///     <see cref="PaginateComposedQuery{TEntity}" /> carries the effective limit, ordering and search fields
+		///     <see cref="PaginateComposedQuery{TEntity}" /> carries the effective limit, ordering, and search fields
 		///     for callers assembling their own envelope.
 		///     One consequence for <c>limit=-1</c>: the composed query is bounded at <c>maxRows + 1</c>, which is
 		///     what <c>PaginateAsync</c> fetches so it can tell "at the ceiling" from "over it" — and the check
@@ -705,7 +720,8 @@ public static class PaginateQueryableExtensions {
 
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		private async Task<PaginatedResponse<TResult>> PaginateCoreAsync<TResult>(PaginateQuery request,
+		private async Task<PaginatedResponse<TResult>> PaginateCoreAsync<TResult>(
+			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Func<IQueryable<TEntity>, CancellationToken, Task<IReadOnlyList<TResult>>> project,
 			PaginateLinkContext? linkContext,
@@ -713,7 +729,7 @@ public static class PaginateQueryableExtensions {
 		) {
 
 			// Before the composer, which is what makes cancellation win over request validation: an already
-			// cancelled caller was being answered with a 400 for a request nobody is left to read. Every other
+			// canceled caller was being answered with a 400 for a request nobody is left to read. Every other
 			// .NET data API answers the token first.
 			ct.ThrowIfCancellationRequested();
 
@@ -775,7 +791,7 @@ public static class PaginateQueryableExtensions {
 				SearchBy        = searchBy,
 				Filter          = request.Filters,
 				HasPreviousPage = page > PaginateQuery.DefaultPage,
-				HasNextPage     = page < navigablePages,
+				HasNextPage     = page < navigablePages
 			};
 
 			var links = PaginateLinkBuilder.Build(linkContext, page, totalPages, navigablePages);

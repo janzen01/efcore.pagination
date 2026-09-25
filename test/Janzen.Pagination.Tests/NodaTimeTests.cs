@@ -59,16 +59,22 @@ public sealed class NodaTimeTests {
 		.Sortable("occurredAt", e => e.OccurredAt)
 		.DefaultSortBy("occurredAt")
 		.WithTieBreaker(e => e.Id)
-		.Filterable("occurredAt", e => e.OccurredAt,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.Between,
-			PaginateFilterOperator.GreaterThan, PaginateFilterOperator.LessThan)
+		.Filterable(
+			"occurredAt",
+			e => e.OccurredAt,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.Between,
+			PaginateFilterOperator.GreaterThan,
+			PaginateFilterOperator.LessThan
+		)
 		.Filterable("archivedAt", e => e.ArchivedAt, PaginateFilterOperator.Null, PaginateFilterOperator.Eq)
 		.Filterable("day", e => e.Day, PaginateFilterOperator.Eq)
 		.Filterable("dayTime", e => e.DayTime, PaginateFilterOperator.Eq)
 		.Filterable("opensAt", e => e.OpensAt, PaginateFilterOperator.Eq)
 		.Filterable("scheduled", e => e.Scheduled, PaginateFilterOperator.Eq)
 		.Filterable("length", e => e.Length, PaginateFilterOperator.Eq)
-		.Filterable("period", e => e.Period, PaginateFilterOperator.Eq));
+		.Filterable("period", e => e.Period, PaginateFilterOperator.Eq)
+	);
 
 	static NodaTimeTests() { PaginateNodaTime.Register(); }
 
@@ -165,18 +171,14 @@ public sealed class NodaTimeTests {
 
 	[Fact]
 	public async Task An_instant_also_accepts_an_offset_form() {
-
 		// 12:00+02:00 is the same instant as 10:00Z — unambiguous, and a 400 before 10.0.3.
 		Assert.Equal([2], (await FilterAsync("occurredAt", "$eq:2026-08-02T12:00:00+02:00")).Items.Select(item => item.Id));
-
 	}
 
 	[Fact]
 	public async Task An_instant_still_refuses_a_bare_date() {
-
 		// Accepting it would silently mean midnight; explicit day semantics are a separate feature.
 		Assert.Equal("Value '2026-08-02' is not a valid instant.", await RejectsAsync("occurredAt", "$eq:2026-08-02"));
-
 	}
 
 	[Theory]
@@ -204,12 +206,10 @@ public sealed class NodaTimeTests {
 	/// </summary>
 	[Fact]
 	public async Task A_rejected_nodatime_value_is_echoed_through_the_guard() {
-
 		string message = await RejectsAsync("length", "$eq:" + new string('x', 400));
 
 		Assert.DoesNotContain(new string('x', 200), message, StringComparison.Ordinal);
 		Assert.Contains("is not a valid duration", message, StringComparison.Ordinal);
-
 	}
 
 	/// <summary>
@@ -223,11 +223,10 @@ public sealed class NodaTimeTests {
 	[InlineData("P1Y")]
 	[InlineData("P1Y2M")]
 	public async Task A_duration_refuses_calendar_designators(string value) {
-
 		Assert.Equal(
 			$"Value '{value}' is not a valid duration: a duration in years or months has no fixed length.",
-			await RejectsAsync("length", $"$eq:{value}"));
-
+			await RejectsAsync("length", $"$eq:{value}")
+		);
 	}
 
 	/// <summary>
@@ -237,11 +236,9 @@ public sealed class NodaTimeTests {
 	/// </summary>
 	[Fact]
 	public async Task A_malformed_duration_keeps_its_cause() {
-
 		var exception = await Assert.ThrowsAsync<PaginateQueryException>(() => FilterAsync("length", "$eq:nope"));
 
 		Assert.IsType<FormatException>(exception.InnerException);
-
 	}
 
 	[Fact]
@@ -277,31 +274,25 @@ public sealed class NodaTimeTests {
 
 	[Fact]
 	public async Task A_non_nullable_source_projects_onto_a_nullable_target() {
-
 		var first = (await PageAsync<EventWidenedDto>(new PaginateQuery { Limit = 1 })).Items.Single();
 
 		Assert.Equal(new DateTimeOffset(2026, 8, 1, 10, 0, 0, TimeSpan.Zero), first.OccurredAt);
-
 	}
 
 	[Fact]
 	public async Task A_nullable_source_keeps_its_null_through_the_projection() {
-
 		var items = (await PageAsync<EventNullableDto>(new PaginateQuery())).Items;
 
 		Assert.Null(items.Single(item => item.Id == 1).ArchivedAt);
 		Assert.Equal(new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero), items.Single(item => item.Id == 2).ArchivedAt);
-
 	}
 
 	[Fact]
 	public async Task A_nullable_source_onto_a_non_nullable_target_is_refused_with_a_clear_message() {
-
 		var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => PageAsync<EventNarrowedDto>(new PaginateQuery()));
 
 		// The engine renders an open generic by its CLR name, so 'Nullable`1' is what a reader sees here.
 		Assert.Equal("Cannot automatically project 'Event.ArchivedAt' from 'Nullable`1' to 'DateTimeOffset'.", exception.Message);
-
 	}
 
 	/// <summary>
@@ -312,12 +303,10 @@ public sealed class NodaTimeTests {
 	/// </summary>
 	[Fact]
 	public void An_unorderable_registered_type_is_refused_by_the_shorthand_rather_than_narrowed() {
-
 		var exception = Assert.Throws<ArgumentException>(PaginateFilterOperators.For<OffsetDateTime>);
 
 		Assert.StartsWith("Filter operators cannot be derived for type 'OffsetDateTime'.", exception.Message);
 		Assert.Contains(PaginateFilterOperator.Between, PaginateFilterOperators.For<Instant>());
-
 	}
 
 	/// <summary>
@@ -329,22 +318,18 @@ public sealed class NodaTimeTests {
 	/// </summary>
 	[Fact]
 	public void The_registration_guard_is_volatile() {
-
 		var field = typeof(PaginateNodaTime).GetField("_registered", BindingFlags.NonPublic | BindingFlags.Static);
 
 		Assert.NotNull(field);
 		Assert.Contains(typeof(IsVolatile), field.GetRequiredCustomModifiers());
-
 	}
 
 	[Fact]
 	public async Task Registering_twice_changes_nothing() {
-
 		PaginateNodaTime.Register();
 		PaginateNodaTime.Register();
 
 		Assert.Equal([2], (await FilterAsync("day", "$eq:2026-08-02")).Items.Select(item => item.Id));
-
 	}
 
 }

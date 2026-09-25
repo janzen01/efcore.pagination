@@ -71,11 +71,9 @@ internal static class PaginateProjectionBuilder {
 
 		// Type.GetConstructors promises no order, so taking the first would make the columns the API returns a
 		// function of the order the constructors happen to be declared in.
-		if (widest.Length > 1) {
-			throw new InvalidOperationException($"Type '{targetType.Name}' exposes {widest.Length} public constructors with {arity} parameters; automatic projection needs exactly one.");
-		}
-
-		return widest[0];
+		return widest.Length > 1
+			? throw new InvalidOperationException($"Type '{targetType.Name}' exposes {widest.Length} public constructors with {arity} parameters; automatic projection needs exactly one.")
+			: widest[0];
 
 	}
 
@@ -85,7 +83,7 @@ internal static class PaginateProjectionBuilder {
 
 		if (CanAssign(sourceValue.Type, targetType)) return ConvertIfNeeded(sourceValue, targetType);
 
-		// Conversions contributed by add-on packages (e.g. NodaTime's Instant -> DateTimeOffset via PaginateTypeSupport).
+		// Conversions contributed by add-on packages (e.g., NodaTime's Instant -> DateTimeOffset via PaginateTypeSupport).
 		var conversion = PaginateTypeSupport.TryBuildProjectionConversion(sourceValue, targetType);
 		if (conversion is not null) return conversion;
 
@@ -99,7 +97,7 @@ internal static class PaginateProjectionBuilder {
 
 		// The guard follows the TARGET parameter rather than the source annotation. EF scaffolding's own default
 		// for an optional relationship is a nullable FK behind a non-nullable navigation, so the CLR annotation
-		// claims "never null" for a row the database is free to leave without a parent -- and the unguarded
+		// claims "never null" for a row the database is free to leave without a parent. The unguarded
 		// projection then threw on the first such row, with a different exception type on each leg. The engine
 		// cannot consult EF's model (the projection is cached per (TEntity, TResult), not per DbContext model),
 		// so the target's own nullability is the only signal available.
@@ -111,23 +109,13 @@ internal static class PaginateProjectionBuilder {
 			);
 		}
 
-		if (!CanBeNull(sourceValue.Type, sourceMember)) return convertedNestedValue;
-
-		throw new InvalidOperationException($"Cannot automatically project nullable source '{path}' into non-nullable target parameter '{parameter.Name}'.");
+		return !CanBeNull(sourceValue.Type, sourceMember)
+			? convertedNestedValue
+			: throw new InvalidOperationException($"Cannot automatically project nullable source '{path}' into non-nullable target parameter '{parameter.Name}'.");
 
 	}
 
 	private static MemberInfo FindSourceMember(Type sourceType, string name, string path) {
-
-		// Properties and fields are searched alike, so the tuple they produce is named once, here, and both
-		// sides of the Concat get their element type from this signature. Naming it once is also what keeps
-		// the concatenation legal at all: ValueTuple is a struct, so IEnumerable<T> covariance cannot bridge
-		// two sequences that differ only in the member type.
-		IEnumerable<(MemberInfo Member, int Depth, int Kind)> Matching(IEnumerable<MemberInfo> members, int kind) {
-			return members
-				.Where(member => string.Equals(member.Name, name, StringComparison.OrdinalIgnoreCase))
-				.Select(member => (member, DeclarationDepth(sourceType, member), kind));
-		}
 
 		var candidates = Matching(sourceType.GetProperties(BindingFlags.Instance | BindingFlags.Public), kind: 0)
 			.Concat(Matching(sourceType.GetFields(BindingFlags.Instance | BindingFlags.Public), kind: 1))
@@ -150,26 +138,32 @@ internal static class PaginateProjectionBuilder {
 
 		return best.Member;
 
+		// Properties and fields are searched alike, so the tuple they produce is named once, here, and both
+		// sides of the Concat get their element type from this signature. Naming it once is also what keeps
+		// the concatenation legal at all: ValueTuple is a struct, so IEnumerable<T> covariance cannot bridge
+		// two sequences that differ only in the member type.
+		IEnumerable<(MemberInfo Member, int Depth, int Kind)> Matching(IEnumerable<MemberInfo> members, int kind) {
+			return members
+				.Where(member => string.Equals(member.Name, name, StringComparison.OrdinalIgnoreCase))
+				.Select(member => (member, DeclarationDepth(sourceType, member), kind));
+		}
+
 	}
 
 	private static int DeclarationDepth(Type sourceType, MemberInfo member) {
-
 		int depth = 0;
 		for (var type = sourceType; type is not null && type != member.DeclaringType; type = type.BaseType) depth++;
 
 		return depth;
-
 	}
 
 	private static bool IsCollection(Type type) { return type != typeof(string) && typeof(IEnumerable).IsAssignableFrom(type); }
 
 	private static bool CanAssign(Type sourceType, Type targetType) {
-
 		if (targetType.IsAssignableFrom(sourceType)) return true;
 
 		var targetUnderlyingType = Nullable.GetUnderlyingType(targetType);
 		return targetUnderlyingType is not null && targetUnderlyingType == sourceType;
-
 	}
 
 	private static Expression ConvertIfNeeded(Expression expression, Type targetType) { return expression.Type == targetType ? expression : Expression.Convert(expression, targetType); }
@@ -193,13 +187,11 @@ internal static class PaginateProjectionBuilder {
 	}
 
 	private static bool CanBeNull(Type type, ParameterInfo parameter) {
-
 		if (Nullable.GetUnderlyingType(type) is not null) return true;
 		if (type.IsValueType) return false;
 
 		var context = new NullabilityInfoContext();
 		return context.Create(parameter).ReadState != NullabilityState.NotNull;
-
 	}
 
 	private static bool IsSimpleType(Type type) {

@@ -1,4 +1,3 @@
-using Janzen.Pagination.EntityFrameworkCore.Model;
 
 namespace Janzen.Pagination.Tests.Support;
 

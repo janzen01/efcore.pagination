@@ -97,9 +97,12 @@ public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Prod
         .Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
         .Filterable("price", p => p.Price,
             PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual,
-            PaginateFilterOperator.LessThanOrEqual, PaginateFilterOperator.Between)
+            PaginateFilterOperator.LessThanOrEqual, PaginateFilterOperator.Between
+        )
         .Filterable("createdAt", p => p.CreatedAt,
-            PaginateFilterOperator.GreaterThan, PaginateFilterOperator.LessThan, PaginateFilterOperator.Between));
+            PaginateFilterOperator.GreaterThan, PaginateFilterOperator.LessThan, PaginateFilterOperator.Between
+        )
+    );
 
     public PaginateConfig<Product> GetConfig() => Config;
 
@@ -117,14 +120,16 @@ interface implementation.
 // Program.cs
 builder.Services.AddPagination(pagination => pagination
     .AddAspNetCore()     // query-string model binder + 400 ProblemDetails filter
-    .UsePostgreSql());   // upgrade LIKE to native ILIKE
+    .UsePostgreSql()   // upgrade LIKE to native ILIKE
+);
 
 builder.Services.AddControllers();
 
 // Optional: document the pagination parameters in the OpenAPI output.
 using Janzen.Pagination.AspNetCore.OpenApi;
 builder.Services.AddOpenApi(options =>
-    options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
+    options.AddOperationTransformer<PaginatedQueryOperationTransformer>()
+);
 ```
 
 ## 5. The endpoint
@@ -138,13 +143,17 @@ public sealed class ProductController(AppDbContext db) : ControllerBase {
     [PaginatedQuery<ProductPaginateConfigProvider>]   // documents the query parameters in OpenAPI
     public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) =>
         db.Products.PaginateAsync<Product, ProductDto>(
-            request, ProductPaginateConfigProvider.Config, this.Request, ct);
+            request,
+            ProductPaginateConfigProvider.Config,
+            this.Request,
+            ct
+        );
 
 }
 ```
 
 `[FromQuery] PaginateQuery` is bound by the model binder that `AddAspNetCore()` registered — you do not declare
-`page`, `limit` and friends as action parameters. Passing `this.Request` is what makes the response carry
+`page`, `limit`, and friends as action parameters. Passing `this.Request` is what makes the response carry
 `first`/`prev`/`next`/`last` links; omit it and those are `null`.
 
 The `Minimal API` equivalent is in [ASP.NET Core → Minimal APIs](/integrations/aspnetcore/#minimal-apis).
@@ -216,7 +225,7 @@ flowchart TD
 Two queries per request: one `COUNT(*)` over the filtered set, one page fetch. Asking for a page past the end
 returns an empty `items` with the real `meta`, and skips the second query entirely.
 
-**Everything is validated before either query runs**, filters, search and `sortBy` included — which is why
+**Everything is validated before either query runs**, filters, search, and `sortBy` included — which is why
 the dotted edges above all reach the same `400`. A `sortBy` naming a field the config does not have is
 refused even when the filters match nothing and even past the last page, the two cases where a validation gap
 would be least likely to be noticed. A request refused at any of those steps — an over-range `limit`, a page

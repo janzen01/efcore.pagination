@@ -41,35 +41,29 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 	[Fact]
 	public async Task Auto_projection_rejects_an_untranslatable_member_pair() {
-
 		await using var context = fixture.CreateContext();
 
 		string message = await RejectionMessage(() => SqliteFixture.Products(context).PageAsync<UnprojectableDto>(new PaginateQuery()));
 
 		Assert.Equal("Cannot automatically project 'Product.Name' from 'String' to 'Int32'.", message);
-
 	}
 
 	[Fact]
 	public async Task Auto_projection_rejects_a_parameter_with_no_matching_member() {
-
 		await using var context = fixture.CreateContext();
 
 		string message = await RejectionMessage(() => SqliteFixture.Products(context).PageAsync<MissingMemberDto>(new PaginateQuery()));
 
 		Assert.Equal("Cannot automatically project 'Product' because source type 'Product' has no public member named 'Nonexistent'.", message);
-
 	}
 
 	[Fact]
 	public async Task Auto_projection_rejects_a_nullable_source_for_a_non_nullable_parameter() {
-
 		await using var context = fixture.CreateContext();
 
 		string message = await RejectionMessage(() => SqliteFixture.Products(context).PageAsync<NonNullableCategoryDto>(new PaginateQuery()));
 
 		Assert.Equal("Cannot automatically project nullable source 'Product.Category' into non-nullable target parameter 'Category'.", message);
-
 	}
 
 	[Fact]
@@ -79,8 +73,8 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		var page = await SqliteFixture.Products(context).PageSelectAsync(
 			Query.Filter("id", "$eq:1"),
-			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count,
-				p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList()));
+			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count, p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList())
+		);
 
 		var summary = Assert.Single(page.Items);
 		Assert.Equal(3, summary.ReviewCount);
@@ -98,7 +92,8 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 			p => new { p.Id, Sum = p.Reviews.Sum(r => r.Rating), Count = p.Reviews.Count },
 			// The guard is why this cannot be a selector: EF has nothing to translate a divide-by-zero
 			// check plus rounding into.
-			row => new { row.Id, Average = row.Count == 0 ? (double?)null : Math.Round(row.Sum / (double)row.Count, 1) });
+			row => new { row.Id, Average = row.Count == 0 ? (double?)null : Math.Round(row.Sum / (double)row.Count, 1) }
+		);
 
 		Assert.Equal(4.0, page.Items[0].Average);
 		Assert.Null(page.Items[1].Average);
@@ -114,8 +109,8 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 		await SqliteFixture.Products(context).PageSelectAsync(Query.Filter("id", "$eq:1"), p => new CategoryDto(p.Id, p.Name));
 
 		// PaginateSelectAsync's remarks promise "one query whose SELECT contains only the referenced columns
-		// (unused columns, e.g. a large jsonb, stay out)". That is a performance contract a consumer chooses
-		// this entry point for, and the materialised values are identical whether it holds or the provider
+		// (unused columns, e.g., a large jsonb, stay out)". That is a performance contract a consumer chooses
+		// this entry point for, and the materialized values are identical whether it holds or the provider
 		// falls back to fetching the whole row — so only the emitted SQL can tell.
 		string page = Assert.Single(executedSql, sql => sql.Contains("LIMIT", StringComparison.Ordinal));
 
@@ -133,8 +128,8 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		await SqliteFixture.Products(context).PageSelectAsync(
 			Query.Filter("id", "$in:1,2"),
-			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count,
-				p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList()));
+			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count, p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList())
+		);
 
 		// The count, then the page — two commands for two rows, and the same two for two hundred. A regression
 		// to a per-row or split fetch of Reviews leaves every asserted value correct and shows up only here.
@@ -149,7 +144,8 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		var page = await SqliteFixture.Products(context).PageMapAsync(
 			Query.Filter("id", "$eq:1"),
-			p => new { p.Name, ReviewCount = p.Reviews.Count });
+			p => new { p.Name, ReviewCount = p.Reviews.Count }
+		);
 
 		var row = Assert.Single(page.Items);
 		Assert.Equal("Widget", row.Name);

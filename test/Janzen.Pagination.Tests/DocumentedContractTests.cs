@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 namespace Janzen.Pagination.Tests;
 
 /// <summary>
-///     Behaviour a published page now states precisely and nothing else asserted. Each of these was true before
+///     Behavior a published page now states precisely and nothing else asserted. Each of these was true before
 ///     this class existed — they pin a sentence, they do not change one — so the value is that a later edit to
 ///     the engine cannot quietly make the documentation wrong while the suite stays green.
 /// </summary>
@@ -65,10 +65,10 @@ public sealed class DocumentedContractTests {
 			.WithLimits(3, Query.All)
 			.WithGuards(maxFilterConditions: 1)
 			.WithTieBreaker(p => p.Id)
-			.Filterable("status", p => p.Status));
+			.Filterable("status", p => p.Status)
+		);
 
-		string message = await Assertions.RejectsAsync(
-			() => TestData.Products().AsQueryable().PageAsync<ProductDto>(request, config));
+		string message = await Assertions.RejectsAsync(() => TestData.Products().AsQueryable().PageAsync<ProductDto>(request, config));
 
 		Assert.Equal("Too many filter conditions; at most 1 are allowed.", message);
 
@@ -99,11 +99,13 @@ public sealed class DocumentedContractTests {
 			.WithLimits(3, Query.All)
 			.AllowUnlimited(100)
 			.WithTieBreaker(p => p.Id)
-			.Filterable("name", p => p.Name));
+			.Filterable("name", p => p.Name)
+		);
 
 		var page = await TestData.Products().AsQueryable().PageAsync<ProductDto>(
 			new PaginateQuery { Limit = -1, Filters = new Dictionary<string, IReadOnlyList<string>> { ["name"] = ["$eq:nothing matches this"] } },
-			config);
+			config
+		);
 
 		Assert.Empty(page.Items);
 		Assert.Equal(0, page.Meta.ItemsPerPage);

@@ -4,13 +4,13 @@ namespace Janzen.Pagination.EntityFrameworkCore.Model;
 ///     Machine-readable cause of a <see cref="PaginateQueryException" />, carried by
 ///     <see cref="PaginateQueryException.Code" /> and emitted as the <c>code</c> member of the 400 Problem Details
 ///     response. It exists so a client can branch on the cause without matching the <c>detail</c> prose, which pins
-///     the wording permanently and cannot be localised.
+///     the wording permanently and cannot be localized.
 /// </summary>
 /// <remarks>
 ///     The members group by the stage the engine rejects at, in the order it works in: paging, filters, values,
 ///     search, sorting. One member can stand for several messages — the message says which field and which
 ///     ceiling, the code says what kind of thing went wrong. New members are added as the engine grows new
-///     rejections, so treat an unrecognised value the way you would treat <see cref="Unspecified" />.
+///     rejections, so treat an unrecognized value the way you would treat <see cref="Unspecified" />.
 /// </remarks>
 public enum PaginateQueryError {
 
@@ -47,7 +47,7 @@ public enum PaginateQueryError {
 	/// <summary>A filter criterion names an operator token the grammar has no member for.</summary>
 	FilterOperatorUnknown,
 
-	/// <summary>A real operator that this field's allow-list does not grant.</summary>
+	/// <summary>A real operator that this field's allowlist does not grant.</summary>
 	FilterOperatorNotAllowed,
 
 	/// <summary>An operator member with no implementation behind it — an engine-internal guard, not reachable from a request.</summary>

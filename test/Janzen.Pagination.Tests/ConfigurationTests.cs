@@ -20,7 +20,8 @@ public sealed class ConfigurationTests {
 		var exception = Assert.Throws<InvalidOperationException>(() => PaginateConfig<Product>.Create(b => b
 			.WithLimits(10, 10)
 			.Sortable("id", p => p.Id)
-			.DefaultSortBy("id")));
+			.DefaultSortBy("id")
+		));
 
 		// Required outright, not "a default sort or a tie-breaker": a DefaultSortBy field can be disabled by
 		// When(false) for a given caller, so the weaker rule would pass here and still leave nothing to order by.
@@ -30,11 +31,9 @@ public sealed class ConfigurationTests {
 
 	[Fact]
 	public void Limits_are_mandatory() {
-
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b.Sortable("id", p => p.Id)));
 
 		Assert.Equal("Pagination limits must be configured explicitly via WithLimits(defaultLimit, maxLimit).", exception.Message);
-
 	}
 
 	[Theory]
@@ -55,7 +54,8 @@ public sealed class ConfigurationTests {
 
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
 			.WithLimits(10, 10)
-			.DefaultSortBy("nope")));
+			.DefaultSortBy("nope")
+		));
 
 		Assert.Equal("Default sort field 'nope' is not sortable.", exception.Message);
 
@@ -69,7 +69,8 @@ public sealed class ConfigurationTests {
 		// "derive" is a signature the caller chooses, never a silent fallback for a list that came out empty.
 		var exception = Assert.Throws<ArgumentException>(() => Build(b => b
 			.WithLimits(10, 10)
-			.Filterable("id", p => p.Id, [])));
+			.Filterable("id", p => p.Id, [])
+		));
 
 		Assert.StartsWith("At least one filter operator must be configured.", exception.Message);
 
@@ -83,11 +84,13 @@ public sealed class ConfigurationTests {
 		// reported to a caller who cannot act on it.
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
 			.WithLimits(10, 10)
-			.Filterable("isFeatured", p => p.IsFeatured, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan)));
+			.Filterable("isFeatured", p => p.IsFeatured, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan)
+		));
 
 		Assert.Equal(
 			"Filter 'isFeatured' allows operator '$gt', which the engine cannot build for type 'Boolean'. Drop the operator, or declare the field without an explicit list to take the operators its type supports.",
-			exception.Message);
+			exception.Message
+		);
 
 	}
 
@@ -96,11 +99,13 @@ public sealed class ConfigurationTests {
 
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
 			.WithLimits(10, 10)
-			.Filterable("rank", p => p.Rank, PaginateFilterOperator.ILike)));
+			.Filterable("rank", p => p.Rank, PaginateFilterOperator.ILike)
+		));
 
 		Assert.Equal(
 			"Filter 'rank' allows operator '$ilike', which the engine cannot build for type 'Int32'. Drop the operator, or declare the field without an explicit list to take the operators its type supports.",
-			exception.Message);
+			exception.Message
+		);
 
 	}
 
@@ -109,7 +114,8 @@ public sealed class ConfigurationTests {
 
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
 			.WithLimits(10, 10)
-			.Filterable("rank", p => p.Rank, PaginateFilterOperator.Contains)));
+			.Filterable("rank", p => p.Rank, PaginateFilterOperator.Contains)
+		));
 
 		Assert.StartsWith("Filter 'rank' allows operator '$contains'", exception.Message);
 
@@ -125,7 +131,7 @@ public sealed class ConfigurationTests {
 
 		// The guard mirrors what BuildComparison does, which is wider than any single reflection probe: the
 		// integral primitives declare no op_LessThan at all, char is in neither the derived Comparable set nor
-		// the ordering probe, and enums, strings and Guids reach a CompareTo stand-in rather than an operator.
+		// the ordering probe, and enums, strings, and Guids reach a CompareTo stand-in rather than an operator.
 		AcceptsRanges(p => (sbyte)p.Rank);
 		AcceptsRanges(p => (byte)p.Rank);
 		AcceptsRanges(p => (short)p.Rank);
@@ -150,10 +156,20 @@ public sealed class ConfigurationTests {
 	}
 
 	private static void AcceptsRanges<TValue>(Expression<Func<Product, TValue>> selector) {
+
 		Assert.Single(Build(b => b
 			.WithLimits(10, 10)
-			.Filterable("value", selector, PaginateFilterOperator.GreaterThan, PaginateFilterOperator.GreaterThanOrEqual,
-				PaginateFilterOperator.LessThan, PaginateFilterOperator.LessThanOrEqual, PaginateFilterOperator.Between)).FilterableFields);
+			.Filterable(
+				"value",
+				selector,
+				PaginateFilterOperator.GreaterThan,
+				PaginateFilterOperator.GreaterThanOrEqual,
+				PaginateFilterOperator.LessThan,
+				PaginateFilterOperator.LessThanOrEqual,
+				PaginateFilterOperator.Between
+			)
+		).FilterableFields);
+
 	}
 
 	[Fact]
@@ -161,7 +177,8 @@ public sealed class ConfigurationTests {
 
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
 			.WithLimits(10, 10)
-			.ShowBadge("Orphan")));
+			.ShowBadge("Orphan")
+		));
 
 		Assert.Equal("ShowBadge must be called immediately after a Sortable, Searchable, or Filterable field.", exception.Message);
 
@@ -174,7 +191,8 @@ public sealed class ConfigurationTests {
 		// library's: a generic library cannot know the consumer's renderer, so the class passes through untouched.
 		var config = Build(b => b
 			.WithLimits(10, 10)
-			.Sortable("id", p => p.Id).ShowBadge("Admin", "admin-chip"));
+			.Sortable("id", p => p.Id).ShowBadge("Admin", "admin-chip")
+		);
 
 		Assert.Equal("admin-chip", config.SortableFields.Single().Badge?.CssClass);
 
@@ -182,22 +200,18 @@ public sealed class ConfigurationTests {
 
 	[Fact]
 	public void A_badge_without_a_class_is_neutral() {
-
 		var config = Build(b => b.WithLimits(10, 10).Sortable("id", p => p.Id).ShowBadge("Beta"));
 
 		var field = Assert.Single(config.SortableFields);
 		Assert.Equal("Beta", field.Badge?.Name);
 		Assert.Null(field.Badge?.CssClass);
-
 	}
 
 	[Fact]
 	public void A_condition_must_follow_a_field() {
-
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b.WithLimits(10, 10).When(true)));
 
 		Assert.Equal("When must be called immediately after a Sortable, Searchable, or Filterable field.", exception.Message);
-
 	}
 
 	[Fact]
@@ -205,10 +219,13 @@ public sealed class ConfigurationTests {
 
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
 			.WithLimits(10, 10)
-			.Sortable("id", p => p.Id).When(false)));
+			.Sortable("id", p => p.Id).When(false)
+		));
 
-		Assert.Equal("A field configured with .When(...) must also declare .ShowBadge(...) so the condition is documented in the OpenAPI output.",
-			exception.Message);
+		Assert.Equal(
+			"A field configured with .When(...) must also declare .ShowBadge(...) so the condition is documented in the OpenAPI output.",
+			exception.Message
+		);
 
 	}
 
@@ -220,7 +237,8 @@ public sealed class ConfigurationTests {
 	public void Guards_must_be_positive(int values, int conditions, int sortFields, int searchLength) {
 		Assert.Throws<ArgumentOutOfRangeException>(() => Build(b => b
 			.WithLimits(10, 10)
-			.WithGuards(values, conditions, sortFields, searchLength)));
+			.WithGuards(values, conditions, sortFields, searchLength)
+		));
 	}
 
 	[Fact]
@@ -229,7 +247,8 @@ public sealed class ConfigurationTests {
 		var config = Build(b => b
 			.WithLimits(10, 10)
 			.Sortable("key", p => p.Id)
-			.Sortable("key", p => p.Rank));
+			.Sortable("key", p => p.Rank)
+		);
 
 		var field = Assert.Single(config.SortableFields);
 		Assert.Equal("key", field.Name);
@@ -255,11 +274,9 @@ public sealed class ConfigurationTests {
 
 	[Fact]
 	public void A_nullable_filterable_reports_its_underlying_type() {
-
 		var field = Assert.Single(TestData.Config.FilterableFields, f => f.Name == "discontinuedAt");
 
 		Assert.Equal(typeof(DateTimeOffset), field.Type);
-
 	}
 
 }

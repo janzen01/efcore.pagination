@@ -7,10 +7,16 @@ page of rows.
 
 ```csharp
 PaginateComposedQuery<TEntity> ApplyPaginateFilters<TEntity>(
-    this IQueryable<TEntity> source, PaginateQuery request, PaginateConfig<TEntity> config);
+    this IQueryable<TEntity> source,
+    PaginateQuery request,
+    PaginateConfig<TEntity> config
+);
 
 PaginateComposedQuery<TEntity> ApplyPagination<TEntity>(
-    this IQueryable<TEntity> source, PaginateQuery request, PaginateConfig<TEntity> config);
+    this IQueryable<TEntity> source,
+    PaginateQuery request,
+    PaginateConfig<TEntity> config
+);
 ```
 
 Both are in the **core package** (`Janzen.Pagination.EntityFrameworkCore`), and both carry

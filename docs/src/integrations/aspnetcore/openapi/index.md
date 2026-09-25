@@ -7,7 +7,8 @@ drift apart. A field you stop exposing disappears from the document in the same 
 using Janzen.Pagination.AspNetCore.OpenApi;
 
 builder.Services.AddOpenApi(options =>
-    options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
+    options.AddOperationTransformer<PaginatedQueryOperationTransformer>()
+);
 ```
 
 `PaginatedQueryOperationTransformer` is a plain `IOpenApiOperationTransformer`, so your app keeps ownership of
@@ -62,7 +63,7 @@ Four conditions worth knowing:
   [`WithMaxOffset`](/reference/configuration/#withmaxoffset), `limit` under
   [`AllowUnlimited`](/reference/configuration/#allowunlimited), and `search` under
   [`WithMinSearchLength`](/reference/configuration/#withminsearchlength) above 1. An unguarded resource says
-  nothing extra, so adding one of those calls shows up as a description diff in a committed artefact.
+  nothing extra, so adding one of those calls shows up as a description diff in a committed artifact.
 
 The `limit` schema only grows a `oneOf` on a resource that called
 [`AllowUnlimited`](/reference/configuration/#allowunlimited), and it is the whole reason it grows one: the
@@ -81,13 +82,13 @@ at the edge only what the engine already answers with a `400` — with one cavea
 `maxLength` for the validator.
 
 The `400` schema documents **what that operation actually sends**, which is why it is not the same on both
-legs. `type`, `title`, `status`, `detail` and `code` are always there — `code` names the cause as a stable
+legs. `type`, `title`, `status`, `detail`, and `code` are always there — `code` names the cause as a stable
 token, so a client branches on it rather than on the `detail` prose; see
 [Errors as ProblemDetails](../#errors-as-problemdetails) for the member itself. `traceId` is added by the app's
 `ProblemDetailsFactory` on a controller operation and by the problem-details writer on a Minimal API one, so
 it is published for every controller operation and for a Minimal API operation only when the app registered
 `AddProblemDetails()` — see [Errors as ProblemDetails](../#errors-as-problemdetails). `instance` is not
-published at all: neither pipeline sets one and the framework synthesises none, so a generated model would
+published at all: neither pipeline sets one and the framework synthesizes none, so a generated model would
 carry a property that is always `null`.
 
 Exploded array parameters are what tell a client to repeat the key — `?sortBy=a:ASC&sortBy=b:DESC` — rather
@@ -197,7 +198,7 @@ parameter — or, for a sortable or searchable field, to that field's bullet in 
     .When(currentUserIsAdmin).ShowBadge("Admin only", "language-admin")
 ```
 
-renders as `Filter by isHidden. <code class="language-admin">Admin only</code>`, which you colour from the
+renders as `Filter by isHidden. <code class="language-admin">Admin only</code>`, which you color from the
 reference UI's own custom CSS:
 
 ```css
@@ -205,12 +206,12 @@ reference UI's own custom CSS:
 ```
 
 The class is emitted verbatim; the library does not validate it, because which classes survive is the
-renderer's rule. The `language-` prefix above is Scalar's: it renders descriptions as GitHub-flavoured Markdown
+renderer's rule. The `language-` prefix above is Scalar's: it renders descriptions as GitHub-flavored Markdown
 through a sanitizer that strips inline `style` and every class on a `<code>` element except one matching
 `language-*`, so a badge styled any other way arrives there as plain text. Another UI may keep different
 classes, or none. Badge names and classes are HTML-encoded, so a stray `<` cannot break the markup.
 
-Colouring is limited to descriptions. The `sortBy` and `searchBy` **enum values** are plain strings in the
+Coloring is limited to descriptions. The `sortBy` and `searchBy` **enum values** are plain strings in the
 schema, so a badge cannot reach them — a sortable field's badge shows in the field list above the enum, not
 on the entry itself.
 

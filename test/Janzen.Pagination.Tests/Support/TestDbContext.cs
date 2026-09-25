@@ -5,18 +5,16 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace Janzen.Pagination.Tests.Support;
 
 public sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options) {
+	public DbSet<Product> Products => Set<Product>();
 
-	public DbSet<Product> Products => this.Set<Product>();
+	public DbSet<Category> Categories => Set<Category>();
 
-	public DbSet<Category> Categories => this.Set<Category>();
-
-	public DbSet<Review> Reviews => this.Set<Review>();
-
+	public DbSet<Review> Reviews => Set<Review>();
 }
 
 /// <summary>
 ///     A SQLite in-memory database seeded once per test class. This is the leg that exercises the engine's
-///     <c>UseDatabaseFunctions</c> path — real SQL translation, <c>EF.Functions.Like</c> and <c>EF.Parameter</c> —
+///     <c>UseDatabaseFunctions</c> path — real SQL translation, <c>EF.Functions.Like</c>, and <c>EF.Parameter</c> —
 ///     which an <see cref="IQueryable" /> over a list cannot reach.
 /// </summary>
 /// <remarks>
@@ -47,7 +45,7 @@ public sealed class SqliteFixture : IAsyncLifetime {
 			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
 			.Options;
 
-		await using var context = this.CreateContext();
+		await using var context = CreateContext();
 		await context.Database.EnsureCreatedAsync();
 		context.Products.AddRange(TestData.Products());
 		await context.SaveChangesAsync();

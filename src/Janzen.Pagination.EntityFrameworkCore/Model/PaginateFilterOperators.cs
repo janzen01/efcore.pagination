@@ -7,7 +7,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.Model;
 /// <summary>
 ///     The operator set a field of a given type supports, derived from the type itself. This is what the
 ///     parameterless <c>Filterable</c> / <c>FilterableMany</c> overloads whitelist, and it is public so the same
-///     set can be spelled out, extended or trimmed at a call site that wants the explicit signature:
+///     set can be spelled out, extended, or trimmed at a call site that wants the explicit signature:
 ///     <c>b.Filterable("score", x =&gt; x.Score, [.. PaginateFilterOperators.For&lt;int&gt;(), PaginateFilterOperator.Null])</c>.
 /// </summary>
 /// <remarks>
@@ -105,7 +105,8 @@ public static class PaginateFilterOperators {
 			$"Filter operators cannot be derived for type '{core.Name}'. Declare the field with an explicit operator list. "
 			+ "A type that must be registered first (UseNodaTime, RegisterSimpleType) has to be registered before "
 			+ "PaginateConfig<T>.Create runs: the shorthand derives its operators while the builder runs, not at Build().",
-			paramName);
+			paramName
+		);
 
 	}
 

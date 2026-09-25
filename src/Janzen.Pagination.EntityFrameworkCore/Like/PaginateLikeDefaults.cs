@@ -2,14 +2,14 @@ namespace Janzen.Pagination.EntityFrameworkCore.Like;
 
 /// <summary>
 ///     Process-wide default pattern-match strategy used by every pagination query. Defaults to a portable
-///     <c>LIKE</c>; set it once at startup (e.g. <c>AddPagination(p =&gt; p.UsePostgreSql())</c>) to switch all
+///     <c>LIKE</c>; set it once at startup (e.g., <c>AddPagination(p =&gt; p.UsePostgreSql())</c>) to switch all
 ///     configurations to a provider-specific strategy such as PostgreSQL's native <c>ILIKE</c>.
 /// </summary>
 /// <remarks>Intended to be assigned once during startup (before requests) and read concurrently thereafter.</remarks>
 public static class PaginateLikeDefaults {
 
 	/// <summary>
-	///     The character the engine escapes <c>\</c>, <c>%</c>, <c>_</c> and <c>[</c> with before handing a pattern
+	///     The character the engine escapes <c>\</c>, <c>%</c>, <c>_</c>, and <c>[</c> with before handing a pattern
 	///     to a strategy. A strategy must declare it as the explicit <c>ESCAPE</c> argument of the call it builds,
 	///     or the escaping is read as literal text — see <see cref="IPaginateLikeStrategy.BuildLike" />.
 	/// </summary>
@@ -37,10 +37,10 @@ public static class PaginateLikeDefaults {
 	/// </summary>
 	// KEEP THIS DECLARED BELOW Portable. Static initializers run in declaration order, so moving it above
 	// would assign null here -- and silently, because a property initializer writes the backing field and
-	// never calls the setter, so the ThrowIfNull below cannot see it. The obvious defence, defaulting on
+	// never calls the setter, so the ThrowIfNull below cannot see it. The obvious defense, defaulting on
 	// first read through `get => field ??= Portable`, was tried and reverted: a manual getter carries no
 	// CompilerGeneratedAttribute, and package validation reads dropping one off a shipped member as an API
-	// break (CP0014). The ordering requirement is cheaper to honour than that is to suppress.
+	// break (CP0014). The ordering requirement is cheaper to honor than that is to suppress.
 	public static IPaginateLikeStrategy Strategy {
 		get;
 		set {

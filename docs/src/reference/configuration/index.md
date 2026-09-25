@@ -1,7 +1,7 @@
 # Configuration API
 
 Every method on `PaginateConfigBuilder<TEntity>`: what it declares, and what it refuses. For the ideas behind
-these declarations — why the surface is an allow-list, what you have to decide before writing one — read
+these declarations — why the surface is an allowlist, what you have to decide before writing one — read
 [Guide → Configuration](/guide/configuration/) first. This page is for looking one method up.
 
 Two kinds of rejection appear below, and the difference matters because they surface at different times:
@@ -20,7 +20,8 @@ and is part of the published contract.
 PaginateConfig<Product> config = PaginateConfig<Product>.Create(builder => builder
     .WithLimits(25, 100)
     .Sortable("name", p => p.Name)
-    .WithTieBreaker(p => p.Id));
+    .WithTieBreaker(p => p.Id)
+);
 ```
 
 `Create` runs your lambda and then builds. Field names are **arbitrary public aliases** — they need not match
@@ -120,7 +121,7 @@ What each one actually counts is where the surprises live:
 |-------|--------:|--------------|------------|
 | `MaxFilterValues` | 100 | **one comma-separated list, per criterion.** `$in`, `$btw` and `$contains`-on-a-collection are the operators that take lists. Two criteria of 80 values each pass. | `400 Filter 'x' accepts at most N values.` |
 | `MaxFilterConditions` | 20 | **every `filter.*` value across every field**, added together — 20 in total, not 20 per field. | `400 Too many filter conditions; at most N are allowed.` |
-| `MaxSortFields` | 5 | **only `sortBy` values sent by the request.** `DefaultSortBy` entries and the tie-breaker are appended afterwards and are never measured against it. | `400 Too many sort fields; at most N are allowed.` |
+| `MaxSortFields` | 5 | **only `sortBy` values sent by the request.** `DefaultSortBy` entries and the tie-breaker are appended afterward and are never measured against it. | `400 Too many sort fields; at most N are allowed.` |
 | `MaxSearchLength` | 256 | characters of `search`, **and** of a `$ilike` / `$sw` / `$contains` pattern on a string field — the two emit the same `LIKE`. Checked before the query is built. | `400 Search term must not exceed N characters.` / `400 Filter 'x' pattern must not exceed N characters.` |
 
 `MaxLimit` belongs to the same family but is set by [`WithLimits`](#withlimits), not here.
@@ -181,7 +182,7 @@ Opts this resource into `?limit=-1`, which returns every matching row as one pag
 rejected like any other out-of-range limit, and `-2` and `0` stay rejected with or without it.
 
 The ceiling is mandatory — there is no argument-less form. The engine fetches one row past it and answers
-`400` rather than materialising a set nobody promised would fit in memory. An unlimited request must ask for
+`400` rather than materializing a set nobody promised would fit in memory. An unlimited request must ask for
 page 1; pages of an unbounded set are meaningless.
 
 What it costs and what comes back:
@@ -193,7 +194,7 @@ What it costs and what comes back:
   [Performance](/recipes/performance/) for the one sort no index on the paged table can serve.
 - `meta.itemsPerPage` echoes `itemCount` — the honest value, not the requested `-1`.
 - `meta.hasNextPage` and `meta.hasPreviousPage` are both `false`; `totalPages` is 1, or 0 when nothing matched.
-- `links.first`, `links.last` and `links.current` are the same URL; `next` and `previous` are `null`.
+- `links.first`, `links.last`, and `links.current` are the same URL; `next` and `previous` are `null`.
 - an unlimited request that matches nothing reports `itemsPerPage: 0` — it is the row count, and the page
   holds none. Do not divide by it.
 - [`ApplyPagination`](../composers/) composes the same query bounded at `maxRows + 1`, but cannot apply the
@@ -216,7 +217,7 @@ var defaults = new PaginateConfigDefaults { DefaultLimit = 25, MaxLimit = 100, M
 // (a) explicit -- only the configurations naming it are affected
 PaginateConfig<Product>.Create(defaults, b => b.Sortable("id", p => p.Id) /* … */);
 
-// (b) ambient -- assign once at startup, every configuration built afterwards picks it up
+// (b) ambient -- assign once at startup, every configuration built afterward picks it up
 PaginateConfigDefaults.Shared = defaults;
 PaginateConfig<Order>.Create(b => b.Sortable("id", o => o.Id) /* … */);
 ```
@@ -235,7 +236,7 @@ Four things worth knowing:
 - **`Shared` is read at `Build()` time.** Assign it before the first configuration is built; a configuration
   does not observe a later assignment. It is process-wide mutable state, so tests that assign it want the
   same treatment as [`PaginateLikeDefaults`](/recipes/testing/#watch-the-process-wide-statics) — a non-parallel collection, and
-  restore it afterwards.
+  restore it afterward.
 - **`AllowUnlimited` is deliberately absent** from the object. An unbounded read is a claim about one
   resource's size, and a default that turned it on everywhere would be exactly the claim nobody can make.
 - It is a `record`, so `PaginateConfigDefaults.Shared with { MaxLimit = 200 }` is the way to vary one value.
@@ -299,7 +300,7 @@ between them, so without a tie-breaker the database is free to return them diffe
 **This call is required.** A configuration without it does not build:
 
 > A pagination configuration requires `WithTieBreaker(...)`: offset paging over a non-unique order can return
-> the same row on two pages and skip another. Pass the entity's primary key, e.g. `WithTieBreaker(x => x.Id)`.
+> the same row on two pages and skip another. Pass the entity's primary key, e.g., `WithTieBreaker(x => x.Id)`.
 
 It is required outright rather than "a `DefaultSortBy` **or** a tie-breaker", because the weaker rule does not
 hold: a default-sort field can be switched off per caller by [`When`](#when), so a configuration whose only
@@ -356,11 +357,12 @@ letting callers name individual fields would disclose which columns exist.
     PaginateFilterOperator.Eq,
     PaginateFilterOperator.GreaterThanOrEqual,
     PaginateFilterOperator.LessThanOrEqual,
-    PaginateFilterOperator.Between)
+    PaginateFilterOperator.Between
+)
 .Filterable("categoryName", p => p.Category.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.ILike)
 ```
 
-The operator list is the allow-list **for that field**. `?filter.price=$ilike:x` against the declaration above
+The operator list is the allowlist **for that field**. `?filter.price=$ilike:x` against the declaration above
 is a `400`, because `ILike` was granted to `categoryName` and not to `price`.
 
 Grant operators deliberately rather than passing the full set. Each one is a query shape the database has to
@@ -401,13 +403,13 @@ Omit the operator list and the field is granted every operator the engine can bu
 `Null` joins the set exactly when the engine can express it: for reference types always, for value types only
 through `Nullable<T>`. So `p => p.Age` (an `int`) has no `$null`, and `p => p.RetiredOn` (a `DateOnly?`) does.
 
-Ranges are deliberately withheld from `string`, `Guid`, `char` and enums. They *translate* — the engine has a
+Ranges are deliberately withheld from `string`, `Guid`, `char`, and enums. They *translate* — the engine has a
 stand-in for each — but the ordering is then the database's collation or byte order rather than anything you
 chose, which is rarely what a range filter is being asked for. Grant them explicitly when it is.
 
 Two consequences worth knowing before reaching for the shorthand. A field declared this way **widens when the
 library does**: a release that adds an operator to one of these rows grants it to every shorthand field on
-rebuild, and any such release says so in its notes. And the derived set is the whole allow-list, so the advice
+rebuild, and any such release says so in its notes. And the derived set is the whole allowlist, so the advice
 above still holds — `$ilike` on an unindexed text column is a sequential scan whether you typed the operator
 or the type implied it. On a large table, list what you actually serve.
 
@@ -431,12 +433,19 @@ Filters the entity by a value on **any element** of a child collection, translat
 
 ```csharp
 // ?filter.tag=$eq:dotnet  → articles that have at least one tag named "dotnet"
-.FilterableMany("tag", a => a.Tags, t => t.Name,
-    PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.ILike)
+.FilterableMany(
+    "tag",
+    a => a.Tags,
+    t => t.Name,
+    PaginateFilterOperator.Eq,
+    PaginateFilterOperator.In,
+    PaginateFilterOperator.ILike
+)
 
 // ?filter.reviewerId=$in:a,b → orders reviewed by any of these people
 .FilterableMany("reviewerId", o => o.Reviews, r => r.ReviewerId,
-    PaginateFilterOperator.Eq, PaginateFilterOperator.In)
+    PaginateFilterOperator.Eq, PaginateFilterOperator.In
+)
 ```
 
 The first lambda selects the collection, the second selects the value on one element. The operator applies to
@@ -497,7 +506,7 @@ It has no effect on what the engine accepts.
 The optional CSS class is emitted **verbatim** and not validated: which classes an API reference UI keeps is
 that UI's rule, not the library's. With Scalar, only a `language-*` class survives its sanitizer on inline
 `<code>`. See [OpenAPI → Badges](/integrations/aspnetcore/openapi/#badges) for how it renders and how to
-colour it.
+color it.
 
 **Rejects at configuration time:**
 
@@ -565,7 +574,8 @@ var invoices = PaginateConfig<Invoice>.Create(b => b
     .WithLimits(25, 100)
     .WithTieBreaker(i => i.Id)
     .WithLikeStrategy(PaginateLikeDefaults.Portable)
-    .Filterable("reference", i => i.Reference));
+    .Filterable("reference", i => i.Reference)
+);
 ```
 
 The same strategy also decides the `$op:` example the OpenAPI transformer publishes for that resource's filter
@@ -588,7 +598,8 @@ public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Prod
     public readonly static PaginateConfig<Product> Config = PaginateConfig<Product>.Create(b => b
         .WithLimits(25, 100)
         .Sortable("name", p => p.Name)
-        .WithTieBreaker(p => p.Id));
+        .WithTieBreaker(p => p.Id)
+    );
 
     public PaginateConfig<Product> GetConfig() => Config;
 
@@ -627,7 +638,7 @@ Four small records carry that metadata, and you will hold them if you build anyt
 |------|---------|------------|
 | `PaginateSort` | `Field`, `Direction` | One entry of `DefaultSortBy`. `Direction` is a `PaginateSortDirection` (`Asc` / `Desc`). |
 | `PaginateFieldMetadata` | `Name`, `Type`, `Badge?` | A sortable or searchable field. `Type` is the selector's CLR type, which is what decides the documented type name and the example value. |
-| `PaginateFilterFieldMetadata` | the same three, plus `Operators` | A filterable field. `Operators` is that field's allow-list, as a **set** — it carries no order, so sort it yourself if you are rendering it. |
+| `PaginateFilterFieldMetadata` | the same three, plus `Operators` | A filterable field. `Operators` is that field's allowlist, as a **set** — it carries no order, so sort it yourself if you are rendering it. |
 | `PaginateBadge` | `Name`, `CssClass?` | What [`ShowBadge`](#showbadge) attached. `CssClass` is `null` for a badge declared without one. |
 
 `Type` is the raw CLR type, not a display name — a nullable field reports `Nullable<int>`, and it is up to

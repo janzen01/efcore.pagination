@@ -73,7 +73,7 @@ jobs:
           path: ./artifacts/*.nupkg
           if-no-files-found: error
           # Must outlast the environment approval below -- the publish job downloads this after a
-          # human clicks, and an expired artefact would fail the release rather than delay it.
+          # human clicks, and an expired artifact would fail the release rather than delay it.
           retention-days: 7
 
   # The only job holding the credential. It runs no project code: attest, exchange, push.

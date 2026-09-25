@@ -24,16 +24,19 @@ public sealed record PaginatedResponse<T>(
 	///     as different.
 	/// </summary>
 	public bool Equals(PaginatedResponse<T>? other) {
+
 		if (ReferenceEquals(this, other)) return true;
 
 		return other is not null
 			&& PaginateStructuralEquality.ListEquals(Items, other.Items)
 			&& Meta == other.Meta
 			&& Links == other.Links;
+
 	}
 
 	/// <summary>Hashes the same members <see cref="Equals(PaginatedResponse{T})" /> compares, so equal envelopes hash equal.</summary>
 	public override int GetHashCode() {
+
 		var hash = new HashCode();
 
 		hash.Add(PaginateStructuralEquality.ListHash(Items));
@@ -41,6 +44,7 @@ public sealed record PaginatedResponse<T>(
 		hash.Add(Links);
 
 		return hash.ToHashCode();
+
 	}
 
 }
@@ -122,9 +126,10 @@ public sealed record PaginatedMeta(
 	/// </summary>
 	/// <remarks>
 	///     <b>A member added to this record has to be added here and to <see cref="GetHashCode" /> too</b> — that is
-	///     what a hand-written equality costs, and the compiler will not remind you.
+	///     what a handwritten equality costs, and the compiler will not remind you.
 	/// </remarks>
 	public bool Equals(PaginatedMeta? other) {
+
 		if (ReferenceEquals(this, other)) return true;
 
 		return other is not null
@@ -139,10 +144,12 @@ public sealed record PaginatedMeta(
 			&& PaginateStructuralEquality.ListEquals(SortBy, other.SortBy)
 			&& PaginateStructuralEquality.ListEquals(SearchBy, other.SearchBy)
 			&& PaginateStructuralEquality.FilterEquals(Filter, other.Filter);
+
 	}
 
 	/// <summary>Hashes the same members <see cref="Equals(PaginatedMeta)" /> compares, so equal metas hash equal.</summary>
 	public override int GetHashCode() {
+
 		var hash = new HashCode();
 
 		hash.Add(TotalItems);
@@ -158,13 +165,14 @@ public sealed record PaginatedMeta(
 		hash.Add(PaginateStructuralEquality.FilterHash(Filter));
 
 		return hash.ToHashCode();
+
 	}
 
 }
 
 /// <summary>
 ///     Hypermedia links for the page, present only when a link context was supplied — see
-///     <see cref="PaginatedResponse{T}.Links" />. An absent link (e.g. <see cref="Previous" /> on the first
+///     <see cref="PaginatedResponse{T}.Links" />. An absent link (e.g., <see cref="Previous" /> on the first
 ///     page) is <see langword="null" /> and is serialized as <c>null</c> rather than dropped from the payload:
 ///     the value is the answer to "is there such a page", so the key stays and carries it.
 /// </summary>
@@ -186,7 +194,7 @@ public sealed record PaginatedLinks(
 	///     constructor, or deserialized from a payload that omits the key, carries <see langword="null" /> here like
 	///     any other member. A client that stores "where am I" URLs (bookmarks, retry, restoring table state) reads it here
 	///     instead of reassembling it from <see cref="PaginatedResponse{T}.Meta" /> and its own knowledge of the path.
-	///     Declared outside the positional list on purpose: the constructor, <c>Deconstruct</c> and <c>with</c> keep
+	///     Declared outside the positional list on purpose: the constructor, <c>Deconstruct</c>, and <c>with</c> keep
 	///     their shape, and it serializes after the four positional members.
 	/// </summary>
 	[JsonPropertyName("current")]
@@ -209,6 +217,7 @@ internal static class PaginateStructuralEquality {
 	// nullable annotations, so a payload with an explicit "items": null or "sortBy": null overwrites the
 	// initializer. Comparing such an envelope used to report inequality; it must not start throwing.
 	public static bool ListEquals<T>(IReadOnlyList<T>? left, IReadOnlyList<T>? right) {
+
 		if (ReferenceEquals(left, right)) return true;
 		if (left is null || right is null) return false;
 		if (left.Count != right.Count) return false;
@@ -220,6 +229,7 @@ internal static class PaginateStructuralEquality {
 		}
 
 		return true;
+
 	}
 
 	// Key and value are compared explicitly rather than through EqualityComparer<KeyValuePair<,>>.Default:
@@ -236,10 +246,8 @@ internal static class PaginateStructuralEquality {
 		if (left.Count != right.Count) return false;
 
 		for (int index = 0; index < left.Count; index++) {
-
 			if (!string.Equals(left[index].Key, right[index].Key, StringComparison.Ordinal)) return false;
 			if (!string.Equals(left[index].Value, right[index].Value, StringComparison.Ordinal)) return false;
-
 		}
 
 		return true;
@@ -247,6 +255,7 @@ internal static class PaginateStructuralEquality {
 	}
 
 	public static int PairListHash(IReadOnlyList<KeyValuePair<string, string>>? list) {
+
 		if (list is null) return 0;
 
 		var hash = new HashCode();
@@ -257,6 +266,7 @@ internal static class PaginateStructuralEquality {
 		}
 
 		return hash.ToHashCode();
+
 	}
 
 	/// <summary>
@@ -338,6 +348,7 @@ internal static class PaginateStructuralEquality {
 	}
 
 	public static int ListHash<T>(IReadOnlyList<T>? list) {
+
 		if (list is null) return 0;
 
 		var hash = new HashCode();
@@ -345,6 +356,7 @@ internal static class PaginateStructuralEquality {
 		foreach (var item in list) hash.Add(item);
 
 		return hash.ToHashCode();
+
 	}
 
 	/// <summary>
@@ -353,13 +365,12 @@ internal static class PaginateStructuralEquality {
 	///     combined in sequence, and keys are hashed ordinally to match <see cref="FilterEquals" />.
 	/// </summary>
 	public static int FilterHash(IReadOnlyDictionary<string, IReadOnlyList<string>>? filter) {
+
 		if (filter is null) return 0;
 
 		int hash = filter.Count;
 
-		foreach ((string field, var values) in filter) {
-			hash ^= HashCode.Combine(StringComparer.Ordinal.GetHashCode(field), ListHash(values));
-		}
+		foreach ((string field, var values) in filter) hash ^= HashCode.Combine(StringComparer.Ordinal.GetHashCode(field), ListHash(values));
 
 		return hash;
 

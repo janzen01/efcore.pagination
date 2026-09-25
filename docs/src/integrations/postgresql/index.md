@@ -19,7 +19,8 @@ Which SQL they become is a single **process-wide** strategy.
 ```csharp
 builder.Services.AddPagination(pagination => pagination
     .AddAspNetCore()
-    .UsePostgreSql());
+    .UsePostgreSql()
+);
 ```
 
 Your `PaginateConfig<T>` definitions do not change — they stay provider-agnostic, and only the emitted SQL
@@ -54,7 +55,7 @@ WHERE p."Name" ILIKE '%widget%' ESCAPE '\'
 ```
 
 One keyword. `$sw:Wid` differs the same way — `ILIKE 'Wid%' ESCAPE '\'` instead of `LIKE`. The pattern, the
-escaping and the parameterisation are identical; only the operator changes, which is why nothing else about a
+escaping and the parameterization are identical; only the operator changes, which is why nothing else about a
 config or a query has to know which strategy is registered.
 
 ::: warning `$sw` can change cost class with the keyword
@@ -62,7 +63,7 @@ config or a query has to know which strategy is registered.
 PostgreSQL uses a B-tree for `ILIKE` **only if the pattern starts with characters unaffected by case
 conversion** ([Index Types, §11.2](https://www.postgresql.org/docs/current/indexes-types.html)) — so
 `?filter.name=$sw:Wid`, served as an index range scan under the portable `LIKE` with a `text_pattern_ops`
-index or a C-locale database, becomes a sequential scan under `ILIKE`. No query, config or schema changed:
+index or a C-locale database, becomes a sequential scan under `ILIKE`. No query, config, or schema changed:
 one package reference and one builder line did.
 
 It is scoped to **alphabetic** prefixes. `$sw` on a digit-leading SKU, order number or phone prefix stays
@@ -111,7 +112,8 @@ internal sealed class CitextLikeStrategy() : PaginateLikeStrategyBase(ILikeMetho
 
     private static readonly MethodInfo ILikeMethod =
         ((MethodCallExpression)((Expression<Func<string, string, bool>>)
-            ((v, p) => EF.Functions.ILike(v, p, PaginateLikeDefaults.EscapeCharacter))).Body).Method;
+            ((v, p) => EF.Functions.ILike(v, p, PaginateLikeDefaults.EscapeCharacter))
+        ).Body).Method;
 
     // Which operator best represents this strategy in generated docs; null = use the field's first operator.
     public override PaginateFilterOperator? PreferredExampleOperator => PaginateFilterOperator.ILike;
@@ -153,7 +155,7 @@ be registered for the engine to work. That property is also how you put the proc
 PaginateLikeDefaults.Strategy = PaginateLikeDefaults.Portable;   // undo a UsePostgreSql() for this process
 ```
 
-Because the setter is mutable and shared, a test that swaps it changes behaviour for everything running
+Because the setter is mutable and shared, a test that swaps it changes behavior for everything running
 alongside it — see [Testing your pagination](/recipes/testing/#watch-the-process-wide-statics). Assigning
 `null` throws rather than leaving the engine with nothing to call.
 
@@ -172,7 +174,8 @@ var invoices = PaginateConfig<Invoice>.Create(b => b
     .WithLimits(25, 100)
     .WithTieBreaker(i => i.Id)
     .WithLikeStrategy(PaginateLikeDefaults.Portable)
-    .Filterable("reference", i => i.Reference));
+    .Filterable("reference", i => i.Reference)
+);
 ```
 
 See [`WithLikeStrategy`](/reference/configuration/#withlikestrategy) for the full rules.
@@ -185,18 +188,18 @@ escaped backslash — precisely the byte sequence this engine's escaping produce
 there", which is a pattern that degenerates toward matching everything rather than one that matches nothing.
 There is no 18.5: PostgreSQL went 18.4 → 18.6. Wire it from EF Core with `UseCollation` on the property.
 On **17 and earlier the route does not exist**: a deterministic collation never folds `LIKE`, and a
-nondeterministic one is rejected by it outright — measured on 15.19, 16.15 and 17.11, which all answer
+nondeterministic one is rejected by it outright — measured on 15.19, 16.15, and 17.11, which all answer
 `ERROR: nondeterministic collations are not supported for LIKE` — so the alternatives there are a `citext`
 column or a per-provider strategy.
 
 Note the asymmetry before reaching for both at once: `ILIKE` does **not** support nondeterministic collations
 on any major, so the collation route and `.UsePostgreSql()` are alternatives rather than a combination. That
-is measured rather than inferred: 15.19, 16.15, 17.11 and 18.6 all refuse it with SQLSTATE `0A000`, including
+is measured rather than inferred: 15.19, 16.15, 17.11, and 18.6 all refuse it with SQLSTATE `0A000`, including
 the majors where `LIKE` accepts the same column.
 
 ## Testing it
 
-Native `ILIKE` and its `ESCAPE` behaviour need a real PostgreSQL server, so no in-process leg can reach them.
+Native `ILIKE` and its `ESCAPE` behavior need a real PostgreSQL server, so no in-process leg can reach them.
 The library's own CI runs a PostgreSQL service container for exactly that reason, which is where those
 assertions live. Your model, your collations and your indexes are still yours to cover: if you depend on
 `UsePostgreSql()`, that seam is worth one integration test of your own — see

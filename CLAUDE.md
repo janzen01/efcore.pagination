@@ -6,9 +6,9 @@ Published on nuget.org as the **10.x** line; prereleases carry an `-rc.N` suffix
 
 > **Machine setup** (prerequisites, restore, build, graphify) lives in **[SETUP.md](SETUP.md)** — not repeated here.
 > **Consumer documentation** — the query-string contract, every builder method, the projection strategies and the
-> `400` catalogue — lives in **[docs/src/guide/](docs/src/guide/)** and is published at
-> **<https://janzen01.github.io/efcore.pagination/>**. Behaviour described there is the published contract:
-> change the behaviour, change the guide in the same commit.
+> `400` catalog — lives in **[docs/src/guide/](docs/src/guide/)** and is published at
+> **<https://janzen01.github.io/efcore.pagination/>**. Behavior described there is the published contract:
+> change the behavior, change the guide in the same commit.
 > This file is for *working in the code*.
 
 ## The documentation site
@@ -142,7 +142,7 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   before every dev server and build, reading `docs/src` out of each line's git tag, and its **manifest is the
   `versions` array at the top of that script**. Generating rather than committing is the point: a committed
   archive would put a second copy of all 26 pages in the tree per line, and every search across the repository
-  would have to learn to skip them. `git grep` finds one copy; ripgrep honours `.gitignore`, so it does too.
+  would have to learn to skip them. `git grep` finds one copy; ripgrep honors `.gitignore`, so it does too.
 - **The script rewrites links, and all three of its guards matter.** An archived page's root-absolute links
   (`](/guide/…`, the home layout's `link:` front matter, the four stubs' `http-equiv: refresh` targets) are
   rewritten to sit behind the version segment. `strays` refuses a root-absolute link to an unknown section and
@@ -158,7 +158,7 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   own regex and its own matcher — and every disagreement was a page one tool treated as real and another did
   not. The patterns are rooted at `docs/` and written against `src/…`, so they cannot match
   `archive/<version>/…` on their own: read naively, an excluded draft stays out of the root and is published
-  under a frozen version prefix, with a green build. Two behaviours in that module are load-bearing and neither
+  under a frozen version prefix, with a green build. Two behaviors in that module are load-bearing and neither
   is plain picomatch's:
   **a directory pattern excludes what is under it, wildcard or not** (VitePress passes `srcExclude` to
   tinyglobby as `ignore`, where `src/drafts` *and* `src/draft*` each cover `src/drafts/index.md`; picomatch
@@ -179,7 +179,7 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   `node --test` with a pattern that matches nothing reports zero tests and exits 0, so a rename would have
   taken the gate with it silently. The writer's three cases (idempotent writes, pruning, the case-only rename)
   work in a temp directory through the exported `archiveWriter`, which is why that closure was lifted out of
-  `main()` at all — disabling either behaviour used to leave the suite green. Every case in it is one that had been verified once by hand — by editing
+  `main()` at all — disabling either behavior used to leave the suite green. Every case in it is one that had been verified once by hand — by editing
   the config, building, and reverting — which left nothing behind to notice a regression; the two `srcExclude`
   cases above are there because both of those failure modes shipped and were only caught by review. The main
   body of `sync-archive.mjs` is behind an `import.meta.url` guard so the helpers can be imported without it.
@@ -247,8 +247,8 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   `.vitepress/config.mts`, never on the command line.
 - **There are no `locales` at all, and that is deliberate.** The plugin gives every archived version its own
   locale entry with `label: ' '`, and VitePress renders a language switcher for any site with more than one
-  labelled locale — so a `locales` block reintroduces a translations menu listing blank entries. With no
-  locales configured the plugin leaves those entries unlabelled and VitePress renders nothing. `nav`, `sidebar`
+  labeled locale — so a `locales` block reintroduces a translations menu listing blank entries. With no
+  locales configured the plugin leaves those entries unlabeled and VitePress renders nothing. `nav`, `sidebar`
   and `outline` therefore live in the **top-level** `themeConfig`, which is exactly the shape the plugin expects
   when there are no locales; `lang` is top-level too. Verified in the built DOM, in both directions.
 - **Navigation is versioned automatically**, so one `nav` and one `sidebar` serve every version: the plugin
@@ -275,7 +275,7 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   because neither the ordering nor the labels are configurable upstream: the menu is built straight off the
   `versions` Set, whose order is whatever `readdirSync` returned (alphabetical, so oldest first), and each
   entry's text *is* its path segment, so a label cannot be smuggled in without breaking the link. Two
-  behaviours are ours and both should survive a version bump of the package. **Newest first**, sorted on the
+  behaviors are ours and both should survive a version bump of the package. **Newest first**, sorted on the
   `X.Y` in `v<major>.<minor>.x` rather than as a string, so `v10.9.x` does not fall below `v10.10.x` the
   first time a line reaches double digits. And **`latest` is a label, not a destination**: upstream offered
   the current version as its own entry named after `versionsConfig.current`, so the menu read `latest`,
@@ -334,7 +334,7 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
 - **`withMermaid()` reads two separate keys and they are not interchangeable.** `mermaid` is the runtime
   config handed to `mermaid.initialize()`; `mermaidPlugin` is the markdown rule's own options. Setting
   `class` under the first does nothing at all -- the rule only ever reads `mermaidPlugin.class`.
-- **The diagrams are `mermaid-diagram`, not `mermaid`, and that rename is a second line of defence rather
+- **The diagrams are `mermaid-diagram`, not `mermaid`, and that rename is a second line of defense rather
   than the fix it was first taken for.** The symptom was that **every page carrying a diagram rendered the
   diagram and then "Syntax error in text" underneath it**. The sources were never wrong -- all six parse
   cleanly, and the correct rendering beside the error proves it: mermaid's own sweep had found a stray,
@@ -363,7 +363,7 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   Two things make this easy to lose an evening to. The production build is **unaffected** — it bundles
   properly, so `pnpm docs:build` is green either way and CI can never catch it. And the dep cache is **not** at
   `node_modules/.vite`: VitePress points `cacheDir` at `.vitepress/cache`, so that is what to delete when
-  forcing re-optimisation, and `.vitepress/cache/deps/` is where to look to see what actually got pre-bundled.
+  forcing re-optimization, and `.vitepress/cache/deps/` is where to look to see what actually got pre-bundled.
 
 ## graphify — read the graph before the source
 The knowledge graph at `graphify-out/` (god nodes, communities, cross-file edges) is **not committed** — it is
@@ -401,7 +401,7 @@ src/
   Janzen.Pagination.AspNetCore/            query-string binding, ProblemDetails, links, OpenAPI metadata
   Janzen.Pagination.NodaTime/              Instant / LocalDate filter · sort · project
 ```
-`EntityFrameworkCore` is the core engine; `PostgreSql`, `AspNetCore` and `NodaTime` build **on top of it** and are
+`EntityFrameworkCore` is the core engine; `PostgreSql`, `AspNetCore`, and `NodaTime` build **on top of it** and are
 independent of each other — consumers pick the extensions they need:
 ```
         Janzen.Pagination.EntityFrameworkCore   (core engine)
@@ -434,7 +434,7 @@ independent of each other — consumers pick the extensions they need:
   throws at `Build()` rather than guessing. The empty-array error stays on the *explicit* signature: "derive" is
   a signature the caller picks, never a fallback for a list that came out empty. Note the overload resolution —
   a pre-existing zero-operator call binds to the new overload in normal form and now *configures* instead of
-  throwing; only already-compiled consumers keep the old behaviour, until they rebuild.
+  throwing; only already-compiled consumers keep the old behavior, until they rebuild.
 - **`PaginateQuery`** — immutable request: `Page`, `Limit`, `SortBy` (`["field:DESC"]`), `Search`, `SearchBy`, `Filters`
   (`field → ["$op:value"]`), plus `.WithPage(n)` — the same request on another page, which is how a caller with no
   `PaginateLinkContext` (so a `null` `Links`) navigates off `Meta`. It is a `class`, not a `record`: value equality over
@@ -497,7 +497,7 @@ independent of each other — consumers pick the extensions they need:
   metadata.
 
 ## Providers — LIKE vs ILIKE
-- Default search / `Contains` / `StartsWith` emit **portable `LIKE`**, and its case behaviour is the engine's,
+- Default search / `Contains` / `StartsWith` emit **portable `LIKE`**, and its case behavior is the engine's,
   **not the column collation's**. That shorthand was wrong in the one direction that matters here: a
   deterministic PostgreSQL collation never case-folds `LIKE` and, before 18, a nondeterministic one is
   rejected by it, so the portable path is case-**sensitive** on PostgreSQL whatever collation is configured
@@ -519,19 +519,56 @@ independent of each other — consumers pick the extensions they need:
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
 - **The tree is LF, pinned by [.gitattributes](.gitattributes)** (`* text=auto eol=lf`; `.bat`/`.cmd` carved out).
   Not cosmetic here: the parameter descriptions this library generates land in a *consumer's* committed OpenAPI
-  artefact, and the transformer builds them from raw string literals, which the compiler copies **verbatim** —
-  a CRLF checkout ships a package whose documentation is CRLF, and the consumer's artefact then rewrites itself
+  artifact, and the transformer builds them from raw string literals, which the compiler copies **verbatim** —
+  a CRLF checkout ships a package whose documentation is CRLF, and the consumer's artifact then rewrites itself
   on every build. The joins in `PaginatedQueryOperationTransformer` are pinned to `'\n'` for the same reason:
   **don't put `Environment.NewLine` back.** `OpenApiTests.No_description_carries_a_platform_line_ending` guards
   both paths at once, and needs the documented config to keep **two** sortable fields and **two** operators on
   `filter.status` — a one-element `string.Join` emits no separator and the test would pass without testing.
+- **Prose is American English** — code comments, XML docs, the docs site, the READMEs, commit messages:
+  `-ize`/`-ization`, `-or`, `allowlist`, `handwritten`, `catalog`, `canceled`, `artifact`, `defense`, `toward`;
+  the Oxford comma in a list of three or more; a comma after `e.g.`. **Literals keep their spelling** — GitHub
+  Actions' `cancelled` status and `cancelled()` function, a runtime exception message, an identifier (an
+  issue-form field `id` included). When a grammar fix to a comma would change what a sentence says, rephrase the
+  sentence rather than keeping or dropping the comma.
+- **One layout for the C#**, whitespace and line breaks only:
+  - A block or method body of up to five lines sits directly between its braces; a longer one gets a blank line
+    after `{` and before `}`. An object initializer is not a body, even after `=> new() {`.
+  - A single-statement `if`/`for`/`foreach`/`while` goes on one line without braces, unless the line gets long
+    (~150 columns) or the statement is itself a control statement, so nothing nests brace-less.
+  - There is **no line-length limit for code** — the ~139 columns below are for a one-line `<summary>` only.
+    Content that fits on one line stays on one line however long: a single-argument call, an expression-bodied
+    member, a declaration.
+  - Anything opened at the end of a line — `(`, `[`, `{`, a raw string — whose content spans lines **closes on a
+    line of its own, at the indentation of the line that opened it**. A split argument list puts one argument per
+    line. A raw string's content moves with its closing `"""`, because that delimiter decides how much
+    indentation the compiler strips: move only the delimiter and the rest lands inside the string. A chain that
+    continues after such a closer stays on it (`).WithPagination<T>();`); the next step of a fluent chain keeps
+    its own line.
+  - A trailing comment stays with the code it describes, not with a closer moved below it.
+  - The `csharp` samples in `docs/src` and the READMEs follow the same rules at four-space indentation, with one
+    exception for the reader: **no line is joined past 100 columns**, because a sample is read in a fixed-width
+    column. A call that would pass it stays split, one argument per line.
+- **IDE inspections are taken one by one, not wholesale** — the analyzer's own settings contradict each other in
+  places (it flags the same `this.` as both redundant and missing). Taken: redundant `this.` (private fields are
+  `_camelCase`, so nothing is left to disambiguate), a guard that throws before a single return as a conditional
+  with a throw arm, inverted `if` to reduce nesting, local functions below the code that calls them, `_ =` for a
+  discarded probe result, and unused usings, redundant `!`, trailing commas and redundant type specifications.
+  **Left, and not to be "fixed":** loop-to-LINQ on a per-request path (`PaginateHttpRequestExtensions` says why
+  its loop is indexed); a collection expression whose result reaches a consumer as `IReadOnlyList<T>`, which
+  swaps the `List<T>` or array the caller gets today for a compiler-synthesized type; "redundant" parentheses
+  that group mixed operators; `ParseParsable`'s `parsed is not null`, which the nullability annotations call
+  redundant and its comment explains; `this.` inside `WithPage`'s initializer, where dropping it reads as
+  `Limit = Limit`; a "redundant" cast that decides a boxed type; namespace-vs-folder and naming findings on the
+  public API; the property named as `paramName` in `PaginateLinkContext`; and the analyzer's AOT "errors", where
+  the build under `-warnaserror` is the authority.
 - **XML docs on every public member** — enforced by the build (`CS1591` is *not* suppressed for the packable
   projects). `GenerateDocumentationFile=true`, so the generated `.xml` ships inside the package and drives consumer
   IntelliSense: a wrong summary is worse than a missing one, because it cannot be recalled for that version.
   House style, sampled from the existing members: tabs + LF; single-line `<summary>` up to ~139 rendered columns,
   otherwise `///` + **five** spaces on the body lines. Tags in use: `<summary>`, `<remarks>`, `<param>`,
   `<typeparam>`, `<c>`, `<see cref>`, `<see langword>`, `<paramref>`, `<typeparamref>`, `<b>`, `<inheritdoc />`.
-  **Do not** introduce `<returns>`, `<exception>`, `<example>` or `<seealso>`.
+  **Do not** introduce `<returns>`, `<exception>`, `<example>`, or `<seealso>`.
 - **`<param>` is all-or-nothing per member** — document *every* parameter or none, because partial coverage raises
   CS1573 (and partial type-parameter coverage CS1712), which is an error here. **An optional parameter is not
   exempt** (verified: omitting `Badge = null` fails the build). Ordinary methods normally name their parameters
@@ -588,7 +625,7 @@ independent of each other — consumers pick the extensions they need:
   required check, so never let `ci-ok` itself be skipped by an `if:`; and the ruleset has **no bypass
   actors**, so a red gate for a reason outside the PR (an npm or nuget.org outage) blocks every merge
   including the maintainer's — the only escape is editing the ruleset.
-  **A cancelled run is safe, and this was measured rather than assumed:** cancelling a run makes `ci-ok`
+  **A canceled run is safe, and this was measured rather than assumed:** canceling a run makes `ci-ok`
   conclude **`cancelled`**, not `skipped`, and `cancelled` is not in the set a required check accepts, so
   `mergeStateStatus` stays `BLOCKED`. That says nothing about an `if:` that skips the job on a *completed*
   run — the rule above is unchanged.
@@ -666,11 +703,11 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    public one like this the policy is active immediately.
 7. `publish.yml` runs as two jobs. `build` holds no credential and does everything that executes project code —
    the tag-vs-version guard, restore, build, test, the README pin and pack — and hands the packages on as an
-   artefact. `publish` declares `environment: nuget`, so the run **stops for a manual approval** (required
+   artifact. `publish` declares `environment: nuget`, so the run **stops for a manual approval** (required
    reviewer, and only a `v*` tag may deploy) before it reaches the OIDC exchange; by then the suite is already
    green, which is what the approval is confirming. Approve it under *Review deployments* in the run. Nothing
    reaches nuget.org until then, which is also why a mismatched policy fails at `NuGet login` rather than
-   half-way through a push. **The artefact hand-off cannot be dry-run** — `release: published` is the only
+   half-way through a push. **The artifact hand-off cannot be dry-run** — `release: published` is the only
    trigger — so the first release after any change to it is its own test; cut that one as an `-rc.N`.
 8. The `publish` job records a **build provenance attestation** for every packed file, and that is where it ends:
    **nothing is attached to the GitHub release.** Releases here are *immutable*, so a `gh release upload` step
@@ -715,7 +752,7 @@ plain `Where` and no engine involved:
 `test/Janzen.Pagination.Tests/xunit.runner.json` (copied to the output by an explicit `Content` item). The
 engine has three process-wide mutable statics — `PaginateLikeDefaults.Strategy`, `PaginateTypeSupport`'s
 registries and `PaginateConfigDefaults.Shared` — and a `[Collection]` **cannot** isolate a test that assigns
-one: xunit serialises *within* a collection but runs different collections in parallel, so a class holding a
+one: xunit serializes *within* a collection but runs different collections in parallel, so a class holding a
 mutated static still overlaps every other collection. `Shared` is what made that concrete rather than
 theoretical, because every `Build()` in the assembly reads it. Verified by a throwaway probe: with
 `parallelizeTestCollections: true` a pair of two-collection tests asserting "only one of us is live" fails,
@@ -730,20 +767,20 @@ register anything therefore key it to a type declared in the test file itself, s
 another test.
 
 The test project is named in the core project's `InternalsVisibleTo` list, alongside the two add-on packages.
-Use it sparingly — the point is behaviour, not internals — but two invariants have no behaviour to assert
+Use it sparingly — the point is behavior, not internals — but two invariants have no behavior to assert
 against and are tested directly: `PaginateValueConverter`'s UTC `DateTimeKind` (a `DateTime` compares by
 ticks, so the wrong `Kind` changes nothing in memory and nothing in the SQL SQLite emits; it shifts the
 instant only on a provider that converts, on a server off UTC — a behavioural test would pass in CI either
 way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server reads it as a range).
 
-- **PostgreSQL**, in CI. Native `ILIKE` and its `ESCAPE` behaviour need a real server, so they run in a
+- **PostgreSQL**, in CI. Native `ILIKE` and its `ESCAPE` behavior need a real server, so they run in a
   dedicated `ci.yml` job against a `postgres:18.6` service container, gated on `JANZEN_TEST_POSTGRES` and
   skipped when it is unset — which is why `dotnet test` is still green locally without one. See
   [SETUP.md](SETUP.md) for running that leg yourself. The job is a `needs:` of `ci-ok` and carries no `if:`
   of its own, for the reason under *Conventions*.
 
 ## Intentional decisions — do NOT "fix" these
-- **net10.0-only** — net9 is EOL and net8 lacks the EF Core 9+ surface the engine relies on (e.g. `EF.Parameter`).
+- **net10.0-only** — net9 is EOL and net8 lacks the EF Core 9+ surface the engine relies on (e.g., `EF.Parameter`).
   Don't re-introduce multi-targeting.
 - **Value resolution order is registry → built-ins → `IParsable<TSelf>` → 400**, and the registry going *first* is
   the load-bearing part: consulted last (as it was before 10.0.3) a registration for an already-built-in type was a
@@ -838,8 +875,8 @@ way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server rea
 
 ## Verifying a change
 1. Build clean (warnings = errors): `dotnet build Janzen.Pagination.slnx -c Release -warnaserror`.
-2. `dotnet test Janzen.Pagination.slnx -c Release` — green, and **add a case for what you changed**. Behaviour with no
-   test is behaviour nothing will notice losing.
+2. `dotnet test Janzen.Pagination.slnx -c Release` — green, and **add a case for what you changed**. Behavior with no
+   test is behavior nothing will notice losing.
 3. Touched the public API? Update the affected package `README.md`, the XML docs and `docs/src/guide/` — a public-API
    change is a versioning decision. Run `dotnet pack Janzen.Pagination.slnx -c Release --no-build`: package
    validation compares the packed assembly against the released baseline, so an accidental break surfaces here
@@ -847,7 +884,7 @@ way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server rea
    **Read "touched the public API" as the emitted metadata, not the signature list**, and pack whenever a
    `public` member's *shape* changed even though its signature did not. Rewriting an auto-property's accessor by
    hand drops `CompilerGeneratedAttribute` from it, which package validation reports as `CP0014`; the edit that
-   did it looked like an implementation detail and passed build, test and the docs build untouched.
+   did it looked like an implementation detail and passed build, test, and the docs build untouched.
    **Only the ubuntu CI leg runs `Pack`** — it is `skipped` on windows and macOS — so a local Windows loop cannot
    substitute for it, and a green three-OS matrix does not mean three machines validated the packages.
    `Microsoft.NET.ApiCompat.ValidatePackage.semaphore` under each project's `obj/` makes a repeat pack a no-op, so

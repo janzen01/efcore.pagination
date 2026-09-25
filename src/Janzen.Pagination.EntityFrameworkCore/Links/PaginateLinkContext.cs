@@ -10,7 +10,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.Links;
 /// </summary>
 /// <remarks>
 ///     Two contexts describing the same request compare <b>equal</b>: <c>Equals</c> and <c>GetHashCode</c> are
-///     hand-written, because a record's synthesized equality runs <c>QueryParameters</c> through
+///     handwritten, because a record's synthesized equality runs <c>QueryParameters</c> through
 ///     <c>EqualityComparer&lt;T&gt;.Default</c>, which for a list is reference equality. Order is part of the
 ///     value — it is the order in which the parameters are emitted.
 /// </remarks>
@@ -63,17 +63,20 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 		if (ReferenceEquals(this, other)) return true;
 
 		return other is not null
-			&& string.Equals(this.Path, other.Path, StringComparison.Ordinal)
-			&& PaginateStructuralEquality.PairListEquals(this.QueryParameters, other.QueryParameters);
+			&& string.Equals(Path, other.Path, StringComparison.Ordinal)
+			&& PaginateStructuralEquality.PairListEquals(QueryParameters, other.QueryParameters);
 	}
 
 	/// <summary>Hashes the same members <see cref="Equals(PaginateLinkContext)" /> compares, so equal contexts hash equal.</summary>
 	public override int GetHashCode() {
+
 		// No null branch on Path: ValidatePath refuses one from both the initializer and the init accessor,
 		// which is the same invariant Equals above relies on.
 		return HashCode.Combine(
-			StringComparer.Ordinal.GetHashCode(this.Path),
-			PaginateStructuralEquality.PairListHash(this.QueryParameters));
+			StringComparer.Ordinal.GetHashCode(Path),
+			PaginateStructuralEquality.PairListHash(QueryParameters)
+		);
+
 	}
 
 	// Validating in the init accessors is what makes `with` run these too, and the initializers above are what
@@ -93,26 +96,28 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 		int offending = path.AsSpan().IndexOfAny(ForbiddenInAPath);
 
 		if (offending >= 0) {
+
 			// Named by code point, never echoed: the offender can be a control character, and this message reaches
 			// a log or a console the same way a 400 detail would.
 			throw new ArgumentException(
 				$"Path contains U+{(int)path[offending]:X4}, which cannot appear in a URI path — the link would "
 				+ "address a different resource. Supply an escaped path: PathString.ToUriComponent() in ASP.NET "
 				+ "Core, or Uri.EscapeDataString per segment elsewhere.",
-				nameof(Path));
+				nameof(Path)
+			);
+
 		}
 
 		return path;
 
 	}
 
-	private static IReadOnlyList<KeyValuePair<string, string>> ValidateQueryParameters(
-		IReadOnlyList<KeyValuePair<string, string>> queryParameters) {
+	private static KeyValuePair<string, string>[] ValidateQueryParameters(IReadOnlyList<KeyValuePair<string, string>> queryParameters) {
 
 		ArgumentNullException.ThrowIfNull(queryParameters, nameof(QueryParameters));
 
 		// Copied, not captured. This record hand-writes value equality, and a caller who keeps their list and
-		// adds to it afterwards would change the value of a constructed context underneath it: two contexts
+		// adds to it afterward would change the value of a constructed context underneath it: two contexts
 		// that compared equal stop being equal, and one used as a dictionary key can no longer be found
 		// because its hash moved. Path is a string and cannot do that; this member could.
 		var copy = queryParameters.ToArray();

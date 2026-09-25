@@ -26,19 +26,16 @@ public sealed class LikeStrategyTests : IDisposable {
 
 	// IsAssignableFrom, not IsType: Expression.Call hands back an internal arity-specific subclass.
 	private static MethodCallExpression BuildLike() {
-		return Assert.IsAssignableFrom<MethodCallExpression>(
-			PaginateLikeDefaults.Strategy.BuildLike(Expression.Constant("column"), Expression.Constant("%value%")));
+		return Assert.IsAssignableFrom<MethodCallExpression>(PaginateLikeDefaults.Strategy.BuildLike(Expression.Constant("column"), Expression.Constant("%value%")));
 	}
 
 	[Fact]
 	public void The_default_strategy_emits_a_portable_like() {
-
 		var call = BuildLike();
 
 		Assert.Equal("Like", call.Method.Name);
 		Assert.Equal("DbFunctionsExtensions", call.Method.DeclaringType?.Name);
 		Assert.Null(PaginateLikeDefaults.Strategy.PreferredExampleOperator);
-
 	}
 
 	[Fact]
@@ -65,10 +62,11 @@ public sealed class LikeStrategyTests : IDisposable {
 		Assert.Equal(PaginateFilterOperator.ILike, PaginateLikeDefaults.Strategy.PreferredExampleOperator);
 
 		// The exact overload, not merely one of that name: the escape-carrying four-parameter form is the only
-		// one that honours the engine's escaping, and the three-parameter sibling would compile just as well.
+		// one that honors the engine's escaping, and the three-parameter sibling would compile just as well.
 		Assert.Equal(
 			[typeof(DbFunctions), typeof(string), typeof(string), typeof(string)],
-			call.Method.GetParameters().Select(parameter => parameter.ParameterType).ToArray());
+			call.Method.GetParameters().Select(parameter => parameter.ParameterType).ToArray()
+		);
 
 	}
 
@@ -88,13 +86,11 @@ public sealed class LikeStrategyTests : IDisposable {
 
 	[Fact]
 	public void Assigning_a_null_strategy_is_refused_at_the_assignment() {
-
 		// The property documents itself as never null and the engine dereferences it without a check, so a null
 		// assignment used to surface as an NRE inside query composition on the next request -- far from the
 		// mistake. PaginateConfigDefaults.Shared already refuses the same way.
 		Assert.Throws<ArgumentNullException>(() => PaginateLikeDefaults.Strategy = null!);
 		Assert.NotNull(PaginateLikeDefaults.Strategy);
-
 	}
 
 	[Fact]
@@ -132,7 +128,8 @@ public sealed class PerConfigLikeStrategyTests(SqliteFixture fixture) : IClassFi
 
 		private readonly static MethodInfo LikeMethod = typeof(DbFunctionsExtensions).GetMethod(
 			nameof(DbFunctionsExtensions.Like),
-			[typeof(DbFunctions), typeof(string), typeof(string)])!;
+			[typeof(DbFunctions), typeof(string), typeof(string)]
+		)!;
 
 		public PaginateFilterOperator? PreferredExampleOperator => null;
 
@@ -143,6 +140,7 @@ public sealed class PerConfigLikeStrategyTests(SqliteFixture fixture) : IClassFi
 	}
 
 	private static PaginateConfig<Product> ConfigWith(IPaginateLikeStrategy? strategy) {
+
 		return PaginateConfig<Product>.Create(builder => {
 			builder
 				.WithLimits(defaultLimit: 3, maxLimit: 50)
@@ -151,6 +149,7 @@ public sealed class PerConfigLikeStrategyTests(SqliteFixture fixture) : IClassFi
 				.Filterable("name", p => p.Name, PaginateFilterOperator.ILike);
 			if (strategy is not null) builder.WithLikeStrategy(strategy);
 		});
+
 	}
 
 	private string Sql(PaginateConfig<Product> config) {
@@ -166,9 +165,9 @@ public sealed class PerConfigLikeStrategyTests(SqliteFixture fixture) : IClassFi
 		// host has no way out at all, because BuildLike is handed no provider to dispatch on.
 		new ServiceCollection().AddPagination(p => p.UsePostgreSql());
 
-		Assert.Throws<InvalidOperationException>(() => this.Sql(ConfigWith(null)));
+		Assert.Throws<InvalidOperationException>(() => Sql(ConfigWith(null)));
 
-		string sql = this.Sql(ConfigWith(new NoEscapeLikeStrategy()));
+		string sql = Sql(ConfigWith(new NoEscapeLikeStrategy()));
 
 		Assert.Contains("LIKE", sql, StringComparison.Ordinal);
 		Assert.DoesNotContain("ILIKE", sql, StringComparison.Ordinal);
@@ -177,24 +176,20 @@ public sealed class PerConfigLikeStrategyTests(SqliteFixture fixture) : IClassFi
 
 	[Fact]
 	public void A_configuration_without_one_still_composes_exactly_the_portable_pattern_match() {
-
 		// The unchanged path, asserted on the emitted SQL rather than in prose: resolving per query must not
 		// alter what a configuration that sets no strategy produces.
-		string sql = this.Sql(ConfigWith(null));
+		string sql = Sql(ConfigWith(null));
 
 		Assert.Contains(@"LIKE @p ESCAPE '\'", sql, StringComparison.Ordinal);
-
 	}
 
 	[Fact]
 	public void Configuring_one_does_not_write_the_process_wide_default() {
-
 		var strategy = new NoEscapeLikeStrategy();
 
-		this.Sql(ConfigWith(strategy));
+		Sql(ConfigWith(strategy));
 
 		Assert.NotSame(strategy, PaginateLikeDefaults.Strategy);
-
 	}
 
 	[Fact]
@@ -202,7 +197,8 @@ public sealed class PerConfigLikeStrategyTests(SqliteFixture fixture) : IClassFi
 		Assert.Throws<ArgumentNullException>(() => PaginateConfig<Product>.Create(builder => builder
 			.WithLimits(defaultLimit: 3, maxLimit: 50)
 			.WithTieBreaker(p => p.Id)
-			.WithLikeStrategy(null!)));
+			.WithLikeStrategy(null!)
+		));
 	}
 
 	[Theory]
@@ -245,15 +241,15 @@ public sealed class LikeStrategyExtensibilityTests {
 
 		private readonly static MethodInfo LikeMethod = typeof(DbFunctionsExtensions).GetMethod(
 			nameof(DbFunctionsExtensions.Like),
-			[typeof(DbFunctions), typeof(string), typeof(string), typeof(string)])!;
+			[typeof(DbFunctions), typeof(string), typeof(string), typeof(string)]
+		)!;
 
 		public override PaginateFilterOperator? PreferredExampleOperator => PaginateFilterOperator.ILike;
 
 	}
 
 	private static MethodCallExpression BuildLike(IPaginateLikeStrategy strategy) {
-		return Assert.IsAssignableFrom<MethodCallExpression>(
-			strategy.BuildLike(Expression.Constant("column"), Expression.Constant("%value%")));
+		return Assert.IsAssignableFrom<MethodCallExpression>(strategy.BuildLike(Expression.Constant("column"), Expression.Constant("%value%")));
 	}
 
 	[Fact]
@@ -263,16 +259,15 @@ public sealed class LikeStrategyExtensibilityTests {
 		// member and the emitted ESCAPE argument cannot drift apart in either direction.
 		Assert.Equal(
 			PaginateLikeDefaults.EscapeCharacter,
-			Assert.IsAssignableFrom<ConstantExpression>(BuildLike(PaginateLikeDefaults.Portable).Arguments[3]).Value);
+			Assert.IsAssignableFrom<ConstantExpression>(BuildLike(PaginateLikeDefaults.Portable).Arguments[3]).Value
+		);
 
 	}
 
 	[Fact]
 	public void The_published_escape_character_is_the_one_the_engine_escapes_with() {
-
 		// The other end of the same contract: what EscapeLikePattern prefixes is what a strategy must declare.
 		Assert.Equal($"{PaginateLikeDefaults.EscapeCharacter}%", PaginateExpressionUtils.EscapeLikePattern("%"));
-
 	}
 
 	[Fact]
@@ -287,19 +282,18 @@ public sealed class LikeStrategyExtensibilityTests {
 		// assembly, never instantiable on its own.
 		Assert.All(
 			typeof(PaginateLikeStrategyBase).GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic),
-			constructor => Assert.True(constructor.IsFamily));
+			constructor => Assert.True(constructor.IsFamily)
+		);
 
 	}
 
 	[Fact]
 	public void A_strategy_derived_from_the_shell_gets_the_escape_argument_for_free() {
-
 		var call = BuildLike(new DerivedStrategy());
 
 		Assert.Equal("Like", call.Method.Name);
 		Assert.Equal(4, call.Arguments.Count);
 		Assert.Equal(PaginateLikeDefaults.EscapeCharacter, Assert.IsAssignableFrom<ConstantExpression>(call.Arguments[3]).Value);
-
 	}
 
 }

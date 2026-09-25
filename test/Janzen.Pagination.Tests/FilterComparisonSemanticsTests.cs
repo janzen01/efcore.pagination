@@ -17,7 +17,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 		.WithTieBreaker(p => p.Id)
 		.Filterable("categoryId", p => p.CategoryId, PaginateFilterOperator.Eq)
 		.Filterable("categoryKey", p => p.Category!.Id, PaginateFilterOperator.Eq)
-		.Filterable("externalId", p => p.ExternalId, PaginateFilterOperator.Between));
+		.Filterable("externalId", p => p.ExternalId, PaginateFilterOperator.Between)
+	);
 
 	private static IQueryable<Product> InMemory() { return TestData.Products().AsQueryable(); }
 
@@ -25,11 +26,10 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 
 	[Fact]
 	public async Task An_empty_value_on_a_nullable_field_is_rejected_rather_than_matching_null() {
-
 		Assert.Equal(
 			"Filter 'categoryId' requires a value; use '$null' to match rows with no value.",
-			await Assertions.RejectsAsync(() => InMemory().PageAsync<ProductDto>(Query.Filter("categoryId", "$eq:"), EmptyValueConfig)));
-
+			await Assertions.RejectsAsync(() => InMemory().PageAsync<ProductDto>(Query.Filter("categoryId", "$eq:"), EmptyValueConfig))
+		);
 	}
 
 	[Fact]
@@ -39,7 +39,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 
 		Assert.Equal(
 			"Filter 'categoryId' requires a value; use '$null' to match rows with no value.",
-			await Assertions.RejectsAsync(() => SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("categoryId", "$eq:"), EmptyValueConfig)));
+			await Assertions.RejectsAsync(() => SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("categoryId", "$eq:"), EmptyValueConfig))
+		);
 
 	}
 
@@ -58,7 +59,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 
 		Assert.Equal(
 			"Filter 'categoryKey' requires a value; use '$null' to match rows with no value.",
-			await Assertions.RejectsAsync(() => source.PageAsync<ProductDto>(Query.Filter("categoryKey", "$eq:"), EmptyValueConfig)));
+			await Assertions.RejectsAsync(() => source.PageAsync<ProductDto>(Query.Filter("categoryKey", "$eq:"), EmptyValueConfig))
+		);
 
 	}
 
@@ -77,7 +79,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 		// Every row shares a rank, so ordering by it first leaves the string key deciding as a ThenBy.
 		.Sortable("rank", p => p.Rank)
 		.WithTieBreaker(p => p.Id)
-		.Filterable("name", p => p.Name, PaginateFilterOperator.GreaterThan));
+		.Filterable("name", p => p.Name, PaginateFilterOperator.GreaterThan)
+	);
 
 	private static IQueryable<Product> Letters() {
 		return new List<Product> {
@@ -102,25 +105,21 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 
 	[Fact]
 	public async Task A_string_range_does_not_depend_on_the_host_culture() {
-
 		var page = await UnderSwedishCulture(() => Letters().PageAsync<ProductDto>(Query.Filter("name", "$gt:Z"), OrderingConfig));
 
 		// Swedish puts Ångstrom after Z and would return it too.
 		Assertions.HasIds(page, 1);
-
 	}
 
 	[Theory]
 	[InlineData("name:ASC")]
 	[InlineData("rank:ASC", "name:ASC")]
 	public async Task A_string_sort_does_not_depend_on_the_host_culture(params string[] sortBy) {
-
 		// The second case makes the string key a ThenBy, which is the other half of the ordering branch.
 		var page = await UnderSwedishCulture(() => Letters().PageAsync<ProductDto>(Query.Sort(sortBy), OrderingConfig));
 
 		// Swedish would answer Apple, Zebra, Ångstrom.
 		Assertions.HasIds(page, 2, 3, 1);
-
 	}
 
 	#endregion
@@ -147,7 +146,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 	private readonly static PaginateConfig<Crate> CrateConfig = PaginateConfig<Crate>.Create(b => b
 		.WithLimits(50, 50)
 		.WithTieBreaker(c => c.Id)
-		.Filterable("weight", c => c.Weight, PaginateFilterOperator.Eq));
+		.Filterable("weight", c => c.Weight, PaginateFilterOperator.Eq)
+	);
 
 	[Fact]
 	public async Task Equality_on_a_type_without_an_equality_operator_is_rejected_rather_than_failing_the_request() {
@@ -159,7 +159,12 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 		Assert.Equal(
 			"Filter 'weight' does not support operator '$eq' for type 'Weight'.",
 			await Assertions.RejectsAsync(() => crates.PaginateAsync<Crate, CrateDto>(
-				Query.Filter("weight", "$eq:10"), CrateConfig, null, TestContext.Current.CancellationToken)));
+				Query.Filter("weight", "$eq:10"),
+				CrateConfig,
+				null,
+				TestContext.Current.CancellationToken
+			))
+		);
 
 	}
 
@@ -168,7 +173,7 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 	#region PERF-R04 — the hoisted CompareTo resolution still emits the same SQL
 
 	[Fact]
-	public void A_guid_range_parameterises_both_bounds() {
+	public void A_guid_range_parameterizes_both_bounds() {
 
 		using var context = fixture.CreateContext();
 
@@ -180,7 +185,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 		string statement = string.Join(' ', sql
 			.Split('\n')
 			.Where(line => !line.TrimStart().StartsWith(".param", StringComparison.Ordinal))
-			.SelectMany(line => line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+			.SelectMany(line => line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+		);
 
 		Assert.Contains("\"ExternalId\" >= @", statement, StringComparison.Ordinal);
 		Assert.Contains("\"ExternalId\" <= @", statement, StringComparison.Ordinal);

@@ -14,7 +14,7 @@ namespace Janzen.Pagination.NodaTime;
 /// <summary>
 ///     Registers NodaTime support with the Janzen.Pagination engine: value parsing for filters, leaf-type
 ///     classification for projection, and projection conversions onto the BCL types a DTO holds. Call once at
-///     startup, before the first configuration is built — e.g. <c>services.AddPagination(p =&gt; p.UseNodaTime())</c>
+///     startup, before the first configuration is built — e.g., <c>services.AddPagination(p =&gt; p.UseNodaTime())</c>
 ///     — or call <see cref="Register" /> directly for non-DI hosts.
 /// </summary>
 /// <remarks>
@@ -95,9 +95,9 @@ public static class PaginateNodaTime {
 		if (utc.Success) return utc.Value;
 
 		var offset = OffsetDateTimePattern.ExtendedIso.Parse(value);
-		if (offset.Success) return offset.Value.ToInstant();
-
-		throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not a valid instant.") { Code = PaginateQueryError.ValueInvalid };
+		return offset.Success
+			? offset.Value.ToInstant()
+			: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not a valid instant.") { Code = PaginateQueryError.ValueInvalid };
 
 	}
 
@@ -149,10 +149,9 @@ public static class PaginateNodaTime {
 
 		string? method = null;
 		foreach (var (source, target, name) in Conversions) {
-			if (sourceUnderlying == source && targetUnderlying == target) {
-				method = name;
-				break;
-			}
+			if (sourceUnderlying != source || targetUnderlying != target) continue;
+			method = name;
+			break;
 		}
 
 		if (method is null) return null;

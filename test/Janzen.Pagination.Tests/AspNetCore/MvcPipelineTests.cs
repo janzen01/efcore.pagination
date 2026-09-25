@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 using System.Net;
@@ -28,7 +27,7 @@ public sealed class MvcProductsController : ControllerBase {
 	[PaginatedQuery<DocumentedConfigProvider>]
 	public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) {
 		return TestData.Products().AsQueryable()
-			.PaginateAsync<Product, ProductDto>(request, DocumentedConfigProvider.Config, this.Request, ct);
+			.PaginateAsync<Product, ProductDto>(request, DocumentedConfigProvider.Config, Request, ct);
 	}
 
 	/// <summary>
@@ -39,7 +38,7 @@ public sealed class MvcProductsController : ControllerBase {
 	[HttpGet("unmarked")]
 	public Task<PaginatedResponse<ProductDto>> Unmarked([FromQuery] PaginateQuery request, CancellationToken ct) {
 		return TestData.Products().AsQueryable()
-			.PaginateAsync<Product, ProductDto>(request, DocumentedConfigProvider.Config, this.Request, ct);
+			.PaginateAsync<Product, ProductDto>(request, DocumentedConfigProvider.Config, Request, ct);
 	}
 
 }
@@ -53,7 +52,7 @@ public sealed class MvcProductsController : ControllerBase {
 /// </summary>
 public sealed class PaginationHostFixture : IAsyncLifetime {
 
-	private WebApplication? app;
+	private WebApplication? _app;
 
 	public HttpClient Client { get; private set; } = null!;
 
@@ -65,38 +64,38 @@ public sealed class PaginationHostFixture : IAsyncLifetime {
 
 		builder.Services.AddPagination(pagination => pagination.AddAspNetCore());
 		builder.Services.AddControllers().AddApplicationPart(typeof(MvcProductsController).Assembly);
-		builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails =
-			context => context.ProblemDetails.Extensions.Add("nodeId", "fixture"));
+		builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context => context.ProblemDetails.Extensions.Add("nodeId", "fixture"));
 
-		this.app = builder.Build();
+		_app = builder.Build();
 
-		this.app.MapControllers();
-		this.app.MapGet("/minimal/products", async (HttpContext http, CancellationToken ct) =>
+		_app.MapControllers();
+		_app.MapGet("/minimal/products", async (HttpContext http, CancellationToken ct) =>
 				await TestData.Products().AsQueryable()
-					.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), DocumentedConfigProvider.Config, http.Request, ct))
-			.WithPagination<DocumentedConfigProvider>();
+					.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), DocumentedConfigProvider.Config, http.Request, ct)
+		).WithPagination<DocumentedConfigProvider>();
 
 		// A route group, which is what MapGroup returns and what the second overload exists for. Before it this
 		// line did not compile: WithPagination only accepted a RouteHandlerBuilder, so a grouped endpoint could
 		// carry neither the metadata nor the filter and answered ?page=0 with an unhandled 500.
-		var group = this.app.MapGroup("/grouped").WithPagination<DocumentedConfigProvider>();
+		var group = _app.MapGroup("/grouped").WithPagination<DocumentedConfigProvider>();
 		group.MapGet("/products", async (HttpContext http, CancellationToken ct) =>
 			await TestData.Products().AsQueryable()
-				.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), DocumentedConfigProvider.Config, http.Request, ct));
+				.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), DocumentedConfigProvider.Config, http.Request, ct)
+		);
 
-		await this.app.StartAsync();
+		await _app.StartAsync();
 
-		this.Client = new HttpClient { BaseAddress = new Uri(this.app.Urls.First()) };
+		Client = new HttpClient { BaseAddress = new Uri(_app.Urls.First()) };
 
 	}
 
 	public async ValueTask DisposeAsync() {
 
-		this.Client?.Dispose();
+		Client?.Dispose();
 
-		if (this.app is not null) {
-			await this.app.StopAsync();
-			await this.app.DisposeAsync();
+		if (_app is not null) {
+			await _app.StopAsync();
+			await _app.DisposeAsync();
 		}
 
 	}
@@ -110,11 +109,9 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 	///     empty 500 body, and parsing first would report a JSON error instead of the status that is the point.
 	/// </summary>
 	private async Task<(HttpResponseMessage Response, string Body)> GetAsync(string url) {
-
 		var response = await fixture.Client.GetAsync(new Uri(url, UriKind.Relative), TestContext.Current.CancellationToken);
 
 		return (response, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
-
 	}
 
 	private static JsonElement Json(string body) { return JsonDocument.Parse(body).RootElement.Clone(); }
@@ -124,7 +121,7 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 
 		// AddAspNetCore() -> PaginateQueryModelBinderProvider -> PaginateQueryModelBinder, over a bound
 		// [FromQuery] PaginateQuery. Nothing else in the suite reaches any of the three.
-		(var response, string text) = await this.GetAsync("/mvc/products?limit=2&page=2&sortBy=rank:DESC&filter.status=$eq:Active");
+		(var response, string text) = await GetAsync("/mvc/products?limit=2&page=2&sortBy=rank:DESC&filter.status=$eq:Active");
 
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -149,8 +146,8 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 		// The media type the OpenAPI document this package emits advertises, and the one RFC 9457 reserves for
 		// this payload. The MVC filter leaves ContentTypes empty, so on a runtime that content-negotiates the
 		// answer this is the assertion that notices; ProblemDetailsTests pins the declared media type itself.
-		(var mvc, _) = await this.GetAsync("/mvc/products?sortBy=name:UP");
-		(var minimal, _) = await this.GetAsync("/minimal/products?sortBy=name:UP");
+		(var mvc, _) = await GetAsync("/mvc/products?sortBy=name:UP");
+		(var minimal, _) = await GetAsync("/minimal/products?sortBy=name:UP");
 
 		Assert.Equal(HttpStatusCode.BadRequest, mvc.StatusCode);
 		Assert.Equal("application/problem+json", mvc.Content.Headers.ContentType?.MediaType);
@@ -168,14 +165,14 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 	[Fact]
 	public async Task A_route_group_carries_pagination_to_every_endpoint_under_it() {
 
-		(var invalid, string body) = await this.GetAsync("/grouped/products?page=0");
+		(var invalid, string body) = await GetAsync("/grouped/products?page=0");
 
 		Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
 		Assert.Equal("application/problem+json", invalid.Content.Headers.ContentType?.MediaType);
 		Assert.Equal("Query parameter 'page' must be a positive integer.", Json(body).GetProperty("detail").GetString());
 
 		// The filter is attached, and so is the page itself: the group is a working endpoint, not just a guarded one.
-		(var valid, string page) = await this.GetAsync("/grouped/products?page=1&limit=2");
+		(var valid, string page) = await GetAsync("/grouped/products?page=1&limit=2");
 
 		Assert.Equal(HttpStatusCode.OK, valid.StatusCode);
 		Assert.Equal(2, Json(page).GetProperty("items").GetArrayLength());
@@ -189,7 +186,7 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 		// to Results.Problem, whose ProblemHttpResult routes it through IProblemDetailsService (invocation 2).
 		// The canonical customizer sample's Extensions.Add throws the second time, so the documented 400 came
 		// back as a 500.
-		(var response, string body) = await this.GetAsync("/minimal/products?sortBy=name:UP");
+		(var response, string body) = await GetAsync("/minimal/products?sortBy=name:UP");
 
 		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 		Assert.Equal("fixture", Json(body).GetProperty("nodeId").GetString());
@@ -199,8 +196,8 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 	[Fact]
 	public async Task Both_pipelines_answer_the_same_400_body() {
 
-		(_, string mvcText) = await this.GetAsync("/mvc/products?sortBy=name:UP");
-		(_, string minimalText) = await this.GetAsync("/minimal/products?sortBy=name:UP");
+		(_, string mvcText) = await GetAsync("/mvc/products?sortBy=name:UP");
+		(_, string minimalText) = await GetAsync("/minimal/products?sortBy=name:UP");
 
 		var mvc = Json(mvcText);
 		var minimal = Json(minimalText);
@@ -227,9 +224,9 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 	public async Task Both_pipelines_carry_the_machine_readable_cause() {
 
 		// Without it the only way to branch on the cause is to match the detail prose, which pins the wording
-		// permanently and cannot be localised.
-		(_, string mvc) = await this.GetAsync("/mvc/products?sortBy=name:UP");
-		(_, string minimal) = await this.GetAsync("/minimal/products?filter.status=$eq:Nope");
+		// permanently and cannot be localized.
+		(_, string mvc) = await GetAsync("/mvc/products?sortBy=name:UP");
+		(_, string minimal) = await GetAsync("/minimal/products?filter.status=$eq:Nope");
 
 		Assert.Equal(nameof(PaginateQueryError.SortDirectionUnknown), Json(mvc).GetProperty("code").GetString());
 		Assert.Equal(nameof(PaginateQueryError.ValueInvalid), Json(minimal).GetProperty("code").GetString());
@@ -241,7 +238,7 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 
 		// The binder records the problem and never fails the bind, so the 400 has to come from the engine
 		// through PaginateExceptionFilter -- the path that would otherwise surface as framework model state.
-		(var response, string body) = await this.GetAsync("/mvc/products?page=abc");
+		(var response, string body) = await GetAsync("/mvc/products?page=abc");
 
 		Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 		Assert.Equal("Query parameter 'page' must be a positive integer.", Json(body).GetProperty("detail").GetString());
@@ -253,12 +250,10 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 
 	[Fact]
 	public async Task An_unknown_query_parameter_is_ignored_rather_than_rejected() {
-
-		(var response, string body) = await this.GetAsync("/mvc/products?offset=40&utm_source=newsletter");
+		(var response, string body) = await GetAsync("/mvc/products?offset=40&utm_source=newsletter");
 
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 		Assert.Equal(8, Json(body).GetProperty("meta").GetProperty("totalItems").GetInt32());
-
 	}
 
 }

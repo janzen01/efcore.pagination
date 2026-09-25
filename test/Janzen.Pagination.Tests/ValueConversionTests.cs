@@ -9,7 +9,8 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	private readonly static PaginateConfig<Product> UnsupportedValueType = PaginateConfig<Product>.Create(b => b
 		.WithLimits(50, 50)
 		.WithTieBreaker(p => p.Id)
-		.Filterable("tagsEq", p => p.Tags, PaginateFilterOperator.Eq));
+		.Filterable("tagsEq", p => p.Tags, PaginateFilterOperator.Eq)
+	);
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request, PaginateConfig<Product>? config = null) {
 		await using var context = fixture.CreateContext();
@@ -26,7 +27,7 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData("draft")]
 	[InlineData("DRAFT")]
 	public async Task Enums_are_matched_by_name_ignoring_case(string value) {
-		Assertions.HasIds(await this.Page(Query.Filter("status", $"$eq:{value}")), 3, 5);
+		Assertions.HasIds(await Page(Query.Filter("status", $"$eq:{value}")), 3, 5);
 	}
 
 	[Theory]
@@ -34,12 +35,12 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData("-1")]
 	[InlineData("+1")]
 	public async Task Enums_reject_numeric_values(string value) {
-		Assert.Equal($"Value '{value}' is not valid for 'status'.", await this.Rejects(Query.Filter("status", $"$eq:{value}")));
+		Assert.Equal($"Value '{value}' is not valid for 'status'.", await Rejects(Query.Filter("status", $"$eq:{value}")));
 	}
 
 	[Fact]
 	public async Task Enums_reject_an_undefined_name() {
-		Assert.Equal("Value 'Nope' is not valid for 'status'.", await this.Rejects(Query.Filter("status", "$eq:Nope")));
+		Assert.Equal("Value 'Nope' is not valid for 'status'.", await Rejects(Query.Filter("status", "$eq:Nope")));
 	}
 
 	[Theory]
@@ -47,79 +48,77 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData("TRUE", new[] { 1, 7 })]
 	[InlineData("false", new[] { 2, 3, 4, 5, 6, 8 })]
 	public async Task Bools_accept_only_true_and_false(string value, int[] expected) {
-		Assertions.HasIds(await this.Page(Query.Filter("isFeatured", $"$eq:{value}")), expected);
+		Assertions.HasIds(await Page(Query.Filter("isFeatured", $"$eq:{value}")), expected);
 	}
 
 	[Fact]
 	public async Task Bools_reject_one_and_zero() {
-		Assert.Equal("Value '1' is not a valid boolean.", await this.Rejects(Query.Filter("isFeatured", "$eq:1")));
+		Assert.Equal("Value '1' is not a valid boolean.", await Rejects(Query.Filter("isFeatured", "$eq:1")));
 	}
 
 	[Fact]
 	public async Task Guids_report_their_own_message() {
-		Assert.Equal("Value 'nope' is not a valid GUID.", await this.Rejects(Query.Filter("externalId", "$eq:nope")));
+		Assert.Equal("Value 'nope' is not a valid GUID.", await Rejects(Query.Filter("externalId", "$eq:nope")));
 	}
 
 	[Fact]
 	public async Task Integers_report_the_field() {
-		Assert.Equal("Value 'abc' is not valid for 'id'.", await this.Rejects(Query.Filter("id", "$eq:abc")));
+		Assert.Equal("Value 'abc' is not valid for 'id'.", await Rejects(Query.Filter("id", "$eq:abc")));
 	}
 
 	[Fact]
 	public async Task Decimals_report_the_field() {
-		Assert.Equal("Value 'abc' is not valid for 'price'.", await this.Rejects(Query.Filter("price", "$eq:abc")));
+		Assert.Equal("Value 'abc' is not valid for 'price'.", await Rejects(Query.Filter("price", "$eq:abc")));
 	}
 
 	[Fact]
 	public async Task An_empty_value_is_rejected_for_a_non_nullable_target() {
-		Assert.Equal("Filter 'rank' requires a value; use '$null' to match rows with no value.", await this.Rejects(Query.Filter("rank", "$eq:")));
+		Assert.Equal("Filter 'rank' requires a value; use '$null' to match rows with no value.", await Rejects(Query.Filter("rank", "$eq:")));
 	}
 
 	[Fact]
 	public async Task An_empty_value_is_rejected_for_a_nullable_target_too() {
+
 		// It used to convert to null and land on the unset rows, which is $null spelled implicitly -- without
-		// the field's allow-list ever being asked about $null. One spelling, and the message names it.
-		Assert.Equal("Filter 'discontinuedAt' requires a value; use '$null' to match rows with no value.",
-			await this.Rejects(Query.Filter("discontinuedAt", "$eq:")));
+		// the field's allowlist ever being asked about $null. One spelling, and the message names it.
+		Assert.Equal(
+			"Filter 'discontinuedAt' requires a value; use '$null' to match rows with no value.",
+			await Rejects(Query.Filter("discontinuedAt", "$eq:"))
+		);
+
 	}
 
 	[Fact]
 	public async Task An_unparseable_target_type_is_reported_as_unsupported() {
-		Assert.Equal("Filtering values for 'tagsEq' is not supported.",
-			await this.Rejects(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
+		Assert.Equal("Filtering values for 'tagsEq' is not supported.", await Rejects(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
 	}
 
 	/// <summary>
 	///     ValueTypeNotSupported, not ValueInvalid: the value was never read — every route declined the field's
 	///     <b>type</b>. The member is published and documented for exactly this cause and was assigned nowhere,
-	///     which no test could see while the catalogue documented the code the throw actually carried.
+	///     which no test could see while the catalog documented the code the throw actually carried.
 	/// </summary>
 	[Fact]
 	public async Task An_unparseable_target_type_carries_its_own_code() {
-
-		var refused = await Assert.ThrowsAsync<PaginateQueryException>(
-			() => TestData.Products().AsQueryable().PageAsync<ProductDto>(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
+		var refused = await Assert.ThrowsAsync<PaginateQueryException>(() => TestData.Products().AsQueryable().PageAsync<ProductDto>(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
 
 		Assert.Equal(PaginateQueryError.ValueTypeNotSupported, refused.Code);
-
 	}
 
 	/// <summary>
 	///     Asserted on the converter rather than through a query: a <see cref="DateTime" /> compares by ticks alone,
 	///     so a wrong <see cref="DateTimeKind" /> changes nothing in memory and nothing in the SQL SQLite emits — it
 	///     shifts the instant only once a provider converts the parameter to UTC, and only on a server that is not on
-	///     UTC. There is no zone-independent behaviour to hang this on, and a behavioural test would pass in CI.
+	///     UTC. There is no zone-independent behavior to hang this on, and a behavioural test would pass in CI.
 	/// </summary>
 	[Theory]
 	[InlineData("2026-01-01T00:00:00")]
 	[InlineData("2026-01-01T02:00:00+02:00")]
 	public void A_date_time_is_parsed_as_the_utc_instant(string value) {
-
 		var parsed = Assert.IsType<DateTime>(PaginateValueConverter.Convert(value, typeof(DateTime), "createdAt"));
 
 		Assert.Equal(DateTimeKind.Utc, parsed.Kind);
 		Assert.Equal(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), parsed);
-
 	}
 
 	[Fact]

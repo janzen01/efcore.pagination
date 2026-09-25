@@ -26,7 +26,8 @@ Register once at startup. It makes **every** `PaginateConfig` emit native `ILIKE
 // Program.cs
 builder.Services.AddPagination(pagination => pagination
     .AddAspNetCore()   // optional: ASP.NET Core integration
-    .UsePostgreSql()); // emit native ILIKE for case-insensitive search / pattern filtering
+    .UsePostgreSql() // emit native ILIKE for case-insensitive search / pattern filtering
+);
 ```
 
 Your `PaginateConfig<T>` definitions stay provider-agnostic:
@@ -36,7 +37,8 @@ PaginateConfig<Product>.Create(b => b
     .WithLimits(25, 100)
     .Sortable("name", p => p.Name)
     .Searchable("name", p => p.Name)
-    .WithTieBreaker(p => p.Id));
+    .WithTieBreaker(p => p.Id)
+);
 ```
 
 ## What it changes

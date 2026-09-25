@@ -138,7 +138,7 @@ jobs:
         image: postgres:18.6
         env:
           POSTGRES_PASSWORD: postgres
-        # Without the health gate the first connection races the server's own initialisation.
+        # Without the health gate the first connection races the server's own initialization.
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -211,6 +211,6 @@ jobs:
       - run: |
           echo "results: ${{ join(needs.*.result, ', ') }}"
           if ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}; then
-            echo "::error::at least one CI job failed or was cancelled"
+            echo "::error::at least one CI job failed or was canceled"
             exit 1
           fi

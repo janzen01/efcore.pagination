@@ -4,7 +4,7 @@ using System.Linq.Expressions;
 namespace Janzen.Pagination.EntityFrameworkCore;
 
 /// <summary>
-///     Append-only registry that lets add-on packages teach the engine about additional value types — e.g. the
+///     Append-only registry that lets add-on packages teach the engine about additional value types — e.g., the
 ///     <c>Janzen.Pagination.NodaTime</c> package registers <c>Instant</c>/<c>LocalDate</c> support here. Type support
 ///     is universal (not per-request), so registrations are process-wide and are meant to be made once at startup,
 ///     typically via an add-on extension such as <c>UseNodaTime()</c>. Nothing here is mutated per request.
@@ -68,6 +68,7 @@ public static class PaginateTypeSupport {
 	}
 
 	internal static bool TryParseValue(Type type, string value, out object? result) {
+
 		if (ValueParsers.TryGetValue(type, out var parser)) {
 			result = parser(value);
 			return true;
@@ -75,6 +76,7 @@ public static class PaginateTypeSupport {
 
 		result = null;
 		return false;
+
 	}
 
 	internal static bool IsRegisteredSimpleType(Type type) { return SimpleTypes.ContainsKey(type); }

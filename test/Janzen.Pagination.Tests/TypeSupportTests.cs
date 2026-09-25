@@ -43,7 +43,8 @@ public sealed class TypeSupportTests {
 		.WithTieBreaker(p => p.Id)
 		.Filterable("sku", p => p.Sku, PaginateFilterOperator.Eq)
 		.Filterable("batch", p => p.Batch, PaginateFilterOperator.Eq)
-		.Filterable("lot", p => p.Lot, PaginateFilterOperator.Eq));
+		.Filterable("lot", p => p.Lot, PaginateFilterOperator.Eq)
+	);
 
 	private static IQueryable<Part> Parts() {
 		return new List<Part> {
@@ -77,7 +78,8 @@ public sealed class TypeSupportTests {
 	public async Task A_registered_conversion_projects_a_custom_type() {
 
 		PaginateTypeSupport.RegisterProjectionConversion((source, target) =>
-			source.Type == typeof(Sku) && target == typeof(int) ? Expression.Property(source, nameof(Sku.Number)) : null);
+			source.Type == typeof(Sku) && target == typeof(int) ? Expression.Property(source, nameof(Sku.Number)) : null
+		);
 
 		var page = await PageAsync<ConvertedPartDto>(new PaginateQuery());
 

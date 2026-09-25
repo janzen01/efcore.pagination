@@ -23,8 +23,14 @@ public sealed class LinkContextTests {
 	}
 
 	private static Task<PaginatedResponse<ProductDto>> PageAsync(HttpRequest request, int page) {
+
 		return TestData.Products().AsQueryable().PaginateAsync<Product, ProductDto>(
-			new PaginateQuery { Page = page, Limit = 3 }, TestData.Config, request, TestContext.Current.CancellationToken);
+			new PaginateQuery { Page = page, Limit = 3 },
+			TestData.Config,
+			request,
+			TestContext.Current.CancellationToken
+		);
+
 	}
 
 	[Fact]
@@ -52,13 +58,11 @@ public sealed class LinkContextTests {
 
 	[Fact]
 	public async Task Current_still_answers_past_the_last_page() {
-
 		// It echoes the request rather than reporting navigability — that is what next and previous are for.
 		var links = (await PageAsync(Request("", "/products", "?limit=3"), 999)).Links!;
 
 		Assert.Equal("/products?limit=3&page=999", links.Current);
 		Assert.Null(links.Next);
-
 	}
 
 	[Fact]
@@ -71,7 +75,8 @@ public sealed class LinkContextTests {
 		// previous is absent on page 1, so its rel is skipped rather than written empty.
 		Assert.Equal(
 			"</products?page=1>; rel=\"first\", </products?page=3>; rel=\"next\", </products?page=9>; rel=\"last\"",
-			response.Headers.Link.ToString());
+			response.Headers.Link.ToString()
+		);
 
 	}
 
@@ -118,39 +123,31 @@ public sealed class LinkContextTests {
 		// Every overload also has a parameter called `request` — the PaginateQuery — so reporting that name for a
 		// null HttpRequest sent the reader to inspect the wrong argument. The throw is synchronous: these are
 		// Task-returning wrappers, not async methods, so an argument error never reaches the returned task.
-		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
-			() => { _ = source.PaginateAsync<Product, ProductDto>(request, TestData.Config, httpRequest, ct); }).ParamName);
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(() => { _ = source.PaginateAsync<Product, ProductDto>(request, TestData.Config, httpRequest, ct); }).ParamName);
 
-		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
-			() => { _ = source.PaginateSelectAsync(request, TestData.Config, p => p.Name, httpRequest, ct); }).ParamName);
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(() => { _ = source.PaginateSelectAsync(request, TestData.Config, p => p.Name, httpRequest, ct); }).ParamName);
 
-		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
-			() => { _ = source.PaginateSelectMapAsync(request, TestData.Config, p => p.Name, name => name.Length, httpRequest, ct); }).ParamName);
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(() => { _ = source.PaginateSelectMapAsync(request, TestData.Config, p => p.Name, name => name.Length, httpRequest, ct); }).ParamName);
 
-		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
-			() => { _ = source.PaginateMapAsync(request, TestData.Config, p => p.Name, httpRequest, ct); }).ParamName);
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(() => { _ = source.PaginateMapAsync(request, TestData.Config, p => p.Name, httpRequest, ct); }).ParamName);
 
 	}
 
 	[Fact]
 	public async Task A_repeated_query_parameter_is_carried_over_once_per_value_in_order() {
-
-		// The only behaviour the allocation rewrite of the copy loop could plausibly disturb.
+		// The only behavior the allocation rewrite of the copy loop could plausibly disturb.
 		var links = (await PageAsync(Request("", "/products", "?tag=a&tag=b&limit=3"), 1)).Links!;
 
 		Assert.Equal("/products?tag=a&tag=b&limit=3&page=1", links.Current);
-
 	}
 
 	[Fact]
 	public async Task A_path_needing_escaping_reaches_the_context_already_escaped() {
-
 		// PathString.ToString() is ToUriComponent(), so the bridge never hands the context a raw path — which is
 		// what keeps the context's new path validation off every real request.
 		var links = (await PageAsync(Request("/api v2", "/a b/products", "?limit=3"), 1)).Links!;
 
 		Assert.Equal("/api%20v2/a%20b/products?limit=3&page=1", links.Current);
-
 	}
 
 }
@@ -178,12 +175,10 @@ public sealed class RequestLinkContextTests {
 	/// </summary>
 	[Fact]
 	public async Task An_escaped_path_segment_still_builds_a_link_context() {
-
 		var page = await Page("/api/my products");
 
 		Assert.NotNull(page.Links);
 		Assert.Contains("my%20products", page.Links.Current, StringComparison.Ordinal);
-
 	}
 
 }

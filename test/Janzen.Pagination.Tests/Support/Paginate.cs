@@ -13,21 +13,24 @@ public static class Paginate {
 
 	extension(IQueryable<Product> source) {
 
-		public Task<PaginatedResponse<TResult>> PageAsync<TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PageAsync<TResult>(
+			PaginateQuery request,
 			PaginateConfig<Product>? config = null,
 			PaginateLinkContext? linkContext = null
 		) {
 			return source.PaginateAsync<Product, TResult>(request, config ?? TestData.Config, linkContext, TestContext.Current.CancellationToken);
 		}
 
-		public Task<PaginatedResponse<TResult>> PageSelectAsync<TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PageSelectAsync<TResult>(
+			PaginateQuery request,
 			Expression<Func<Product, TResult>> selector,
 			PaginateConfig<Product>? config = null
 		) {
 			return source.PaginateSelectAsync(request, config ?? TestData.Config, selector, null, TestContext.Current.CancellationToken);
 		}
 
-		public Task<PaginatedResponse<TResult>> PageSelectMapAsync<TProjection, TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PageSelectMapAsync<TProjection, TResult>(
+			PaginateQuery request,
 			Expression<Func<Product, TProjection>> selector,
 			Func<TProjection, TResult> postMap,
 			PaginateConfig<Product>? config = null
@@ -35,7 +38,8 @@ public static class Paginate {
 			return source.PaginateSelectMapAsync(request, config ?? TestData.Config, selector, postMap, null, TestContext.Current.CancellationToken);
 		}
 
-		public Task<PaginatedResponse<TResult>> PageMapAsync<TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PageMapAsync<TResult>(
+			PaginateQuery request,
 			Func<Product, TResult> projector,
 			PaginateConfig<Product>? config = null
 		) {

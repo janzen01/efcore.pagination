@@ -42,13 +42,13 @@ public sealed record EmptyProjectionDto();
 public sealed class TwoCtorDto {
 
 	public TwoCtorDto(int id, string name) {
-		this.Id = id;
-		this.Name = name;
+		Id = id;
+		Name = name;
 	}
 
 	public TwoCtorDto(int rank, decimal price) {
-		this.Rank = rank;
-		this.Price = price;
+		Rank = rank;
+		Price = price;
 	}
 
 	public int Id { get; }
@@ -105,11 +105,9 @@ public sealed record CustomerDto(int Id, string Name);
 public sealed record OrderDto(int Id, CustomerDto? Customer);
 
 public sealed class OrphanDbContext(DbContextOptions<OrphanDbContext> options) : DbContext(options) {
+	public DbSet<Order> Orders => Set<Order>();
 
-	public DbSet<Order> Orders => this.Set<Order>();
-
-	public DbSet<Customer> Customers => this.Set<Customer>();
-
+	public DbSet<Customer> Customers => Set<Customer>();
 }
 
 /// <summary>Two orders, one of them without a customer — the row a seeded suite and a fresh staging database never have.</summary>
@@ -125,7 +123,7 @@ public sealed class OrphanFixture : IAsyncLifetime {
 
 		_options = new DbContextOptionsBuilder<OrphanDbContext>().UseSqlite(_connection).Options;
 
-		await using var context = this.CreateContext();
+		await using var context = CreateContext();
 		await context.Database.EnsureCreatedAsync();
 		context.Orders.AddRange(Rows());
 		await context.SaveChangesAsync();
@@ -161,7 +159,8 @@ public sealed class ProjectionGuardTests(OrphanFixture fixture) : IClassFixture<
 		.WithLimits(defaultLimit: 10, maxLimit: 50)
 		.Sortable("id", o => o.Id)
 		.DefaultSortBy("id")
-		.WithTieBreaker(o => o.Id));
+		.WithTieBreaker(o => o.Id)
+	);
 
 	private static string Rejects(Action act) { return Assert.Throws<InvalidOperationException>(act).Message; }
 
@@ -179,13 +178,11 @@ public sealed class ProjectionGuardTests(OrphanFixture fixture) : IClassFixture<
 
 	[Fact]
 	public void A_target_with_no_constructor_parameters_is_refused() {
-
 		// new TResult() is buildable and translates to SELECT 1, so the page came back with correct metadata
 		// and every row all-default. Nothing in the SQL, the envelope or an analyzer says otherwise.
 		string message = Rejects(() => PaginateProjectionBuilder.Build<Product, EmptyProjectionDto>());
 
 		Assert.Equal("Type 'EmptyProjectionDto' exposes no public constructor with parameters for automatic projection.", message);
-
 	}
 
 	[Fact]
@@ -217,13 +214,11 @@ public sealed class ProjectionGuardTests(OrphanFixture fixture) : IClassFixture<
 
 	[Fact]
 	public void Equal_arity_constructors_are_refused_rather_than_picked_by_declaration_order() {
-
 		// Reflection does not promise an order, so which columns the API returns depended on which constructor
 		// was written first in the DTO's source file.
 		string message = Rejects(() => PaginateProjectionBuilder.Build<Product, TwoCtorDto>());
 
 		Assert.Equal("Type 'TwoCtorDto' exposes 2 public constructors with 2 parameters; automatic projection needs exactly one.", message);
-
 	}
 
 	[Fact]
@@ -286,7 +281,7 @@ public sealed class ProjectionGuardTests(OrphanFixture fixture) : IClassFixture<
 		public int Count { get; private set; }
 
 		protected override Expression VisitConditional(ConditionalExpression node) {
-			this.Count++;
+			Count++;
 			return base.VisitConditional(node);
 		}
 

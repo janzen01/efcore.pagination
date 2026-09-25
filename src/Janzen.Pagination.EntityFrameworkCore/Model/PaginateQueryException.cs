@@ -10,7 +10,7 @@ public sealed class PaginateQueryException : Exception {
 	/// <summary>
 	///     Machine-readable cause, set by the engine where it rejects and emitted as the <c>code</c> member of the
 	///     400. Branch on this rather than on <see cref="Exception.Message" />, whose wording is prose that cannot
-	///     be localised and that a client matching it would pin permanently. An exception constructed outside the
+	///     be localized and that a client matching it would pin permanently. An exception constructed outside the
 	///     engine carries <see cref="PaginateQueryError.Unspecified" />.
 	/// </summary>
 	public PaginateQueryError Code { get; init; }

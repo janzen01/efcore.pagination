@@ -131,7 +131,7 @@ everything else runs in SQL.
 
 ### Sub-collections and NodaTime in one query
 
-Because of that shaper behaviour, a DTO that mixes one-to-many sub-collections **with**
+Because of that shaper behavior, a DTO that mixes one-to-many sub-collections **with**
 `Instant` → `DateTimeOffset` conversions — even *inside* the sub-collection items — still executes as a single
 query. It does not need `PaginateMapAsync`:
 
@@ -144,7 +144,8 @@ await db.Products.PaginateSelectAsync(request, config, p => new ProductSummary(
         ? p.DiscontinuedAt.Value.ToDateTimeOffset()
         : (DateTimeOffset?)null,
     p.Reviews.Select(r => new ReviewDto(
-        r.Id, r.Reviewer, r.PostedAt.ToDateTimeOffset())).ToList()          // conversion inside the collection
+        r.Id, r.Reviewer, r.PostedAt.ToDateTimeOffset()          // conversion inside the collection
+    )).ToList()
 ), ct: ct);
 ```
 
@@ -164,13 +165,17 @@ Project the flat fields **plus the raw ingredients** in SQL, then finish them:
 ```csharp
 private sealed record Row(Guid Id, string Name, int RatingSum, int RatingCount);
 
-var page = await db.Products.PaginateSelectMapAsync(request, config,
+var page = await db.Products.PaginateSelectMapAsync(
+    request,
+    config,
     selector: p => new Row(p.Id, p.Name, p.Reviews.Sum(r => r.Rating), p.Reviews.Count),
     postMap:  row => new ProductSummary(
         row.Id,
         row.Name,
-        row.RatingCount == 0 ? null : Math.Round(row.RatingSum / (double)row.RatingCount, 1)),
-    ct: ct);
+        row.RatingCount == 0 ? null : Math.Round(row.RatingSum / (double)row.RatingCount, 1)
+    ),
+    ct: ct
+);
 ```
 
 The `SELECT` stays exactly as narrow as the selector, and `postMap` runs only over the current page —
@@ -181,12 +186,16 @@ O(page size), not O(table).
 ## `PaginateMapAsync` — the full entity, mapped in memory
 
 ```csharp
-var page = await db.Products.PaginateMapAsync(request, config,
-    product => ProductDto.FromEntity(product, _pricingService), ct: ct);
+var page = await db.Products.PaginateMapAsync(
+    request,
+    config,
+    product => ProductDto.FromEntity(product, _pricingService),
+    ct: ct
+);
 ```
 
 This materializes **every column of every page entity** and then maps them. Reach for it only when the mapping
-genuinely needs the loaded entity — an existing hand-written mapper you cannot express as an expression, or
+genuinely needs the loaded entity — an existing handwritten mapper you cannot express as an expression, or
 logic that calls into services.
 
 The page entities are loaded with `AsNoTracking` (applied automatically on real EF providers), so a read-only
@@ -241,7 +250,7 @@ this is the contract, not an implementation detail:
   `search`, `searchBy`, every `filter.…` — becomes a faulted task carrying `PaginateQueryException`, which is
   what the [ASP.NET Core](/integrations/aspnetcore/) filters translate into a `400`.
 - **The cancellation token is read first and read again.** It is checked before the request is even validated,
-  so a cancelled caller gets `OperationCanceledException` rather than a `400` for a request nobody is waiting
+  so a canceled caller gets `OperationCanceledException` rather than a `400` for a request nobody is waiting
   for, and again once the rows are in memory — so a `postMap` or a `projector` does not run over a page whose
   client has gone away. Pass the token: in MVC and in Minimal APIs a `CancellationToken` parameter binds to
   `HttpContext.RequestAborted` for free, and the engine has no other way to learn the request was abandoned.

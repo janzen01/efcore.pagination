@@ -1,7 +1,5 @@
 using Janzen.Pagination.AspNetCore.OpenApi;
-using Janzen.Pagination.EntityFrameworkCore;
 using Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
-using Janzen.Pagination.EntityFrameworkCore.Model;
 using Janzen.Pagination.NodaTime;
 
 using Microsoft.AspNetCore.Builder;
@@ -36,12 +34,16 @@ public sealed class TrimAnnotationTests {
 		Assert.NotEmpty(methods);
 
 		foreach (var method in methods) {
+
 			Assert.True(
 				method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>() is not null,
-				$"{method.DeclaringType!.Name}.{method} carries no [RequiresUnreferencedCode]");
+				$"{method.DeclaringType!.Name}.{method} carries no [RequiresUnreferencedCode]"
+			);
 			Assert.True(
 				method.GetCustomAttribute<RequiresDynamicCodeAttribute>() is not null,
-				$"{method.DeclaringType!.Name}.{method} carries no [RequiresDynamicCode]");
+				$"{method.DeclaringType!.Name}.{method} carries no [RequiresDynamicCode]"
+			);
+
 		}
 
 	}
@@ -82,20 +84,23 @@ public sealed class TrimAnnotationTests {
 
 		Assert.True(annotation is not null, $"{target} carries no [DynamicallyAccessedMembers]");
 		Assert.True(
-			annotation!.MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicConstructors),
-			$"{target} does not require PublicConstructors");
+			annotation.MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicConstructors),
+			$"{target} does not require PublicConstructors"
+		);
 
 	}
 
 	private static MethodInfo[] Members(string name) {
+
 		return [.. new[] {
 			typeof(PaginateNodaTime),
 			typeof(PaginationBuilderNodaTimeExtensions),
 			typeof(PaginateFilterOperators),
 			typeof(PaginationRouteHandlerBuilderExtensions)
-		}
-		.SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
-		.Where(method => method.Name == name)];
+		}.SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+		.Where(method => method.Name == name)
+		];
+
 	}
 
 }

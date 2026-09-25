@@ -6,13 +6,13 @@ namespace Janzen.Pagination.Tests;
 /// <summary>
 ///     The envelope records advertise value equality by being records, and three of <see cref="PaginatedMeta" />'s
 ///     members plus <see cref="PaginatedResponse{T}.Items" /> are collections, which a synthesized <c>Equals</c>
-///     compares by reference. These pin the hand-written equality that makes the advertisement true — and the
+///     compares by reference. These pin the handwritten equality that makes the advertisement true — and the
 ///     <c>GetHashCode</c> contract that goes with it, which is the half that is easy to get wrong.
 /// </summary>
 public sealed class EnvelopeEqualityTests {
 
 	/// <summary>
-	///     Every member is a parameter so each can be varied on its own. Dropping one from a hand-written
+	///     Every member is a parameter so each can be varied on its own. Dropping one from a handwritten
 	///     <c>Equals</c> can only ever make <b>more</b> pairs compare equal, so no <c>Assert.Equal</c> can catch
 	///     it — an inequality isolating that single member is the only guard there is.
 	/// </summary>
@@ -40,23 +40,29 @@ public sealed class EnvelopeEqualityTests {
 	}
 
 	private static ReadOnlyDictionary<string, IReadOnlyList<string>> Filter(StringComparer comparer, params (string Field, string[] Values)[] entries) {
-
 		var map = new Dictionary<string, IReadOnlyList<string>>(comparer);
 		foreach ((string field, string[] values) in entries) map[field] = values;
 
 		return new ReadOnlyDictionary<string, IReadOnlyList<string>>(map);
-
 	}
 
 	[Fact]
 	public void Two_metas_describing_the_same_page_are_equal() {
 
 		// Separately allocated collections with the same contents — the case the synthesized equality got wrong.
-		var left = Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["name", "description"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"])));
+		var left = Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["name", "description"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		);
 
-		var right = Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["name", "description"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"])));
+		var right = Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["name", "description"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		);
 
 		Assert.Equal(left, right);
 		Assert.True(left == right);
@@ -67,23 +73,48 @@ public sealed class EnvelopeEqualityTests {
 	[Fact]
 	public void A_difference_in_any_echoed_member_makes_them_unequal() {
 
-		var baseline = Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["name"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"])));
+		var baseline = Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["name"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		);
 
-		Assert.NotEqual(baseline, Meta(sortBy: ["rank:ASC"], search: "wid", searchBy: ["name"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))));
+		Assert.NotEqual(baseline, Meta(
+			sortBy: ["rank:ASC"],
+			search: "wid",
+			searchBy: ["name"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		));
 
-		Assert.NotEqual(baseline, Meta(sortBy: ["rank:DESC"], search: "gadget", searchBy: ["name"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))));
+		Assert.NotEqual(baseline, Meta(
+			sortBy: ["rank:DESC"],
+			search: "gadget",
+			searchBy: ["name"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		));
 
-		Assert.NotEqual(baseline, Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["description"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))));
+		Assert.NotEqual(baseline, Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["description"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		));
 
-		Assert.NotEqual(baseline, Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["name"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Draft"]))));
+		Assert.NotEqual(baseline, Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["name"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Draft"]))
+		));
 
-		Assert.NotEqual(baseline, Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["name"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"])), currentPage: 3));
+		Assert.NotEqual(baseline, Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["name"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"])),
+			currentPage: 3
+		));
 
 	}
 
@@ -154,18 +185,17 @@ public sealed class EnvelopeEqualityTests {
 	public void Filters_of_the_same_size_but_different_contents_are_unequal() {
 		Assert.NotEqual(
 			Meta(filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))),
-			Meta(filter: Filter(StringComparer.Ordinal, ("rank", ["$gte:20"]))));
+			Meta(filter: Filter(StringComparer.Ordinal, ("rank", ["$gte:20"])))
+		);
 	}
 
 	[Fact]
 	public void An_empty_meta_equals_another_empty_one() {
-
 		var left = new PaginatedMeta(0, 0, 25, 0, 1);
 		var right = new PaginatedMeta(0, 0, 25, 0, 1);
 
 		Assert.Equal(left, right);
 		Assert.Equal(left.GetHashCode(), right.GetHashCode());
-
 	}
 
 	[Fact]
@@ -173,10 +203,16 @@ public sealed class EnvelopeEqualityTests {
 
 		// PaginatedResponse<T>.Items has compared by reference since 10.0.0; this is the same gate, one level up.
 		var left = new PaginatedResponse<ProductDto>(
-			[new ProductDto(1, "Widget", ProductStatus.Active, 10)], Meta(), new PaginatedLinks("/p?page=1", null, null, "/p?page=1"));
+			[new ProductDto(1, "Widget", ProductStatus.Active, 10)],
+			Meta(),
+			new PaginatedLinks("/p?page=1", null, null, "/p?page=1")
+		);
 
 		var right = new PaginatedResponse<ProductDto>(
-			[new ProductDto(1, "Widget", ProductStatus.Active, 10)], Meta(), new PaginatedLinks("/p?page=1", null, null, "/p?page=1"));
+			[new ProductDto(1, "Widget", ProductStatus.Active, 10)],
+			Meta(),
+			new PaginatedLinks("/p?page=1", null, null, "/p?page=1")
+		);
 
 		Assert.Equal(left, right);
 		Assert.Equal(left.GetHashCode(), right.GetHashCode());
@@ -191,7 +227,10 @@ public sealed class EnvelopeEqualityTests {
 		var baseline = new PaginatedResponse<ProductDto>(items, Meta(), links);
 
 		Assert.NotEqual(baseline, new PaginatedResponse<ProductDto>(
-			[new ProductDto(2, "Gizmo", ProductStatus.Draft, 30)], Meta(), links));
+			[new ProductDto(2, "Gizmo", ProductStatus.Draft, 30)],
+			Meta(),
+			links
+		));
 
 		Assert.NotEqual(baseline, new PaginatedResponse<ProductDto>(items, Meta(currentPage: 3), links));
 
@@ -214,7 +253,7 @@ public sealed class EnvelopeEqualityTests {
 		Assert.Equal(links.GetHashCode(), same.GetHashCode());
 		Assert.NotEqual(links, links with { Current = "/p?page=3" });
 
-		// And through the envelope, whose hand-written Equals delegates the links member.
+		// And through the envelope, whose handwritten Equals delegates the links member.
 		var baseline = new PaginatedResponse<ProductDto>([], Meta(), links);
 
 		Assert.Equal(baseline, new PaginatedResponse<ProductDto>([], Meta(), same));
@@ -231,7 +270,8 @@ public sealed class EnvelopeEqualityTests {
 		// A page is an ordered thing — the sort is half of what was asked for.
 		Assert.NotEqual(
 			new PaginatedResponse<ProductDto>([widget, gizmo], Meta(), null),
-			new PaginatedResponse<ProductDto>([gizmo, widget], Meta(), null));
+			new PaginatedResponse<ProductDto>([gizmo, widget], Meta(), null)
+		);
 
 	}
 
@@ -240,7 +280,7 @@ public sealed class EnvelopeEqualityTests {
 
 		// System.Text.Json does not enforce nullable annotations, so a payload with an explicit "items": null or
 		// "sortBy": null overwrites the initializer despite the declarations. The synthesized equality these
-		// replace answered for that through EqualityComparer<T>.Default; hand-written equality must not start
+		// replace answered for that through EqualityComparer<T>.Default; handwritten equality must not start
 		// throwing where it used to return false.
 		string json = """{"items":null,"meta":{"totalItems":0,"itemCount":0,"itemsPerPage":25,"totalPages":0,"currentPage":1,"sortBy":null,"searchBy":null,"filter":null},"links":null}""";
 
@@ -250,8 +290,8 @@ public sealed class EnvelopeEqualityTests {
 		// Only inequality is asserted, not hash inequality: the contract is equal ⇒ equal hash, and nothing
 		// promises the converse. The difference that reaches the hash here is ListHash([]) against
 		// ListHash(null), and ListHash(null) returns a literal 0 while ListHash([]) derives from HashCode's
-		// per-process randomised seed — so asserting they differ pins an accident, and would report a false
-		// regression the day a null collection is normalised to hash like an empty one.
+		// per-process randomized seed — so asserting they differ pins an accident, and would report a false
+		// regression the day a null collection is normalized to hash like an empty one.
 		Assert.NotEqual(wellFormed, deserialized);
 
 		// And two equally malformed ones still answer, rather than each throwing on the way.

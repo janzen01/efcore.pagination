@@ -91,7 +91,8 @@ exactly as it is on the web:
 ```csharp
 var linkContext = new PaginateLinkContext(
     Path: "/api/products",
-    QueryParameters: [new("limit", "25"), new("filter.status", "$eq:Active")]);
+    QueryParameters: [new("limit", "25"), new("filter.status", "$eq:Active")]
+);
 
 var page = await source.PaginateAsync<Product, ProductDto>(request, config, linkContext, ct);
 ```

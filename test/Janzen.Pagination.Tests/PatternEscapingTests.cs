@@ -26,7 +26,7 @@ public sealed class BackslashFixture : IAsyncLifetime {
 			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
 			.Options;
 
-		await using var context = this.CreateContext();
+		await using var context = CreateContext();
 		await context.Database.EnsureCreatedAsync();
 		context.Products.AddRange(PatternEscapingTests.Rows());
 		await context.SaveChangesAsync();
@@ -64,12 +64,10 @@ public sealed class PatternEscapingTests(BackslashFixture fixture) : IClassFixtu
 	private const int BackslashRow = 9;
 
 	internal static List<Product> Rows() {
-
 		var rows = TestData.Products();
 		rows.Add(new Product { Id = BackslashRow, Name = @"a\bc", Description = "literal backslash", Status = ProductStatus.Active, Rank = 90 });
 
 		return rows;
-
 	}
 
 	private static async Task<int[]> Ids(IQueryable<Product> source, PaginateQuery request) {
@@ -100,8 +98,8 @@ public sealed class PatternEscapingTests(BackslashFixture fixture) : IClassFixtu
 
 		// A positive assertion, unlike the four Assert.Empty ones: drop the backslash replacement entirely and
 		// the emitted pattern reads the pair as an escaped 'b', so it looks for "abc" and this row stops matching.
-		int[] inMemory = await this.InMemory(Query.Filter("name", @"$ilike:a\bc"));
-		int[] sqlite = await this.Sqlite(Query.Filter("name", @"$ilike:a\bc"));
+		int[] inMemory = await InMemory(Query.Filter("name", @"$ilike:a\bc"));
+		int[] sqlite = await Sqlite(Query.Filter("name", @"$ilike:a\bc"));
 
 		Assert.Equal([BackslashRow], inMemory);
 		Assert.Equal([BackslashRow], sqlite);
@@ -110,13 +108,11 @@ public sealed class PatternEscapingTests(BackslashFixture fixture) : IClassFixtu
 
 	[Fact]
 	public async Task A_percent_in_the_value_cannot_reach_the_backslash_row() {
-
 		// Escape the wildcard before the escape character and the pattern becomes a literal 'a', a literal
 		// backslash, a live wildcard and 'c' — which matches this row. Against the eight shared rows it matches
 		// nothing, which is why the pre-existing assertion cannot see the difference.
-		Assert.Empty(await this.InMemory(Query.Filter("name", "$ilike:a%c")));
-		Assert.Empty(await this.Sqlite(Query.Filter("name", "$ilike:a%c")));
-
+		Assert.Empty(await InMemory(Query.Filter("name", "$ilike:a%c")));
+		Assert.Empty(await Sqlite(Query.Filter("name", "$ilike:a%c")));
 	}
 
 	[Theory]

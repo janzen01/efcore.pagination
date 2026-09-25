@@ -1,13 +1,13 @@
 # Testing your pagination
 
 A `PaginateConfig` is a published contract, so it is worth a test — and it does not need a database. This page
-is what to assert, where to assert it, and the two SQLite behaviours that decide which tests can live where.
+is what to assert, where to assert it, and the two SQLite behaviors that decide which tests can live where.
 
 ## Test the config without a database
 
 Against a plain `IQueryable`, the engine takes a different path: `EF.Functions.Like` becomes
 `string.IndexOf(..., OrdinalIgnoreCase)` and the async terminal operators become their synchronous
-equivalents. Filters, search, sort, paging and projection all still run, so a list is enough:
+equivalents. Filters, search, sort, paging, and projection all still run, so a list is enough:
 
 ```csharp
 var products = new List<Product> {
@@ -58,13 +58,16 @@ list does not pass on a case the real provider answers differently. See
 
 ## Test the refusals too
 
-Half the value of an allow-list is what it rejects, and rejections are the cheapest thing here to test:
+Half the value of an allowlist is what it rejects, and rejections are the cheapest thing here to test:
 
 ```csharp
 var ex = await Assert.ThrowsAsync<PaginateQueryException>(() =>
     products.PaginateAsync<Product, ProductDto>(
         new PaginateQuery { Filters = new Dictionary<string, IReadOnlyList<string>> {
-            ["price"] = ["$ilike:10"] } }, config));
+            ["price"] = ["$ilike:10"]
+        } }, config
+    )
+);
 
 Assert.Contains("does not support operator", ex.Message);
 ```
@@ -75,7 +78,7 @@ test that pins it whole turns any future clarification into a failing test for n
 
 Worth covering, because each is a real way to break an API without noticing:
 
-- a field you did **not** declare is refused (the allow-list holds);
+- a field you did **not** declare is refused (the allowlist holds);
 - an operator you did not grant for a field is refused **for that field** even though it exists;
 - a `.When(false)` field is refused with the same message as an unknown one, so the gate does not leak;
 - `MaxLimit` is refused rather than clamped.
@@ -93,7 +96,7 @@ One test that simply calls `Create` moves that failure to CI:
 public void Config_builds() => Assert.NotNull(ProductPaginateConfigProvider.Config);
 ```
 
-A static config field is initialised lazily, so touching it is what runs the validation.
+A static config field is initialized lazily, so touching it is what runs the validation.
 
 ## Assert the SQL, without running it
 
@@ -144,9 +147,9 @@ machine and fails on another's, for a reason that has nothing to do with the cod
 
 Two pieces of state are global and outlive a test:
 
-- `PaginateLikeDefaults.Strategy` — what `UsePostgreSql()` sets. A test that swaps it changes behaviour for
+- `PaginateLikeDefaults.Strategy` — what `UsePostgreSql()` sets. A test that swaps it changes behavior for
   every test running concurrently, so keep those in a non-parallel collection and restore the previous value
-  afterwards. `PaginateLikeDefaults.Portable` names the library's own default, so a fixture that never
+  afterward. `PaginateLikeDefaults.Portable` names the library's own default, so a fixture that never
   snapshotted the old value can still put it back. A single resource can opt out instead of the whole
   process — see [`WithLikeStrategy`](/reference/configuration/#withlikestrategy).
 - `PaginateTypeSupport` registrations **cannot be undone**, and the three methods do not behave alike on a
@@ -156,12 +159,12 @@ Two pieces of state are global and outlive a test:
   them once, in a fixture, and never per test.
 - Since `10.0.3` the registry is consulted **before** the built-in parsers, which creates a new isolation
   hazard: registering a parser for a type the engine already handles — `int`, `DateTime`, `Guid` — now takes
-  effect, process-wide, for the rest of the run. A test that overrides one shadows the built-in behaviour for
+  effect, process-wide, for the rest of the run. A test that overrides one shadows the built-in behavior for
   every other test in the assembly. If you need to cover an override, pick a type nothing else in the suite
   parses.
 
 ## What this library does not test
 
-Native PostgreSQL `ILIKE` and its `ESCAPE` behaviour need a real PostgreSQL server, so they are not covered
+Native PostgreSQL `ILIKE` and its `ESCAPE` behavior need a real PostgreSQL server, so they are not covered
 by the in-process suite here. If you rely on `UsePostgreSql()`, that is the seam worth one integration test of
 your own — see [PostgreSQL](/integrations/postgresql/).

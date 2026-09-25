@@ -17,18 +17,31 @@ public sealed class OperatorDerivationTests {
 	public void Strings_get_the_pattern_operators_and_no_ranges() {
 
 		Assert.Equal(
-			Sorted(PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.Null,
-				PaginateFilterOperator.StartsWith, PaginateFilterOperator.Contains, PaginateFilterOperator.ILike),
-			Sorted<string>());
+			Sorted(
+				PaginateFilterOperator.Eq,
+				PaginateFilterOperator.In,
+				PaginateFilterOperator.Null,
+				PaginateFilterOperator.StartsWith,
+				PaginateFilterOperator.Contains,
+				PaginateFilterOperator.ILike
+			),
+			Sorted<string>()
+		);
 
 	}
 
 	[Fact]
 	public void Numbers_and_dates_get_the_range_operators() {
 
-		var expected = Sorted(PaginateFilterOperator.Eq, PaginateFilterOperator.In,
-			PaginateFilterOperator.GreaterThan, PaginateFilterOperator.GreaterThanOrEqual,
-			PaginateFilterOperator.LessThan, PaginateFilterOperator.LessThanOrEqual, PaginateFilterOperator.Between);
+		var expected = Sorted(
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.In,
+			PaginateFilterOperator.GreaterThan,
+			PaginateFilterOperator.GreaterThanOrEqual,
+			PaginateFilterOperator.LessThan,
+			PaginateFilterOperator.LessThanOrEqual,
+			PaginateFilterOperator.Between
+		);
 
 		Assert.Equal(expected, Sorted<int>());
 		Assert.Equal(expected, Sorted<decimal>());
@@ -40,13 +53,11 @@ public sealed class OperatorDerivationTests {
 
 	[Fact]
 	public void Guid_char_and_enums_get_equality_and_membership_only() {
-
 		var expected = Sorted(PaginateFilterOperator.Eq, PaginateFilterOperator.In);
 
 		Assert.Equal(expected, Sorted<Guid>());
 		Assert.Equal(expected, Sorted<char>());
 		Assert.Equal(expected, Sorted<ProductStatus>());
-
 	}
 
 	[Fact]
@@ -81,17 +92,16 @@ public sealed class OperatorDerivationTests {
 			"A type that must be registered first (UseNodaTime, RegisterSimpleType) has to be registered before "
 			+ "PaginateConfig<T>.Create runs: the shorthand derives its operators while the builder runs, not at Build().",
 			exception.Message,
-			StringComparison.Ordinal);
+			StringComparison.Ordinal
+		);
 
 	}
 
 	[Fact]
 	public void An_underivable_type_throws_rather_than_guessing() {
-
 		var exception = Assert.Throws<ArgumentException>(PaginateFilterOperators.For<Category>);
 
 		Assert.StartsWith("Filter operators cannot be derived for type 'Category'.", exception.Message);
-
 	}
 
 	[Fact]
@@ -103,17 +113,20 @@ public sealed class OperatorDerivationTests {
 			.DefaultSortBy("id")
 			.WithTieBreaker(p => p.Id)
 			.Filterable("rank", p => p.Rank)
-			.Filterable("name", p => p.Name));
+			.Filterable("name", p => p.Name)
+		);
 
 		IPaginateConfig meta = config;
 
 		Assert.Equal(
 			[.. PaginateFilterOperators.For<int>().Order()],
-			[.. meta.FilterableFields.Single(field => field.Name == "rank").Operators.Order()]);
+			[.. meta.FilterableFields.Single(field => field.Name == "rank").Operators.Order()]
+		);
 
 		Assert.Equal(
 			[.. PaginateFilterOperators.For<string>().Order()],
-			[.. meta.FilterableFields.Single(field => field.Name == "name").Operators.Order()]);
+			[.. meta.FilterableFields.Single(field => field.Name == "name").Operators.Order()]
+		);
 
 	}
 
@@ -125,7 +138,8 @@ public sealed class OperatorDerivationTests {
 			.Sortable("id", p => p.Id)
 			.DefaultSortBy("id")
 			.WithTieBreaker(p => p.Id)
-			.Filterable("rank", p => p.Rank));
+			.Filterable("rank", p => p.Rank)
+		);
 
 		var products = TestData.Products().AsQueryable();
 
@@ -147,7 +161,8 @@ public sealed class OperatorDerivationTests {
 			.Sortable("id", p => p.Id)
 			.DefaultSortBy("id")
 			.WithTieBreaker(p => p.Id)
-			.FilterableMany("rating", p => p.Reviews, r => r.Rating));
+			.FilterableMany("rating", p => p.Reviews, r => r.Rating)
+		);
 
 		var page = await TestData.Products().AsQueryable().PageAsync<ProductDto>(Query.Filter("rating", "$gte:5"), config);
 
@@ -158,7 +173,7 @@ public sealed class OperatorDerivationTests {
 	/// <summary>Comparable but with no relational operators -- exactly what the engine cannot build a range for.</summary>
 	public readonly struct Score(int value) : IComparable<Score> {
 		public int Value { get; } = value;
-		public int CompareTo(Score other) { return this.Value.CompareTo(other.Value); }
+		public int CompareTo(Score other) { return Value.CompareTo(other.Value); }
 	}
 
 	[Fact]
@@ -184,7 +199,8 @@ public sealed class OperatorDerivationTests {
 		// against .Filterable(name, selector) goes looking for an argument that is not there. The input is the
 		// type argument the selector's return type inferred.
 		var exception = Assert.Throws<ArgumentException>(() =>
-			PaginateConfig<Product>.Create(b => b.Filterable("category", p => p.Category)));
+			PaginateConfig<Product>.Create(b => b.Filterable("category", p => p.Category))
+		);
 
 		Assert.Equal("TValue", exception.ParamName);
 
@@ -196,7 +212,8 @@ public sealed class OperatorDerivationTests {
 		// The derivation is an *argument* to the explicit overload, so it ran before that overload's guards and a
 		// null name was reported as a derivation failure on an unrelated type.
 		var exception = Assert.Throws<ArgumentNullException>(() =>
-			PaginateConfig<Product>.Create(b => b.Filterable(null!, p => p.Category)));
+			PaginateConfig<Product>.Create(b => b.Filterable(null!, p => p.Category))
+		);
 
 		Assert.Equal("name", exception.ParamName);
 

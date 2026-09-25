@@ -39,12 +39,14 @@ The C# shape is three records, where `T` is the **projection's** result type, no
 sealed record PaginatedResponse<T>(IReadOnlyList<T> Items, PaginatedMeta Meta, PaginatedLinks? Links);
 
 sealed record PaginatedMeta(int TotalItems, int ItemCount, int ItemsPerPage, int TotalPages, int CurrentPage) {
+
     public IReadOnlyList<string> SortBy { get; init; }
     public string? Search { get; init; }
     public IReadOnlyList<string> SearchBy { get; init; }
     public IReadOnlyDictionary<string, IReadOnlyList<string>> Filter { get; init; }
     public bool HasPreviousPage { get; init; }
     public bool HasNextPage { get; init; }
+
 }
 
 sealed record PaginatedLinks(string? First, string? Previous, string? Next, string? Last) {
@@ -94,7 +96,7 @@ on top of it.
 
 ### The request echo
 
-`sortBy`, `search`, `searchBy` and `filter` report what the query **actually did**, which for the first three
+`sortBy`, `search`, `searchBy`, and `filter` report what the query **actually did**, which for the first three
 is not the same as what arrived. Defaults are resolved on the server:
 
 | Request | `meta.sortBy` | `meta.searchBy` |
@@ -170,7 +172,7 @@ it is deliberate.
 The URLs are **path-relative — no scheme, no host.** Behind a proxy that is what you want; prefix them
 yourself if your clients need absolute URLs. The app's **path base is part of the path**, so an app mounted
 under `UsePathBase("/api")` emits `/api/products?…`. Every current query parameter except `page` is carried
-over and percent-encoded, including parameters the library does not recognise, so client-side state survives
+over and percent-encoded, including parameters the library does not recognize, so client-side state survives
 paging.
 
 ## Building links: `PaginateLinkContext`
@@ -185,7 +187,8 @@ var linkContext = new PaginateLinkContext(
     QueryParameters: [
         new("limit", "25"),
         new("filter.status", "$eq:Active")
-    ]);
+    ]
+);
 
 var page = await source.PaginateAsync<Product, ProductDto>(request, config, linkContext, ct);
 // page.Links.Next == "/api/products?limit=25&filter.status=%24eq%3AActive&page=3"
@@ -223,7 +226,7 @@ nginx's `proxy_buffer_size` defaults to one memory page, 4 or 8 KB — and a hea
 proxy-generated `502` the application never sees. If you emit the header and your callers send long query
 strings, either cap the request line below the proxy's header buffer ÷ 4, or build the context from a
 filtered parameter list. The library carries everything by design: the binder ignores parameters it does not
-recognise precisely because they are yours, and dropping them from navigation links would lose them.
+recognize precisely because they are yours, and dropping them from navigation links would lose them.
 :::
 
 ## Paging without links: `WithPage`
@@ -256,7 +259,7 @@ other route; see below.
 
 ## Comparing envelopes
 
-`PaginatedResponse<T>`, `PaginatedMeta` and `PaginatedLinks` compare **by value**, all the way down:
+`PaginatedResponse<T>`, `PaginatedMeta`, and `PaginatedLinks` compare **by value**, all the way down:
 
 ```csharp
 // Two responses to the same request, fetched separately.
@@ -265,7 +268,7 @@ first == second   // true
 
 That needs saying because it is not what the record shape gives you for free. A record's synthesized equality
 runs every member through `EqualityComparer<T>.Default`, which is reference equality for a list or a
-dictionary — so `items`, `sortBy`, `searchBy` and `filter` would have made two envelopes describing the same
+dictionary — so `items`, `sortBy`, `searchBy`, and `filter` would have made two envelopes describing the same
 page compare unequal. `PaginatedResponse<T>` and `PaginatedMeta` therefore hand-write `Equals` and
 `GetHashCode`; `PaginatedLinks` holds nothing but strings, so the synthesized pair is already right for it.
 The rules:
@@ -273,7 +276,7 @@ The rules:
 - **`items` compares element by element**, each through `T`'s own equality. A projection record compares by
   value; a projection declared as a class compares by reference, because that is its contract, not the
   envelope's.
-- **Order is part of the value** for `items`, `sortBy` and `searchBy`. A page is an ordered thing.
+- **Order is part of the value** for `items`, `sortBy`, and `searchBy`. A page is an ordered thing.
 - **`filter` is order-independent** — a dictionary has no order — and its **keys match ordinally**, because
   they are [raw, as the request spelled them](#the-request-echo): `Status` and `status` are different echoes
   even though the field lookup that produced them is case-insensitive.
@@ -286,7 +289,7 @@ inequality rather than throwing.
 
 Opt-in, in addition to the body, and only in ASP.NET Core. Worth adding when a client reads headers before
 bodies — a `HEAD` request, a crawler, a generic HTTP client with RFC 8288 support built in, or anything
-streaming the body rather than deserialising it whole. If your clients only ever read `links` out of the
+streaming the body rather than deserializing it whole. If your clients only ever read `links` out of the
 JSON, skip it: it is the same four URLs twice.
 
 ```csharp

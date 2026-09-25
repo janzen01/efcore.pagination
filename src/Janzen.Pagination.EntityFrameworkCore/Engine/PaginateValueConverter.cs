@@ -41,7 +41,7 @@ internal static class PaginateValueConverter {
 
 	// The exact forms above carry no whitespace of their own, so padding is requested here rather than
 	// inherited from the pattern. It is not universal: the numeric branches get it from NumberStyles.Integer
-	// and NumberStyles.Float, but DateOnly, TimeOnly and the colon TimeSpan form below parse exact with no
+	// and NumberStyles.Float, but DateOnly, TimeOnly, and the colon TimeSpan form below parse exact with no
 	// whitespace flag at all, and char compares Length == 1.
 	private const DateTimeStyles TimestampStyles =
 		DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite;
@@ -155,8 +155,13 @@ internal static class PaginateValueConverter {
 				// puts it back — otherwise pinning the hour would also drop every negative duration.
 				bool negative = duration.StartsWith('-');
 
-				return TimeSpan.TryParseExact(negative ? duration[1..] : duration, DurationFormats, CultureInfo.InvariantCulture,
-					negative ? TimeSpanStyles.AssumeNegative : TimeSpanStyles.None, out var timeSpan)
+				return TimeSpan.TryParseExact(
+					negative ? duration[1..] : duration,
+					DurationFormats,
+					CultureInfo.InvariantCulture,
+					negative ? TimeSpanStyles.AssumeNegative : TimeSpanStyles.None,
+					out var timeSpan
+				)
 					? timeSpan
 					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 
@@ -164,6 +169,7 @@ internal static class PaginateValueConverter {
 			if (type == typeof(char)) return value.Length == 1 ? value[0] : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 
 			if (type.IsEnum) {
+
 				// Enums are addressed by one declared member name only — numeric forms are rejected so the filter
 				// contract is stable and well-defined (Enum.Parse otherwise accepts arbitrary numbers, including
 				// undefined [Flags] combinations). Both guards read the *trimmed* candidate, because Enum.Parse
@@ -179,6 +185,7 @@ internal static class PaginateValueConverter {
 
 				object parsed = Enum.Parse(type, member, true);
 				return Enum.IsDefined(type, parsed) ? parsed : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
+
 			}
 
 			// Last: anything that can parse itself invariantly. This is what makes a consumer's strongly-typed id work
@@ -225,11 +232,9 @@ internal static class PaginateValueConverter {
 			i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IParsable<>) && i.GenericTypeArguments[0] == type
 		);
 
-		if (!parsable) return null;
-
 		// Through the constrained generic rather than a reflected TryParse: an explicit interface implementation has
 		// no public static TryParse to find, and this dispatches to it correctly either way.
-		return ParsableTemplate.MakeGenericMethod(type).CreateDelegate<Func<string, string, object?>>();
+		return parsable ? ParsableTemplate.MakeGenericMethod(type).CreateDelegate<Func<string, string, object?>>() : null;
 
 	}
 
@@ -253,11 +258,9 @@ internal static class PaginateValueConverter {
 		int time = value.IndexOf('T', StringComparison.Ordinal);
 		var datePart = time < 0 ? value.AsSpan() : value.AsSpan(0, time);
 
-		if (datePart.ContainsAny('Y', 'M')) {
-			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' {invalidClause}: a duration in years or months has no fixed length.") { Code = PaginateQueryError.ValueInvalid };
-		}
-
-		return XmlConvert.ToTimeSpan(value);
+		return datePart.ContainsAny('Y', 'M')
+			? throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' {invalidClause}: a duration in years or months has no fixed length.") { Code = PaginateQueryError.ValueInvalid }
+			: XmlConvert.ToTimeSpan(value);
 
 	}
 

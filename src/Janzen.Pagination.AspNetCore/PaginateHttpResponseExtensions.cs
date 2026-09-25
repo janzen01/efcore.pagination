@@ -12,7 +12,7 @@ public static class PaginateHttpResponseExtensions {
 	///     Writes an opt-in RFC 8288 <c>Link</c> response header (rel <c>first</c>/<c>prev</c>/<c>next</c>/<c>last</c>)
 	///     from the page's <see cref="PaginatedLinks" />. Absent links are skipped; if none are present — or the
 	///     page was produced without a link context, leaving <paramref name="links" /> <see langword="null" /> —
-	///     no header is written. Call after paginating, e.g.
+	///     no header is written. Call after paginating, e.g.,
 	///     <c>HttpContext.Response.AddPaginationLinkHeader(result.Links)</c>.
 	/// </summary>
 	/// <remarks>
@@ -24,6 +24,7 @@ public static class PaginateHttpResponseExtensions {
 	///     <see cref="PaginateLinkContext.QueryParameters" />.
 	/// </remarks>
 	public static void AddPaginationLinkHeader(this HttpResponse response, PaginatedLinks? links) {
+
 		ArgumentNullException.ThrowIfNull(response);
 
 		if (links is null) return;
@@ -38,6 +39,7 @@ public static class PaginateHttpResponseExtensions {
 		// Append, not assign: the IHeaderDictionary.Link setter replaces the whole header, which silently dropped
 		// any relation a consumer or middleware had already written.
 		if (parts.Count > 0) response.Headers.Append("Link", string.Join(", ", parts));
+
 	}
 
 }

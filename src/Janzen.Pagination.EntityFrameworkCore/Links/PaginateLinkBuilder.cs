@@ -21,7 +21,8 @@ internal static class PaginateLinkBuilder {
 		// Build the escaped non-page query prefix once and reuse it across all four links.
 		string prefix = string.Join("&", context.QueryParameters
 			.Where(pair => !string.Equals(pair.Key, PaginateQueryParams.Page, StringComparison.OrdinalIgnoreCase))
-			.Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"));
+			.Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}")
+		);
 
 		return new PaginatedLinks(
 			BuildLink(context.Path, prefix, 1),
@@ -36,12 +37,10 @@ internal static class PaginateLinkBuilder {
 	}
 
 	private static string BuildLink(string path, string prefix, int page) {
-
 		string pageParam = $"{PaginateQueryParams.Page}={page.ToString(CultureInfo.InvariantCulture)}";
 		string query = prefix.Length == 0 ? pageParam : $"{prefix}&{pageParam}";
 
 		return $"{path}?{query}";
-
 	}
 
 }

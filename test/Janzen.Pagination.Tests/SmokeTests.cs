@@ -24,46 +24,38 @@ public sealed class SmokeTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 
 	[Fact]
 	public async Task Filters_translate_to_sql() {
-
 		await using var context = fixture.CreateContext();
 
 		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("status", "$eq:Draft"));
 
 		Assertions.HasIds(page, 3, 5);
-
 	}
 
 	[Fact]
 	public async Task Search_translates_to_sql() {
-
 		await using var context = fixture.CreateContext();
 
 		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Search("gizmo"));
 
 		Assertions.HasIds(page, 3);
-
 	}
 
 	[Fact]
 	public async Task Primitive_collection_filter_translates() {
-
 		await using var context = fixture.CreateContext();
 
 		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("tags", "$contains:red"));
 
 		Assertions.HasIds(page, 1, 2);
-
 	}
 
 	[Fact]
 	public async Task Collection_navigation_filter_translates() {
-
 		await using var context = fixture.CreateContext();
 
 		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("reviewer", "$eq:ann"));
 
 		Assertions.HasIds(page, 1, 2);
-
 	}
 
 	[Fact]
@@ -73,8 +65,8 @@ public sealed class SmokeTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 
 		var page = await SqliteFixture.Products(context).PageSelectAsync(
 			Query.Filter("id", "$eq:1"),
-			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count,
-				p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList()));
+			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count, p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList())
+		);
 
 		var summary = Assert.Single(page.Items);
 		Assert.Equal(3, summary.ReviewCount);

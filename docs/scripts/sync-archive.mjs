@@ -1,6 +1,6 @@
-// Materialises docs/archive/<version>/ from git, so the site can serve one frozen copy per released line.
+// Materializes docs/archive/<version>/ from git, so the site can serve one frozen copy per released line.
 //
-// The archive is a build artefact, not repository content: it is gitignored and rebuilt before every `vitepress
+// The archive is a build artifact, not repository content: it is gitignored and rebuilt before every `vitepress
 // dev` and `vitepress build`. That is the whole point. A committed archive would put a second copy of all 26
 // pages in the tree for every line ever released, and every grep, every editor search and every code-reading
 // tool would then have to be told to ignore them. Generating instead means there is nothing to ignore.

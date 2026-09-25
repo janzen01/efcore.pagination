@@ -9,7 +9,7 @@ namespace Janzen.Pagination.Tests;
 /// <summary>
 ///     A real PostgreSQL server, seeded with the same rows as the SQLite leg plus the literal-backslash row.
 ///     The connection string comes from the <c>JANZEN_TEST_POSTGRES</c> environment variable; absent, the
-///     fixture initialises nothing and every test in <see cref="PostgreSqlLegTests" /> is gated off.
+///     fixture initializes nothing and every test in <see cref="PostgreSqlLegTests" /> is gated off.
 /// </summary>
 /// <remarks>
 ///     The database the connection string names is <b>dropped and recreated</b>, so it must be a throwaway one.
@@ -32,7 +32,7 @@ public sealed class PostgreSqlFixture : IAsyncLifetime {
 
 		_options = new DbContextOptionsBuilder<TestDbContext>().UseNpgsql(ConnectionString).Options;
 
-		await using var context = this.CreateContext();
+		await using var context = CreateContext();
 		await context.Database.EnsureDeletedAsync();
 		await context.Database.EnsureCreatedAsync();
 		// The backslash row comes along so "a literal escape character survives" is assertable against a real
@@ -102,14 +102,14 @@ public sealed class PostgreSqlLegTests(PostgreSqlFixture fixture) : IClassFixtur
 
 		// SQLite has no ILIKE at all, so this pair cannot be observed there: the native form does not translate
 		// and the query fails before it runs.
-		string portable = this.Sql(Pattern(token));
+		string portable = Sql(Pattern(token));
 
 		Assert.Contains(" LIKE ", portable, StringComparison.Ordinal);
 		Assert.DoesNotContain("ILIKE", portable, StringComparison.Ordinal);
 
 		UsePostgreSql();
 
-		string native = this.Sql(Pattern(token));
+		string native = Sql(Pattern(token));
 
 		Assert.Contains(" ILIKE ", native, StringComparison.Ordinal);
 		Assert.Contains(@"ESCAPE '\'", native, StringComparison.Ordinal);
@@ -122,11 +122,11 @@ public sealed class PostgreSqlLegTests(PostgreSqlFixture fixture) : IClassFixtur
 		// The rows differ only in case: APPLE is 7, "apple pie" is 8. This is the divergence the suite could not
 		// see — the in-memory leg matches both (hard-coded OrdinalIgnoreCase) and SQLite's LIKE matches both
 		// (ASCII case-insensitive by default), so only a real PostgreSQL distinguishes the two strategies.
-		int[] portable = await this.Ids(Query.Filter("name", "$ilike:apple"));
+		int[] portable = await Ids(Query.Filter("name", "$ilike:apple"));
 
 		UsePostgreSql();
 
-		int[] native = await this.Ids(Query.Filter("name", "$ilike:apple"));
+		int[] native = await Ids(Query.Filter("name", "$ilike:apple"));
 
 		Assert.Equal([8], portable);
 		Assert.Equal([7, 8], native);
@@ -140,12 +140,12 @@ public sealed class PostgreSqlLegTests(PostgreSqlFixture fixture) : IClassFixtur
 	[InlineData("$ilike:a%c", new int[0])]
 	public async Task A_wildcard_in_the_value_stays_literal_under_native_ilike(string criterion, int[] expected) {
 
-		// Against a server that genuinely honours ESCAPE, not against the emitted pattern string. Both directions
+		// Against a server that genuinely honors ESCAPE, not against the emitted pattern string. Both directions
 		// are here on purpose: the negative cases fail if a metacharacter stays live, and the positive ones fail
 		// if the escaping eats a character the caller meant literally.
 		UsePostgreSql();
 
-		Assert.Equal(expected, await this.Ids(Query.Filter("name", criterion)));
+		Assert.Equal(expected, await Ids(Query.Filter("name", criterion)));
 
 	}
 
@@ -160,19 +160,15 @@ public sealed class PostgreSqlLegTests(PostgreSqlFixture fixture) : IClassFixtur
 		// The guard sits in the parsing layer, above every provider; this is the leg that proves it has to.
 		UsePostgreSql();
 
-		Assert.Equal("Filter 'name' must not contain a null character.",
-			await Assertions.RejectsAsync(() => this.Ids(Query.Filter("name", criterion))));
+		Assert.Equal("Filter 'name' must not contain a null character.", await Assertions.RejectsAsync(() => Ids(Query.Filter("name", criterion))));
 
 	}
 
 	[Fact(Skip = Gate, SkipUnless = nameof(IsAvailable))]
 	public async Task A_search_term_carrying_a_nul_byte_never_reaches_the_server() {
-
 		UsePostgreSql();
 
-		Assert.Equal("Search term must not contain a null character.",
-			await Assertions.RejectsAsync(() => this.Ids(Query.Search("wid\0get"))));
-
+		Assert.Equal("Search term must not contain a null character.", await Assertions.RejectsAsync(() => Ids(Query.Search("wid\0get"))));
 	}
 
 }

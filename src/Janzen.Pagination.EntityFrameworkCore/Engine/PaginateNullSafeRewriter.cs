@@ -54,17 +54,15 @@ internal static class PaginateNullSafeRewriter {
 	/// </summary>
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static LambdaExpression Rewrite(LambdaExpression selector) {
-
 		var parameter = selector.Parameters[0];
 		var body = Rewrite(selector.Body, parameter);
 
 		return ReferenceEquals(body, selector.Body) ? selector : Expression.Lambda(body, parameter);
-
 	}
 
 	/// <summary>Builds the guarded form, or <see langword="null" /> when no intermediate in the chain can be null.</summary>
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
-	private static Expression? Build(List<MemberExpression> chain, ParameterExpression root) {
+	private static ConditionalExpression? Build(List<MemberExpression> chain, ParameterExpression root) {
 
 		// Every step but the last is an intermediate, and only a reference-typed one can be null — a chain
 		// through structs needs neither a guard nor lifting.
@@ -72,6 +70,7 @@ internal static class PaginateNullSafeRewriter {
 		Expression current = root;
 
 		for (int index = 0; index < chain.Count - 1; index++) {
+
 			current = Expression.MakeMemberAccess(current, chain[index].Member);
 
 			if (current.Type.IsValueType && Nullable.GetUnderlyingType(current.Type) is null) continue;
@@ -81,6 +80,7 @@ internal static class PaginateNullSafeRewriter {
 			// AndAlso short-circuits, which is what keeps the guard from dereferencing a null itself: the second
 			// test only runs once the first has said the intermediate is there.
 			guard = guard is null ? notNull : Expression.AndAlso(guard, notNull);
+
 		}
 
 		if (guard is null) return null;
@@ -91,10 +91,7 @@ internal static class PaginateNullSafeRewriter {
 			? typeof(Nullable<>).MakeGenericType(access.Type)
 			: access.Type;
 
-		return Expression.Condition(
-			guard,
-			lifted == access.Type ? access : Expression.Convert(access, lifted),
-			Expression.Constant(null, lifted));
+		return Expression.Condition(guard, lifted == access.Type ? access : Expression.Convert(access, lifted), Expression.Constant(null, lifted));
 
 	}
 
