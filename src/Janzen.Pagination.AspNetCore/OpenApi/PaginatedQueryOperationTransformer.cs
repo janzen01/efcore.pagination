@@ -145,7 +145,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	// Invalid pagination input is translated to a 400 ProblemDetails by PaginateExceptionFilter on the controller
 	// leg and PaginateExceptionEndpointFilter on the Minimal API leg, so advertise it — with the members that leg
-	// actually sends and no others. `instance` is on neither: no producer passes one and the framework synthesises
+	// actually sends and no others. `instance` is on neither: no producer passes one and the framework synthesizes
 	// none, so documenting it only taught generated clients an always-null member.
 	private static void AddValidationErrorResponse(OpenApiOperation operation, OpenApiOperationTransformerContext context) {
 

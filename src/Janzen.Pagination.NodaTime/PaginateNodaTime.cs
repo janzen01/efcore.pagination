@@ -14,7 +14,7 @@ namespace Janzen.Pagination.NodaTime;
 /// <summary>
 ///     Registers NodaTime support with the Janzen.Pagination engine: value parsing for filters, leaf-type
 ///     classification for projection, and projection conversions onto the BCL types a DTO holds. Call once at
-///     startup, before the first configuration is built — e.g. <c>services.AddPagination(p =&gt; p.UseNodaTime())</c>
+///     startup, before the first configuration is built — e.g., <c>services.AddPagination(p =&gt; p.UseNodaTime())</c>
 ///     — or call <see cref="Register" /> directly for non-DI hosts.
 /// </summary>
 /// <remarks>

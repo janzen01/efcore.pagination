@@ -85,7 +85,7 @@ internal static class PaginateProjectionBuilder {
 
 		if (CanAssign(sourceValue.Type, targetType)) return ConvertIfNeeded(sourceValue, targetType);
 
-		// Conversions contributed by add-on packages (e.g. NodaTime's Instant -> DateTimeOffset via PaginateTypeSupport).
+		// Conversions contributed by add-on packages (e.g., NodaTime's Instant -> DateTimeOffset via PaginateTypeSupport).
 		var conversion = PaginateTypeSupport.TryBuildProjectionConversion(sourceValue, targetType);
 		if (conversion is not null) return conversion;
 
@@ -99,7 +99,7 @@ internal static class PaginateProjectionBuilder {
 
 		// The guard follows the TARGET parameter rather than the source annotation. EF scaffolding's own default
 		// for an optional relationship is a nullable FK behind a non-nullable navigation, so the CLR annotation
-		// claims "never null" for a row the database is free to leave without a parent -- and the unguarded
+		// claims "never null" for a row the database is free to leave without a parent. The unguarded
 		// projection then threw on the first such row, with a different exception type on each leg. The engine
 		// cannot consult EF's model (the projection is cached per (TEntity, TResult), not per DbContext model),
 		// so the target's own nullability is the only signal available.

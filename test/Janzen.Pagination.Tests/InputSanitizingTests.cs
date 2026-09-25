@@ -5,7 +5,7 @@ namespace Janzen.Pagination.Tests;
 ///     text column can hold, a value long enough to dominate the error it produces, and control characters that
 ///     would survive into a plain-text sink. Both legs, because the guard has to sit above the provider.
 /// </summary>
-public sealed class InputSanitisingTests(SqliteFixture fixture) : IClassFixture<SqliteFixture> {
+public sealed class InputSanitizingTests(SqliteFixture fixture) : IClassFixture<SqliteFixture> {
 
 	private static IQueryable<Product> InMemory() { return TestData.Products().AsQueryable(); }
 
@@ -56,7 +56,7 @@ public sealed class InputSanitisingTests(SqliteFixture fixture) : IClassFixture<
 	}
 
 	/// <summary>
-	///     Only the nul byte is refused. Tab, newline and the rest of C0 are legitimate text that every provider
+	///     Only the nul byte is refused. Tab, newline, and the rest of C0 are legitimate text that every provider
 	///     this library targets stores and compares, so a value carrying one still runs and simply matches nothing.
 	/// </summary>
 	[Theory]

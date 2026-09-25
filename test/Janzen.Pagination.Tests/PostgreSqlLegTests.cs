@@ -9,7 +9,7 @@ namespace Janzen.Pagination.Tests;
 /// <summary>
 ///     A real PostgreSQL server, seeded with the same rows as the SQLite leg plus the literal-backslash row.
 ///     The connection string comes from the <c>JANZEN_TEST_POSTGRES</c> environment variable; absent, the
-///     fixture initialises nothing and every test in <see cref="PostgreSqlLegTests" /> is gated off.
+///     fixture initializes nothing and every test in <see cref="PostgreSqlLegTests" /> is gated off.
 /// </summary>
 /// <remarks>
 ///     The database the connection string names is <b>dropped and recreated</b>, so it must be a throwaway one.
@@ -140,7 +140,7 @@ public sealed class PostgreSqlLegTests(PostgreSqlFixture fixture) : IClassFixtur
 	[InlineData("$ilike:a%c", new int[0])]
 	public async Task A_wildcard_in_the_value_stays_literal_under_native_ilike(string criterion, int[] expected) {
 
-		// Against a server that genuinely honours ESCAPE, not against the emitted pattern string. Both directions
+		// Against a server that genuinely honors ESCAPE, not against the emitted pattern string. Both directions
 		// are here on purpose: the negative cases fail if a metacharacter stays live, and the positive ones fail
 		// if the escaping eats a character the caller meant literally.
 		UsePostgreSql();

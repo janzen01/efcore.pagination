@@ -122,7 +122,7 @@ public sealed record PaginatedMeta(
 	/// </summary>
 	/// <remarks>
 	///     <b>A member added to this record has to be added here and to <see cref="GetHashCode" /> too</b> — that is
-	///     what a hand-written equality costs, and the compiler will not remind you.
+	///     what a handwritten equality costs, and the compiler will not remind you.
 	/// </remarks>
 	public bool Equals(PaginatedMeta? other) {
 		if (ReferenceEquals(this, other)) return true;
@@ -164,7 +164,7 @@ public sealed record PaginatedMeta(
 
 /// <summary>
 ///     Hypermedia links for the page, present only when a link context was supplied — see
-///     <see cref="PaginatedResponse{T}.Links" />. An absent link (e.g. <see cref="Previous" /> on the first
+///     <see cref="PaginatedResponse{T}.Links" />. An absent link (e.g., <see cref="Previous" /> on the first
 ///     page) is <see langword="null" /> and is serialized as <c>null</c> rather than dropped from the payload:
 ///     the value is the answer to "is there such a page", so the key stays and carries it.
 /// </summary>
@@ -186,7 +186,7 @@ public sealed record PaginatedLinks(
 	///     constructor, or deserialized from a payload that omits the key, carries <see langword="null" /> here like
 	///     any other member. A client that stores "where am I" URLs (bookmarks, retry, restoring table state) reads it here
 	///     instead of reassembling it from <see cref="PaginatedResponse{T}.Meta" /> and its own knowledge of the path.
-	///     Declared outside the positional list on purpose: the constructor, <c>Deconstruct</c> and <c>with</c> keep
+	///     Declared outside the positional list on purpose: the constructor, <c>Deconstruct</c>, and <c>with</c> keep
 	///     their shape, and it serializes after the four positional members.
 	/// </summary>
 	[JsonPropertyName("current")]

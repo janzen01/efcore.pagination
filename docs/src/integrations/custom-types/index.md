@@ -129,7 +129,7 @@ Three properties of the registry worth knowing before you call it:
   the first non-`null` result winning — so with two conversions that could both apply, registration order
   decides.
 - **Safe to call concurrently, but register at startup anyway.** The registry itself is thread-safe; what is
-  not deterministic is a query that runs before the registration and therefore sees the old behaviour. Doing
+  not deterministic is a query that runs before the registration and therefore sees the old behavior. Doing
   it lazily on first use is how that becomes an intermittent bug.
 
 Because it is the same registry the [NodaTime](../nodatime/) package uses, anything that package does to

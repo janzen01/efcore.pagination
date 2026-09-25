@@ -151,7 +151,7 @@ internal abstract class PaginateFilterField(
 	///     can parse cleanly and still have no operator for the factory to use — a plain <c>struct</c> registered
 	///     through <c>PaginateTypeSupport</c> declares no <c>op_Equality</c>, and the expression factory answers that
 	///     with an <see cref="InvalidOperationException" />. Unguarded it escaped as a 500 for a request the field's
-	///     own allow-list had permitted, on the one operator of six that was not covered.
+	///     own allowlist had permitted, on the one operator of six that was not covered.
 	/// </summary>
 	private BinaryExpression BuildEqualityExpression(Expression valueExpression, string value, PaginateExpressionContext context) {
 
@@ -170,7 +170,7 @@ internal abstract class PaginateFilterField(
 	///     because the in-memory leg lifts a value-typed member reached through a navigation to
 	///     <see cref="Nullable{T}" /> so it can yield null instead of throwing. Reading the lifted type here
 	///     would make <c>$null</c> match a row with no parent in memory while the relational leg — which never
-	///     lifts, and answers this from the declared type — matched none, and the two legs must agree. A field
+	///     lifts and answers this from the declared type — matched none, and the two legs must agree. A field
 	///     declared non-nullable therefore reports "no row is null" on both, nested or not.
 	/// </summary>
 	private Expression BuildNullExpression(Expression valueExpression) {
@@ -217,11 +217,11 @@ internal abstract class PaginateFilterField(
 	/// <summary>
 	///     Builds one range comparison. The expression factories define no relational operator for enums, strings or
 	///     <see cref="Guid" />, so each gets a translatable stand-in rather than the build-time exception that used to
-	///     escape as a 500 for a request the field's own operator allow-list had permitted.
+	///     escape as a 500 for a request the field's own operator allowlist had permitted.
 	/// </summary>
 	private Expression BuildComparison(Expression valueExpression, string value, Func<Expression, Expression, BinaryExpression> comparison, PaginateExpressionContext context) {
 
-		// Numbers, dates and add-on types that define their own operators (NodaTime's Instant, LocalDate) go straight
+		// Numbers, dates, and add-on types that define their own operators (NodaTime's Instant, LocalDate) go straight
 		// through; only the three families below need help.
 		if (!Type.IsEnum && Type != typeof(string) && Type != typeof(Guid)) {
 			var constant = ConvertValue(value, valueExpression.Type, context);
@@ -236,7 +236,7 @@ internal abstract class PaginateFilterField(
 		}
 
 		// Unwrapping the nullable keeps both stand-ins working on the underlying value; the null guard below restores
-		// the "a NULL row does not match" behaviour a lifted operator would have given for free.
+		// the "a NULL row does not match" behavior a lifted operator would have given for free.
 		var operand = Nullable.GetUnderlyingType(valueExpression.Type) is null
 			? valueExpression
 			: Expression.Property(valueExpression, "Value");
@@ -245,7 +245,7 @@ internal abstract class PaginateFilterField(
 
 		if (Type.IsEnum) {
 			// Compare on the underlying integral type, which is also what the column stores unless the model maps the
-			// enum to text — in which case this filter does not translate, exactly as it did not before.
+			// enum to text — in which case this filter does not translate, which is exactly how it behaved before.
 			var underlying = Enum.GetUnderlyingType(Type);
 			object? ordinal = Convert.ChangeType(this.ConvertRawValue(value, Type), underlying, CultureInfo.InvariantCulture);
 
@@ -313,10 +313,10 @@ internal abstract class PaginateFilterField(
 	}
 
 	/// <summary>
-	///     Builds the <c>$ilike</c> / <c>$sw</c> / <c>$contains</c> predicate on a string field, and applies the same
+	///     Builds the <c>$ilike</c> / <c>$sw</c> / <c>$contains</c> predicate on a string field and applies the same
 	///     two length guards the search term passes. They emit the identical <c>LIKE '%…%'</c>, so a guard on only
 	///     one of the two paths to it reads as protection the resource does not have — a zero-length value escaped
-	///     to the empty string, emitted <c>%%</c> and matched every non-NULL row. The value is measured as sent,
+	///     to the empty string, emitted <c>%%</c>, and matched every non-NULL row. The value is measured as sent,
 	///     because a filter value is never trimmed: the padding is part of the pattern the database is asked for.
 	/// </summary>
 	private BinaryExpression BuildStringPatternExpression(Expression valueExpression, string value, bool startsWith, PaginateExpressionContext context) {
@@ -359,7 +359,7 @@ internal abstract class PaginateFilterField(
 	/// <summary>
 	///     Parses one criterion value, refusing a blank one first. A blank used to convert to <c>null</c> wherever
 	///     the target was nullable, which is <c>$null</c> spelled implicitly — and the implicit spelling asked the
-	///     field's operator allow-list nothing, so a configuration withholding <c>Null</c> answered the null rows
+	///     field's operator allowlist nothing, so a configuration withholding <c>Null</c> answered the null rows
 	///     anyway. It also read whichever type reached it, so a nested value-typed member the in-memory rewriter
 	///     had lifted to <see cref="Nullable{T}" /> matched rows in memory while every relational provider answered
 	///     400. There is one spelling for "no value" now, and it is the declared one. <c>string</c> is untouched:
@@ -375,7 +375,7 @@ internal abstract class PaginateFilterField(
 
 	}
 
-	/// <summary>Wraps an already-converted value as a constant of <paramref name="targetType" />, parameterised as above.</summary>
+	/// <summary>Wraps an already-converted value as a constant of <paramref name="targetType" />, parameterized as above.</summary>
 	private static Expression ToConstant(object? value, Type targetType, PaginateExpressionContext context) {
 		var constant = Expression.Constant(value, targetType);
 		return context.UseDatabaseFunctions ? PaginateExpressionUtils.ToDatabaseParameter(constant) : constant;

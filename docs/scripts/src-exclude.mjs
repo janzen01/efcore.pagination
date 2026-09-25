@@ -6,7 +6,7 @@
 // archived version and published there under a frozen URL -- with a green build, since nothing downstream can
 // tell an unwanted page from a wanted one.
 //
-// Two behaviours are load-bearing and neither is what plain picomatch does on its own:
+// Two behaviors are load-bearing and neither is what plain picomatch does on its own:
 //
 //   * A bare directory excludes everything under it. `ignore: ['src/drafts']` keeps `src/drafts/index.md` out
 //     of a tinyglobby result, while `picomatch('src/drafts')` does not match that path. Measured against the

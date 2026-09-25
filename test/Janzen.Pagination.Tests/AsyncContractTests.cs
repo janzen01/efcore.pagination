@@ -91,7 +91,7 @@ public sealed class AsyncContractTests {
 	///     A queryable whose provider satisfies <see cref="IAsyncQueryProvider" /> without being Entity Framework
 	///     Core's — the shape a queryable-backed mocking library hands a consumer's unit test. Execution is
 	///     delegated to the wrapped in-memory queryable; the async path throws, because nothing in the engine may
-	///     reach it once the provider has been recognised as foreign.
+	///     reach it once the provider has been recognized as foreign.
 	/// </summary>
 	private sealed class NonEfAsyncQueryable<T>(IQueryable<T> inner) : IQueryable<T>, IAsyncQueryProvider {
 
@@ -143,7 +143,7 @@ public sealed class EfInternalCouplingTests : IClassFixture<SqliteFixture> {
 
 		Assert.True(probed is not null,
 			"EntityQueryProvider has moved or been renamed; PaginateQueryableExtensions.UseDatabaseFunctions no longer "
-			+ "recognises EF Core and every query would take the in-memory leg.");
+			+ "recognizes EF Core and every query would take the in-memory leg.");
 
 		await using var context = this.fixture.CreateContext();
 

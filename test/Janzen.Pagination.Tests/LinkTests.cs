@@ -8,8 +8,8 @@ namespace Janzen.Pagination.Tests;
 public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixture> {
 
 	/// <summary>
-	///     <c>utm_source</c> is here because the binder does not recognise it: the documented promise is that
-	///     <b>every</b> current parameter except <c>page</c> is carried over, unrecognised ones included, so
+	///     <c>utm_source</c> is here because the binder does not recognize it: the documented promise is that
+	///     <b>every</b> current parameter except <c>page</c> is carried over, unrecognized ones included, so
 	///     client-side state survives paging. Without such a key the drop predicate could be narrowed to the six
 	///     known parameters and every link assertion would still pass.
 	/// </summary>

@@ -8,7 +8,7 @@ namespace Janzen.Pagination.Tests;
 /// <summary>
 ///     Every rejection carries a machine-readable <see cref="PaginateQueryError" /> alongside its message, so a
 ///     client can branch on the cause without matching prose. The message itself is unchanged — these assert the
-///     code, and the catalogue tests still assert the wording.
+///     code, and the catalog tests still assert the wording.
 /// </summary>
 public sealed class ErrorCodeTests {
 

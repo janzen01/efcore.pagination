@@ -181,6 +181,6 @@ public sealed class ConfigDefaultsTests : IDisposable {
 	}
 }
 
-/// <summary>Serialises the tests that assign <see cref="PaginateConfigDefaults.Shared" />, which is process-wide.</summary>
+/// <summary>Serializes the tests that assign <see cref="PaginateConfigDefaults.Shared" />, which is process-wide.</summary>
 [CollectionDefinition("ConfigDefaults", DisableParallelization = true)]
 public sealed class ConfigDefaultsCollection;

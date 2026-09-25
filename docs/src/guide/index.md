@@ -5,7 +5,7 @@ Three pages, in reading order. Each stands on its own, so jumping straight to th
 | Page | What it answers |
 |------|-----------------|
 | **[Getting started](./getting-started/)** | Install, register, and get a paginated endpoint returning JSON — plus what the engine does with the request once it arrives. |
-| **[Configuration](./configuration/)** | What an allow-list buys you, and the three decisions every config has to make. |
+| **[Configuration](./configuration/)** | What an allowlist buys you, and the three decisions every config has to make. |
 | **[Projections](./projections/)** | The four `Paginate*Async` entry points and how to pick between them. |
 
 ## The 30-second version
@@ -28,7 +28,7 @@ PaginatedResponse<ProductDto> page = await db.Products.PaginateAsync<Product, Pr
 GET /products?page=2&limit=25&sortBy=name:DESC&search=acme&filter.status=$in:active,pending
 ```
 
-The engine works on its own against any `IQueryable<T>`; the ASP.NET Core, PostgreSQL and NodaTime packages
+The engine works on its own against any `IQueryable<T>`; the ASP.NET Core, PostgreSQL, and NodaTime packages
 are independent add-ons, so take only the ones you need.
 
 ## When the guide is not what you want

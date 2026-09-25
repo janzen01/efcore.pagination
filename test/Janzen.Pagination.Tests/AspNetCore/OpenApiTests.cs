@@ -361,7 +361,7 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 		await app.StartAsync();
 
 		using var client = new HttpClient { BaseAddress = new Uri(app.Urls.First()) };
-		// Twice on purpose. The document is regenerated per request, and the transformer memoises a config only
+		// Twice on purpose. The document is regenerated per request, and the transformer memoizes a config only
 		// for the duration of one document -- never for the process, which would freeze the first document's
 		// answer. The construction counts below are what prove the scope of that memo.
 		await client.GetStringAsync("/openapi/v1.json");
@@ -544,7 +544,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		string example = parameter.GetProperty("schema").GetProperty("items")
 			.GetProperty("examples").EnumerateArray().First().GetString()!;
 
-		// The operator comes from the field's own allow-list, so it is one a caller may actually send -- and it
+		// The operator comes from the field's own allowlist, so it is one a caller may actually send -- and it
 		// is chosen by an explicit rule ($eq when granted, otherwise the lowest operator), not by whichever the
 		// set happens to enumerate first. This field declares $in before $eq to keep that honest.
 		Assert.StartsWith("$eq:", example);
@@ -612,7 +612,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	public void The_validation_failure_schema_documents_what_the_runtime_actually_sends() {
 
 		// This host registers no AddProblemDetails(), so a Minimal API 400 reaches no problem-details writer and
-		// carries no traceId. instance is on neither leg: nothing passes one and the framework synthesises none,
+		// carries no traceId. instance is on neither leg: nothing passes one and the framework synthesizes none,
 		// so a generated model used to carry a property that is always null.
 		Assert.Equal(["type", "title", "status", "detail", "code"], this.ValidationFailureMembers("/products"));
 
@@ -808,7 +808,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	}
 
 	[Fact]
-	public async Task A_cancelled_document_generation_stops_the_transformer() {
+	public async Task A_canceled_document_generation_stops_the_transformer() {
 
 		// The token is part of the IOpenApiOperationTransformer contract and was accepted and ignored, while the
 		// body does a DI activation and a reflection walk per filterable field, per operation, per document.

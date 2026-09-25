@@ -64,7 +64,7 @@ var next = response.Meta.HasNextPage
     ? request.WithPage(response.Meta.CurrentPage + 1)
     : null; // last page
 
-// WithPage carries limit, sort, search and filters over — only the page changes.
+// WithPage carries limit, sort, search, and filters over — only the page changes.
 ```
 
 ## Declaring fields
@@ -76,7 +76,7 @@ var next = response.Meta.HasNextPage
 | `.DefaultSortBy(name, dir)` | — | Used when the request sends no `sortBy`; the field must be sortable. |
 | `.WithTieBreaker(expr)` | — | **Required** — unique key appended as the final ordering key on every query, so offset paging is deterministic. |
 | `.Searchable(name, expr)` | `search`, `searchBy=name` | Selector must return `string?`. |
-| `.Filterable(name, expr, ops…)` | `filter.name=$op:value` | At least one operator; the list is that field's allow-list. |
+| `.Filterable(name, expr, ops…)` | `filter.name=$op:value` | At least one operator; the list is that field's allowlist. |
 | `.Filterable(name, expr)` | `filter.name=$op:value` | Every operator the engine can build for `TValue` — see *Operator defaults* below. |
 | `.FilterableMany(name, coll, expr, ops…)` | `filter.name=$op:value` | Matches any element of a child collection (`Any(...)`). |
 | `.FilterableMany(name, coll, expr)` | `filter.name=$op:value` | The same derivation, from the value selector's type. |
@@ -116,7 +116,7 @@ is deliberately not shareable: an unbounded read is a claim about one resource�
 ## Operator defaults
 
 Omitting the operator list grants every operator the engine can build for that type: the pattern operators
-for `string`, the range operators for numbers and dates, `Eq`/`In` for `Guid`, `char` and enums, and `Null`
+for `string`, the range operators for numbers and dates, `Eq`/`In` for `Guid`, `char`, and enums, and `Null`
 wherever the value can actually be null. A type with no derivation throws at configuration time rather than
 guessing.
 
@@ -135,9 +135,9 @@ matches. [Full reference](https://janzen01.github.io/efcore.pagination/v10.1.x/r
 
 ## Badges
 
-Attach an optional presentation **badge** (a label and optional CSS class) to any sortable, searchable or filterable
+Attach an optional presentation **badge** (a label and optional CSS class) to any sortable, searchable, or filterable
 field with `.ShowBadge(name, cssClass?)` immediately after declaring it. Badges surface in the generated OpenAPI
-metadata and render as chips in the API reference UI (e.g. Scalar):
+metadata and render as chips in the API reference UI (e.g., Scalar):
 
 ```csharp
 .Sortable("slug", p => p.Slug).ShowBadge("Public", "language-public")
@@ -147,7 +147,7 @@ metadata and render as chips in the API reference UI (e.g. Scalar):
 
 `ShowBadge` targets the field declared immediately before it. The library imposes no palette and does not validate
 the class — you color the chip via your API reference's **custom CSS**, and which classes survive is that UI's rule.
-With Scalar, use a `language-` prefix: its markdown sanitizer keeps no other class on inline code. Then register e.g.
+With Scalar, use a `language-` prefix: its markdown sanitizer keeps no other class on inline code. Then register e.g.,
 `.language-public { background:#277A2C; color:#fff; border-radius:4px; padding:1px 6px }`.
 
 ## Conditional fields (RBAC)
@@ -177,7 +177,7 @@ Four ways to shape each page row into a DTO — pick the cheapest that fits:
 
 | Strategy     | Entry point                                        | Runs where     | Use for |
 |--------------|----------------------------------------------------|----------------|---------|
-| **Auto**     | `PaginateAsync<TEntity, TResult>(request, config)`           | SQL            | DTOs buildable by convention: scalars (`DateOnly`, `TimeOnly` and `TimeSpan` included), single nested objects, and the NodaTime → BCL conversions such as `Instant → DateTimeOffset`. |
+| **Auto**     | `PaginateAsync<TEntity, TResult>(request, config)`           | SQL            | DTOs buildable by convention: scalars (`DateOnly`, `TimeOnly`, and `TimeSpan` included), single nested objects, and the NodaTime → BCL conversions such as `Instant → DateTimeOffset`. |
 | **Selector** | `PaginateSelectAsync<TEntity, TResult>(request, config, selector)` | SQL (+ shaper) | Anything expressible as a `Select`: aggregates, **sub-collections**, conversions — in one narrow query. |
 | **Selector + finalize** | `PaginateSelectMapAsync<TEntity, TProjection, TResult>(request, config, selector, postMap)` | SQL + in-memory | Most of the row translates, but a field or two needs a CLR computation EF can't translate (weighted aggregate over a sub-collection with a guard/rounding). Narrow `SELECT`; `postMap` finalizes the page only (O(page size)). |
 | **Map**      | `PaginateMapAsync<TEntity, TResult>(request, config, map)`   | in memory      | Only when the response needs the **fully loaded entity**. Over-fetches by design. |
@@ -186,7 +186,7 @@ Each strategy has its own name rather than being an overload of `PaginateAsync`,
 uses: `Select` means projected in SQL, `Map` means mapped in memory.
 
 `TEntity` comes first in every entry point: these are C# extension-block members, so explicit type arguments
-must name the entity type before the result type. Where a `selector`, `postMap` or `map` lambda is passed,
+must name the entity type before the result type. Where a `selector`, `postMap`, or `map` lambda is passed,
 all type arguments are inferable — `db.Products.PaginateSelectAsync(request, config, selector)` also compiles.
 
 ### Sub-collections + NodaTime conversions in a single query

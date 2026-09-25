@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <Description>Provider-agnostic, configuration-driven pagination, filtering and sorting engine for Entity Framework Core, with a fluent per-entity configuration API and an opinionated query-string contract.</Description>
+        <Description>Provider-agnostic, configuration-driven pagination, filtering, and sorting engine for Entity Framework Core, with a fluent per-entity configuration API and an opinionated query-string contract.</Description>
         <PackageTags>$(PackageTags);paginate;searching;dynamic-query;data-access</PackageTags>
     </PropertyGroup>
 
@@ -17,7 +17,7 @@
              TimeSpan, and a duration in years or months has no fixed length on either. One implementation,
              two messages: each leg keeps its own 400 detail text. -->
         <InternalsVisibleTo Include="Janzen.Pagination.NodaTime"/>
-        <!-- Value conversion is the one engine detail with no observable behaviour to assert against: a parsed
+        <!-- Value conversion is the one engine detail with no observable behavior to assert against: a parsed
              DateTime's Kind changes no comparison in memory and no SQL SQLite emits, yet it shifts the instant on a
              provider that converts to UTC. The test project reaches PaginateValueConverter directly for that. -->
         <InternalsVisibleTo Include="Janzen.Pagination.Tests"/>

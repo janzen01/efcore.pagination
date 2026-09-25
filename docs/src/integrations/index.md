@@ -14,11 +14,11 @@ None of them changes what a `PaginateConfig<T>` looks like. A config written aga
 unchanged on PostgreSQL; only the emitted SQL differs.
 
 ::: info Which engines this is measured against
-Three legs run in this repository's own suite: **PostgreSQL** (15.19, 16.15, 17.11 and 18.6), **SQLite**, and
+Three legs run in this repository's own suite: **PostgreSQL** (15.19, 16.15, 17.11, and 18.6), **SQLite**, and
 a plain `IQueryable` over a list. Every claim about those is measured, and the PostgreSQL pages say which
 server a given one was measured on.
 
-Statements about **SQL Server, Oracle, MySQL and Synapse** — collation behaviour, the default escape
+Statements about **SQL Server, Oracle, MySQL, and Synapse** — collation behavior, the default escape
 character, `[` opening a character range — are read from those engines' own documentation and have **not**
 been executed against this library. They are the best information available and are believed correct; they
 are not evidence of the same kind. Provider legs for them are planned, and this note narrows as they land.
@@ -29,18 +29,18 @@ are not evidence of the same kind. Provider legs for them are planned, and this 
 Before any of that, there is one adaptation the engine makes on its own. It checks whether the source's
 provider is Entity Framework Core's own `EntityQueryProvider` and takes a different path when it is not:
 
-| | EF provider | plain `IQueryable` (e.g. `List<T>.AsQueryable()`) |
+| | EF provider | plain `IQueryable` (e.g., `List<T>.AsQueryable()`) |
 |---|---|---|
 | pattern matching (`search`, `$ilike`, `$sw`, string `$contains`) | `EF.Functions.Like` / `ILike` | `string.IndexOf` / `StartsWith` with `OrdinalIgnoreCase` |
 | `$eq` and `$in` on a string | the column's collation decides | `Expression.Equal` / `Enumerable.Contains` — **ordinal, case-sensitive** |
 | `$lt` / `$gt` / `$btw` on a string | the column's collation decides | `StringComparison.InvariantCulture` |
 | filter values | wrapped in `EF.Parameter` for plan reuse | plain constants |
-| count / materialise | `CountAsync` / `ToListAsync` | synchronous `Count` / `ToList`, wrapped in a completed task |
+| count / materialize | `CountAsync` / `ToListAsync` | synchronous `Count` / `ToList`, wrapped in a completed task |
 
 So the whole pipeline — filters, search, sort, paging, projection — runs against an in-memory list, which
 makes unit-testing a `PaginateConfig<T>` cheap. See [Testing your pagination](/recipes/testing/).
 
-Read the first three rows together before relying on the leg for case behaviour: **in memory the operators
+Read the first three rows together before relying on the leg for case behavior: **in memory the operators
 disagree with each other.** `?filter.name=$ilike:APPLE` matches `apple pie` while `?filter.name=$eq:APPLE`
 does not, where SQL Server's usual collation matches both and PostgreSQL without the `.PostgreSql` package
 matches neither. That is not a defect being reported here — a plain list has no collation to consult, so

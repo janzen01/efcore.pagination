@@ -1,4 +1,4 @@
-// Materialises docs/archive/<version>/ from git, so the site can serve one frozen copy per released line.
+// Materializes docs/archive/<version>/ from git, so the site can serve one frozen copy per released line.
 //
 // The archive is a build artefact, not repository content: it is gitignored and rebuilt before every `vitepress
 // dev` and `vitepress build`. That is the whole point. A committed archive would put a second copy of all 26

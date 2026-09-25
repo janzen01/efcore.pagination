@@ -14,7 +14,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.Like;
 ///     and passes <see cref="PaginateLikeDefaults.EscapeCharacter" /> as the last argument, which is the part
 ///     an implementation written from the interface alone tends to miss.
 /// </summary>
-/// <param name="likeMethod">The four-parameter <c>EF.Functions</c> method to call, e.g. <c>EF.Functions.Like</c>.</param>
+/// <param name="likeMethod">The four-parameter <c>EF.Functions</c> method to call, e.g., <c>EF.Functions.Like</c>.</param>
 public abstract class PaginateLikeStrategyBase(MethodInfo likeMethod) : IPaginateLikeStrategy {
 
 	// Both nodes are process constants -- EF.Functions is a static property on a static type, and the escape

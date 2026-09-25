@@ -89,7 +89,7 @@ public static class PaginateHttpRequestExtensions {
 		/// <summary>
 		///     Paginates and projects each row to <typeparamref name="TResult" /> using the supplied
 		///     <paramref name="selector" /> as the query's <b>terminal</b> projection. Use for shapes the automatic
-		///     builder cannot generate — aggregates (e.g. <c>Count</c>) and one-to-many <b>sub-collection</b>
+		///     builder cannot generate — aggregates (e.g., <c>Count</c>) and one-to-many <b>sub-collection</b>
 		///     projections; supplying <paramref name="selector" /> makes both type arguments inferable. Delegates to
 		///     <c>PaginateSelectAsync</c> on <see cref="PaginateQueryableExtensions" /> with
 		///     <paramref name="httpRequest" /> as the link context, so <see cref="PaginatedResponse{T}.Links" /> comes

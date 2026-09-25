@@ -41,7 +41,7 @@ internal static class PaginateValueConverter {
 
 	// The exact forms above carry no whitespace of their own, so padding is requested here rather than
 	// inherited from the pattern. It is not universal: the numeric branches get it from NumberStyles.Integer
-	// and NumberStyles.Float, but DateOnly, TimeOnly and the colon TimeSpan form below parse exact with no
+	// and NumberStyles.Float, but DateOnly, TimeOnly, and the colon TimeSpan form below parse exact with no
 	// whitespace flag at all, and char compares Length == 1.
 	private const DateTimeStyles TimestampStyles =
 		DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal | DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite;

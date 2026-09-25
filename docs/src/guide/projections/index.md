@@ -131,7 +131,7 @@ everything else runs in SQL.
 
 ### Sub-collections and NodaTime in one query
 
-Because of that shaper behaviour, a DTO that mixes one-to-many sub-collections **with**
+Because of that shaper behavior, a DTO that mixes one-to-many sub-collections **with**
 `Instant` → `DateTimeOffset` conversions — even *inside* the sub-collection items — still executes as a single
 query. It does not need `PaginateMapAsync`:
 
@@ -186,7 +186,7 @@ var page = await db.Products.PaginateMapAsync(request, config,
 ```
 
 This materializes **every column of every page entity** and then maps them. Reach for it only when the mapping
-genuinely needs the loaded entity — an existing hand-written mapper you cannot express as an expression, or
+genuinely needs the loaded entity — an existing handwritten mapper you cannot express as an expression, or
 logic that calls into services.
 
 The page entities are loaded with `AsNoTracking` (applied automatically on real EF providers), so a read-only
@@ -241,7 +241,7 @@ this is the contract, not an implementation detail:
   `search`, `searchBy`, every `filter.…` — becomes a faulted task carrying `PaginateQueryException`, which is
   what the [ASP.NET Core](/integrations/aspnetcore/) filters translate into a `400`.
 - **The cancellation token is read first and read again.** It is checked before the request is even validated,
-  so a cancelled caller gets `OperationCanceledException` rather than a `400` for a request nobody is waiting
+  so a canceled caller gets `OperationCanceledException` rather than a `400` for a request nobody is waiting
   for, and again once the rows are in memory — so a `postMap` or a `projector` does not run over a page whose
   client has gone away. Pass the token: in MVC and in Minimal APIs a `CancellationToken` parameter binds to
   `HttpContext.RequestAborted` for free, and the engine has no other way to learn the request was abandoned.

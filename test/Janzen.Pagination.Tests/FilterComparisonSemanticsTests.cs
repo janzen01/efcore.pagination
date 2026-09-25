@@ -168,7 +168,7 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 	#region PERF-R04 — the hoisted CompareTo resolution still emits the same SQL
 
 	[Fact]
-	public void A_guid_range_parameterises_both_bounds() {
+	public void A_guid_range_parameterizes_both_bounds() {
 
 		using var context = fixture.CreateContext();
 

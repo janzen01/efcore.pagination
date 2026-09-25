@@ -75,7 +75,7 @@ names the spelling it refuses.
 
 An unparseable value is a `400 Value 'x' is not a valid instant.` All of them are also registered as
 projection leaf types, so the automatic projection copies them across instead of trying to recurse into them.
-`ZonedDateTime`, `Period` and `Interval` are deliberately absent — see the integration page for why.
+`ZonedDateTime`, `Period`, and `Interval` are deliberately absent — see the integration page for why.
 
 ## Documentation
 

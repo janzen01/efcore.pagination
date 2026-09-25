@@ -6,12 +6,12 @@
 [![CI](https://github.com/janzen01/efcore.pagination/actions/workflows/ci.yml/badge.svg)](https://github.com/janzen01/efcore.pagination/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-janzen01.github.io-512BD4)](https://janzen01.github.io/efcore.pagination/)
 
-Dynamic, configuration-driven pagination, filtering and sorting, built for **Entity Framework Core**
+Dynamic, configuration-driven pagination, filtering, and sorting, built for **Entity Framework Core**
 and **ASP.NET Core**.
 
-You declare, once per entity, what clients may sort by, search and filter — and which operators each field
+You declare, once per entity, what clients may sort by, search, and filter — and which operators each field
 allows. The library turns an opinionated query string into a translated EF Core query, validates everything it
-cannot honour into a `400`, and returns a page with metadata and navigation links.
+cannot honor into a `400`, and returns a page with metadata and navigation links.
 
 ```http
 GET /products?page=2&limit=25&sortBy=price:DESC&search=widget&filter.status=$in:Active,Draft&filter.price=$btw:10,500
@@ -23,12 +23,12 @@ same query parameters, operator names and response envelope.
 
 ## What you get
 
-- **An allow-list, not a query language.** A field that is not declared is not addressable, and an operator not
+- **An allowlist, not a query language.** A field that is not declared is not addressable, and an operator not
   granted for a field is rejected for that field. No accidental `ORDER BY` on an unindexed column.
 - **Eleven filter operators** — `$eq` `$in` `$null` `$sw` `$ilike` `$contains` `$lt` `$lte` `$gt` `$gte` `$btw` —
   with `$not` negation and `$and` / `$or` between criteria on the same field.
 - **Deterministic paging.** A tie-breaker key is appended to every sort, so rows do not drift between pages.
-- **Four projection strategies**, from a DTO built for you by reflection to a hand-written selector with
+- **Four projection strategies**, from a DTO built for you by reflection to a handwritten selector with
   sub-collections and aggregates — all keeping the `SELECT` narrow.
 - **ASP.NET Core, wired.** Query-string binding, `ProblemDetails` on bad input, `first`/`prev`/`next`/`last`
   links, and OpenAPI parameters generated from the same config the engine enforces.
@@ -72,7 +72,7 @@ dotnet add package Janzen.Pagination.AspNetCore
 ```
 
 ```csharp
-// 1. Declare the contract for an entity. This is the whole allow-list.
+// 1. Declare the contract for an entity. This is the whole allowlist.
 public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Product> {
 
     public readonly static PaginateConfig<Product> Config = PaginateConfig<Product>.Create(b => b
@@ -141,7 +141,7 @@ Every `400` it can produce, in the order the engine validates:
 | | |
 |---|---|
 | [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/) | Install → register → a working paginated endpoint. |
-| [Configuration](https://janzen01.github.io/efcore.pagination/guide/configuration/) | What an allow-list buys you, and the three decisions a config has to make. |
+| [Configuration](https://janzen01.github.io/efcore.pagination/guide/configuration/) | What an allowlist buys you, and the three decisions a config has to make. |
 | [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/) | The four entry points and how to pick between them. |
 
 **Reference** — looked up mid-task:
@@ -161,7 +161,7 @@ Every `400` it can produce, in the order the engine validates:
 | [ASP.NET Core](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/) | Binding, `ProblemDetails`, links, Minimal APIs. |
 | [OpenAPI](https://janzen01.github.io/efcore.pagination/integrations/aspnetcore/openapi/) | What the transformer emits, and badges. |
 | [PostgreSQL](https://janzen01.github.io/efcore.pagination/integrations/postgresql/) | `LIKE` vs `ILIKE`, and the SQL each emits. |
-| [NodaTime](https://janzen01.github.io/efcore.pagination/integrations/nodatime/) | The seven NodaTime value types as filter, sort and projection types. |
+| [NodaTime](https://janzen01.github.io/efcore.pagination/integrations/nodatime/) | The seven NodaTime value types as filter, sort, and projection types. |
 | [Custom types](https://janzen01.github.io/efcore.pagination/integrations/custom-types/) | Teaching the engine a value type of your own. |
 
 **Cookbook** — task-shaped answers:
@@ -176,7 +176,7 @@ Every `400` it can produce, in the order the engine validates:
 | [From nestjs-paginate](https://janzen01.github.io/efcore.pagination/recipes/migration/) | What carries over from the contract this one borrowed. |
 
 Also in the repository: **[SETUP.md](SETUP.md)** for building the library itself, and **[CLAUDE.md](CLAUDE.md)**
-for architecture, versioning and the decisions behind them (written for humans and AI agents alike).
+for architecture, versioning, and the decisions behind them (written for humans and AI agents alike).
 
 ## Status
 

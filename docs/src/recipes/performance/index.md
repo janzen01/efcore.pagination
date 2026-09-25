@@ -48,7 +48,7 @@ and one plan-cache entry serve every cardinality. That is deliberate and is not 
 `UseParameterizedCollectionMode` and `EF.Constant(...)` do not reach it, because the engine wraps the array in
 `EF.Parameter` before EF sees it. Without the wrap the values would be inlined as literals and you would get
 one statement per distinct list length instead. The emitted shape is `col = ANY(@p)` on PostgreSQL and
-`col IN (SELECT value FROM json_each(@p))` on SQLite, identical at 3, 30 and 100 values.
+`col IN (SELECT value FROM json_each(@p))` on SQLite, identical at 3, 30, and 100 values.
 
 **The single parameter has a cost on PostgreSQL, and it is worth knowing before you blame the index.** A
 parameter's contents are invisible to the planner, so once a statement is planned generically the row estimate
@@ -63,7 +63,7 @@ library setting.
 
 ## The first paginated call of a process is slow
 
-Roughly **20 ms of type initialisers plus JIT**, measured as ~24 ms for the first `ApplyPagination` against
+Roughly **20 ms of type initializers plus JIT**, measured as ~24 ms for the first `ApplyPagination` against
 0.006 ms once warm — about 3 600×. Most of it is one type: the filter parser's frozen operator tables cost
 ~13 ms to build, and they are built once per process, not per request.
 
@@ -104,7 +104,7 @@ ORDER BY "c"."Name", "p"."Id"
 
 No index on `products` has that as a prefix, because its leading key lives elsewhere. Deep pages are the worst
 of it: `OFFSET n` on top of a join that has to be ordered first. If such a field is exposed, either keep it
-shallow with [`WithMaxOffset`](/reference/configuration/#withmaxoffset), denormalise the column onto the paged
+shallow with [`WithMaxOffset`](/reference/configuration/#withmaxoffset), denormalize the column onto the paged
 table, or leave it out of the config.
 
 ## Deep pages are the cliff
@@ -135,14 +135,14 @@ a DTO with a sub-collection is a very different promise from 1000 over four scal
 ## Keep the projection narrow
 
 The strategy you pick decides how many columns cross the wire. Only
-[`PaginateMapAsync`](/guide/projections/) materialises the whole entity; the other three send a `SELECT` list
+[`PaginateMapAsync`](/guide/projections/) materializes the whole entity; the other three send a `SELECT` list
 built from what the DTO actually names. On a wide table that difference dwarfs anything above.
 
 ## The response repeats the query string
 
 Everything above is about the database. One cost sits on the way out instead: every parameter the request
 sent is re-emitted in all five navigation links, and again in each of the four rels of the opt-in `Link`
-header. That includes parameters the library does not recognise — it carries them so client-side state
+header. That includes parameters the library does not recognize — it carries them so client-side state
 survives paging.
 
 The measured multipliers, and why the `Link` header is the half that bites rather than the body, are on the
@@ -165,7 +165,7 @@ statement before it runs — no database round-trip, no log scraping:
 string sql = db.Products.ApplyPagination(request, config).Query.ToQueryString();
 ```
 
-Filters, search, ordering and `Skip`/`Take` are exactly what the engine would run, because both compose
+Filters, search, ordering, and `Skip`/`Take` are exactly what the engine would run, because both compose
 through one code path. **The projection is not** — the composer adds no `Select`, so the `SELECT` list you see
 is the whole entity rather than the narrowed one the section above is about. To measure column width, apply
 your own selector to `Query` (or to the source directly) before printing. See
@@ -183,7 +183,7 @@ which is good for the cache and means a plan you check once stays the plan you g
 
 ## Shapes are not parameters
 
-Values are parameterised; **shapes are not, and cannot be**. A request filtering `name` builds a different
+Values are parameterized; **shapes are not, and cannot be**. A request filtering `name` builds a different
 expression tree from one filtering `rank`, so every distinct combination of filter fields, operators, `$not`,
 connectors, sort keys and directions is its own EF compiled-query cache entry — two of them, in fact, one for
 the count and one for the page. EF's cache holds on the order of a thousand entries and evicts beyond that;

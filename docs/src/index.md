@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Janzen.Pagination
   text: Pagination that stays a contract
-  tagline: Declare once per entity what clients may sort, search and filter. The engine turns an opinionated query string into a translated EF Core query, and rejects everything it cannot honour.
+  tagline: Declare once per entity what clients may sort, search, and filter. The engine turns an opinionated query string into a translated EF Core query, and rejects everything it cannot honor.
   image:
     src: /icon.svg
     alt: Janzen.Pagination
@@ -20,7 +20,7 @@ hero:
       link: https://github.com/janzen01/efcore.pagination
 
 features:
-  - title: An allow-list, not a query language
+  - title: An allowlist, not a query language
     icon: 🔒
     details: A field that is not declared is not addressable, and an operator not granted for a field is rejected for that field. No accidental ORDER BY on an unindexed column.
     link: /guide/configuration/
@@ -37,7 +37,7 @@ features:
     linkText: How sorting works
   - title: Four projection strategies
     icon: 🪄
-    details: From a DTO built for you by reflection to a hand-written selector with sub-collections and aggregates, each keeping the SELECT narrow.
+    details: From a DTO built for you by reflection to a handwritten selector with sub-collections and aggregates, each keeping the SELECT narrow.
     link: /guide/projections/
     linkText: Pick a strategy
   - title: ASP.NET Core, wired
@@ -127,6 +127,6 @@ Once it runs, the site splits by what you are doing:
 
 | | |
 |---|---|
-| **[Query-string contract](/reference/query-string/)** | Every parameter and operator, with the SQL each one produces. The [response](/reference/response/), the [config API](/reference/configuration/), the [query composers](/reference/composers/) and the [`400` catalogue](/reference/errors/) sit beside it. |
+| **[Query-string contract](/reference/query-string/)** | Every parameter and operator, with the SQL each one produces. The [response](/reference/response/), the [config API](/reference/configuration/), the [query composers](/reference/composers/) and the [`400` catalog](/reference/errors/) sit beside it. |
 | **[Cookbook](/recipes/)** | Task-shaped: role-based configs, collection filters, aggregates, [non-web callers](/recipes/without-aspnetcore/), [indexing](/recipes/performance/), [testing](/recipes/testing/), [troubleshooting](/recipes/troubleshooting/). |
 | **[Integrations](/integrations/)** | What changes when you add [ASP.NET Core](/integrations/aspnetcore/), [PostgreSQL](/integrations/postgresql/), [NodaTime](/integrations/nodatime/), or [a type of your own](/integrations/custom-types/). |

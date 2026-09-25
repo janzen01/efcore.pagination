@@ -1,4 +1,4 @@
-# Error catalogue
+# Error catalog
 
 Every message a caller can provoke. All of them are one exception type, `PaginateQueryException`, which the
 ASP.NET Core integration turns into `400 Bad Request` with `title: "Invalid query"` and the message as
@@ -9,8 +9,8 @@ field and the operator, never a column, a table or an inner exception. **One row
 so** — `Filter 'x' does not support operator '$eq' for type 'T'.` names the CLR type, because the type is
 the only thing that identifies which registered type is missing an equality operator.
 
-**Where a caller's own text is echoed back, only two messages sanitise it**: a value that failed conversion,
-and an unrecognised operator token. Both are truncated and stripped of control characters. Everything else —
+**Where a caller's own text is echoed back, only two messages sanitize it**: a value that failed conversion,
+and an unrecognized operator token. Both are truncated and stripped of control characters. Everything else —
 a malformed `sortBy` value, an unknown sort direction, a field name, and the three NodaTime conversion
 messages — interpolates the caller's text as sent. A deployment that logs `detail` should treat it as
 caller-controlled: `ProblemDetailsOptions.CustomizeProblemDetails` is where to bound or escape it.
@@ -65,7 +65,7 @@ Errors are grouped below in that same order.
 The two "positive integer" messages are produced during model binding but **deferred**: the binder records
 the problem and never fails the bind, so the request reaches your action and the `400` is raised when
 pagination runs. That is what keeps a malformed `page` from turning into a framework-shaped model-state error
-that looks nothing like the rest of this catalogue.
+that looks nothing like the rest of this catalog.
 
 `UnlimitedReadTooLarge` is unlike every other row here: it is a **capacity refusal about the resource, not a
 defect in the request**, and the ordered query has already run — bounded at `maxRows + 1` rows — by the time
@@ -120,14 +120,14 @@ only as engine-internal backstops and no query string reaches them.
 
 | Message | `code` | Triggered by | Fix |
 |---------|--------|--------------|-----|
-| `Filter 'x' does not support operator '$foo'.` | `FilterOperatorNotAllowed` | a real operator that was not whitelisted **for that field** | the allow-list is per field; grant it in [`Filterable`](../configuration/#filterable) if it belongs there |
+| `Filter 'x' does not support operator '$foo'.` | `FilterOperatorNotAllowed` | a real operator that was not whitelisted **for that field** | the allowlist is per field; grant it in [`Filterable`](../configuration/#filterable) if it belongs there |
 | `Filter 'x' requires at least one '$in' value.` | `FilterValueCountInvalid` | `$in:` with an empty list | `$in` needs one or more comma-separated values |
 | `Filter 'x' requires exactly two '$btw' values.` | `FilterValueCountInvalid` | `$btw` with one value, or three or more | `$btw:20,50`; the bounds are inclusive |
 | `Filter 'x' requires at least one '$contains' value.` | `FilterValueCountInvalid` | `$contains:` on a collection field with an empty list | supply the values the collection must hold |
-| `Filter 'x' supports '$contains' only for string or collection fields.` | `FilterOperatorTypeMismatch` | `$contains` granted to a number, date or enum field. Not reachable from a request: [`Build()`](../configuration/#filterable) refuses that declaration | use `$eq` or `$in` on a scalar |
+| `Filter 'x' supports '$contains' only for string or collection fields.` | `FilterOperatorTypeMismatch` | `$contains` granted to a number, date, or enum field. Not reachable from a request: [`Build()`](../configuration/#filterable) refuses that declaration | use `$eq` or `$in` on a scalar |
 | `Filter 'x' supports string pattern operators only for string fields.` | `FilterOperatorTypeMismatch` | `$sw` or `$ilike` granted to a non-string field. Not reachable from a request: [`Build()`](../configuration/#filterable) refuses that declaration | pattern matching needs a `string` selector |
 | `Filter 'x' does not support operator '$eq' for type 'T'.` | `FilterOperatorTypeMismatch` | `$eq` against a type that defines no equality operator — a plain `struct` registered through [`PaginateTypeSupport`](/integrations/custom-types/), where the compiler writes none. A `record struct` gets one and is unaffected | use `$in`, which compares through `EqualityComparer<T>.Default`, or give the type an `==` operator |
-| `Filter 'x' does not support comparison operators for type 'T'.` | `FilterOperatorTypeMismatch` | `$lt`/`$lte`/`$gt`/`$gte`/`$btw` granted to a type with no ordering — `bool`, and any type registered through [`PaginateTypeSupport`](/integrations/custom-types/) that defines no comparison operators. Not reachable from a request: [`Build()`](../configuration/#filterable) refuses that declaration | there is nothing to order; use `$eq` or `$in`. Numbers, dates, `string`, `Guid` and enums all compare — see [comparisons](../query-string/#lt-lte-gt-gte-—-comparisons) |
+| `Filter 'x' does not support comparison operators for type 'T'.` | `FilterOperatorTypeMismatch` | `$lt`/`$lte`/`$gt`/`$gte`/`$btw` granted to a type with no ordering — `bool`, and any type registered through [`PaginateTypeSupport`](/integrations/custom-types/) that defines no comparison operators. Not reachable from a request: [`Build()`](../configuration/#filterable) refuses that declaration | there is nothing to order; use `$eq` or `$in`. Numbers, dates, `string`, `Guid`, and enums all compare — see [comparisons](../query-string/#lt-lte-gt-gte-—-comparisons) |
 | `Filter 'x' pattern must be at least N characters.` | `FilterPatternTooShort` | `$ilike`, `$sw` or a string `$contains` whose value is shorter than [`WithMinSearchLength`](../configuration/#withminsearchlength) — a zero-length one included | the same guard `search` obeys: those three emit the identical `LIKE` and are measured the same way |
 | `Filter 'x' pattern must not exceed N characters.` | `FilterPatternTooLong` | the same three operators with a value longer than `MaxSearchLength` | shorten the pattern, or raise the ceiling with [`WithGuards`](../configuration/#withguards) |
 | `Filter 'x' accepts at most N values.` | `TooManyFilterValues` | one list longer than `MaxFilterValues` | the ceiling is **per criterion**, so splitting a huge `$in` across two criteria of the same field is a legitimate workaround; raising it is [`WithGuards`](../configuration/#withguards) |

@@ -61,7 +61,7 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 	}
 
 	[Fact]
-	public async Task The_tie_breaker_direction_is_honoured() {
+	public async Task The_tie_breaker_direction_is_honored() {
 
 		// Descending, so the tied rows come back in the opposite order to the one the storage would
 		// happen to hand back. Without the tie-breaker applied this assertion cannot pass by luck.
@@ -186,7 +186,7 @@ public sealed class OrderingOverloadTests {
 
 	/// <summary>
 	///     The pattern operators stay two-way, deliberately, and this pins that rather than the other rule. An
-	///     unrecognised provider takes the in-memory shape — <c>string.IndexOf(value, StringComparison)</c> —
+	///     unrecognized provider takes the in-memory shape — <c>string.IndexOf(value, StringComparison)</c> —
 	///     which it will refuse to translate. Narrowing here the way the ordering was narrowed would need a third
 	///     construct, and the only candidate is the two-argument <c>string.Contains</c>: translatable, but
 	///     <b>case-sensitive</b> where this is case-insensitive. That trades a loud failure for a silent change
@@ -252,7 +252,7 @@ internal sealed class SynchronousQueryable<T>(IQueryable<T> inner) : IOrderedQue
 
 	public IQueryProvider Provider => this;
 
-	// Honours the expression's own element type rather than assuming T. The engine only calls the generic
+	// Honors the expression's own element type rather than assuming T. The engine only calls the generic
 	// overload today, so returning SynchronousQueryable<T> unconditionally would pass — until the first test
 	// that composes a projection against this double, which would then fail with an InvalidCastException thrown
 	// from inside the double rather than from the code under test.

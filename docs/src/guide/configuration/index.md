@@ -16,7 +16,7 @@ That is a complete, working configuration: products can be paged and sorted by n
 > This page is the reasoning. For every builder method, its signature and what it refuses, see
 > [Configuration API](/reference/configuration/).
 
-## It is an allow-list, not a query language
+## It is an allowlist, not a query language
 
 A field you do not declare is not addressable, and an operator you do not grant for a field is rejected for
 that field. There is no wildcard and no opt-out.
@@ -114,7 +114,7 @@ your defaults entirely rather than merging with them.
 
 ### What is addressable, and how
 
-Sorting, searching and filtering are three independent declarations, and a field may appear in any
+Sorting, searching, and filtering are three independent declarations, and a field may appear in any
 combination of them:
 
 ```csharp

@@ -101,8 +101,8 @@ query"`](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/aspne
 specific message as `detail` — via `PaginateExceptionFilter` for controllers (registered by `AddAspNetCore()`) or
 `PaginateExceptionEndpointFilter` for Minimal APIs (registered by `WithPagination<T>()`). Both answer
 `application/problem+json` and each is enriched exactly once by its own framework half, so an
-`AddProblemDetails` customisation applies on either. The members match where the framework halves do:
-`type`, `title`, `status`, `detail` and `code` come from this library on both legs, while `traceId` is the
+`AddProblemDetails` customization applies on either. The members match where the framework halves do:
+`type`, `title`, `status`, `detail`, and `code` come from this library on both legs, while `traceId` is the
 framework's and reaches a Minimal API response only when the app registered `AddProblemDetails()`. No per-action `try`/`catch` needed.
 
 The payload carries a `code` member — the `PaginateQueryException.Code` member name, such as

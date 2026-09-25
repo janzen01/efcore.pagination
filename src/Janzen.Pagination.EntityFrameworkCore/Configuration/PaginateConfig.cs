@@ -12,7 +12,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.Configuration;
 ///     The entity-agnostic, read-only view of a <see cref="PaginateConfig{TEntity}" />: the page-size limits, the DoS
 ///     guards, the default sort, the field metadata and the <c>searchBy</c> opt-out. The ASP.NET Core OpenAPI
 ///     transformer reads a config through this interface, and it is equally available to you — via
-///     <see cref="IPaginateConfigProvider.GetConfig" /> — for a <c>/meta</c> endpoint, an admin UI or a contract test.
+///     <see cref="IPaginateConfigProvider.GetConfig" /> — for a <c>/meta</c> endpoint, an admin UI, or a contract test.
 ///     Immutable, so a config is safe to hold in a static field.
 /// </summary>
 public interface IPaginateConfig {
@@ -44,7 +44,7 @@ public interface IPaginateConfig {
 	int MaxFilterConditions { get; }
 
 	/// <summary>
-	///     Maximum number of <c>sortBy</c> values one request may send; more is a 400. Only request-supplied sorts count
+	///     The maximum number of <c>sortBy</c> values one request may send; more is a 400. Only request-supplied sorts count
 	///     — <see cref="DefaultSortBy" /> entries and the configured tie-breaker are not measured against it. Defaults
 	///     to 5, set by <see cref="PaginateConfigBuilder{TEntity}.WithGuards" />.
 	/// </summary>
@@ -173,9 +173,9 @@ public interface IPaginateConfigProvider<TEntity> : IPaginateConfigProvider {
 	///     Building a config validates the declared fields and freezes three dictionaries, so build it once and return
 	///     the same instance — a static field or a DI singleton. Rebuilding per request works but is wasted allocation;
 	///     the exception is per-user gating with <see cref="PaginateConfigBuilder{TEntity}.When" />, where one cached
-	///     config per role is the cheap route. Take that exception seriously when the condition is an authorization
-	///     outcome: a single cached instance is shared by every caller, so the first caller to build it decides which
-	///     fields everyone else may sort, search and filter on. Key the cache by whatever the condition reads, or
+	///     config per role is the affordable route. Take that exception seriously when the condition is an authorization
+	///     outcome: every caller shares a single cached instance, so the first caller to build it decides which
+	///     fields everyone else may sort, search, and filter on. Key the cache by whatever the condition reads, or
 	///     build per request — never cache one config across callers the condition can tell apart.
 	/// </remarks>
 	new PaginateConfig<TEntity> GetConfig();
@@ -229,7 +229,7 @@ public sealed record PaginateFieldMetadata(string Name, Type Type, PaginateBadge
 ///     Read-only view of one declared filterable field, as listed by <see cref="IPaginateConfig.FilterableFields" />:
 ///     <paramref name="Name" /> is the token in <c>filter.&lt;name&gt;=$op:value</c>, <paramref name="Type" /> the
 ///     filtered value's type (a nullable column reports its underlying type), <paramref name="Operators" /> the
-///     allow-list of <see cref="PaginateFilterOperator" /> values granted for it — any other operator is a 400 — and
+///     allowlist of <see cref="PaginateFilterOperator" /> values granted for it — any other operator is a 400 — and
 ///     <paramref name="Badge" /> the optional <see cref="PaginateBadge" />. Use when documenting or introspecting a
 ///     config yourself, the way the OpenAPI transformer does. Conditional fields are listed whatever their
 ///     <c>When(...)</c> condition.
@@ -243,13 +243,13 @@ public sealed record PaginateFilterFieldMetadata(string Name, Type Type, IReadOn
 	/// <summary>
 	///     Compares two field descriptions by value, <see cref="Operators" /> included and as a <b>set</b>, so the
 	///     order it was declared in does not decide the answer. Written by hand because the synthesized version
-	///     compares that member by <b>reference</b>: the set is materialised afresh on every <c>Build()</c>, so a
+	///     compares that member by <b>reference</b>: the set is materialized afresh on every <c>Build()</c>, so a
 	///     consumer snapshotting <see cref="IPaginateConfig.FilterableFields" /> saw every filterable field report
 	///     itself changed on every rebuild, while the sibling <see cref="PaginateFieldMetadata" /> compared equal.
 	/// </summary>
 	/// <remarks>
 	///     <b>A member added to this record has to be added here and to <see cref="GetHashCode" /> too</b> — that is
-	///     what a hand-written equality costs, and the compiler will not remind you.
+	///     what a handwritten equality costs, and the compiler will not remind you.
 	/// </remarks>
 	public bool Equals(PaginateFilterFieldMetadata? other) {
 		if (ReferenceEquals(this, other)) return true;
@@ -276,7 +276,7 @@ public sealed record PaginateFilterFieldMetadata(string Name, Type Type, IReadOn
 }
 
 /// <summary>
-///     The immutable, per-entity pagination contract: page-size and guard limits, the sortable, searchable and
+///     The immutable, per-entity pagination contract: page-size and guard limits, the sortable, searchable, and
 ///     filterable fields, the default sort and the tie-breaker. Every <c>Paginate*Async</c> entry point takes one, and
 ///     it reads back as <see cref="IPaginateConfig" /> metadata for OpenAPI or a <c>/meta</c> endpoint. The constructor
 ///     is internal: build it with <see cref="Create(System.Action{PaginateConfigBuilder{TEntity}})" />.
@@ -397,7 +397,7 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 	/// <inheritdoc />
 	public IPaginateLikeStrategy? LikeStrategy { get; }
 
-	/// <summary>Optional unique key appended as the final ordering so offset paging is deterministic.</summary>
+	/// <summary>Optional unique key appended as the final ordering, so offset paging is deterministic.</summary>
 	internal LambdaExpression? TieBreakerSelector { get; }
 
 	internal PaginateSortDirection TieBreakerDirection { get; }
@@ -431,11 +431,11 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 	/// <summary>
 	///     Builds an immutable <see cref="PaginateConfig{TEntity}" /> against an explicit
 	///     <paramref name="defaults" /> object, which is consulted for anything the builder does not set and itself
-	///     takes precedence over <see cref="PaginateConfigDefaults.Shared" /> — naming the object at the call site is
+	///     takes precedence over <see cref="PaginateConfigDefaults.Shared" />. Naming the object at the call site is
 	///     how a group of configurations shares limits without any of them being ambient.
 	/// </summary>
 	/// <param name="defaults">Limits and guards to fall back to; a builder call always wins over these.</param>
-	/// <param name="configure">Declares the limits, guards and fields.</param>
+	/// <param name="configure">Declares the limits, guards, and fields.</param>
 	public static PaginateConfig<TEntity> Create(PaginateConfigDefaults defaults, Action<PaginateConfigBuilder<TEntity>> configure) {
 		ArgumentNullException.ThrowIfNull(defaults);
 		ArgumentNullException.ThrowIfNull(configure);
@@ -448,12 +448,12 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 }
 
 /// <summary>
-///     The fluent builder handed to the <see cref="PaginateConfig{TEntity}.Create(System.Action{PaginateConfigBuilder{TEntity}})" /> callback — every limit, guard and
-///     sortable, searchable or filterable field is declared on it. <see cref="WithLimits" /> and
+///     The fluent builder handed to the <see cref="PaginateConfig{TEntity}.Create(System.Action{PaginateConfigBuilder{TEntity}})" /> callback — every limit, guard, and
+///     sortable, searchable, or filterable field is declared on it. <see cref="WithLimits" /> and
 ///     <see cref="WithTieBreaker" /> are the two required calls — <c>Build()</c> throws without either, unless a
 ///     <see cref="PaginateConfigDefaults" /> supplies the limits. It throws too when a
 ///     <see cref="DefaultSortBy" /> field is not also <c>Sortable</c>, or a field marked <see cref="When" />
-///     carries no <see cref="ShowBadge" />. With the tie-breaker guaranteed there is always an ordering, so no
+///     carries no <see cref="ShowBadge" />. With the tie-breaker guaranteed, there is always an ordering, so no
 ///     request can reach an unordered page.
 /// </summary>
 public sealed class PaginateConfigBuilder<TEntity> {
@@ -559,7 +559,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	/// <summary>
 	///     Opts this resource into <c>limit=-1</c>, which returns every matching row as one page.
 	///     <paramref name="maxRows" /> is a mandatory ceiling: the engine fetches one row past it and answers 400
-	///     rather than returning a set it was not promised could be held in memory. Without this call
+	///     instead of returning a set nobody promised would fit in memory. Without this call,
 	///     <c>limit=-1</c> stays a 400, as do <c>-2</c> and <c>0</c> with or without it.
 	/// </summary>
 	/// <remarks>
@@ -615,7 +615,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		return this;
 	}
 
-	/// <summary>When enabled, the <c>searchBy</c> query parameter is ignored and search always spans all searchable fields.</summary>
+	/// <summary>When enabled, the <c>searchBy</c> query parameter is ignored, and search always spans all searchable fields.</summary>
 	public PaginateConfigBuilder<TEntity> IgnoreSearchByInQueryParam(bool ignore = true) {
 		_ignoreSearchByInQueryParam = ignore;
 		return this;
@@ -710,7 +710,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 	/// <summary>
 	///     Declares a collection/navigation field as filterable: the operator is matched against the value selected
-	///     from any element (translated to an <c>Any(...)</c> predicate), e.g. filter orders by any line's product id.
+	///     from any element (translated to an <c>Any(...)</c> predicate), e.g., filter orders by any line's product id.
 	/// </summary>
 	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
@@ -731,7 +731,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	}
 
 	/// <summary>
-	///     Attaches a <see cref="PaginateBadge" /> to the field declared immediately before this call — e.g.
+	///     Attaches a <see cref="PaginateBadge" /> to the field declared immediately before this call — e.g.,
 	///     <c>.Sortable("slug", a =&gt; a.Slug).ShowBadge("Public", "language-public")</c>. The badge is surfaced in the
 	///     generated OpenAPI metadata and rendered as a chip by the API reference UI. <paramref name="cssClass" /> is an
 	///     optional CSS class you then color via the renderer's custom CSS. It is emitted verbatim and not validated:
@@ -753,7 +753,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	///     widest surface) but at query time is treated as not configured whenever <paramref name="condition" /> is
 	///     <c>false</c>, so a request targeting it gets a 400. Must be paired with <see cref="ShowBadge" /> so the
 	///     condition is visible in the docs — <c>Build()</c> throws otherwise. The consumer evaluates the boolean itself
-	///     (e.g. from the current user's role), keeping the library auth-agnostic.
+	///     (e.g., from the current user's role), keeping the library auth-agnostic.
 	/// </summary>
 	public PaginateConfigBuilder<TEntity> When(bool condition) {
 		if (_lastField is null) {
@@ -787,7 +787,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		Positive(defaultLimit, nameof(PaginateConfigDefaults.DefaultLimit));
 		Positive(maxLimit, nameof(PaginateConfigDefaults.MaxLimit));
 
-		// Deferred to here rather than checked in WithLimits, because the two halves may now arrive from
+		// Deferred to here rather than checked in WithLimits. The two halves may now arrive from
 		// different places -- a shared MaxLimit under a per-config DefaultLimit is a legitimate combination, and
 		// an incompatible one is still a configuration error rather than a request error.
 		if (defaultLimit > maxLimit) {
@@ -840,7 +840,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		}
 
 		// An explicit operator list is the only way an operator the field's type cannot carry gets in -- the
-		// shorthand derives a buildable set. Left unchecked it builds fine and then answers 400 to every request
+		// shorthand derives a buildable set. Left unchecked, it builds fine and then answers 400 to every request
 		// that uses it, blaming a caller who cannot act on it, while the generated OpenAPI advertises the
 		// operator and may even demonstrate it. A configuration defect belongs here, not in the response.
 		foreach (var field in _filterableFields.Values) {
@@ -872,7 +872,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	}
 
 	// Frozen rather than a HashSet: the set is built once per field at Build() and then only read -- once per
-	// filter criterion by the engine's allow-list check, and again per field by the OpenAPI transformer.
+	// filter criterion by the engine's allowlist check, and again per field by the OpenAPI transformer.
 	// Enumeration order is not part of the bargain either way, which is why the transformer picks its example
 	// operator and orders its token list by an explicit rule rather than by whatever comes out first.
 	private static FrozenSet<PaginateFilterOperator> BuildOperatorSet(PaginateFilterOperator[] operators) {

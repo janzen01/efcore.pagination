@@ -1,12 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <!-- https://learn.microsoft.com/dotnet/fundamentals/package-validation/diagnostic-ids -->
 <!--
-  The breaking-change inventory for this package. Generated, never hand-written
+  The breaking-change inventory for this package. Generated, never handwritten
   (dotnet pack -p:ApiCompatGenerateSuppressionFile=true), which also drops this comment and writes
   CRLF, so both are restored afterwards. Two entries, both CP0014 and both attribute-only:
 
   PaginateExceptionFilter.OnException: the method was rewritten so the two pipelines enrich a
-  ProblemDetails exactly once each, and its nullable context moved with it. The behaviour is the
+  ProblemDetails exactly once each, and its nullable context moved with it. The behavior is the
   change; the attribute is a side effect.
 
   WithPagination(RouteHandlerBuilder): nothing about this overload changed. Adding a second one for a

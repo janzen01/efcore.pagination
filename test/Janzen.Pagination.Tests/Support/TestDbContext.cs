@@ -16,7 +16,7 @@ public sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbC
 
 /// <summary>
 ///     A SQLite in-memory database seeded once per test class. This is the leg that exercises the engine's
-///     <c>UseDatabaseFunctions</c> path — real SQL translation, <c>EF.Functions.Like</c> and <c>EF.Parameter</c> —
+///     <c>UseDatabaseFunctions</c> path — real SQL translation, <c>EF.Functions.Like</c>, and <c>EF.Parameter</c> —
 ///     which an <see cref="IQueryable" /> over a list cannot reach.
 /// </summary>
 /// <remarks>

@@ -65,7 +65,7 @@ public sealed class LikeStrategyTests : IDisposable {
 		Assert.Equal(PaginateFilterOperator.ILike, PaginateLikeDefaults.Strategy.PreferredExampleOperator);
 
 		// The exact overload, not merely one of that name: the escape-carrying four-parameter form is the only
-		// one that honours the engine's escaping, and the three-parameter sibling would compile just as well.
+		// one that honors the engine's escaping, and the three-parameter sibling would compile just as well.
 		Assert.Equal(
 			[typeof(DbFunctions), typeof(string), typeof(string), typeof(string)],
 			call.Method.GetParameters().Select(parameter => parameter.ParameterType).ToArray());

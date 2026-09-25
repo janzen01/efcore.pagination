@@ -9,7 +9,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.Engine;
 // TWO flags, not one negated. UseDatabaseFunctions is "this is EF Core, emit EF.Parameter and EF.Functions";
 // InMemory is "this is EnumerableQuery, emit the constructs LINQ-to-Objects needs and a database would refuse".
 // They are not complements: a third-party provider that is neither — a synchronous LINQ provider over a
-// database — answers false to both, and gets the plain translatable tree rather than either specialisation.
+// database — answers false to both, and gets the plain translatable tree rather than either specialization.
 // Reading `!UseDatabaseFunctions` as "in memory" is what handed such a provider string.Compare with a
 // StringComparison and a null-safe rewrite it has no use for, on a path that previously worked.
 internal readonly record struct PaginateExpressionContext(

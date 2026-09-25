@@ -227,7 +227,7 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 	public async Task Both_pipelines_carry_the_machine_readable_cause() {
 
 		// Without it the only way to branch on the cause is to match the detail prose, which pins the wording
-		// permanently and cannot be localised.
+		// permanently and cannot be localized.
 		(_, string mvc) = await this.GetAsync("/mvc/products?sortBy=name:UP");
 		(_, string minimal) = await this.GetAsync("/minimal/products?filter.status=$eq:Nope");
 

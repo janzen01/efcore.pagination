@@ -27,7 +27,7 @@ public static class PaginationRouteHandlerBuilderExtensions {
 	/// </summary>
 	// The pair the query entry points carry, for the same reason one level out: the marked endpoint's OpenAPI
 	// document is generated from a config the transformer builds reflectively. Without it, silence here read as
-	// "analysed and safe" beside the ten members that do warn.
+	// "analyzed and safe" beside the ten members that do warn.
 	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static RouteHandlerBuilder WithPagination<

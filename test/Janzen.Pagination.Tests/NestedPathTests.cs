@@ -49,7 +49,7 @@ public sealed class NestedPathTests(SqliteFixture fixture) : IClassFixture<Sqlit
 	[Fact]
 	public async Task A_filter_across_a_navigation_excludes_the_row_with_no_parent() {
 
-		// 1, 2 and 6 are Electronics; 5 has no category and must not throw on the way past.
+		// 1, 2, and 6 are Electronics; 5 has no category and must not throw on the way past.
 		await this.BothLegs(Query.Filter("category.name", "$eq:Electronics"), 1, 2, 6);
 
 	}

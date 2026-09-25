@@ -10,7 +10,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.Links;
 /// </summary>
 /// <remarks>
 ///     Two contexts describing the same request compare <b>equal</b>: <c>Equals</c> and <c>GetHashCode</c> are
-///     hand-written, because a record's synthesized equality runs <c>QueryParameters</c> through
+///     handwritten, because a record's synthesized equality runs <c>QueryParameters</c> through
 ///     <c>EqualityComparer&lt;T&gt;.Default</c>, which for a list is reference equality. Order is part of the
 ///     value — it is the order in which the parameters are emitted.
 /// </remarks>

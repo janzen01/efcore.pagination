@@ -4,7 +4,7 @@ namespace Janzen.Pagination.EntityFrameworkCore.Model;
 
 /// <summary>
 ///     An immutable pagination request. Bind it from a query string (ASP.NET integration) or construct it directly
-///     with an object initializer for non-web callers (gRPC, console, tests), e.g.
+///     with an object initializer for non-web callers (gRPC, console, tests), e.g.,
 ///     <c>new PaginateQuery { Page = 2, Limit = 25, SortBy = ["name:DESC"] }</c>. Out-of-range values are
 ///     validated by the engine when the query is executed.
 /// </summary>
@@ -49,7 +49,7 @@ public sealed class PaginateQuery {
 	public IReadOnlyList<string> SearchBy { get; init; } = [];
 
 	/// <summary>
-	///     Filter criteria per field; each value uses the <c>"$op:value"</c> form (e.g. <c>"$eq:42"</c>). <b>One
+	///     Filter criteria per field; each value uses the <c>"$op:value"</c> form (e.g., <c>"$eq:42"</c>). <b>One
 	///     entry per field</b> — several criteria on one field are the several values of its entry. Field names
 	///     are matched case-insensitively, so two keys differing only in case resolve to the same field and are
 	///     rejected; use <see cref="StringComparer.OrdinalIgnoreCase" /> when building the map by hand and the
@@ -58,7 +58,7 @@ public sealed class PaginateQuery {
 	public IReadOnlyDictionary<string, IReadOnlyList<string>> Filters { get; init; } = EmptyFilters;
 
 	/// <summary>
-	///     The same request pointed at a different page. Everything else — limit, sort, search and filters — is
+	///     The same request pointed at a different page. Everything else — limit, sort, search, and filters — is
 	///     carried over, so a caller with no <see cref="Links.PaginateLinkContext" /> (and therefore a
 	///     <see langword="null" /> <see cref="PaginatedResponse{T}.Links" />) can derive the next page from
 	///     <see cref="PaginatedMeta.CurrentPage" /> and <see cref="PaginatedMeta.TotalPages" /> and hand the

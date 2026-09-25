@@ -13,7 +13,7 @@ internal enum PaginateFilterConnector {
 
 // Connector is null when the criterion carried no $and / $or token. The distinction is the whole point: a
 // connector says how this criterion joins the one before it, so on a field's first criterion there is nothing
-// for it to join to and the engine rejects it rather than reading and discarding it.
+// for it to join to, and the engine rejects it rather than reading and discarding it.
 internal sealed record PaginateFilterCriterion(
 	PaginateFilterOperator Operator,
 	string Value,
@@ -42,7 +42,7 @@ internal static class PaginateFilterParser {
 	// twice in Operators — silently last-wins in the indexer initializer, so keep the token keys unique.)
 	// Span lookup over the same frozen dictionary: the modifier walk below holds the rest of the value as a
 	// ReadOnlySpan<char>, and StringComparer.OrdinalIgnoreCase is an IAlternateEqualityComparer, so the token
-	// can be matched without materialising it. That is a constraint on Operators, not a free choice: give it a
+	// can be matched without materializing it. That is a constraint on Operators, not a free choice: give it a
 	// comparer that is not an IAlternateEqualityComparer and this line throws from the type initializer, so the
 	// first filtered request of the process dies with a TypeInitializationException naming neither the comparer
 	// nor the edit. Keep the two together.
@@ -63,7 +63,7 @@ internal static class PaginateFilterParser {
 		// A span, not a string. Re-slicing a string per modifier copied the whole tail each time, so the walk
 		// cost O(L^2) in the value's length: 1 600 repeated "$not:" prefixes -- one 8 KB request line, which is
 		// Kestrel's default MaxRequestLineSize -- allocated 12.9 MB before any guard could see the value. Slicing
-		// a span allocates nothing, and the two strings that are genuinely needed are materialised once, on the
+		// a span allocates nothing, and the two strings that are genuinely needed are materialized once, on the
 		// terminal iteration. Do not "simplify" this back to string slicing.
 		ReadOnlySpan<char> remaining = raw;
 		bool not = false;
@@ -93,7 +93,7 @@ internal static class PaginateFilterParser {
 				throw new PaginateQueryException($"Filter '{field}' uses unknown operator '{PaginateInputGuard.Echo(token.ToString())}'.") { Code = PaginateQueryError.FilterOperatorUnknown };
 			}
 
-			// $null is documented as valueless and PaginateFilterField drops whatever follows it, so `$null:false`
+			// $null is documented as valueless, and PaginateFilterField drops whatever follows it, so `$null:false`
 			// used to behave as a bare `$null` — the opposite of what the caller wrote. Reaching here at all means
 			// a colon followed the token, so a bare `$null:` is refused on the same condition: tolerating it while
 			// refusing `$null:false` was an inconsistency the library invented for itself.

@@ -1,7 +1,7 @@
 # Configuration API
 
 Every method on `PaginateConfigBuilder<TEntity>`: what it declares, and what it refuses. For the ideas behind
-these declarations — why the surface is an allow-list, what you have to decide before writing one — read
+these declarations — why the surface is an allowlist, what you have to decide before writing one — read
 [Guide → Configuration](/guide/configuration/) first. This page is for looking one method up.
 
 Two kinds of rejection appear below, and the difference matters because they surface at different times:
@@ -181,7 +181,7 @@ Opts this resource into `?limit=-1`, which returns every matching row as one pag
 rejected like any other out-of-range limit, and `-2` and `0` stay rejected with or without it.
 
 The ceiling is mandatory — there is no argument-less form. The engine fetches one row past it and answers
-`400` rather than materialising a set nobody promised would fit in memory. An unlimited request must ask for
+`400` rather than materializing a set nobody promised would fit in memory. An unlimited request must ask for
 page 1; pages of an unbounded set are meaningless.
 
 What it costs and what comes back:
@@ -193,7 +193,7 @@ What it costs and what comes back:
   [Performance](/recipes/performance/) for the one sort no index on the paged table can serve.
 - `meta.itemsPerPage` echoes `itemCount` — the honest value, not the requested `-1`.
 - `meta.hasNextPage` and `meta.hasPreviousPage` are both `false`; `totalPages` is 1, or 0 when nothing matched.
-- `links.first`, `links.last` and `links.current` are the same URL; `next` and `previous` are `null`.
+- `links.first`, `links.last`, and `links.current` are the same URL; `next` and `previous` are `null`.
 - an unlimited request that matches nothing reports `itemsPerPage: 0` — it is the row count, and the page
   holds none. Do not divide by it.
 - [`ApplyPagination`](../composers/) composes the same query bounded at `maxRows + 1`, but cannot apply the
@@ -299,7 +299,7 @@ between them, so without a tie-breaker the database is free to return them diffe
 **This call is required.** A configuration without it does not build:
 
 > A pagination configuration requires `WithTieBreaker(...)`: offset paging over a non-unique order can return
-> the same row on two pages and skip another. Pass the entity's primary key, e.g. `WithTieBreaker(x => x.Id)`.
+> the same row on two pages and skip another. Pass the entity's primary key, e.g., `WithTieBreaker(x => x.Id)`.
 
 It is required outright rather than "a `DefaultSortBy` **or** a tie-breaker", because the weaker rule does not
 hold: a default-sort field can be switched off per caller by [`When`](#when), so a configuration whose only
@@ -360,7 +360,7 @@ letting callers name individual fields would disclose which columns exist.
 .Filterable("categoryName", p => p.Category.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.ILike)
 ```
 
-The operator list is the allow-list **for that field**. `?filter.price=$ilike:x` against the declaration above
+The operator list is the allowlist **for that field**. `?filter.price=$ilike:x` against the declaration above
 is a `400`, because `ILike` was granted to `categoryName` and not to `price`.
 
 Grant operators deliberately rather than passing the full set. Each one is a query shape the database has to
@@ -401,13 +401,13 @@ Omit the operator list and the field is granted every operator the engine can bu
 `Null` joins the set exactly when the engine can express it: for reference types always, for value types only
 through `Nullable<T>`. So `p => p.Age` (an `int`) has no `$null`, and `p => p.RetiredOn` (a `DateOnly?`) does.
 
-Ranges are deliberately withheld from `string`, `Guid`, `char` and enums. They *translate* — the engine has a
+Ranges are deliberately withheld from `string`, `Guid`, `char`, and enums. They *translate* — the engine has a
 stand-in for each — but the ordering is then the database's collation or byte order rather than anything you
 chose, which is rarely what a range filter is being asked for. Grant them explicitly when it is.
 
 Two consequences worth knowing before reaching for the shorthand. A field declared this way **widens when the
 library does**: a release that adds an operator to one of these rows grants it to every shorthand field on
-rebuild, and any such release says so in its notes. And the derived set is the whole allow-list, so the advice
+rebuild, and any such release says so in its notes. And the derived set is the whole allowlist, so the advice
 above still holds — `$ilike` on an unindexed text column is a sequential scan whether you typed the operator
 or the type implied it. On a large table, list what you actually serve.
 
@@ -497,7 +497,7 @@ It has no effect on what the engine accepts.
 The optional CSS class is emitted **verbatim** and not validated: which classes an API reference UI keeps is
 that UI's rule, not the library's. With Scalar, only a `language-*` class survives its sanitizer on inline
 `<code>`. See [OpenAPI → Badges](/integrations/aspnetcore/openapi/#badges) for how it renders and how to
-colour it.
+color it.
 
 **Rejects at configuration time:**
 
@@ -627,7 +627,7 @@ Four small records carry that metadata, and you will hold them if you build anyt
 |------|---------|------------|
 | `PaginateSort` | `Field`, `Direction` | One entry of `DefaultSortBy`. `Direction` is a `PaginateSortDirection` (`Asc` / `Desc`). |
 | `PaginateFieldMetadata` | `Name`, `Type`, `Badge?` | A sortable or searchable field. `Type` is the selector's CLR type, which is what decides the documented type name and the example value. |
-| `PaginateFilterFieldMetadata` | the same three, plus `Operators` | A filterable field. `Operators` is that field's allow-list, as a **set** — it carries no order, so sort it yourself if you are rendering it. |
+| `PaginateFilterFieldMetadata` | the same three, plus `Operators` | A filterable field. `Operators` is that field's allowlist, as a **set** — it carries no order, so sort it yourself if you are rendering it. |
 | `PaginateBadge` | `Name`, `CssClass?` | What [`ShowBadge`](#showbadge) attached. `CssClass` is `null` for a badge declared without one. |
 
 `Type` is the raw CLR type, not a display name — a nullable field reports `Nullable<int>`, and it is up to

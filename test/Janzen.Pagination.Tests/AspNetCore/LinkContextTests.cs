@@ -135,7 +135,7 @@ public sealed class LinkContextTests {
 	[Fact]
 	public async Task A_repeated_query_parameter_is_carried_over_once_per_value_in_order() {
 
-		// The only behaviour the allocation rewrite of the copy loop could plausibly disturb.
+		// The only behavior the allocation rewrite of the copy loop could plausibly disturb.
 		var links = (await PageAsync(Request("", "/products", "?tag=a&tag=b&limit=3"), 1)).Links!;
 
 		Assert.Equal("/products?tag=a&tag=b&limit=3&page=1", links.Current);

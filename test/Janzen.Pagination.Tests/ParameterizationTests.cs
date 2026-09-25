@@ -14,7 +14,7 @@ namespace Janzen.Pagination.Tests;
 ///         growing one entry per distinct value.
 ///     </para>
 /// </summary>
-public sealed class ParameterisationTests(SqliteFixture fixture) : IClassFixture<SqliteFixture> {
+public sealed class ParameterizationTests(SqliteFixture fixture) : IClassFixture<SqliteFixture> {
 
 	/// <summary>
 	///     The composed statement without <c>ToQueryString</c>'s <c>.param set</c> preamble. Stripping it is what

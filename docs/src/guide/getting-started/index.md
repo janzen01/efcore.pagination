@@ -144,7 +144,7 @@ public sealed class ProductController(AppDbContext db) : ControllerBase {
 ```
 
 `[FromQuery] PaginateQuery` is bound by the model binder that `AddAspNetCore()` registered — you do not declare
-`page`, `limit` and friends as action parameters. Passing `this.Request` is what makes the response carry
+`page`, `limit`, and friends as action parameters. Passing `this.Request` is what makes the response carry
 `first`/`prev`/`next`/`last` links; omit it and those are `null`.
 
 The `Minimal API` equivalent is in [ASP.NET Core → Minimal APIs](/integrations/aspnetcore/#minimal-apis).
@@ -216,7 +216,7 @@ flowchart TD
 Two queries per request: one `COUNT(*)` over the filtered set, one page fetch. Asking for a page past the end
 returns an empty `items` with the real `meta`, and skips the second query entirely.
 
-**Everything is validated before either query runs**, filters, search and `sortBy` included — which is why
+**Everything is validated before either query runs**, filters, search, and `sortBy` included — which is why
 the dotted edges above all reach the same `400`. A `sortBy` naming a field the config does not have is
 refused even when the filters match nothing and even past the last page, the two cases where a validation gap
 would be least likely to be noticed. A request refused at any of those steps — an over-range `limit`, a page

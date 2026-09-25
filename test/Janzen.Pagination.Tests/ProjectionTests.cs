@@ -114,8 +114,8 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 		await SqliteFixture.Products(context).PageSelectAsync(Query.Filter("id", "$eq:1"), p => new CategoryDto(p.Id, p.Name));
 
 		// PaginateSelectAsync's remarks promise "one query whose SELECT contains only the referenced columns
-		// (unused columns, e.g. a large jsonb, stay out)". That is a performance contract a consumer chooses
-		// this entry point for, and the materialised values are identical whether it holds or the provider
+		// (unused columns, e.g., a large jsonb, stay out)". That is a performance contract a consumer chooses
+		// this entry point for, and the materialized values are identical whether it holds or the provider
 		// falls back to fetching the whole row — so only the emitted SQL can tell.
 		string page = Assert.Single(executedSql, sql => sql.Contains("LIMIT", StringComparison.Ordinal));
 

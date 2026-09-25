@@ -18,7 +18,7 @@ internal static class PaginateExpressionUtils {
 
 	private readonly static MethodInfo ParameterMethod = typeof(EF).GetMethod(nameof(EF.Parameter))!;
 
-	// Every pattern operator and every searched field parameterises a string by construction, and closing a
+	// Every pattern operator and every searched field parameterizes a string by construction, and closing a
 	// generic method is the expensive half of this call -- so that one instantiation is resolved once here rather
 	// than per criterion.
 	[UnconditionalSuppressMessage("Trimming", "IL2060",
@@ -45,15 +45,15 @@ internal static class PaginateExpressionUtils {
 	/// <summary>
 	///     Escapes LIKE/ILIKE wildcard characters so user input is matched literally (used together with
 	///     <c>ESCAPE '\'</c>). <c>[</c> is escaped unconditionally even though only SQL Server reads it as a range
-	///     opener: PostgreSQL, SQLite and SQL Server — the three engines this was verified against — treat any
+	///     opener: PostgreSQL, SQLite, and SQL Server — the three engines this was verified against — treat any
 	///     escaped character as a literal, so one pattern serves all three.
 	/// </summary>
 	/// <remarks>
 	///     That is a guarantee about those three, not about every provider. One pattern stays portable wherever
 	///     the provider reads <c>escape + any character</c> as that character; a provider that instead requires
-	///     the escape to be followed by <c>%</c>, <c>_</c> or itself rejects an escaped <c>[</c> — Oracle raises
+	///     the escape to be followed by <c>%</c>, <c>_</c>, or itself rejects an escaped <c>[</c> — Oracle raises
 	///     <c>ORA-01424</c> — and one that does not support an <c>ESCAPE</c> clause at all rejects every pattern
-	///     the shipped strategies build. Neither is reachable in process here, so neither is covered by tests.
+	///     the shipped strategies build. Neither is reachable in process here, so tests cover neither.
 	/// </remarks>
 	public static string EscapeLikePattern(string value) {
 		return value
@@ -77,7 +77,7 @@ internal static class PaginateExpressionUtils {
 	///     <see cref="StringComparer.InvariantCulture" />, because <c>Comparer&lt;string&gt;.Default</c> reads
 	///     <see cref="CultureInfo.CurrentCulture" /> — so the page order would follow the host's own culture, and
 	///     an app that opts into request localization would make it follow the caller's query string, cookie or
-	///     <c>Accept-Language</c> header instead. On a relational provider the comparer is the column's collation
+	///     <c>Accept-Language</c> header instead. On a relational provider the comparer is the column's collation,
 	///     and there is nothing here to choose.
 	/// </summary>
 	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
@@ -85,7 +85,7 @@ internal static class PaginateExpressionUtils {
 	public static IQueryable<TEntity> ApplyOrder<TEntity>(IQueryable<TEntity> query, LambdaExpression selector, bool descending, bool first, bool inMemory) {
 
 		// `inMemory`, not "not EF Core". The three-argument overload carries an IComparer constant into the
-		// tree and essentially no relational LINQ provider translates it, so selecting it for every non-EF
+		// tree, and almost no relational LINQ provider translates it, so selecting it for every non-EF
 		// provider turned a working string sort into a NotSupportedException on a synchronous provider that
 		// never asked for a culture. The caller answers this from `Provider is EnumerableQuery` — the one
 		// leg whose ordering has a culture to choose.

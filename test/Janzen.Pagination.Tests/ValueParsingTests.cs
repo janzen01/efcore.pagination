@@ -268,7 +268,7 @@ public sealed class ValueParsingNumericTests {
 }
 
 /// <summary>
-///     The two registry-facing behaviours, kept away from the fixture above because both are process-wide:
+///     The two registry-facing behaviors, kept away from the fixture above because both are process-wide:
 ///     <see cref="Ticket" /> is declared here so nothing else can reach it, and the precedence test deliberately
 ///     overrides <see cref="sbyte" /> — a built-in no other test parses.
 /// </summary>

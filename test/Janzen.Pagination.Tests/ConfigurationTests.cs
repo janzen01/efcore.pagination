@@ -125,7 +125,7 @@ public sealed class ConfigurationTests {
 
 		// The guard mirrors what BuildComparison does, which is wider than any single reflection probe: the
 		// integral primitives declare no op_LessThan at all, char is in neither the derived Comparable set nor
-		// the ordering probe, and enums, strings and Guids reach a CompareTo stand-in rather than an operator.
+		// the ordering probe, and enums, strings, and Guids reach a CompareTo stand-in rather than an operator.
 		AcceptsRanges(p => (sbyte)p.Rank);
 		AcceptsRanges(p => (byte)p.Rank);
 		AcceptsRanges(p => (short)p.Rank);

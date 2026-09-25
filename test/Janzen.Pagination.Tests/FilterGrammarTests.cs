@@ -201,7 +201,7 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 	public async Task Repeated_modifiers_parse_to_the_same_criterion(int prefixes) {
 		// $not does not accumulate -- it is a flag, not a toggle -- so any number of them means the same thing.
 		// Locked at 1 600 as well, which is the count that fits one 8 KB request line: the walk over them is a
-		// span slice now, and this is the behaviour that must survive anyone rewriting it back.
+		// span slice now, and this is the behavior that must survive anyone rewriting it back.
 		string value = string.Concat(Enumerable.Repeat("$not:", prefixes)) + "$eq:Active";
 		Assertions.HasIds(await this.Page(Query.Filter("status", value)), 3, 5, 6);
 	}

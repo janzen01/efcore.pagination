@@ -47,7 +47,7 @@ The attribute is `PaginatedQueryAttribute<TConfigProvider>`, constrained
 constraint is the **non-generic** `IPaginateConfigProvider`, so a provider satisfies it either way.
 
 So an endpoint documented with one provider and executed against a different config compiles, runs, and
-publishes a contract it does not honour. Point both at the same place — a `static readonly` field on the
+publishes a contract it does not honor. Point both at the same place — a `static readonly` field on the
 provider is the shortest way to make that hard to get wrong:
 
 ```csharp
@@ -166,12 +166,12 @@ Every invalid query — a bad operator, an unknown sort field, an out-of-range l
 ```
 
 The `title` is always `Invalid query`; `detail` carries the specific message. The full list is in the
-[error catalogue](/reference/errors/). No per-action `try`/`catch` is needed anywhere.
+[error catalog](/reference/errors/). No per-action `try`/`catch` is needed anywhere.
 
 `code` is the machine-readable cause — the name of the `PaginateQueryError` member the engine rejected with,
 also available in process as `PaginateQueryException.Code`. Branch on it rather than on `detail`, whose
 wording is prose: matching the prose pins the wording for your client permanently and cannot survive
-localisation. New members are added as the engine grows new rejections, so treat an unrecognised value the
+localization. New members are added as the engine grows new rejections, so treat an unrecognized value the
 way you would treat `Unspecified`. The library owns this member on its own `400`, so pick another name for
 an extension of your own rather than writing `code` from `CustomizeProblemDetails`.
 
@@ -181,7 +181,7 @@ Both responses are served as `Content-Type: application/problem+json`, the media
 
 Each leg is enriched **once**, at its own framework's enrichment point: the controller payload is built by
 the app's registered `ProblemDetailsFactory`, the Minimal API payload by the framework's problem-details
-writer when the result executes. So an `AddProblemDetails` customisation (extra members, `type` URIs, trace
+writer when the result executes. So an `AddProblemDetails` customization (extra members, `type` URIs, trace
 identifiers) applies to either, and the same error comes back with the same members whichever pipeline served
 it. The endpoint filter deliberately does **not** pre-build its payload through `ProblemDetailsFactory` as
 well: `Results.Problem` is written by `IProblemDetailsService`, which runs `CustomizeProblemDetails` itself,
@@ -212,7 +212,7 @@ When you pass an `HttpRequest`, the response's `Links` are built from the curren
 ```
 
 Every current query parameter except `page` is preserved and re-escaped — including ones the library does not
-recognise, so client-side state survives paging. The URLs are **path-relative, with no scheme or host**, which
+recognize, so client-side state survives paging. The URLs are **path-relative, with no scheme or host**, which
 is what you want behind a proxy; prefix them yourself if your clients need absolute URLs. `Request.PathBase`
 is part of the path, so an app mounted with `UsePathBase("/api")` emits `/api/products?…` rather than links
 that 404.
@@ -264,7 +264,7 @@ public Task<PaginatedResponse<ProductDto>> List([ModelBinder(typeof(MyBinder))] 
 
 ## Unknown query parameters
 
-The binder reads exactly `page`, `limit`, `sortBy`, `search`, `searchBy` and `filter.<field>`. Everything else
+The binder reads exactly `page`, `limit`, `sortBy`, `search`, `searchBy`, and `filter.<field>`. Everything else
 — `offset`, `utm_*`, your own client state — is ignored and the request pages normally.
 
 This is deliberate. API-audit tools sometimes report it as "invalid value silently accepted"; strict binding

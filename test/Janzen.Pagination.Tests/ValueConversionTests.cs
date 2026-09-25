@@ -78,7 +78,7 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	[Fact]
 	public async Task An_empty_value_is_rejected_for_a_nullable_target_too() {
 		// It used to convert to null and land on the unset rows, which is $null spelled implicitly -- without
-		// the field's allow-list ever being asked about $null. One spelling, and the message names it.
+		// the field's allowlist ever being asked about $null. One spelling, and the message names it.
 		Assert.Equal("Filter 'discontinuedAt' requires a value; use '$null' to match rows with no value.",
 			await this.Rejects(Query.Filter("discontinuedAt", "$eq:")));
 	}
@@ -92,7 +92,7 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	/// <summary>
 	///     ValueTypeNotSupported, not ValueInvalid: the value was never read — every route declined the field's
 	///     <b>type</b>. The member is published and documented for exactly this cause and was assigned nowhere,
-	///     which no test could see while the catalogue documented the code the throw actually carried.
+	///     which no test could see while the catalog documented the code the throw actually carried.
 	/// </summary>
 	[Fact]
 	public async Task An_unparseable_target_type_carries_its_own_code() {
@@ -108,7 +108,7 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	///     Asserted on the converter rather than through a query: a <see cref="DateTime" /> compares by ticks alone,
 	///     so a wrong <see cref="DateTimeKind" /> changes nothing in memory and nothing in the SQL SQLite emits — it
 	///     shifts the instant only once a provider converts the parameter to UTC, and only on a server that is not on
-	///     UTC. There is no zone-independent behaviour to hang this on, and a behavioural test would pass in CI.
+	///     UTC. There is no zone-independent behavior to hang this on, and a behavioural test would pass in CI.
 	/// </summary>
 	[Theory]
 	[InlineData("2026-01-01T00:00:00")]

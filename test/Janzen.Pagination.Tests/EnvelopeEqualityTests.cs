@@ -6,13 +6,13 @@ namespace Janzen.Pagination.Tests;
 /// <summary>
 ///     The envelope records advertise value equality by being records, and three of <see cref="PaginatedMeta" />'s
 ///     members plus <see cref="PaginatedResponse{T}.Items" /> are collections, which a synthesized <c>Equals</c>
-///     compares by reference. These pin the hand-written equality that makes the advertisement true — and the
+///     compares by reference. These pin the handwritten equality that makes the advertisement true — and the
 ///     <c>GetHashCode</c> contract that goes with it, which is the half that is easy to get wrong.
 /// </summary>
 public sealed class EnvelopeEqualityTests {
 
 	/// <summary>
-	///     Every member is a parameter so each can be varied on its own. Dropping one from a hand-written
+	///     Every member is a parameter so each can be varied on its own. Dropping one from a handwritten
 	///     <c>Equals</c> can only ever make <b>more</b> pairs compare equal, so no <c>Assert.Equal</c> can catch
 	///     it — an inequality isolating that single member is the only guard there is.
 	/// </summary>
@@ -214,7 +214,7 @@ public sealed class EnvelopeEqualityTests {
 		Assert.Equal(links.GetHashCode(), same.GetHashCode());
 		Assert.NotEqual(links, links with { Current = "/p?page=3" });
 
-		// And through the envelope, whose hand-written Equals delegates the links member.
+		// And through the envelope, whose handwritten Equals delegates the links member.
 		var baseline = new PaginatedResponse<ProductDto>([], Meta(), links);
 
 		Assert.Equal(baseline, new PaginatedResponse<ProductDto>([], Meta(), same));
@@ -240,7 +240,7 @@ public sealed class EnvelopeEqualityTests {
 
 		// System.Text.Json does not enforce nullable annotations, so a payload with an explicit "items": null or
 		// "sortBy": null overwrites the initializer despite the declarations. The synthesized equality these
-		// replace answered for that through EqualityComparer<T>.Default; hand-written equality must not start
+		// replace answered for that through EqualityComparer<T>.Default; handwritten equality must not start
 		// throwing where it used to return false.
 		string json = """{"items":null,"meta":{"totalItems":0,"itemCount":0,"itemsPerPage":25,"totalPages":0,"currentPage":1,"sortBy":null,"searchBy":null,"filter":null},"links":null}""";
 
@@ -250,8 +250,8 @@ public sealed class EnvelopeEqualityTests {
 		// Only inequality is asserted, not hash inequality: the contract is equal ⇒ equal hash, and nothing
 		// promises the converse. The difference that reaches the hash here is ListHash([]) against
 		// ListHash(null), and ListHash(null) returns a literal 0 while ListHash([]) derives from HashCode's
-		// per-process randomised seed — so asserting they differ pins an accident, and would report a false
-		// regression the day a null collection is normalised to hash like an empty one.
+		// per-process randomized seed — so asserting they differ pins an accident, and would report a false
+		// regression the day a null collection is normalized to hash like an empty one.
 		Assert.NotEqual(wellFormed, deserialized);
 
 		// And two equally malformed ones still answer, rather than each throwing on the way.

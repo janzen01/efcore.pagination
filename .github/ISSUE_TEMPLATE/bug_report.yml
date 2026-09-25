@@ -1,5 +1,5 @@
 name: Bug report
-description: Pagination, filtering, sorting or the generated SQL behaves incorrectly
+description: Pagination, filtering, sorting, or the generated SQL behaves incorrectly
 labels: ["bug"]
 body:
   - type: markdown
@@ -31,7 +31,7 @@ body:
     attributes:
       label: EF Core provider
       description: >-
-        Case sensitivity of search, Contains and StartsWith depends on this. The default emits portable
+        Case sensitivity of search, Contains, and StartsWith depends on this. The default emits portable
         LIKE and follows the column collation; UsePostgreSql() upgrades it to native ILIKE.
       options:
         - PostgreSQL (Npgsql)
@@ -45,7 +45,7 @@ body:
     id: config
     attributes:
       label: PaginateConfig for the entity
-      description: The fluent configuration decides what is sortable, searchable and filterable, so the behaviour cannot be reproduced without it.
+      description: The fluent configuration decides what is sortable, searchable, and filterable, so the behavior cannot be reproduced without it.
       render: csharp
       placeholder: |
         PaginateConfig<Product>.Create(b => b
@@ -66,7 +66,7 @@ body:
       required: true
 
   - type: textarea
-    id: behaviour
+    id: behavior
     attributes:
       label: Expected vs actual
       description: What you expected to happen, and what happened instead. Include the exception and its message if one was thrown.

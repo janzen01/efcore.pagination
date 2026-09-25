@@ -12,7 +12,7 @@ public enum PaginateSortDirection {
 }
 
 /// <summary>
-///     Filter operators. In the query string a filter is <c>filter.&lt;field&gt;={$not:}$op:value</c>, e.g.
+///     Filter operators. In the query string a filter is <c>filter.&lt;field&gt;={$not:}$op:value</c>, e.g.,
 ///     <c>filter.status=$eq:active</c> or <c>filter.age=$btw:18,65</c>.
 /// </summary>
 public enum PaginateFilterOperator {
@@ -20,7 +20,7 @@ public enum PaginateFilterOperator {
 	/// <summary>Equals (<c>$eq</c>).</summary>
 	Eq,
 
-	/// <summary>Value is in a comma-separated list (<c>$in</c>), e.g. <c>$in:1,2,3</c>.</summary>
+	/// <summary>Value is in a comma-separated list (<c>$in</c>), e.g., <c>$in:1,2,3</c>.</summary>
 	In,
 
 	/// <summary>Is null (<c>$null</c>).</summary>
@@ -47,7 +47,7 @@ public enum PaginateFilterOperator {
 	/// <summary>Greater than or equal (<c>$gte</c>).</summary>
 	GreaterThanOrEqual,
 
-	/// <summary>Between two comma-separated bounds, inclusive (<c>$btw</c>), e.g. <c>$btw:10,20</c>.</summary>
+	/// <summary>Between two comma-separated bounds, inclusive (<c>$btw</c>), e.g., <c>$btw:10,20</c>.</summary>
 	Between
 
 }

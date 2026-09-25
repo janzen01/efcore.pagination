@@ -3,7 +3,7 @@ namespace Janzen.Pagination.Tests;
 /// <summary>
 ///     Range operators on the types that carry no relational operator of their own. Each of these used to throw
 ///     <see cref="InvalidOperationException" /> while the expression tree was being built — a 500 for a request the
-///     field's own allow-list had granted.
+///     field's own allowlist had granted.
 /// </summary>
 public sealed class ComparisonOperatorTests(SqliteFixture fixture) : IClassFixture<SqliteFixture> {
 
