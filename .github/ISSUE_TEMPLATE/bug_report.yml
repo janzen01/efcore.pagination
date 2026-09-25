@@ -66,7 +66,7 @@ body:
       required: true
 
   - type: textarea
-    id: behavior
+    id: behaviour
     attributes:
       label: Expected vs actual
       description: What you expected to happen, and what happened instead. Include the exception and its message if one was thrown.
