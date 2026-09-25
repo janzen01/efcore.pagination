@@ -613,10 +613,11 @@ independent of each other — consumers pick the extensions they need:
   a thread-pool thread — which the projections guide now promises.
 - Build must stay clean under `-warnaserror` before any commit.
 - **Commits:** small and incremental (one logical change each).
-- **`master` takes no direct pushes.** A ruleset requires a pull request with **`ci-ok`** green, signed
-  commits and linear history, and forbids force-pushing or deleting the branch. So work lands as
-  branch → PR → **squash** merge (the only merge method the repo allows), and a mistake already on `master`
-  is fixed with a follow-up commit, never with a rewrite. No approving review is required — a solo
+- **The line branches take no direct pushes.** One ruleset covers `master` and `release/*` (see *Versioning*):
+  it requires a pull request with **`ci-ok`** green, signed commits and linear history, and forbids
+  force-pushing or deleting the branch. So work lands as branch → PR → **squash** merge (the only merge method
+  the repo allows), and a mistake already on a line branch is fixed with a follow-up commit, never with a
+  rewrite. No approving review is required — a solo
   maintainer cannot approve their own PR, so demanding one would wedge the repo. Tags are a separate
   ruleset: `v*` can be created but never moved or deleted.
 - **`ci-ok` is the required check, and it aggregates rather than tests anything itself.** `build-test` runs
@@ -654,9 +655,42 @@ The package version's **first component tracks the .NET / EF Core major it targe
 - **A new .NET major means a new package line** (`11.x`). The engine touches expression trees, `EF.Parameter` and
   `EF.Functions`, so a rebuild against the new EF Core major is needed regardless of the version scheme: a `net10.0`
   assembly loaded against EF Core 11 can fail at runtime. Dependabot opens the `Microsoft.EntityFrameworkCore` major
-  PR, which is the reminder; CI then says whether it is a plain retarget or a real port.
-- **Older lines are not maintained in parallel.** `10.x` stays available on nuget.org as published; backport only on
-  request.
+  PR against `master`, which is the reminder; CI then says whether it is a plain retarget or a real port. The
+  servicing line never sees that PR — its Dependabot block ignores framework majors on purpose.
+- **Two lines live in the repository at once, and the branch names say which is which.** `master` is always the
+  newest line; the previous one lives on `release/<X>.x` (`release/10.x`). The one ruleset targets
+  `~DEFAULT_BRANCH` **and** `refs/heads/release/*`, so both take PRs only, squash-merged, with `ci-ok` green,
+  and `ci.yml` and `codeql.yml` run their `push` legs on both. `publish.yml` needs nothing per branch —
+  trusted publishing is keyed to the workflow file and the `nuget` environment, not to a branch. Three things
+  *are* branch-sensitive, and each is handled where it lives: `api-tracking` compares against the newest
+  stable tag **merged into `HEAD`**, never the newest tag in the repository, because the other line's
+  releases are not in this branch's history; the docs deploy runs from whichever line cut the release, so
+  its build steps must stay identical on both; and **Dependabot** reads `dependabot.yml` from the default
+  branch only, so the servicing line's blocks (`target-branch: release/10.x`) live in `master`'s copy.
+  A new line is opened *before* it can be the default: it is prepared on `release/<X+1>.x` while `master`
+  is still the old line, and the two are swapped by **renaming** (`master` → `release/<X>.x`, then
+  `release/<X+1>.x` → `master`, then re-point the default branch). A rename carries open PRs' base and
+  draft releases along, needs no merge method beyond squash, and the ruleset follows because it targets the
+  default branch symbolically. The one precondition: no open PR may have either branch as its *head* — GitHub
+  closes those. **The swap needs a bypass the ruleset deliberately lacks:** GitHub refuses to rename or
+  re-point the default branch while a ruleset blocks force pushes on it and names no bypass actor, which is
+  exactly this ruleset. So the *Repository admin* role is added as a bypass actor for the swap and removed
+  straight after — left in place, it would make every rule here optional for the maintainer. A rename
+  triggers no `push`, so dispatch CodeQL (`workflow_dispatch`) on both branches afterwards; the weekly
+  schedule only ever runs on the default branch.
+- **A feature is delivered to both lines while the previous one is in its parallel window** — until three
+  months after the newer line's stable release (`11.0.0` GA + 3 months); after that the previous line takes
+  fixes on request only. The mechanics are fixed by the ruleset: linear history plus squash-only rule out a
+  merge-forward, so a feature is **one PR into the older line first** — opened with `--base release/10.x`,
+  because a new PR defaults to `master` — **then a forward-port**: `git cherry-pick -x <squash sha>` onto a
+  branch off the newer line, a second PR with the same title and `Forward-port of #<PR>` in its body. Oldest
+  first because the newer line accumulates the renames and breaks of its major, so the forward-port is where
+  the conflicts belong. Each line carries its own `<Version>`, its own `PublicAPI.Unshipped.txt` and its own
+  `docs/src`, so a feature edits all three on each branch. A forward-port that adds a link to a new page into
+  a package README cannot pass `verify-frozen-urls.mjs` on `master` before the older line has released that
+  page, because `master` archives the older line from its tag — hold the README half of the forward-port
+  until then. A change that exists only for the newer line (its breaking-change bundle) is an ordinary PR
+  with no counterpart.
 - **No four-part versions.** NuGet drops a zero fourth component (`10.1.0.0` *is* `10.1.0`) and treats `1`, `1.0`,
   `1.0.0` and `1.0.0.0` as equal, so the component count would flicker per release. Three components only.
 - Version lives in `<Version>` in [Directory.Build.props](Directory.Build.props) — there is **no MinVer** here.
@@ -693,6 +727,10 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    superseded one (regenerate with `dotnet pack -p:ApiCompatGenerateSuppressionFile=true` rather than
    hand-editing). Skip that follow-up and the guard keeps validating against an ever-older surface, and the
    stale suppressions hide the next accidental break behind the same target. An `-rc.N` is not a baseline.
+   **While two lines are live, a release of the older line owes the same follow-up on `master` too**: raise the
+   newer line's baseline to the older line's release. That is what enforces the forward-port — a member the
+   older line shipped and the newer line never received then fails package validation on `master`, instead of
+   vanishing silently from the next major. Land the forward-ports first, or that PR cannot go green.
 5. Release notes go **on the GitHub release** — there is no changelog file, and `PackageReleaseNotes` points at
    the Releases page.
 6. Publishing authenticates by **Trusted Publishing (OIDC)**, so there is no API key anywhere. The policy lives
@@ -720,6 +758,18 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    against a download.
 9. A **draft** release publishes nothing. `gh release edit <tag> --draft=false` is what fires the workflow.
    Pushing a tag on its own is inert here — no workflow watches tags.
+10. **Create the release with `--target <sha>`, never a branch name and never the default.** The default target
+    is the default branch, and a draft keeps its target as text until it is published — so a 10.x release left
+    on the default would be tagged on the 11.x line, and one targeting a branch lands on whatever merged in
+    between. `publish.yml` would refuse the version mismatch, but the tag already exists by then: the tag
+    ruleset forbids deleting it and the release is immutable, so the version number is burnt for good. Use the
+    squash-merge commit whose `ci-ok` is green.
+11. **Approve the `nuget` deployment only after the docs deploy of the same release has succeeded.** Both run off
+    `release: published`; the packages' READMEs and project URL point into the site, and nuget.org renders them
+    the moment the push lands.
+12. **After the newer line's stable release, publish every older-line release with `--latest=false`.** The API
+    defaults `make_latest` to `true` for a new release, which would hand *Latest* on the Releases page back to
+    the servicing line. Before that point the older line is the newest stable one and *Latest* is right.
 
 ## Testing
 `test/Janzen.Pagination.Tests` (xunit v3) — `dotnet test Janzen.Pagination.slnx -c Release`. Two legs, both in-process,
@@ -727,8 +777,13 @@ neither needing Docker:
 
 > **[global.json](global.json) is load-bearing**: it selects the **Microsoft.Testing.Platform** runner for `dotnet test`.
 > MTP v2 dropped the VSTest bridge on the .NET 10 SDK, so without that file *every* `dotnet test` here — yours, `ci.yml`
-> and the guard inside `publish.yml` — fails with `Testing with VSTest target is no longer supported`. It pins no SDK
-> version and is not meant to.
+> and the guard inside `publish.yml` — fails with `Testing with VSTest target is no longer supported`. **It also pins
+> the SDK**, and that pin is the single source of the .NET version for every workflow: each `setup-dotnet` reads
+> `global-json-file: global.json`, and so does GitHub's *automatic dependency submission*, which has no file in this
+> repository and takes the SDK from nowhere else. On a line whose framework is GA the pin names the feature band's
+> floor with `rollForward: latestFeature` (`10.0.100`), which `setup-dotnet` installs as the newest 10.0 SDK; that is
+> also what keeps a machine with a newer major installed — a checkout of the servicing line next to `master` — from
+> building this line with the wrong SDK. A line in preview pins the exact rc build instead.
 
 - **SQLite in-memory** — most tests. Real SQL translation, so it is what catches "the expression cannot be translated",
   and it exercises the engine's `UseDatabaseFunctions` path (`EF.Functions.Like`, `EF.Parameter`).

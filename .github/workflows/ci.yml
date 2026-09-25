@@ -1,10 +1,10 @@
 name: CI
 
 on:
-  # `push` is scoped to master, so a feature-branch push fires `pull_request` only and there is no
-  # double run to cancel.
+  # `push` is scoped to the line branches (master and release/*), so a feature-branch push fires
+  # `pull_request` only and there is no double run to cancel.
   push:
-    branches: [ master ]
+    branches: [ master, 'release/*' ]
   pull_request:
 
 permissions:
@@ -46,7 +46,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
 
       - name: Restore
         run: dotnet restore Janzen.Pagination.slnx
@@ -92,7 +92,10 @@ jobs:
       - name: Check no shipped API line was deleted instead of recorded
         run: |
           set -u
-          TAG=$(git tag -l 'v*' --sort=-v:refname | grep -v -- '-' | head -n 1)
+          # --merged HEAD: the newest stable release in *this* branch's history. Two lines live in the
+          # repository, and the highest tag overall belongs to the other one as often as not -- a 10.x
+          # servicing release is not in master's history, and 11.0.0 is not in release/10.x's.
+          TAG=$(git tag -l 'v*' --merged HEAD --sort=-v:refname | grep -v -- '-' | head -n 1)
           if [ -z "$TAG" ]; then echo "no stable v* tag to compare against yet"; exit 0; fi
           echo "comparing PublicAPI.Shipped.txt against $TAG"
           REVS=$(git rev-list "$TAG..HEAD")
@@ -154,7 +157,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
 
       - name: Restore
         run: dotnet restore Janzen.Pagination.slnx

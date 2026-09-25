@@ -5,7 +5,7 @@ usage docs for *consuming* the packages live in [README.md](README.md) and each 
 
 ## Prerequisites
 
-- **.NET 10 SDK** (the repo is `net10.0`-only)
+- **.NET 10 SDK** — any 10.0 feature band; [global.json](global.json) pins the line (the repo is `net10.0`-only)
 - **git**
 - **Node 24 + pnpm** — only if you touch the documentation site under `docs/`. Nothing in `src/` or `test/` needs
   them, so skip this unless you are editing docs.
@@ -151,6 +151,6 @@ tag/release — there is no `CHANGELOG` file in the repo.
 
 | Symptom                                                      | Cause                                               | Fix                                                                                    |
 |--------------------------------------------------------------|-----------------------------------------------------|----------------------------------------------------------------------------------------|
-| `error NETSDK1045: ... does not support targeting .NET 10.0` | .NET 10 SDK not installed (older SDK on PATH)       | install the .NET 10 SDK; confirm with `dotnet --list-sdks`                             |
+| `error NETSDK1045: ... does not support targeting .NET X.0`  | the SDK `global.json` pins is not installed         | install that SDK; confirm with `dotnet --list-sdks`                                    |
 | build fails with `warning ... treated as error`              | `TreatWarningsAsErrors=true`                        | fix the warning — nothing is exempt in `src/` (`CS1591` included: document the member)  |
 | `restore` → `Invalid framework identifier ''`                | `.slnx` + `RestorePackagesWithLockFile` interaction | don't enable lock files at the `.slnx` level (see CLAUDE.md → *Intentional decisions*) |
