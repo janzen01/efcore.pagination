@@ -277,12 +277,12 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			Name = PaginateQueryParams.SortBy,
 			In = ParameterLocation.Query,
 			Description = $"""
-			               Parameter to sort by. Repeat this parameter to sort by multiple fields. The URL order defines sort priority.
+			Parameter to sort by. Repeat this parameter to sort by multiple fields. The URL order defines sort priority.
 
-			               Sortable fields:
+			Sortable fields:
 
-			               {BuildFieldDescription(config.SortableFields)}
-			               """,
+			{BuildFieldDescription(config.SortableFields)}
+			""",
 			Required = false,
 			Style = ParameterStyle.Form,
 			Explode = true,
@@ -328,12 +328,12 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			Name = PaginateQueryParams.SearchBy,
 			In = ParameterLocation.Query,
 			Description = $"""
-			               List of configured fields to search by term. If omitted, all searchable fields are used.
+			List of configured fields to search by term. If omitted, all searchable fields are used.
 
-			               Searchable fields:
+			Searchable fields:
 
-			               {BuildFieldDescription(config.SearchableFields)}
-			               """,
+			{BuildFieldDescription(config.SearchableFields)}
+			""",
 			Required = false,
 			Style = ParameterStyle.Form,
 			Explode = true,
@@ -425,22 +425,22 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			Name = $"{PaginateQueryParams.FilterPrefix}{field.Name}",
 			In = ParameterLocation.Query,
 			Description = $"""
-			                Filter by `{field.Name}`.{RenderBadge(field.Badge)}
+			Filter by `{field.Name}`.{RenderBadge(field.Badge)}
 
-			                Value type: `{value.Name}`
+			Value type: `{value.Name}`
 
-			                Format: `{PaginateQueryParams.FilterPrefix}{field.Name}=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`
+			Format: `{PaginateQueryParams.FilterPrefix}{field.Name}=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`
 
-			                At most {config.MaxFilterValues} comma-separated values in one criterion, and at most {config.MaxFilterConditions} filter criteria across the whole request; beyond either the request returns 400.{patternGuards}
+			At most {config.MaxFilterValues} comma-separated values in one criterion, and at most {config.MaxFilterConditions} filter criteria across the whole request; beyond either the request returns 400.{patternGuards}
 
-			                Available operations:
+			Available operations:
 
-			                {operators}
+			{operators}
 
-			                Modifiers, available on every field:
+			Modifiers, available on every field:
 
-			                {Modifiers}
-			                """,
+			{Modifiers}
+			""",
 			Required = false,
 			Style = ParameterStyle.Form,
 			Explode = true,
@@ -483,7 +483,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	private static IEnumerable<string> BuildOperatorTokens(PaginateFilterFieldMetadata field) {
 		// Ordered for the same reason the example is pinned: a set has no order, so an unordered list would
 		// rewrite this bullet list in a consumer's committed document whenever the backing collection changes.
-		foreach (var filterOperator in field.Operators.Order()) yield return PaginateFilterParser.GetOperatorToken(filterOperator);
+		return field.Operators.Order().Select(PaginateFilterParser.GetOperatorToken);
 	}
 
 	// One row per documented value type: what the description calls it, an example value its parser accepts, and
