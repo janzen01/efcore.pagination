@@ -72,8 +72,12 @@ public sealed class AsyncContractTests {
 		Assert.True(methods.Single(method => method.Name == "PaginateCoreAsync").GetMethodImplementationFlags().HasFlag(MethodImplAttributes.Async));
 
 		string[] entryPoints = ["PaginateAsync", "PaginateSelectAsync", "PaginateSelectMapAsync", "PaginateMapAsync"];
+		var found = methods.Where(method => entryPoints.Contains(method.Name)).ToList();
 
-		foreach (var entryPoint in methods.Where(method => entryPoints.Contains(method.Name))) {
+		// Counted, so a rename or a change in how extension blocks are lowered cannot empty the loop into a pass.
+		Assert.Equal(entryPoints.Length, found.Count);
+
+		foreach (var entryPoint in found) {
 			Assert.False(entryPoint.GetMethodImplementationFlags().HasFlag(MethodImplAttributes.Async), entryPoint.Name);
 		}
 
@@ -81,9 +85,16 @@ public sealed class AsyncContractTests {
 
 	[Fact]
 	public async Task A_request_error_is_still_delivered_through_the_task() {
-		// The mirror of the test above: moving the argument guards must not drag the request validation with
+
+		// The mirror of the null-argument test: moving the argument guards must not drag the request validation with
 		// them. An invalid page stays a faulted task, which is what the ASP.NET Core filters translate.
-		await Assert.ThrowsAsync<PaginateQueryException>(() => Source().PaginateAsync<Product, ProductDto>(new PaginateQuery { Page = 0 }, TestData.Config, null, TestContext.Current.CancellationToken));
+		// The task is taken before it is awaited, because Assert.ThrowsAsync also catches a synchronous throw
+		// from its delegate and so cannot tell the two apart -- this line is what does.
+		var task = Source().PaginateAsync<Product, ProductDto>(new PaginateQuery { Page = 0 }, TestData.Config, null, TestContext.Current.CancellationToken);
+
+		Assert.True(task.IsFaulted);
+		await Assert.ThrowsAsync<PaginateQueryException>(() => task);
+
 	}
 
 	/// <summary>
@@ -253,6 +264,36 @@ public sealed class ContinuationContextTests : IClassFixture<SqliteFixture> {
 
 	}
 
+	/// <summary>
+	///     An unlimited read issues no count, so its first suspending await is the materialization itself -- a
+	///     different <c>ConfigureAwait(false)</c> from the one the paged tests above end up exercising, because once
+	///     the count has moved to the pool every later await already runs with no context to capture.
+	/// </summary>
+	[Fact]
+	public async Task The_projector_does_not_resume_on_the_callers_context_on_an_unlimited_read() {
+
+		var config = PaginateConfig<Product>.Create(b => b.WithLimits(10, 50).WithTieBreaker(p => p.Id).AllowUnlimited(100));
+
+		await using var context = _fixture.CreateYieldingContext();
+		var recording = new RecordingContext();
+		SynchronizationContext? seen = recording;
+
+		await StartUnder(recording, () => SqliteFixture.Products(context).PaginateMapAsync(
+			new PaginateQuery { Limit = PaginateQuery.UnlimitedLimit },
+			config,
+			product => {
+				seen = SynchronizationContext.Current;
+				return product.Id;
+			},
+			null,
+			TestContext.Current.CancellationToken
+		));
+
+		Assert.Null(seen);
+		Assert.Equal(0, recording.Posts);
+
+	}
+
 	// The context is installed only while the engine's synchronous prefix runs, which is where an await would
 	// capture it. Awaiting the task is left to the caller's own context, so the test's await posts nothing here.
 	private static Task StartUnder(SynchronizationContext context, Func<Task> start) {
@@ -281,6 +322,7 @@ public sealed class ContinuationContextTests : IClassFixture<SqliteFixture> {
 
 			// Restored afterward: a pool thread left carrying this context would hand it to whatever runs there next.
 			ThreadPool.QueueUserWorkItem(_ => {
+
 				SetSynchronizationContext(this);
 
 				try {
@@ -288,6 +330,7 @@ public sealed class ContinuationContextTests : IClassFixture<SqliteFixture> {
 				} finally {
 					SetSynchronizationContext(null);
 				}
+
 			});
 
 		}

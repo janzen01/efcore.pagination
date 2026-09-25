@@ -757,8 +757,10 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    `allowPrerelease` removed — and the EF Core range's floor off the release candidate. **Re-decide runtime
    async** (see *Intentional decisions*) in the same pass: RC 1 still labels it a preview feature and Mono does
    not support it, so check that the label is gone and what a runtime-async `net11.0` library does on Mono
-   before `11.0.0` ships with it. Turning it off is deleting `Directory.Build.targets`' one property group plus
-   the positive half of the reflection test.
+   before `11.0.0` ships with it. Turning it off is deleting the `Features` property group in
+   `Directory.Build.targets` and, in the reflection test, both flag-dependent assertions — the empty
+   `AsyncStateMachineAttribute` scan and the `MethodImplAttributes.Async` check on `PaginateCoreAsync` — while the
+   check that the four wrappers are not async stays, since it holds either way.
 4. **`PackageValidationBaselineVersion` is bumped *after* the publish, never in the release PR.** It resolves
    through a `PackageDownload`, so pointing it at a version nuget.org does not serve yet fails **restore** with
    `NU1102: Unable to find package … with version (= x.y.z)` — the release PR's own CI, before any tag exists.
@@ -892,10 +894,12 @@ way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server rea
   under *Conventions* is untouched. `AsyncContractTests.The_packages_are_runtime_async_and_the_entry_points_stay_plain`
   guards all of it: no method in the four assemblies carries `AsyncStateMachineAttribute`, `PaginateCoreAsync`
   carries `MethodImplAttributes.Async` (so the scan cannot pass by finding no async code at all), and the
-  wrappers do not. **Rebuild with `--no-incremental` after touching the flag**: adding the targets file left
-  the previous binaries in place under a green incremental build, and the test then reported state machines
-  that a clean build does not have. It is still a preview feature in RC 1; the re-check owed before `11.0.0`
-  is under *Releasing*.
+  wrappers do not. The targets file lists itself as a `CustomAdditionalCompileInputs` item, because a changed
+  `Features` value alone does not invalidate `CoreCompile`: adding the file first left the previous binaries in
+  place under a green incremental build, and the test then reported state machines a clean build does not have.
+  An edit to the file now recompiles (measured); **deleting it is the one change that cannot**, since a
+  missing input is not a newer one, so rebuild with `--no-incremental` after that. It is still a preview
+  feature in RC 1; the re-check owed before `11.0.0` is under *Releasing*.
 - **Value resolution order is registry → built-ins → `IParsable<TSelf>` → 400**, and the registry going *first* is
   the load-bearing part: consulted last (as it was before 10.0.3) a registration for an already-built-in type was a
   silent no-op, so everyone it affected was someone who tried to override and never found out. Don't move it back

@@ -40,12 +40,7 @@ public sealed class SqliteFixture : IAsyncLifetime {
 		_connection = new SqliteConnection("Filename=:memory:");
 		await _connection.OpenAsync();
 
-		_options = new DbContextOptionsBuilder<TestDbContext>()
-			.UseSqlite(_connection)
-			// Price exists for equality only; SQLite compares decimals lexically, so nothing orders or
-			// ranges over it and the warning about that is noise here.
-			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
-			.Options;
+		_options = Options();
 
 		await using var context = CreateContext();
 		await context.Database.EnsureCreatedAsync();
@@ -61,32 +56,26 @@ public sealed class SqliteFixture : IAsyncLifetime {
 	///     <see cref="ComposerTests" /> needs it, to check the claim the composers rest on: that the query they hand
 	///     back unexecuted is the query the engine executes.
 	/// </summary>
-	public TestDbContext CreateLoggingContext(ICollection<string> executedSql) {
-
-		var options = new DbContextOptionsBuilder<TestDbContext>()
-			.UseSqlite(_connection)
-			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
-			.LogTo(line => executedSql.Add(line), [RelationalEventId.CommandExecuted])
-			.Options;
-
-		return new TestDbContext(options);
-
-	}
+	public TestDbContext CreateLoggingContext(ICollection<string> executedSql) { return new TestDbContext(Options(builder => builder.LogTo(line => executedSql.Add(line), [RelationalEventId.CommandExecuted]))); }
 
 	/// <summary>
 	///     A context whose every command genuinely suspends before it runs. SQLite's async API completes
 	///     synchronously, so without this no <c>await</c> in the engine ever yields and a test about where its
 	///     continuations resume would pass whatever the engine did.
 	/// </summary>
-	public TestDbContext CreateYieldingContext() {
+	public TestDbContext CreateYieldingContext() { return new TestDbContext(Options(builder => builder.AddInterceptors(new YieldingInterceptor()))); }
 
-		var options = new DbContextOptionsBuilder<TestDbContext>()
+	// Every context of this fixture shares one connection and one warning policy; the variants only add to it.
+	private DbContextOptions<TestDbContext> Options(Action<DbContextOptionsBuilder<TestDbContext>>? extend = null) {
+
+		var builder = new DbContextOptionsBuilder<TestDbContext>()
 			.UseSqlite(_connection)
-			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
-			.AddInterceptors(new YieldingInterceptor())
-			.Options;
+			// Price exists for equality only; SQLite compares decimals lexically, so nothing orders or
+			// ranges over it and the warning about that is noise here.
+			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration));
 
-		return new TestDbContext(options);
+		extend?.Invoke(builder);
+		return builder.Options;
 
 	}
 

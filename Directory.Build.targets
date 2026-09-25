@@ -13,4 +13,11 @@
         <Features>$(Features);runtime-async=on</Features>
     </PropertyGroup>
 
+    <!-- A compile input, so editing this file recompiles. Without it an incremental build after changing the
+         flag kept the previous binaries and reported success. Deleting the file is the one change this cannot
+         see, since a missing input is not a newer one: rebuild with no-incremental after that. -->
+    <ItemGroup Condition="'$(IsPackable)' != 'false'">
+        <CustomAdditionalCompileInputs Include="$(MSBuildThisFileFullPath)" />
+    </ItemGroup>
+
 </Project>
