@@ -424,9 +424,10 @@ independent of each other — consumers pick the extensions they need:
   config never observes a later assignment. `AllowUnlimited` is deliberately **not** on it: an unbounded read is a
   claim about one resource's size. Its arrival is why `WithGuards`' four parameters became `int?` — with the old
   `int` defaults, naming one guard silently reset the other three to the constants, discarding shared values the
-  caller never mentioned. Source-compatible, binary-breaking, and the only **signature** entry in
-  `CompatibilitySuppressions.xml` — the other **eleven** are `CP0014`s the attribute rule surfaced, nine in the
-  core file and two in the AspNetCore one, and every one of them is baseline-only against `10.0.3`.
+  caller never mentioned. Source-compatible and binary-breaking, it shipped in `10.1.0` as the only
+  **signature** entry among twelve `CompatibilitySuppressions.xml` entries against the `10.0.3` baseline — the
+  other eleven were `CP0014`s the attribute rule surfaced. Moving the baseline to `10.1.0` retired all twelve, so
+  the repository carries no suppression file; the next deliberate break writes one again.
   Both `Filterable` overloads have an **operator-less sibling** (`.Filterable(name, expr)`) whitelisting
   `PaginateFilterOperators.For<TValue>()` — the public derivation, and the single place a later release widens a
   row (which then widens every shorthand field on rebuild: release-note it). Ranges are deliberately withheld

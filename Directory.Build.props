@@ -102,7 +102,7 @@
     -->
     <PropertyGroup>
         <EnablePackageValidation>true</EnablePackageValidation>
-        <PackageValidationBaselineVersion>10.0.3</PackageValidationBaselineVersion>
+        <PackageValidationBaselineVersion>10.1.0</PackageValidationBaselineVersion>
         <!-- Attribute changes are invisible to the other guard: the PublicAPI.*.txt grammar records
              accessibility, signature, default values and nullability, and has no slot for an attribute
              at all. Ten members carry [RequiresUnreferencedCode] and [RequiresDynamicCode] as part of
