@@ -537,7 +537,12 @@ independent of each other — consumers pick the extensions they need:
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
   The EF Core family (`Microsoft.EntityFrameworkCore`, `.Relational`, `.Sqlite`) is a **range capped below the next
   major** (`[10.0.12, 11.0.0)`), the way Npgsql caps its own: a line's engine loaded against the next EF Core major
-  can fail at runtime, and without the cap a project on the next framework installing this line resolves it silently.
+  can fail at runtime, and with the cap a restore that resolves EF Core `11.0.0` or later reports NU1608.
+  **It does not cover the next major's prereleases**, and that is known rather than overlooked: NuGet orders
+  `11.0.0-rc.N` below `11.0.0`, so a net11.0 project on the EF Core 11 release candidates resolved
+  `[10.0.12, 11.0.0)` without a word (measured). The bound that would cover them, `11.0.0-0`, is itself a
+  prerelease, and a stable package with one fails `pack` with NU5104; a stable stand-in such as `10.999.999]` was
+  measured to work and turned down as not worth its oddity. So the cap protects from the next major's GA on.
   Dependabot writes a bare version back when it bumps a range, so `api-tracking` fails a PR that drops the cap —
   restore the range in that PR rather than relaxing the check.
 - **The tree is LF, pinned by [.gitattributes](.gitattributes)** (`* text=auto eol=lf`; `.bat`/`.cmd` carved out).

@@ -11,9 +11,11 @@
        their whole EF Core closure - and the alternative, flooring at the engine's true minimum, means
        establishing that minimum empirically and holding a CI leg on it.
        The range is capped below the next major, the way Npgsql.EntityFrameworkCore.PostgreSQL caps its
-       own: a net10.0 engine loaded against EF Core 11 can fail at runtime, and a net11.0 project that
-       installs this line without the prerelease flag (while 11.x is still a preview) would otherwise resolve
-       EF Core 11 with no complaint at all. With the cap NuGet reports NU1608 instead. -->
+       own: a net10.0 engine loaded against EF Core 11 can fail at runtime, and with the cap a restore
+       that resolves EF Core 11.0.0 or later reports NU1608 instead of saying nothing. It does not cover
+       the next major's prereleases: NuGet orders 11.0.0-rc.N below 11.0.0, so a project on the EF Core 11
+       release candidates resolves this line without a word (measured). The bound that would cover them,
+       11.0.0-0, is itself a prerelease, and NuGet refuses that in a stable package (NU5104). -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="[10.0.12, 11.0.0)" />
     <!-- Nothing in the tree references Relational directly, so without this entry it settles on
