@@ -29,7 +29,9 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   workflow said. Added with
   `gh api --method POST repos/janzen01/efcore.pagination/environments/github-pages/deployment-branch-policies -f name='v*' -f type='tag'`.
   Re-check it if the environment is ever recreated: the symptom is a red `deploy` reading
-  "Branch v10.1.0 is not allowed to deploy to github-pages", which names a branch for what is a tag.
+  "Branch v10.1.0 is not allowed to deploy to github-pages", which names a branch for what is a tag. The
+  `master` branch policy stays, because a dispatch from `master` is the sanctioned way to redeploy (see below);
+  `gh-pages` names a branch that no longer exists and goes.
 - **The build lives in [docs-build.yml](.github/workflows/docs-build.yml) and is called twice.** `ci.yml`
   calls it on every pull request (`upload: false`) and `docs.yml` calls it from a published release to produce
   the artifact it deploys (`upload: true`) — one copy, so a PR verifies exactly what gets published. It is part
@@ -40,37 +42,36 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   redden a required check on a Pages API call it should never make. And **`docs.yml` is deploy-only**, so its
   artifact hand-off and environment wiring are not exercised by a merge at all — now that it runs on releases
   rather than pushes, months can pass between real runs. Dispatch it once after changing them.
-- **`docs.yml` publishes on `release: published`, general availability only — never on a push to `master`.**
-  The site root is what the 10.0.0 package READMEs point at, and nuget.org renders those permanently, so the
-  root has to describe a version somebody can install; building it from `master` would point every one of
-  those frozen links at documentation for unreleased code during the next major's development. The GA gate is
-  two conditions on the `build` job and both are load-bearing: `github.event.release.prerelease == false` is
-  the flag the maintainer actually sets, and `!contains(tag_name, '-')` is the backstop for the release
-  published with the box left unticked. `deploy` needs `build`, so it skips with it.
-  **Every clause names its own event**, and that is load-bearing rather than tidy. Written as
-  `prerelease == false` alone the gate was fail-open for any event carrying no release payload: GitHub casts
-  both `null` and `false` to 0, so the comparison is true when there is no release at all, and
-  `contains(null, '-')` is false to match — a `push:` trigger added later would have sailed through the gate
-  whose whole purpose is to stop exactly that. **A dispatch is gated too**, on the only thing it can get wrong
-  that a release cannot: a *tag* with a semver suffix is refused, a branch may publish. That asymmetry is the
-  point — the dispatch is the escape hatch for a documentation-only fix, and it has to stay usable from
-  `master`.
-  **The same rule is asserted a second time as the first step of `deploy`**, and that duplication is
-  deliberate: the gate cannot be tested before the event it guards — a real release is the first thing that
-  evaluates its release half. If the expression were wrong in the permissive direction it would put a
-  prerelease at the site root, the one outcome this workflow exists to prevent, so the step turns that into a
-  red release rather than a silent publish. If it ever fires, the `if:` on `build` is what is wrong, not the
-  step. It runs on **both** events: guarded on `github.event_name == 'release'` it was disarmed on exactly the
-  path a human drives, where the ref is picked by hand from a dialog that defaults to a branch.
-  **Consequences worth knowing.** A documentation-only fix does not publish itself — it waits for the next
-  release, or a `workflow_dispatch`, and **that dispatch must be run against a tag, never against `master`**,
-  or it puts unreleased docs at the root by hand. And an `-rc.N` that opens a **new** line ships READMEs
-  pointing at a `/v<line>.x/` path that nothing has published yet; within an existing line the path is
-  already live, so this bites at **every new `X.Y` line**, not only at a major — `10.1.0` is one, and its
-  READMEs already name `/v10.1.x/`. The order that works: merge, dispatch `docs.yml` so the path goes live,
-  then cut the tag. Until a tag carries the current `docs.yml`, that dispatch has to run against `master`,
-  because a dispatch executes the workflow file living at the ref it is given and every existing tag still
-  carries the old push-triggered copy.
+- **`docs.yml` publishes on `release: published` — of either line, a prerelease included — and always builds the
+  newest release in the repository.** The root is the newest release of any line: during a new major's preview
+  that is the preview, because the preview is meant to be used and its documentation with it. What keeps that
+  honest for everyone else is that **no package points at the root**: each line's READMEs and its
+  `<PackageProjectUrl>` name that line's own copy (`/v10.1.x/`, `/v11.0.x/`), and the root carries a banner
+  pointing at the stable line while its release is a prerelease (`PreviewBanner.vue`, root locale only). The
+  packages from before this (10.0.0–10.1.1 project URLs, the 10.0.x READMEs) are exactly who that banner is for.
+  This is a deliberate departure from the usual "root = latest stable, preview under /next": the preview window
+  is short and nothing new points at the root.
+  **The build ignores the event's ref.** `docs-build.yml` checks out the newest `v*` tag
+  (`git -c versionsort.suffix=- tag --sort=-v:refname`; plain version order puts `11.0.0-rc.10` above `11.0.0`)
+  before Node and pnpm are set up, and fails unless that tag's `<Version>` matches it. It reports the tag as an
+  output, and `deploy` recomputes the newest tag from its own checkout and refuses a mismatch or a missing
+  output — a second check that does not trust the first, for the one silent failure left: the two lines'
+  copies of `docs-build.yml` drifting apart. A 10.x servicing release
+  therefore redeploys the 11.x tree, whose archive picks up the new `v10.1.*` tag by itself (see *Versioned
+  copies*) — the root never goes back to an older line. Two consequences. **`docs-build.yml` must stay
+  identical on both lines**: a release executes the workflow file at *its own* tag, so 10.x's copy of these
+  steps runs against the 11.x tree. And **a dispatch is safe from any branch but never against an old tag** — the
+  workflow that runs is the one at the dispatched ref, and a tag from before this logic (`v10.1.1` and older)
+  rebuilds itself and puts that release back at the root. Dispatch from `master`; the `github-pages`
+  environment allows `master` and tags `v*`. That same dispatch is how the deploy wiring gets exercised after a
+  change, since a release is otherwise the only trigger.
+  **Every clause of the `if:` on `build` names its own event**, and that is load-bearing rather than tidy:
+  written loosely, the old gate was fail-open for any event carrying no release payload, because GitHub casts
+  both `null` and `false` to 0. Anything added later is refused until someone thinks about it.
+  **Consequences worth knowing.** A documentation-only fix publishes with the next release of either line, or
+  with a dispatch from `master` — which builds the newest *tag*, so the fix must already be in a tag. And a
+  release that opens a **new** `X.Y` line ships READMEs pointing at a `/v<line>.x/` path; the release's own docs
+  deploy publishes it, which is why the `nuget` approval waits for that deploy (*Releasing*).
 - **`actions/checkout` in `docs-build.yml` needs `fetch-depth: 0`.** `sync-archive.mjs` reads `docs/src` out of
   each released line's **tag**, and the default shallow checkout has none — the build dies before VitePress
   starts. CI is the only place this is exercised, because a local clone always has its tags.
@@ -143,7 +144,9 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   the version exists. `verify-frozen-urls.mjs` holds the published ones in its history lists.
 - **`docs/archive/` is generated and gitignored — never hand-edited.** `scripts/sync-archive.mjs` rebuilds it
   before every dev server and build, reading `docs/src` out of each line's git tag, and its **manifest is the
-  `versions` array at the top of that script**. Generating rather than committing is the point: a committed
+  `versions` array at the top of that script**. An older line is named by its tag *prefix* (`line: 'v10.1.'`),
+  not by a tag: `newestOf` picks the line's newest stable release, or its newest prerelease while it has no
+  stable one, so a servicing release reaches its archived copy with the next deploy and nobody edits the list. Generating rather than committing is the point: a committed
   archive would put a second copy of all 26 pages in the tree per line, and every search across the repository
   would have to learn to skip them. `git grep` finds one copy; ripgrep honors `.gitignore`, so it does too.
 - **The script rewrites links, and all three of its guards matter.** An archived page's root-absolute links
@@ -274,8 +277,10 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   arise, and the `_render` that used to blank `archive/` was guarding against it. What that actually did was
   leave every archived page with a search box over an empty index (`documentCount: 0`), the copy every package
   README points a reader at included. Measured after removing it: root 210 documents, `v10.0.x` 196,
-  `v10.1.x` 210, and zero archived paths in the root index. The **sitemap** drops archived paths for the matching reason: while a line is current its copy is byte-identical to the root, and submitting
-  both asks a crawler to pick a canonical between two copies of one page.
+  `v10.1.x` 210, and zero archived paths in the root index. The **sitemap** drops only the newest line's archived copy, for the matching reason: it is byte-identical to
+  the root, and submitting both asks a crawler to pick a canonical between two copies of one page. Every other
+  version is different content and is submitted — with a preview at the root, `/v10.1.x/` is where the stable
+  documentation lives. Redirect stubs are dropped in every version.
 - **`editLink` is switched off for archived versions** by a post-processing loop at the bottom of `config.mts`,
   next to the mermaid `optimizeDeps` fix. Inherited, it would offer to edit the file living at that path on
   `master` today — different content, from a line the reader deliberately is not reading.
@@ -721,12 +726,13 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    (`v10.0.0-rc.1`); `publish.yml` compares them and refuses the publish otherwise, because nuget.org unlists
    but never deletes.
 2. **At a `Y` bump only** (a new `X.Y` line), open its documentation copy in the **same PR as the version
-   bump**: in `docs/scripts/sync-archive.mjs`, pin the previously newest line to its last tag and add the new
-   line as `WORKING_TREE`; then repoint every site URL in the **four package READMEs** to `/v<new line>.x/`.
+   bump**: in `docs/scripts/sync-archive.mjs`, turn the previously newest line into a line entry
+   (`{ segment: 'v10.1.x', line: 'v10.1.' }`) and add the new line as `WORKING_TREE`; then repoint every site URL
+   in the **four package READMEs** and `<PackageProjectUrl>` in `Directory.Build.props` to `/v<new line>.x/`.
    The root README stays on the unversioned paths — it is read on GitHub against `master`, and it ships in no
    package. Both halves belong before the merge, because `verify-frozen-urls.mjs` runs inside `ci-ok` and
    fails on a README URL the build does not publish. A `Z` release touches none of this: the line's copy is
-   already `WORKING_TREE`, so it picks up the release automatically.
+   already `WORKING_TREE`, and an older line's entry finds its newest tag at build time.
 3. **At a stable release only**, move each `PublicAPI.Unshipped.txt` into its `PublicAPI.Shipped.txt`. That is
    what makes a later removal an RS0017 build error. Do **not** do it for an `-rc.N`: an rc-only member promoted
    to *shipped* cannot then be dropped before stable without fighting the analyzer.

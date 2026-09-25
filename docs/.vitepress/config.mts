@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vite'
@@ -8,6 +8,7 @@ import type { DefaultTheme } from 'vitepress'
 import { withMermaid } from 'vitepress-plugin-mermaid'
 import rootNavigation from '../src/navigation.json' with { type: 'json' }
 import { navigationIn, versionedNavigation } from '../scripts/navigation.mjs'
+import { versions, WORKING_TREE } from '../scripts/sync-archive.mjs'
 
 // Dev only. scripts/sync-archive.mjs runs once before `vitepress dev`, which left the newest line's copy
 // serving a start-up snapshot: the manifest defines that line as the working tree, but an edit to docs/src
@@ -75,6 +76,17 @@ const archiveDir = new URL('../archive/', import.meta.url)
 const archived = existsSync(archiveDir)
     ? readdirSync(archiveDir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
     : []
+
+// Which release this build is, for the preview banner and the version menu (theme/components). The working-tree
+// line is the one at the root; the next manifest entry is the newest line before it, which a preview points
+// readers at as the stable one.
+const current = versions.find((entry) => entry.ref === WORKING_TREE)!.segment
+const version = /<Version>([^<]+)<\/Version>/.exec(readFileSync(new URL('../../Directory.Build.props', import.meta.url), 'utf8'))![1]
+const release = {
+    version,
+    prerelease: version.includes('-'),
+    stable: versions.find((entry) => entry.ref !== WORKING_TREE)?.segment
+}
 
 // The published origin, in one place. It is the canonical href, the sitemap hostname, and -- as its path --
 // the `base` every built URL carries and the prefix on the favicon. Those were four literals before, so a
@@ -179,13 +191,14 @@ const config = withMermaid(defineVersionedConfig({
         pageData.frontmatter.head = [...head, ['link', { rel: 'canonical', href: `${site}${route}` }]]
     },
 
-    // Archived versions are dropped as a whole rather than stub by stub. While a line is the current one its
-    // archived copy is byte-identical to the root, so advertising both is asking a crawler to pick a canonical
-    // between two copies of the same page. They stay reachable and linkable -- just not submitted.
+    // Only the newest line's archived copy is dropped, as a whole: it is byte-identical to the root, so advertising
+    // both asks a crawler to pick a canonical between two copies of one page. Every other version is different
+    // content and is submitted -- with a preview at the root, /v10.1.x/ is where the stable documentation lives,
+    // and leaving it out would take that out of search entirely. Redirect stubs are dropped in every version.
     sitemap: {
         hostname: site,
         transformItems: (items) => items.filter((item) =>
-            !redirectStubs.includes(item.url) && !archived.some((version) => item.url.startsWith(`${version}/`)))
+            !redirectStubs.includes(item.url.replace(/^v\d+\.\d+\.x\//, '')) && !item.url.startsWith(`${current}/`))
     },
 
     // A dead link fails the build. With cross-page links written by hand, that is the only thing standing
@@ -264,7 +277,10 @@ const config = withMermaid(defineVersionedConfig({
         // keyed one is cast; the shape it accepts is documented in scripts/navigation.mjs.
         nav: navigation.nav as unknown as DefaultTheme.NavItem[],
         sidebar: navigation.sidebar,
-        outline: { level: [2, 3], label: 'On this page' }
+        outline: { level: [2, 3], label: 'On this page' },
+
+        // Read by PreviewBanner.vue and VersionSwitcher.vue. VitePress passes unknown themeConfig keys through.
+        release
     }
 }))
 

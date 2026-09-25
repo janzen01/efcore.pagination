@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import {
-	archiveWriter, blobsAt, isSkipped, leaked, parseBatchStream, siteAbsolute, strays, versioned
+	archiveWriter, blobsAt, isSkipped, leaked, newestOf, parseBatchStream, siteAbsolute, strays, versioned
 } from './sync-archive.mjs'
 import { expandDirectoryPatterns, readSrcExcludePatterns, srcExcludeMatcher } from './src-exclude.mjs'
 import { NAVIGATION, navigationIn, versionedNavigation } from './navigation.mjs'
@@ -278,3 +278,14 @@ test('a version without a navigation file has none, so the plugin falls back to 
 	writeFileSync(join(root, NAVIGATION), JSON.stringify({ nav: [], sidebar: {} }))
 	assert.deepEqual(navigationIn(root), { nav: [], sidebar: {} })
 }))
+
+test('a line is archived from its newest stable release, or its newest prerelease until it has one', () => {
+	// The order git gives with versionsort.suffix=-, newest first. Without that setting 11.0.0-rc.10 sorts
+	// above 11.0.0, and a line that has shipped would keep being archived from its release candidate.
+	assert.equal(newestOf(['v10.1.1', 'v10.1.0', 'v10.1.0-rc.1']), 'v10.1.1')
+	assert.equal(newestOf(['v11.0.0-rc.1', 'v11.0.0-preview.2', 'v11.0.0-preview.1']), 'v11.0.0-rc.1')
+
+	// A stable release wins even when git lists a newer-looking prerelease of the *next* patch first.
+	assert.equal(newestOf(['v10.1.2-rc.1', 'v10.1.1']), 'v10.1.1')
+	assert.equal(newestOf([]), undefined)
+})
