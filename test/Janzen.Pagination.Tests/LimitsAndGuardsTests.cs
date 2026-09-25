@@ -38,7 +38,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 	[Fact]
 	public async Task An_offset_past_the_ceiling_is_rejected() {
 		string message = await Assertions.RejectsAsync(() =>
-			Products().PageAsync<ProductDto>(new PaginateQuery { Page = 4, Limit = 2 }, Config(b => b.WithMaxOffset(4))));
+			Products().PageAsync<ProductDto>(new PaginateQuery { Page = 4, Limit = 2 }, Config(b => b.WithMaxOffset(4)))
+		);
 
 		Assert.Equal("Query parameter 'page' exceeds the allowed offset for this resource: at most 4 rows may be skipped.", message);
 	}
@@ -50,7 +51,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 		await using var context = fixture.CreateLoggingContext(executedSql);
 
 		await Assertions.RejectsAsync(() =>
-			SqliteFixture.Products(context).PageAsync<ProductDto>(new PaginateQuery { Page = 500, Limit = 10 }, Config(b => b.WithMaxOffset(100))));
+			SqliteFixture.Products(context).PageAsync<ProductDto>(new PaginateQuery { Page = 500, Limit = 10 }, Config(b => b.WithMaxOffset(100)))
+		);
 
 		// Not even the count: the guard is arithmetic, so a guarded deep page never reaches the database at all.
 		Assert.Empty(executedSql);
@@ -95,7 +97,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 		executedSql.Clear();
 
 		string message = await Assertions.RejectsAsync(() =>
-			SqliteFixture.Products(context).PageAsync<ProductDto>(request, Config(b => b.WithMaxOffset(5))));
+			SqliteFixture.Products(context).PageAsync<ProductDto>(request, Config(b => b.WithMaxOffset(5)))
+		);
 
 		Assert.Equal("Query parameter 'page' exceeds the allowed offset for this resource: at most 5 rows may be skipped.", message);
 		Assert.Empty(executedSql);
@@ -149,7 +152,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 	[Fact]
 	public async Task Unlimited_past_the_ceiling_is_rejected() {
 		string message = await Assertions.RejectsAsync(() =>
-			Products().PageAsync<ProductDto>(new PaginateQuery { Limit = -1 }, Config(b => b.AllowUnlimited(3))));
+			Products().PageAsync<ProductDto>(new PaginateQuery { Limit = -1 }, Config(b => b.AllowUnlimited(3)))
+		);
 
 		Assert.Equal("The unlimited read is too large: this resource returns at most 3 rows for 'limit=-1'.", message);
 	}
@@ -166,7 +170,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 	[Fact]
 	public async Task Unlimited_needs_page_one() {
 		string message = await Assertions.RejectsAsync(() =>
-			Products().PageAsync<ProductDto>(new PaginateQuery { Page = 2, Limit = -1 }, Config(b => b.AllowUnlimited(100))));
+			Products().PageAsync<ProductDto>(new PaginateQuery { Page = 2, Limit = -1 }, Config(b => b.AllowUnlimited(100)))
+		);
 
 		Assert.Equal("Query parameter 'page' must be 1 when 'limit' is -1.", message);
 	}
@@ -177,7 +182,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData(0)]
 	public async Task A_non_positive_limit_is_rejected_without_the_opt_in(int limit) {
 		string message = await Assertions.RejectsAsync(() =>
-			Products().PageAsync<ProductDto>(new PaginateQuery { Limit = limit }, Config(_ => { })));
+			Products().PageAsync<ProductDto>(new PaginateQuery { Limit = limit }, Config(_ => { }))
+		);
 
 		Assert.Equal($"Query parameter 'limit' must be between 1 and {Query.All}.", message);
 	}
@@ -187,7 +193,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData(0)]
 	public async Task Only_minus_one_is_the_unlimited_literal(int limit) {
 		await Assertions.RejectsAsync(() =>
-			Products().PageAsync<ProductDto>(new PaginateQuery { Limit = limit }, Config(b => b.AllowUnlimited(100))));
+			Products().PageAsync<ProductDto>(new PaginateQuery { Limit = limit }, Config(b => b.AllowUnlimited(100)))
+		);
 	}
 
 	[Fact]
@@ -208,7 +215,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 	[Fact]
 	public async Task A_search_term_below_the_minimum_is_rejected() {
 		string message = await Assertions.RejectsAsync(() =>
-			Products().PageAsync<ProductDto>(Query.Search("a"), Config(b => b.WithMinSearchLength(3))));
+			Products().PageAsync<ProductDto>(Query.Search("a"), Config(b => b.WithMinSearchLength(3)))
+		);
 
 		Assert.Equal("Search term must be at least 3 characters.", message);
 	}
@@ -224,7 +232,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 		// Three characters of whitespace around one letter used to satisfy a minimum of 3 and then search for
 		// the spaces. The term is measured after trimming, so it is now the 400 it should always have been.
 		string message = await Assertions.RejectsAsync(() =>
-			Products().PageAsync<ProductDto>(Query.Search("  a  "), Config(b => b.WithMinSearchLength(3))));
+			Products().PageAsync<ProductDto>(Query.Search("  a  "), Config(b => b.WithMinSearchLength(3)))
+		);
 
 		Assert.Equal("Search term must be at least 3 characters.", message);
 
@@ -261,7 +270,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 		// The three pattern operators emit the same LIKE '%...%' as search does, so the guard that exists to stop
 		// a one-character scan has to cover both paths to it.
 		string message = await Assertions.RejectsAsync(() =>
-			Products().PageAsync<ProductDto>(Query.Filter("name", criterion), PatternConfig(b => b.WithMinSearchLength(3))));
+			Products().PageAsync<ProductDto>(Query.Filter("name", criterion), PatternConfig(b => b.WithMinSearchLength(3)))
+		);
 
 		Assert.Equal("Filter 'name' pattern must be at least 3 characters.", message);
 
@@ -273,7 +283,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 		// The cheapest scan of all: an empty value escapes to the empty string, emits %% and matches every
 		// non-NULL row. It cleared the default minimum of 1 because nothing measured it.
 		string message = await Assertions.RejectsAsync(() =>
-			Products().PageAsync<ProductDto>(Query.Filter("name", "$ilike:"), PatternConfig(_ => { })));
+			Products().PageAsync<ProductDto>(Query.Filter("name", "$ilike:"), PatternConfig(_ => { }))
+		);
 
 		Assert.Equal("Filter 'name' pattern must be at least 1 characters.", message);
 
@@ -287,7 +298,8 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 	[Fact]
 	public async Task A_pattern_value_above_the_maximum_is_rejected() {
 		string message = await Assertions.RejectsAsync(() =>
-			Products().PageAsync<ProductDto>(Query.Filter("name", "$ilike:widget"), PatternConfig(b => b.WithGuards(maxSearchLength: 3))));
+			Products().PageAsync<ProductDto>(Query.Filter("name", "$ilike:widget"), PatternConfig(b => b.WithGuards(maxSearchLength: 3)))
+		);
 
 		Assert.Equal("Filter 'name' pattern must not exceed 3 characters.", message);
 	}

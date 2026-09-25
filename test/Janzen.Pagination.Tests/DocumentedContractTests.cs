@@ -65,7 +65,8 @@ public sealed class DocumentedContractTests {
 			.WithLimits(3, Query.All)
 			.WithGuards(maxFilterConditions: 1)
 			.WithTieBreaker(p => p.Id)
-			.Filterable("status", p => p.Status));
+			.Filterable("status", p => p.Status)
+		);
 
 		string message = await Assertions.RejectsAsync(
 			() => TestData.Products().AsQueryable().PageAsync<ProductDto>(request, config)
@@ -100,7 +101,8 @@ public sealed class DocumentedContractTests {
 			.WithLimits(3, Query.All)
 			.AllowUnlimited(100)
 			.WithTieBreaker(p => p.Id)
-			.Filterable("name", p => p.Name));
+			.Filterable("name", p => p.Name)
+		);
 
 		var page = await TestData.Products().AsQueryable().PageAsync<ProductDto>(
 			new PaginateQuery { Limit = -1, Filters = new Dictionary<string, IReadOnlyList<string>> { ["name"] = ["$eq:nothing matches this"] } },

@@ -31,7 +31,8 @@ public sealed class ErrorCodeTests {
 			.WithLimits(10, 50)
 			.WithMaxOffset(10)
 			.Sortable("id", p => p.Id)
-			.WithTieBreaker(p => p.Id));
+			.WithTieBreaker(p => p.Id)
+		);
 
 		Assert.Equal(PaginateQueryError.MaxOffsetExceeded, (await Rejects(new PaginateQuery { Page = 5, Limit = 10 }, config)).Code);
 
@@ -44,7 +45,8 @@ public sealed class ErrorCodeTests {
 			.WithLimits(10, 50)
 			.AllowUnlimited(3)
 			.Sortable("id", p => p.Id)
-			.WithTieBreaker(p => p.Id));
+			.WithTieBreaker(p => p.Id)
+		);
 
 		Assert.Equal(
 			PaginateQueryError.UnlimitedReadRequiresFirstPage,
@@ -135,7 +137,8 @@ public sealed class ErrorCodeTests {
 			.WithMinSearchLength(2)
 			.Sortable("id", p => p.Id)
 			.WithTieBreaker(p => p.Id)
-			.Filterable("name", p => p.Name));
+			.Filterable("name", p => p.Name)
+		);
 
 		Assert.Equal(PaginateQueryError.FilterPatternTooShort, (await Rejects(Query.Filter("name", "$ilike:a"), config)).Code);
 		Assert.Equal(PaginateQueryError.FilterPatternTooLong, (await Rejects(Query.Filter("name", "$ilike:widget"), config)).Code);
@@ -171,7 +174,8 @@ public sealed class ErrorCodeTests {
 			.Sortable("rank", p => p.Rank)
 			.WithTieBreaker(p => p.Id)
 			.Searchable("name", p => p.Name)
-			.Filterable("rank", p => p.Rank, PaginateFilterOperator.In, PaginateFilterOperator.Eq));
+			.Filterable("rank", p => p.Rank, PaginateFilterOperator.In, PaginateFilterOperator.Eq)
+		);
 
 		Assert.Equal(PaginateQueryError.TooManyFilterConditions, (await Rejects(Query.Filter("rank", "$eq:10", "$eq:20", "$eq:30"), guards)).Code);
 
@@ -206,14 +210,16 @@ public sealed class ErrorCodeTests {
 			.WithLimits(10, 50)
 			.WithGuards(maxSortFields: 4)
 			.Sortable("id", p => p.Id)
-			.WithTieBreaker(p => p.Id));
+			.WithTieBreaker(p => p.Id)
+		);
 
 		Assert.Equal(PaginateQueryError.DuplicateSortField, (await Rejects(Query.Sort("id:ASC", "id:DESC"), twoSorts)).Code);
 
 		var searchless = PaginateConfig<Product>.Create(b => b
 			.WithLimits(10, 50)
 			.Sortable("id", p => p.Id)
-			.WithTieBreaker(p => p.Id));
+			.WithTieBreaker(p => p.Id)
+		);
 
 		Assert.Equal(PaginateQueryError.SearchNotConfigured, (await Rejects(new PaginateQuery { Search = "widget" }, searchless)).Code);
 
@@ -233,7 +239,8 @@ public sealed class ErrorCodeTests {
 			.GetMethods()
 			.SelectMany(method => method.GetCustomAttributes(typeof(FactAttribute), inherit: false).Length > 0
 				? CodesAssertedBy(method.Name)
-				: [])
+				: []
+			)
 			.ToHashSet();
 
 		// Asserted elsewhere and named here, so the guard counts them rather than pretending this class is the
@@ -263,7 +270,8 @@ public sealed class ErrorCodeTests {
 			nameof(Filter_rejections_are_coded) => [
 				PaginateQueryError.FilterFieldNotConfigured, PaginateQueryError.FilterCriterionMalformed,
 				PaginateQueryError.FilterOperatorUnknown, PaginateQueryError.FilterOperatorNotAllowed,
-				PaginateQueryError.FilterValueCountInvalid, PaginateQueryError.DuplicateFilterField],
+				PaginateQueryError.FilterValueCountInvalid, PaginateQueryError.DuplicateFilterField
+			],
 			nameof(An_operator_that_does_not_fit_the_field_type_is_coded) => [PaginateQueryError.FilterOperatorTypeMismatch],
 			nameof(Value_conversion_rejections_are_coded) => [PaginateQueryError.ValueInvalid, PaginateQueryError.ValueEmpty],
 			nameof(The_pattern_length_guards_have_their_own_two_codes) => [PaginateQueryError.FilterPatternTooShort, PaginateQueryError.FilterPatternTooLong],
@@ -272,7 +280,8 @@ public sealed class ErrorCodeTests {
 				PaginateQueryError.TooManyFilterConditions, PaginateQueryError.TooManyFilterValues,
 				PaginateQueryError.FilterOperatorUnsupported, PaginateQueryError.SearchTermTooShort,
 				PaginateQueryError.SearchTermTooLong, PaginateQueryError.TooManySortFields,
-				PaginateQueryError.DuplicateSortField, PaginateQueryError.SearchNotConfigured],
+				PaginateQueryError.DuplicateSortField, PaginateQueryError.SearchNotConfigured
+			],
 			_ => []
 		};
 

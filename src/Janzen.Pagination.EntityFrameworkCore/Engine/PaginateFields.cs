@@ -267,7 +267,8 @@ internal abstract class PaginateFilterField(
 				Type == typeof(string) && context.InMemory
 					? Expression.Call(StringCompareInvariantMethod, operand, target, Expression.Constant(StringComparison.InvariantCulture))
 					: Expression.Call(operand, Type == typeof(string) ? StringCompareToMethod : GuidCompareToMethod, target),
-				Expression.Constant(0));
+				Expression.Constant(0)
+			);
 
 		}
 
@@ -303,7 +304,8 @@ internal abstract class PaginateFilterField(
 			.Select(itemExpression => Expression.Call(containsMethod, collectionExpression, itemExpression))
 			.Aggregate<Expression, Expression?>(null, (current, containsExpression) => current is null
 				? containsExpression
-				: Expression.AndAlso(current, containsExpression));
+				: Expression.AndAlso(current, containsExpression)
+			);
 
 		if (!valueExpression.Type.IsValueType || Nullable.GetUnderlyingType(valueExpression.Type) is not null) {
 			aggregate = Expression.AndAlso(

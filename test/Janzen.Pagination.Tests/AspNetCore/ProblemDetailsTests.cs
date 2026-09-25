@@ -118,11 +118,14 @@ public sealed class ProblemDetailsTests {
 
 	[Fact]
 	public async Task The_endpoint_filter_lets_other_exceptions_through() {
+
 		var context = new DefaultEndpointFilterInvocationContext(new DefaultHttpContext());
 
 		await Assert.ThrowsAsync<InvalidOperationException>(() => new PaginateExceptionEndpointFilter()
 			.InvokeAsync(context, _ => throw new InvalidOperationException("something else"))
-			.AsTask());
+			.AsTask()
+		);
+
 	}
 
 	[Fact]

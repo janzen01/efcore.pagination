@@ -25,7 +25,8 @@ public sealed class NestedPathTests(SqliteFixture fixture) : IClassFixture<Sqlit
 		.Searchable("category.name", p => p.Category!.Name)
 		.Filterable("category.name", p => p.Category!.Name)
 		.Filterable("category.id", p => p.Category!.Id, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual, PaginateFilterOperator.Null)
-		.FilterableMany("review.rating", p => p.Reviews, r => r.Rating));
+		.FilterableMany("review.rating", p => p.Reviews, r => r.Rating)
+	);
 
 	private static async Task<int[]> Ids(IQueryable<Product> source, PaginateQuery request) {
 		return [.. (await source.PageAsync<ProductDto>(request, Config)).Items.Select(item => item.Id)];

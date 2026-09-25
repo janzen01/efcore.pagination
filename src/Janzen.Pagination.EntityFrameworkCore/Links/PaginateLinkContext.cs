@@ -103,7 +103,8 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 				$"Path contains U+{(int)path[offending]:X4}, which cannot appear in a URI path — the link would "
 				+ "address a different resource. Supply an escaped path: PathString.ToUriComponent() in ASP.NET "
 				+ "Core, or Uri.EscapeDataString per segment elsewhere.",
-				nameof(Path));
+				nameof(Path)
+			);
 
 		}
 

@@ -180,7 +180,8 @@ public sealed class QueryParserTests {
 			.Sortable("id", p => p.Id)
 			.DefaultSortBy("id")
 			.WithTieBreaker(p => p.Id)
-			.AllowUnlimited(100));
+			.AllowUnlimited(100)
+		);
 
 		var page = await TestData.Products().AsQueryable().PageAsync<ProductDto>(Parse("?limit=-1"), config);
 
@@ -236,25 +237,32 @@ public sealed class QueryParserTests {
 			.WithMaxOffset(100)
 			.Sortable("id", p => p.Id)
 			.WithTieBreaker(p => p.Id)
-			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq)
+		);
 
 		const string Duplicated = "&filter.status=$eq:Active&filter.%20status=$eq:Draft";
 
 		Assert.Equal(
 			"Query parameter 'page' exceeds the allowed offset for this resource: at most 100 rows may be skipped.",
 			await Assertions.RejectsAsync(() => TestData.Products().AsQueryable()
-				.PageAsync<ProductDto>(Parse($"?page=1000&limit=10{Duplicated}"), guarded)));
+				.PageAsync<ProductDto>(Parse($"?page=1000&limit=10{Duplicated}"), guarded)
+			)
+		);
 
 		Assert.Equal(
 			"Query parameter 'limit' must be between 1 and 50.",
 			await Assertions.RejectsAsync(() => TestData.Products().AsQueryable()
-				.PageAsync<ProductDto>(Parse($"?limit=9999{Duplicated}"), guarded)));
+				.PageAsync<ProductDto>(Parse($"?limit=9999{Duplicated}"), guarded)
+			)
+		);
 
 		// And the filter error is still reported once the paging ones are gone, rather than swallowed.
 		Assert.Equal(
 			"Filter for field 'status' is specified more than once.",
 			await Assertions.RejectsAsync(() => TestData.Products().AsQueryable()
-				.PageAsync<ProductDto>(Parse($"?page=1&limit=10{Duplicated}"), guarded)));
+				.PageAsync<ProductDto>(Parse($"?page=1&limit=10{Duplicated}"), guarded)
+			)
+		);
 
 	}
 

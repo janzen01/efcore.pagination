@@ -5,14 +5,16 @@ public sealed class SearchTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 
 	private readonly static PaginateConfig<Product> NoSearchableFields = PaginateConfig<Product>.Create(b => b
 		.WithLimits(50, 50)
-		.WithTieBreaker(p => p.Id));
+		.WithTieBreaker(p => p.Id)
+	);
 
 	private readonly static PaginateConfig<Product> SearchByIgnored = PaginateConfig<Product>.Create(b => b
 		.WithLimits(50, 50)
 		.WithTieBreaker(p => p.Id)
 		.IgnoreSearchByInQueryParam()
 		.Searchable("name", p => p.Name)
-		.Searchable("description", p => p.Description));
+		.Searchable("description", p => p.Description)
+	);
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request, PaginateConfig<Product>? config = null) {
 		await using var context = fixture.CreateContext();

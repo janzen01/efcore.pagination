@@ -16,7 +16,8 @@ public sealed class MetadataEqualityTests {
 			.Sortable("rank", p => p.Rank)
 			.WithTieBreaker(p => p.Id)
 			.Searchable("name", p => p.Name)
-			.Filterable("status", p => p.Status, statusOperators.Length > 0 ? statusOperators : [PaginateFilterOperator.Eq, PaginateFilterOperator.In]));
+			.Filterable("status", p => p.Status, statusOperators.Length > 0 ? statusOperators : [PaginateFilterOperator.Eq, PaginateFilterOperator.In])
+		);
 
 	}
 

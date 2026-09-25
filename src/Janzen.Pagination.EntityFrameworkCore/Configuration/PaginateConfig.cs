@@ -792,7 +792,8 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		var shared = PaginateConfigDefaults.Shared;
 
 		if (Resolve(_defaultLimit, d => d.DefaultLimit) is not { } defaultLimit
-			|| Resolve(_maxLimit, d => d.MaxLimit) is not { } maxLimit) {
+			|| Resolve(_maxLimit, d => d.MaxLimit) is not { } maxLimit
+		) {
 			throw new InvalidOperationException("Pagination limits must be configured explicitly via WithLimits(defaultLimit, maxLimit).");
 		}
 

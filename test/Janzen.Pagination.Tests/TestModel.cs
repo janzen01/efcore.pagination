@@ -267,6 +267,7 @@ public static class TestData {
 			PaginateFilterOperator.In,
 			PaginateFilterOperator.ILike
 		)
-		.FilterableMany("rating", p => p.Reviews, r => r.Rating, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual));
+		.FilterableMany("rating", p => p.Reviews, r => r.Rating, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual)
+	);
 
 }

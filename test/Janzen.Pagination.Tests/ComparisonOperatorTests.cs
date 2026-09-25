@@ -20,7 +20,8 @@ public sealed class ComparisonOperatorTests(SqliteFixture fixture) : IClassFixtu
 		.Filterable("name", p => p.Name, Ranges)
 		.Filterable("description", p => p.Description, Ranges)
 		.Filterable("externalId", p => p.ExternalId, Ranges)
-		.Filterable("status", p => p.Status, Ranges));
+		.Filterable("status", p => p.Status, Ranges)
+	);
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request) {
 		await using var context = fixture.CreateContext();
@@ -59,7 +60,8 @@ public sealed class ComparisonOperatorTests(SqliteFixture fixture) : IClassFixtu
 		Assert.Throws<InvalidOperationException>(() => PaginateConfig<Product>.Create(b => b
 			.WithLimits(50, 50)
 			.WithTieBreaker(p => p.Id)
-			.Filterable("isFeatured", p => p.IsFeatured, Ranges)));
+			.Filterable("isFeatured", p => p.IsFeatured, Ranges)
+		));
 
 	}
 

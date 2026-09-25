@@ -172,7 +172,8 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		// configuration and sends none, so publishing it there was the document promising a member the runtime
 		// does not send.
 		if (context.Description.ActionDescriptor is ControllerActionDescriptor
-			|| context.ApplicationServices.GetService<IProblemDetailsService>() is not null) {
+			|| context.ApplicationServices.GetService<IProblemDetailsService>() is not null
+		) {
 			properties["traceId"] = new OpenApiSchema { Type = JsonSchemaType.String };
 		}
 
@@ -417,7 +418,8 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			? "\n\n`$ilike`, `$sw` and `$contains` values are measured as sent — not trimmed — and "
 				+ (config.MinSearchLength > 1
 					? $"must be between {config.MinSearchLength} and {config.MaxSearchLength} characters"
-					: $"must not exceed {config.MaxSearchLength} characters")
+					: $"must not exceed {config.MaxSearchLength} characters"
+				)
 				+ "; outside that the request returns 400."
 			: string.Empty;
 
@@ -459,7 +461,8 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		return [.. config.SortableFields
 			.SelectMany(field => new JsonNode[] {
 				JsonValue.Create($"{field.Name}:ASC"), JsonValue.Create($"{field.Name}:DESC")
-			})];
+			})
+		];
 	}
 
 	private static JsonArray? BuildDefaultSort(IPaginateConfig config) {
@@ -470,14 +473,16 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		// node, while Add<T> boxes an arbitrary T into a JsonValue and is [RequiresUnreferencedCode] for it. Same
 		// shape as BuildSortEnum above, and the node is a string either way.
 		return [.. config.DefaultSortBy
-			.Select(JsonNode (sort) => JsonValue.Create($"{sort.Field}:{PaginateExpressionUtils.FormatDirection(sort.Direction)}"))];
+			.Select(JsonNode (sort) => JsonValue.Create($"{sort.Field}:{PaginateExpressionUtils.FormatDirection(sort.Direction)}"))
+		];
 
 	}
 
 	private static string BuildFieldDescription(IEnumerable<PaginateFieldMetadata> fields) {
 		return string.Join('\n', fields
 			.OrderBy(field => field.Name, StringComparer.Ordinal)
-			.Select(field => $"- `{field.Name}` (`{DescribeValueType(field.Type).Name}`){RenderBadge(field.Badge)}"));
+			.Select(field => $"- `{field.Name}` (`{DescribeValueType(field.Type).Name}`){RenderBadge(field.Badge)}")
+		);
 	}
 
 	private static IEnumerable<string> BuildOperatorTokens(PaginateFilterFieldMetadata field) {

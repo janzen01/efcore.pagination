@@ -13,7 +13,8 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 	private readonly static PaginateConfig<Product> Unordered = PaginateConfig<Product>.Create(b => b
 		.WithLimits(50, 50)
 		.WithTieBreaker(p => p.Id)
-		.Filterable("id", p => p.Id, PaginateFilterOperator.Eq));
+		.Filterable("id", p => p.Id, PaginateFilterOperator.Eq)
+	);
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request, PaginateConfig<Product>? config = null) {
 		await using var context = fixture.CreateContext();
@@ -68,7 +69,8 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 		var config = PaginateConfig<Product>.Create(b => b
 			.WithLimits(50, 50)
 			.Sortable("status", p => p.Status)
-			.WithTieBreaker(p => p.Id, PaginateSortDirection.Desc));
+			.WithTieBreaker(p => p.Id, PaginateSortDirection.Desc)
+		);
 
 		Assertions.HasIds(await Page(Query.Sort("status:ASC"), config), 5, 3, 8, 7, 4, 2, 1, 6);
 
@@ -93,7 +95,8 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 		// reported as a client error, and one that hid for as long as every caller happened to send sortBy.
 		var exception = Assert.Throws<InvalidOperationException>(() => PaginateConfig<Product>.Create(b => b
 			.WithLimits(50, 50)
-			.Sortable("rank", p => p.Rank)));
+			.Sortable("rank", p => p.Rank)
+		));
 
 		Assert.StartsWith("A pagination configuration requires WithTieBreaker(...):", exception.Message);
 
@@ -101,11 +104,14 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 
 	[Fact]
 	public async Task A_tie_breaker_alone_is_enough_to_page() {
+
 		var config = PaginateConfig<Product>.Create(b => b
 			.WithLimits(50, 50)
-			.WithTieBreaker(p => p.Id, PaginateSortDirection.Desc));
+			.WithTieBreaker(p => p.Id, PaginateSortDirection.Desc)
+		);
 
 		Assertions.HasIds(await Page(new PaginateQuery { Limit = Query.All }, config), 8, 7, 6, 5, 4, 3, 2, 1);
+
 	}
 
 	/// <summary>
@@ -197,7 +203,8 @@ public sealed class OrderingOverloadTests {
 	private readonly static PaginateConfig<Product> ByNameContains = PaginateConfig<Product>.Create(b => b
 		.WithLimits(50, 50)
 		.WithTieBreaker(p => p.Id)
-		.Filterable("name", p => p.Name, PaginateFilterOperator.Contains));
+		.Filterable("name", p => p.Name, PaginateFilterOperator.Contains)
+	);
 
 	[Fact]
 	public void The_in_memory_leg_still_gets_the_culture_pinned_comparer() {
@@ -215,7 +222,8 @@ public sealed class OrderingOverloadTests {
 	private readonly static PaginateConfig<Product> ByName = PaginateConfig<Product>.Create(b => b
 		.WithLimits(50, 50)
 		.Sortable("name", p => p.Name)
-		.WithTieBreaker(p => p.Id));
+		.WithTieBreaker(p => p.Id)
+	);
 
 	/// <summary>The composed tree is ThenBy(OrderBy(...)), so the first ordering call found going down is the one.</summary>
 	private static int ArgumentCountOfOutermostOrder(Expression expression) {

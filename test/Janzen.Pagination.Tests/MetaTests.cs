@@ -14,7 +14,8 @@ public sealed class MetaTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 		.WithLimits(50, 50)
 		.WithTieBreaker(p => p.Id)
 		.IgnoreSearchByInQueryParam()
-		.Searchable("name", p => p.Name));
+		.Searchable("name", p => p.Name)
+	);
 
 	/// <summary>A default sort whose field is switched off for this caller, so the echo has to drop it too.</summary>
 	private readonly static PaginateConfig<Product> DisabledDefaultSort = PaginateConfig<Product>.Create(b => b
@@ -23,7 +24,8 @@ public sealed class MetaTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 		.Sortable("id", p => p.Id)
 		.DefaultSortBy("rank")
 		.DefaultSortBy("id")
-		.WithTieBreaker(p => p.Id));
+		.WithTieBreaker(p => p.Id)
+	);
 
 	/// <summary>The serializer defaults ASP.NET Core applies, so the asserted JSON is the one clients see.</summary>
 	private readonly static JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);

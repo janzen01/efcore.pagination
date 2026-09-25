@@ -22,7 +22,8 @@ public sealed class QueryCompositionTests(SqliteFixture fixture) : IClassFixture
 		.WithTieBreaker(p => p.Id)
 		.Searchable("name", p => p.Name)
 		.Searchable("description", p => p.Description)
-		.Searchable("categoryName", p => p.Category!.Name));
+		.Searchable("categoryName", p => p.Category!.Name)
+	);
 
 	private static int Occurrences(string text, string token) {
 		int count = 0;
@@ -120,7 +121,8 @@ public sealed class QueryCompositionTests(SqliteFixture fixture) : IClassFixture
 		var config = PaginateConfig<Holder>.Create(b => b
 			.WithLimits(50, 50)
 			.WithTieBreaker(holder => holder.Id)
-			.Filterable("tags", holder => holder.Bag!.Tags, PaginateFilterOperator.Contains));
+			.Filterable("tags", holder => holder.Bag!.Tags, PaginateFilterOperator.Contains)
+		);
 
 		// The in-memory leg rewrites the selector into its null-safe form before the element type is resolved, so
 		// a precomputed element type has to stay in step with the expression actually built — and the row with no

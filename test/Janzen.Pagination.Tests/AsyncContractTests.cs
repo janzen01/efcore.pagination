@@ -144,7 +144,8 @@ public sealed class EfInternalCouplingTests : IClassFixture<SqliteFixture> {
 
 		Assert.True(probed is not null,
 			"EntityQueryProvider has moved or been renamed; PaginateQueryableExtensions.UseDatabaseFunctions no longer "
-			+ "recognizes EF Core and every query would take the in-memory leg.");
+			+ "recognizes EF Core and every query would take the in-memory leg."
+		);
 
 		await using var context = _fixture.CreateContext();
 

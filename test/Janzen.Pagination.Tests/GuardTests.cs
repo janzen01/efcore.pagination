@@ -17,7 +17,8 @@ public sealed class GuardTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 			.WithTieBreaker(p => p.Id)
 			.Searchable("name", p => p.Name)
 			.Filterable("id", p => p.Id, PaginateFilterOperator.In, PaginateFilterOperator.Eq)
-			.Filterable("rank", p => p.Rank, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan));
+			.Filterable("rank", p => p.Rank, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan)
+		);
 	}
 
 	private async Task<string> Rejects(PaginateQuery request, PaginateConfig<Product> config) {

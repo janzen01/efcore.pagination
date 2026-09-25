@@ -19,7 +19,8 @@ public sealed class ConditionalFieldTests(SqliteFixture fixture) : IClassFixture
 			.WithTieBreaker(p => p.Id)
 			.Filterable("rank", p => p.Rank, PaginateFilterOperator.Eq)
 			.Filterable("isFeatured", p => p.IsFeatured, PaginateFilterOperator.Eq)
-				.When(allowed).ShowBadge("Admin", "language-admin"));
+				.When(allowed).ShowBadge("Admin", "language-admin")
+		);
 
 	}
 

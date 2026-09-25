@@ -17,7 +17,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 		.WithTieBreaker(p => p.Id)
 		.Filterable("categoryId", p => p.CategoryId, PaginateFilterOperator.Eq)
 		.Filterable("categoryKey", p => p.Category!.Id, PaginateFilterOperator.Eq)
-		.Filterable("externalId", p => p.ExternalId, PaginateFilterOperator.Between));
+		.Filterable("externalId", p => p.ExternalId, PaginateFilterOperator.Between)
+	);
 
 	private static IQueryable<Product> InMemory() { return TestData.Products().AsQueryable(); }
 
@@ -78,7 +79,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 		// Every row shares a rank, so ordering by it first leaves the string key deciding as a ThenBy.
 		.Sortable("rank", p => p.Rank)
 		.WithTieBreaker(p => p.Id)
-		.Filterable("name", p => p.Name, PaginateFilterOperator.GreaterThan));
+		.Filterable("name", p => p.Name, PaginateFilterOperator.GreaterThan)
+	);
 
 	private static IQueryable<Product> Letters() {
 		return new List<Product> {
@@ -144,7 +146,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 	private readonly static PaginateConfig<Crate> CrateConfig = PaginateConfig<Crate>.Create(b => b
 		.WithLimits(50, 50)
 		.WithTieBreaker(c => c.Id)
-		.Filterable("weight", c => c.Weight, PaginateFilterOperator.Eq));
+		.Filterable("weight", c => c.Weight, PaginateFilterOperator.Eq)
+	);
 
 	[Fact]
 	public async Task Equality_on_a_type_without_an_equality_operator_is_rejected_rather_than_failing_the_request() {
@@ -182,7 +185,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 		string statement = string.Join(' ', sql
 			.Split('\n')
 			.Where(line => !line.TrimStart().StartsWith(".param", StringComparison.Ordinal))
-			.SelectMany(line => line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+			.SelectMany(line => line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+		);
 
 		Assert.Contains("\"ExternalId\" >= @", statement, StringComparison.Ordinal);
 		Assert.Contains("\"ExternalId\" <= @", statement, StringComparison.Ordinal);

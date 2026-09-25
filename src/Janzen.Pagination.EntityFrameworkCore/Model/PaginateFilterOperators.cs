@@ -105,7 +105,8 @@ public static class PaginateFilterOperators {
 			$"Filter operators cannot be derived for type '{core.Name}'. Declare the field with an explicit operator list. "
 			+ "A type that must be registered first (UseNodaTime, RegisterSimpleType) has to be registered before "
 			+ "PaginateConfig<T>.Create runs: the shorthand derives its operators while the builder runs, not at Build().",
-			paramName);
+			paramName
+		);
 
 	}
 

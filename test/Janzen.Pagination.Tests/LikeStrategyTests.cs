@@ -199,7 +199,8 @@ public sealed class PerConfigLikeStrategyTests(SqliteFixture fixture) : IClassFi
 		Assert.Throws<ArgumentNullException>(() => PaginateConfig<Product>.Create(builder => builder
 			.WithLimits(defaultLimit: 3, maxLimit: 50)
 			.WithTieBreaker(p => p.Id)
-			.WithLikeStrategy(null!)));
+			.WithLikeStrategy(null!)
+		));
 	}
 
 	[Theory]

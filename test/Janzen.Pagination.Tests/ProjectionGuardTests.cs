@@ -159,7 +159,8 @@ public sealed class ProjectionGuardTests(OrphanFixture fixture) : IClassFixture<
 		.WithLimits(defaultLimit: 10, maxLimit: 50)
 		.Sortable("id", o => o.Id)
 		.DefaultSortBy("id")
-		.WithTieBreaker(o => o.Id));
+		.WithTieBreaker(o => o.Id)
+	);
 
 	private static string Rejects(Action act) { return Assert.Throws<InvalidOperationException>(act).Message; }
 

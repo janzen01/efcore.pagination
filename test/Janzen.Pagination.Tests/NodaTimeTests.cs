@@ -73,7 +73,8 @@ public sealed class NodaTimeTests {
 		.Filterable("opensAt", e => e.OpensAt, PaginateFilterOperator.Eq)
 		.Filterable("scheduled", e => e.Scheduled, PaginateFilterOperator.Eq)
 		.Filterable("length", e => e.Length, PaginateFilterOperator.Eq)
-		.Filterable("period", e => e.Period, PaginateFilterOperator.Eq));
+		.Filterable("period", e => e.Period, PaginateFilterOperator.Eq)
+	);
 
 	static NodaTimeTests() { PaginateNodaTime.Register(); }
 

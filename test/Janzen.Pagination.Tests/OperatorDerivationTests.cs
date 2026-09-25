@@ -92,7 +92,8 @@ public sealed class OperatorDerivationTests {
 			"A type that must be registered first (UseNodaTime, RegisterSimpleType) has to be registered before "
 			+ "PaginateConfig<T>.Create runs: the shorthand derives its operators while the builder runs, not at Build().",
 			exception.Message,
-			StringComparison.Ordinal);
+			StringComparison.Ordinal
+		);
 
 	}
 
@@ -112,7 +113,8 @@ public sealed class OperatorDerivationTests {
 			.DefaultSortBy("id")
 			.WithTieBreaker(p => p.Id)
 			.Filterable("rank", p => p.Rank)
-			.Filterable("name", p => p.Name));
+			.Filterable("name", p => p.Name)
+		);
 
 		IPaginateConfig meta = config;
 
@@ -136,7 +138,8 @@ public sealed class OperatorDerivationTests {
 			.Sortable("id", p => p.Id)
 			.DefaultSortBy("id")
 			.WithTieBreaker(p => p.Id)
-			.Filterable("rank", p => p.Rank));
+			.Filterable("rank", p => p.Rank)
+		);
 
 		var products = TestData.Products().AsQueryable();
 
@@ -158,7 +161,8 @@ public sealed class OperatorDerivationTests {
 			.Sortable("id", p => p.Id)
 			.DefaultSortBy("id")
 			.WithTieBreaker(p => p.Id)
-			.FilterableMany("rating", p => p.Reviews, r => r.Rating));
+			.FilterableMany("rating", p => p.Reviews, r => r.Rating)
+		);
 
 		var page = await TestData.Products().AsQueryable().PageAsync<ProductDto>(Query.Filter("rating", "$gte:5"), config);
 
@@ -195,7 +199,8 @@ public sealed class OperatorDerivationTests {
 		// against .Filterable(name, selector) goes looking for an argument that is not there. The input is the
 		// type argument the selector's return type inferred.
 		var exception = Assert.Throws<ArgumentException>(() =>
-			PaginateConfig<Product>.Create(b => b.Filterable("category", p => p.Category)));
+			PaginateConfig<Product>.Create(b => b.Filterable("category", p => p.Category))
+		);
 
 		Assert.Equal("TValue", exception.ParamName);
 
@@ -207,7 +212,8 @@ public sealed class OperatorDerivationTests {
 		// The derivation is an *argument* to the explicit overload, so it ran before that overload's guards and a
 		// null name was reported as a derivation failure on an unrelated type.
 		var exception = Assert.Throws<ArgumentNullException>(() =>
-			PaginateConfig<Product>.Create(b => b.Filterable(null!, p => p.Category)));
+			PaginateConfig<Product>.Create(b => b.Filterable(null!, p => p.Category))
+		);
 
 		Assert.Equal("name", exception.ParamName);
 

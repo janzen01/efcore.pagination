@@ -33,7 +33,8 @@ public sealed class DocumentedConfigProvider : IPaginateConfigProvider<Product> 
 		// to an explicit rule, so neither may follow the order the operators happen to be declared in.
 		.Filterable("status", p => p.Status, PaginateFilterOperator.In, PaginateFilterOperator.Eq)
 		.Filterable("isFeatured", p => p.IsFeatured, PaginateFilterOperator.Eq)
-			.When(true).ShowBadge("Admin only", "language-admin"));
+			.When(true).ShowBadge("Admin only", "language-admin")
+	);
 
 	public PaginateConfig<Product> GetConfig() { return Config; }
 
@@ -46,7 +47,8 @@ public sealed class SearchlessConfigProvider : IPaginateConfigProvider<Product> 
 		return PaginateConfig<Product>.Create(b => b
 			.WithLimits(defaultLimit: 15, maxLimit: 60)
 			.WithTieBreaker(p => p.Id)
-			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq)
+		);
 	}
 
 }
@@ -66,11 +68,14 @@ public sealed class PerConfigStrategyProvider : IPaginateConfigProvider<Product>
 	}
 
 	public PaginateConfig<Product> GetConfig() {
+
 		return PaginateConfig<Product>.Create(b => b
 			.WithLimits(defaultLimit: 15, maxLimit: 60)
 			.WithTieBreaker(p => p.Id)
 			.WithLikeStrategy(new ILikePreferringStrategy())
-			.Filterable("name", p => p.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.ILike));
+			.Filterable("name", p => p.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.ILike)
+		);
+
 	}
 
 }
@@ -91,7 +96,8 @@ public sealed class TightCeilingConfigProvider : IPaginateConfigProvider<Product
 			.WithTieBreaker(p => p.Id)
 			.WithGuards(maxSearchLength: 2)
 			.Sortable("rank", p => p.Rank)
-			.Filterable("name", p => p.Name, PaginateFilterOperator.ILike));
+			.Filterable("name", p => p.Name, PaginateFilterOperator.ILike)
+		);
 
 	}
 
@@ -107,7 +113,8 @@ public sealed class PatternGuardedConfigProvider : IPaginateConfigProvider<Produ
 			.WithMinSearchLength(5)
 			.WithGuards(maxSearchLength: 6)
 			.Sortable("rank", p => p.Rank)
-			.Filterable("name", p => p.Name, PaginateFilterOperator.ILike));
+			.Filterable("name", p => p.Name, PaginateFilterOperator.ILike)
+		);
 
 	}
 
@@ -129,7 +136,8 @@ public sealed class GuardedConfigProvider : IPaginateConfigProvider<Product> {
 			.Sortable("rank", p => p.Rank)
 			.DefaultSortBy("rank", PaginateSortDirection.Desc)
 			.Searchable("name", p => p.Name)
-			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq)
+		);
 
 	}
 
@@ -150,7 +158,8 @@ public sealed class RegisteredConfigProvider(string fieldName) : IPaginateConfig
 		return PaginateConfig<Product>.Create(b => b
 			.WithLimits(defaultLimit: 15, maxLimit: 60)
 			.WithTieBreaker(p => p.Id)
-			.Filterable(fieldName, p => p.Name, PaginateFilterOperator.Eq));
+			.Filterable(fieldName, p => p.Name, PaginateFilterOperator.Eq)
+		);
 	}
 
 }
@@ -189,7 +198,8 @@ public sealed class CountingConfigProvider : IPaginateConfigProvider<Product>, I
 		return PaginateConfig<Product>.Create(b => b
 			.WithLimits(defaultLimit: 15, maxLimit: 60)
 			.WithTieBreaker(p => p.Id)
-			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq)
+		);
 	}
 
 }
@@ -315,7 +325,8 @@ public sealed class EveryValueTypeConfigProvider : IPaginateConfigProvider<Every
 			// The two operators whose example is not "$op:one scalar": $null takes no value at all, and $btw takes
 			// exactly two. Each is its field's only operator, so it is the one the example has to be written for.
 			.Filterable("nullOnly", x => x.OptionalText, PaginateFilterOperator.Null)
-			.Filterable("betweenOnly", x => x.IntValue, PaginateFilterOperator.Between));
+			.Filterable("betweenOnly", x => x.IntValue, PaginateFilterOperator.Between)
+		);
 
 	}
 
@@ -583,7 +594,8 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// element -- keep it that way, or this test passes without exercising them.
 		string[] offenders = [.. Parameters("/products").EnumerateArray()
 			.Where(p => p.TryGetProperty("description", out var description) && description.GetString()?.Contains('\r') == true)
-			.Select(p => p.GetProperty("name").GetString()!)];
+			.Select(p => p.GetProperty("name").GetString()!)
+		];
 
 		Assert.Empty(offenders);
 
@@ -597,11 +609,14 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	}
 
 	private string[] ValidationFailureMembers(string path) {
+
 		return [.. fixture.Document.GetProperty("paths").GetProperty(path).GetProperty("get")
 			.GetProperty("responses").GetProperty("400")
 			.GetProperty("content").GetProperty("application/problem+json")
 			.GetProperty("schema").GetProperty("properties")
-			.EnumerateObject().Select(property => property.Name)];
+			.EnumerateObject().Select(property => property.Name)
+		];
+
 	}
 
 	[Fact]
@@ -715,7 +730,8 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 			.Select(parameter => (
 				parameter.GetProperty("name").GetString()!,
 				parameter.GetProperty("schema").GetProperty("items").GetProperty("examples").EnumerateArray().First().GetString()!
-			))];
+			))
+		];
 
 	}
 
@@ -727,7 +743,8 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// a NodaTime type precisely, and the example beside it was the literal "value".
 		string[] placeholders = [.. FilterExamples("/every-type")
 			.Where(entry => entry.Example.EndsWith(":value", StringComparison.Ordinal))
-			.Select(entry => entry.Name)];
+			.Select(entry => entry.Name)
+		];
 
 		Assert.Empty(placeholders);
 
@@ -756,7 +773,8 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		string[] refused = [.. FilterExamples("/every-type")
 			.Select(entry => (entry.Name, entry.Example, Error: Refuses(source, entry.Name, entry.Example)))
 			.Where(entry => entry.Error is not null)
-			.Select(entry => $"{entry.Name}={entry.Example} -> {entry.Error}")];
+			.Select(entry => $"{entry.Name}={entry.Example} -> {entry.Error}")
+		];
 
 		Assert.Empty(refused);
 

@@ -27,7 +27,8 @@ public sealed class ValueWireGrammarDateTimeTests {
 		.WithTieBreaker(e => e.Id)
 		.Filterable("startsAt", e => e.StartsAt, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual)
 		.Filterable("observedAt", e => e.ObservedAt, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual)
-		.Filterable("elapsed", e => e.Elapsed, PaginateFilterOperator.Eq, PaginateFilterOperator.LessThanOrEqual));
+		.Filterable("elapsed", e => e.Elapsed, PaginateFilterOperator.Eq, PaginateFilterOperator.LessThanOrEqual)
+	);
 
 	/// <remarks>
 	///     Row 1 is the instant every accepted spelling below resolves to. Row 2 carries five days, which is what

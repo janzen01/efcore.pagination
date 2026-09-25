@@ -30,7 +30,8 @@ public sealed class ParameterizationTests(SqliteFixture fixture) : IClassFixture
 		return string.Join(' ', queryString
 			.Split('\n')
 			.Where(line => !line.TrimStart().StartsWith(".param", StringComparison.Ordinal))
-			.SelectMany(line => line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+			.SelectMany(line => line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+		);
 
 	}
 

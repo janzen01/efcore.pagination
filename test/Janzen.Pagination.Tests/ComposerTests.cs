@@ -22,7 +22,8 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 	/// <summary>Orders only by the tie-breaker: nothing is ever *requested*, so the sort echo is empty rather than null.</summary>
 	private readonly static PaginateConfig<Product> TieBreakerOnly = PaginateConfig<Product>.Create(b => b
 		.WithLimits(50, 50)
-		.WithTieBreaker(p => p.Id));
+		.WithTieBreaker(p => p.Id)
+	);
 
 	/// <summary>Opted into <c>limit=-1</c>, which is the branch where composer and engine compose differently.</summary>
 	private readonly static PaginateConfig<Product> Unlimited = PaginateConfig<Product>.Create(b => b
@@ -30,7 +31,8 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 		.AllowUnlimited(100)
 		.Sortable("rank", p => p.Rank)
 		.DefaultSortBy("rank")
-		.WithTieBreaker(p => p.Id));
+		.WithTieBreaker(p => p.Id)
+	);
 
 	private static string Rejects(Action act) { return Assert.Throws<PaginateQueryException>(act).Message; }
 
@@ -307,7 +309,8 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 		return string.Join(' ', sql
 			.Split('\n')
 			.Where(line => !line.TrimStart().StartsWith(".param", StringComparison.Ordinal))
-			.SelectMany(line => line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)));
+			.SelectMany(line => line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
+		);
 	}
 
 }

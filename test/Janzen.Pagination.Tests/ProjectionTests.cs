@@ -92,7 +92,8 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 			p => new { p.Id, Sum = p.Reviews.Sum(r => r.Rating), Count = p.Reviews.Count },
 			// The guard is why this cannot be a selector: EF has nothing to translate a divide-by-zero
 			// check plus rounding into.
-			row => new { row.Id, Average = row.Count == 0 ? (double?)null : Math.Round(row.Sum / (double)row.Count, 1) });
+			row => new { row.Id, Average = row.Count == 0 ? (double?)null : Math.Round(row.Sum / (double)row.Count, 1) }
+		);
 
 		Assert.Equal(4.0, page.Items[0].Average);
 		Assert.Null(page.Items[1].Average);

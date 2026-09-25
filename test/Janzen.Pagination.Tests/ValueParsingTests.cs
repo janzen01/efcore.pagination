@@ -30,7 +30,8 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 		)
 		.Filterable("retiredOn", p => p.RetiredOn, PaginateFilterOperator.Eq, PaginateFilterOperator.Null)
 		.Filterable("opensAt", p => p.OpensAt, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan)
-		.Filterable("warranty", p => p.Warranty, PaginateFilterOperator.Eq));
+		.Filterable("warranty", p => p.Warranty, PaginateFilterOperator.Eq)
+	);
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request) {
 		await using var context = fixture.CreateContext();
@@ -206,7 +207,8 @@ public sealed class ValueParsingNumericTests {
 		.Filterable("port", r => r.Port, PaginateFilterOperator.Eq)
 		.Filterable("sequence", r => r.Sequence, PaginateFilterOperator.Eq)
 		.Filterable("offset", r => r.Offset, PaginateFilterOperator.Eq)
-		.Filterable("grade", r => r.Grade, PaginateFilterOperator.Eq));
+		.Filterable("grade", r => r.Grade, PaginateFilterOperator.Eq)
+	);
 
 	private static Task<PaginatedResponse<ReadingDto>> FilterAsync(string field, string criterion) {
 
@@ -281,7 +283,8 @@ public sealed class ValueParsingRegistryTests {
 		public static bool TryParse(string? s, IFormatProvider? provider, out Ticket result) {
 
 			if (s is not null && s.StartsWith("T-", StringComparison.Ordinal)
-			                  && int.TryParse(s.AsSpan(2), NumberStyles.Integer, CultureInfo.InvariantCulture, out int number)) {
+			                  && int.TryParse(s.AsSpan(2), NumberStyles.Integer, CultureInfo.InvariantCulture, out int number)
+			) {
 				result = new Ticket(number);
 				return true;
 			}
@@ -309,7 +312,8 @@ public sealed class ValueParsingRegistryTests {
 		.WithLimits(10, 10)
 		.WithTieBreaker(j => j.Id)
 		.Filterable("ticket", j => j.Ticket, PaginateFilterOperator.Eq)
-		.Filterable("priority", j => j.Priority, PaginateFilterOperator.Eq));
+		.Filterable("priority", j => j.Priority, PaginateFilterOperator.Eq)
+	);
 
 	private static Task<PaginatedResponse<JobDto>> PageAsync(string field, string criterion) {
 

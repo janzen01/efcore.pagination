@@ -9,7 +9,8 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	private readonly static PaginateConfig<Product> UnsupportedValueType = PaginateConfig<Product>.Create(b => b
 		.WithLimits(50, 50)
 		.WithTieBreaker(p => p.Id)
-		.Filterable("tagsEq", p => p.Tags, PaginateFilterOperator.Eq));
+		.Filterable("tagsEq", p => p.Tags, PaginateFilterOperator.Eq)
+	);
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request, PaginateConfig<Product>? config = null) {
 		await using var context = fixture.CreateContext();

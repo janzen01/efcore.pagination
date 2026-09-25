@@ -27,7 +27,8 @@ public sealed class ValueWireGrammarNumericTests {
 		.WithTieBreaker(r => r.Id)
 		.Filterable("amount", r => r.Amount, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan)
 		.Filterable("ratio", r => r.Ratio, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan)
-		.Filterable("scale", r => r.Scale, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan));
+		.Filterable("scale", r => r.Scale, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan)
+	);
 
 	/// <remarks>
 	///     Row 1 holds <c>1.50</c> and row 2 holds <c>15</c> — the row a European-formatted <c>1,5</c> silently
