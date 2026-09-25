@@ -213,3 +213,12 @@ throws its own `InvalidOperationException` ("The LINQ expression … could not b
 PostgreSQL and SQL Server — while the SQLite provider refuses `DateTimeOffset` and `TimeSpan` comparisons
 outright, with or without this library in the picture. "Translatable" is a property of your provider, not of
 the operator; if a filter is offered to callers, exercise it against the provider you deploy on.
+
+**Nor is a split query that lost a race.** Since EF Core 11, a query run with `AsSplitQuery()` throws
+`DbQueryConcurrencyException` when the rows its separate statements read were modified in between, instead of
+silently returning an empty child collection. It is the shape a
+[`PaginateSelectAsync`](/guide/projections/) selector with sub-collections takes once you opt into split
+queries, and it passes the filters as a `500` like the others here: nothing in the request caused it, and the
+same request succeeds when retried. Retry it, run the page in a snapshot or serializable transaction, or keep the
+query single — see EF Core's
+[breaking-change note](https://learn.microsoft.com/ef/core/what-is-new/ef-core-11.0/breaking-changes).

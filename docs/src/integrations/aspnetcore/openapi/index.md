@@ -91,8 +91,19 @@ it is published for every controller operation and for a Minimal API operation o
 published at all: neither pipeline sets one and the framework synthesizes none, so a generated model would
 carry a property that is always `null`.
 
+An operation that already declares a `400` of its own — `ProducesProblem(400)`, `[ProducesResponseType(400)]`
+— keeps it untouched: the pagination `400` is added only where the operation has none, so the two never end up
+side by side on one operation.
+
 Exploded array parameters are what tell a client to repeat the key — `?sortBy=a:ASC&sortBy=b:DESC` — rather
 than comma-join it.
+
+## Document version
+
+ASP.NET Core 11 generates **OpenAPI 3.2** by default, so a committed document's `"openapi"` header moves from
+`3.1.x` to `3.2.0` on the upgrade without a line of yours changing. What this package contributes does not
+depend on the version: the parameters and the `400` come out identical under both, so a document pinned back
+with `options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_1` carries exactly what a 3.2 one does.
 
 ## What a reader actually sees
 
