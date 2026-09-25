@@ -72,6 +72,7 @@ internal static class PaginateNullSafeRewriter {
 		Expression current = root;
 
 		for (int index = 0; index < chain.Count - 1; index++) {
+
 			current = Expression.MakeMemberAccess(current, chain[index].Member);
 
 			if (current.Type.IsValueType && Nullable.GetUnderlyingType(current.Type) is null) continue;
@@ -81,6 +82,7 @@ internal static class PaginateNullSafeRewriter {
 			// AndAlso short-circuits, which is what keeps the guard from dereferencing a null itself: the second
 			// test only runs once the first has said the intermediate is there.
 			guard = guard is null ? notNull : Expression.AndAlso(guard, notNull);
+
 		}
 
 		if (guard is null) return null;
@@ -91,10 +93,7 @@ internal static class PaginateNullSafeRewriter {
 			? typeof(Nullable<>).MakeGenericType(access.Type)
 			: access.Type;
 
-		return Expression.Condition(
-			guard,
-			lifted == access.Type ? access : Expression.Convert(access, lifted),
-			Expression.Constant(null, lifted));
+		return Expression.Condition(guard, lifted == access.Type ? access : Expression.Convert(access, lifted), Expression.Constant(null, lifted));
 
 	}
 

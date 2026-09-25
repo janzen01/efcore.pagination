@@ -236,10 +236,8 @@ internal static class PaginateStructuralEquality {
 		if (left.Count != right.Count) return false;
 
 		for (int index = 0; index < left.Count; index++) {
-
 			if (!string.Equals(left[index].Key, right[index].Key, StringComparison.Ordinal)) return false;
 			if (!string.Equals(left[index].Value, right[index].Value, StringComparison.Ordinal)) return false;
-
 		}
 
 		return true;
@@ -357,9 +355,7 @@ internal static class PaginateStructuralEquality {
 
 		int hash = filter.Count;
 
-		foreach ((string field, var values) in filter) {
-			hash ^= HashCode.Combine(StringComparer.Ordinal.GetHashCode(field), ListHash(values));
-		}
+		foreach ((string field, var values) in filter) hash ^= HashCode.Combine(StringComparer.Ordinal.GetHashCode(field), ListHash(values));
 
 		return hash;
 

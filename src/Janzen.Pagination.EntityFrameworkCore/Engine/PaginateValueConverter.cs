@@ -164,6 +164,7 @@ internal static class PaginateValueConverter {
 			if (type == typeof(char)) return value.Length == 1 ? value[0] : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 
 			if (type.IsEnum) {
+
 				// Enums are addressed by one declared member name only — numeric forms are rejected so the filter
 				// contract is stable and well-defined (Enum.Parse otherwise accepts arbitrary numbers, including
 				// undefined [Flags] combinations). Both guards read the *trimmed* candidate, because Enum.Parse
@@ -179,6 +180,7 @@ internal static class PaginateValueConverter {
 
 				object parsed = Enum.Parse(type, member, true);
 				return Enum.IsDefined(type, parsed) ? parsed : throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
+
 			}
 
 			// Last: anything that can parse itself invariantly. This is what makes a consumer's strongly-typed id work

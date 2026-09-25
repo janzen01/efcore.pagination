@@ -44,11 +44,7 @@ public static class PaginateHttpRequestExtensions {
 			List<KeyValuePair<string, string>> query = new(request.Query.Count);
 
 			foreach ((string key, var values) in request.Query) {
-
-				for (int index = 0; index < values.Count; index++) {
-					query.Add(new KeyValuePair<string, string>(key, values[index] ?? string.Empty));
-				}
-
+				for (int index = 0; index < values.Count; index++) query.Add(new KeyValuePair<string, string>(key, values[index] ?? string.Empty));
 			}
 
 			// The path base belongs in the link: an app mounted under UsePathBase("/api") would otherwise hand clients

@@ -34,12 +34,14 @@ public sealed class TrimAnnotationTests {
 		Assert.NotEmpty(methods);
 
 		foreach (var method in methods) {
+
 			Assert.True(
 				method.GetCustomAttribute<RequiresUnreferencedCodeAttribute>() is not null,
 				$"{method.DeclaringType!.Name}.{method} carries no [RequiresUnreferencedCode]");
 			Assert.True(
 				method.GetCustomAttribute<RequiresDynamicCodeAttribute>() is not null,
 				$"{method.DeclaringType!.Name}.{method} carries no [RequiresDynamicCode]");
+
 		}
 
 	}

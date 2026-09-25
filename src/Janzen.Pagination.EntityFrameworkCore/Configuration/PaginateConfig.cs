@@ -811,9 +811,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		Positive(limits.MaxSearchLength, nameof(PaginateConfigDefaults.MaxSearchLength));
 		Positive(limits.MinSearchLength, nameof(PaginateConfigDefaults.MinSearchLength));
 
-		if (limits.MaxOffset < 0) {
-			throw new InvalidOperationException($"{nameof(PaginateConfigDefaults.MaxOffset)} must not be negative.");
-		}
+		if (limits.MaxOffset < 0) throw new InvalidOperationException($"{nameof(PaginateConfigDefaults.MaxOffset)} must not be negative.");
 
 		if (limits.MinSearchLength > limits.MaxSearchLength) {
 			throw new InvalidOperationException($"Min search length {limits.MinSearchLength} must not be greater than max search length {limits.MaxSearchLength}.");

@@ -80,9 +80,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			operation.Parameters.Add(CreateSearchParameter(config));
 
 			// searchBy is ignored at runtime when the resource opts out, so it must not be advertised.
-			if (!config.IgnoreSearchByInQueryParam) {
-				operation.Parameters.Add(CreateSearchByParameter(config));
-			}
+			if (!config.IgnoreSearchByInQueryParam) operation.Parameters.Add(CreateSearchByParameter(config));
 		}
 
 		// Read once rather than per field: it is loop-invariant, and a configuration carrying its own strategy must
@@ -193,6 +191,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private static void RemoveGeneratedPaginateParameters(IList<IOpenApiParameter> parameters) {
 		for (int i = parameters.Count - 1; i >= 0; i--) {
+
 			var parameter = parameters[i];
 			if (parameter.In != ParameterLocation.Query) continue;
 			if (parameter.Name is null) continue;
@@ -200,6 +199,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			if (GeneratedParameterNames.Contains(parameter.Name) || parameter.Name.StartsWith(PaginateQueryParams.FilterPrefix, StringComparison.OrdinalIgnoreCase)) {
 				parameters.RemoveAt(i);
 			}
+
 		}
 	}
 
@@ -471,9 +471,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 		// Ordered for the same reason the example is pinned: a set has no order, so an unordered list would
 		// rewrite this bullet list in a consumer's committed document whenever the backing collection changes.
-		foreach (var filterOperator in field.Operators.Order()) {
-			yield return PaginateFilterParser.GetOperatorToken(filterOperator);
-		}
+		foreach (var filterOperator in field.Operators.Order()) yield return PaginateFilterParser.GetOperatorToken(filterOperator);
 
 	}
 

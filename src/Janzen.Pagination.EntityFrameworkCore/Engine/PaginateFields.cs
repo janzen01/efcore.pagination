@@ -174,9 +174,7 @@ internal abstract class PaginateFilterField(
 	///     declared non-nullable therefore reports "no row is null" on both, nested or not.
 	/// </summary>
 	private Expression BuildNullExpression(Expression valueExpression) {
-		if (Nullable.GetUnderlyingType(ExpressionType) is null && ExpressionType.IsValueType) {
-			return Expression.Constant(false);
-		}
+		if (Nullable.GetUnderlyingType(ExpressionType) is null && ExpressionType.IsValueType) return Expression.Constant(false);
 
 		return Expression.Equal(valueExpression, Expression.Constant(null, valueExpression.Type));
 	}
@@ -189,9 +187,7 @@ internal abstract class PaginateFilterField(
 		var valueType = valueExpression.Type;
 		var converted = Array.CreateInstance(valueType, values.Length);
 
-		for (int i = 0; i < values.Length; i++) {
-			converted.SetValue(ConvertRawValue(values[i], valueType), i);
-		}
+		for (int i = 0; i < values.Length; i++) converted.SetValue(ConvertRawValue(values[i], valueType), i);
 
 		Expression valuesExpression = Expression.Constant(converted, converted.GetType());
 		if (context.UseDatabaseFunctions) valuesExpression = PaginateExpressionUtils.ToDatabaseParameter(valuesExpression);
@@ -224,6 +220,7 @@ internal abstract class PaginateFilterField(
 		// Numbers, dates, and add-on types that define their own operators (NodaTime's Instant, LocalDate) go straight
 		// through; only the three families below need help.
 		if (!Type.IsEnum && Type != typeof(string) && Type != typeof(Guid)) {
+
 			var constant = ConvertValue(value, valueExpression.Type, context);
 
 			try {
@@ -233,6 +230,7 @@ internal abstract class PaginateFilterField(
 				// now is: bool, and anything registered through PaginateTypeSupport without operators of its own.
 				throw new PaginateQueryException($"Filter '{Name}' does not support comparison operators for type '{Type.Name}'.", exception) { Code = PaginateQueryError.FilterOperatorTypeMismatch };
 			}
+
 		}
 
 		// Unwrapping the nullable keeps both stand-ins working on the underlying value; the null guard below restores
@@ -244,13 +242,16 @@ internal abstract class PaginateFilterField(
 		Expression compare;
 
 		if (Type.IsEnum) {
+
 			// Compare on the underlying integral type, which is also what the column stores unless the model maps the
 			// enum to text — in which case this filter does not translate, which is exactly how it behaved before.
 			var underlying = Enum.GetUnderlyingType(Type);
 			object? ordinal = Convert.ChangeType(ConvertRawValue(value, Type), underlying, CultureInfo.InvariantCulture);
 
 			compare = comparison(Expression.Convert(operand, underlying), ToConstant(ordinal, underlying, context));
+
 		} else {
+
 			// On a relational provider CompareTo translates to a plain SQL comparison, so the ordering is the
 			// database's — collation for strings, byte order for Guids. In memory the call really runs, and
 			// String.CompareTo reads CultureInfo.CurrentCulture: the same rows and the same filter answer
@@ -265,6 +266,7 @@ internal abstract class PaginateFilterField(
 					? Expression.Call(StringCompareInvariantMethod, operand, target, Expression.Constant(StringComparison.InvariantCulture))
 					: Expression.Call(operand, Type == typeof(string) ? StringCompareToMethod : GuidCompareToMethod, target),
 				Expression.Constant(0));
+
 		}
 
 		// Mirrors the pattern operators: SQL already yields false for NULL, the in-memory provider would throw.

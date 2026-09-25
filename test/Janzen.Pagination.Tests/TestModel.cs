@@ -169,6 +169,7 @@ public static class TestData {
 		];
 
 		foreach (var product in products) {
+
 			product.ExternalId = ExternalId(product.Id);
 			product.IsFeatured = product.Id is 1 or 7;
 			// Derived from the id so every assertion over these can be written as a literal: ids 1..8 give
@@ -178,6 +179,7 @@ public static class TestData {
 			product.Warranty = TimeSpan.FromHours(product.Id);
 			// Only the discontinued row is retired, mirroring DiscontinuedAt — everything else stays null.
 			product.RetiredOn = product.Id == 6 ? new DateOnly(2026, 6, 30) : null;
+
 		}
 
 		return products;

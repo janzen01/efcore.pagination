@@ -21,6 +21,7 @@ internal static class PaginateQueryParser {
 		string? duplicateFilter = null;
 
 		foreach ((string key, var values) in query) {
+
 			if (!key.StartsWith(PaginateQueryParams.FilterPrefix, StringComparison.OrdinalIgnoreCase)) continue;
 
 			// A field name is an identifier, so padding around one is never meaningful -- sortBy has always
@@ -39,9 +40,8 @@ internal static class PaginateQueryParser {
 			// Silently discarding a criterion is the failure mode this whole change exists to remove.
 			filters ??= new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
 
-			if (!filters.TryAdd(field, CopyValues(values))) {
-				duplicateFilter ??= $"Filter for field '{field}' is specified more than once.";
-			}
+			if (!filters.TryAdd(field, CopyValues(values))) duplicateFilter ??= $"Filter for field '{field}' is specified more than once.";
+
 		}
 
 		string? error = null;

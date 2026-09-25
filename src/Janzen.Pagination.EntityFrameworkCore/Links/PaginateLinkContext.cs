@@ -93,6 +93,7 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 		int offending = path.AsSpan().IndexOfAny(ForbiddenInAPath);
 
 		if (offending >= 0) {
+
 			// Named by code point, never echoed: the offender can be a control character, and this message reaches
 			// a log or a console the same way a 400 detail would.
 			throw new ArgumentException(
@@ -100,6 +101,7 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 				+ "address a different resource. Supply an escaped path: PathString.ToUriComponent() in ASP.NET "
 				+ "Core, or Uri.EscapeDataString per segment elsewhere.",
 				nameof(Path));
+
 		}
 
 		return path;

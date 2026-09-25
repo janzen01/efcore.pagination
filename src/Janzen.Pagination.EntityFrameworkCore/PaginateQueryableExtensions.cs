@@ -223,6 +223,7 @@ public static class PaginateQueryableExtensions {
 			// config precomputed that filter at Build(), so this arm is a read rather than a per-request pass.
 			sorts = config.GetEnabledDefaultSorts();
 		} else {
+
 			if (request.SortBy.Count > config.MaxSortFields) {
 				throw new PaginateQueryException($"Too many sort fields; at most {config.MaxSortFields} are allowed.") { Code = PaginateQueryError.TooManySortFields };
 			}
@@ -239,18 +240,21 @@ public static class PaginateQueryableExtensions {
 					throw new PaginateQueryException($"Sort field '{sort.Field}' is specified more than once.") { Code = PaginateQueryError.DuplicateSortField };
 				}
 			}
+
 		}
 
 		List<(LambdaExpression Selector, bool Descending)> keys = [];
 		List<string> tokens = [];
 
 		foreach (var sort in sorts) {
+
 			if (!config.TryGetSortableField(sort.Field, out var field)) throw new PaginateQueryException($"Sort for field '{sort.Field}' is not configured.") { Code = PaginateQueryError.SortFieldNotConfigured };
 
 			keys.Add((field.Selector, sort.Direction == PaginateSortDirection.Desc));
 			// The configured name, not the requested spelling: field lookup is case-insensitive, so echoing the
 			// request back would report 'COLOR:DESC' for a field the rest of the contract calls 'color'.
 			tokens.Add($"{field.Name}:{PaginateExpressionUtils.FormatDirection(sort.Direction)}");
+
 		}
 
 		// Appended last, so offset paging is deterministic even when the primary sort is absent or non-unique
@@ -284,6 +288,7 @@ public static class PaginateQueryableExtensions {
 		if (provider is Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryProvider) return true;
 
 		if (provider is IAsyncQueryProvider) {
+
 			// NOT a PaginateQueryException: that type is the 400 contract, and the ASP.NET Core filters turn it
 			// into a ProblemDetails whose `detail` is the message below. Nothing a caller sent can produce this —
 			// it fires only for a queryable-shaped double, which is a wiring mistake on the server — so a 400
@@ -295,6 +300,7 @@ public static class PaginateQueryableExtensions {
 				+ "the query nor evaluate it in memory. Test against a real EF Core provider, SQLite in-memory, rather than a "
 				+ "queryable-shaped double."
 			);
+
 		}
 
 		return false;
