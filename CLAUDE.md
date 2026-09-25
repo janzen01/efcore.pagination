@@ -538,13 +538,16 @@ independent of each other — consumers pick the extensions they need:
 - **net11.0-only**, `Nullable=enable`, `ImplicitUsings=enable`, C# `latest` ([Directory.Build.props](Directory.Build.props)).
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
   The EF Core family (`Microsoft.EntityFrameworkCore`, `.Relational`, `.Sqlite`) is a **range capped below the next
-  major** (`[10.0.12, 11.0.0)`), the way Npgsql caps its own: a line's engine loaded against the next EF Core major
-  can fail at runtime, and with the cap a restore that resolves EF Core `11.0.0` or later reports NU1608.
+  major** (`[11.0.0-rc.1.26425.128, 12.0.0)` on this line, `[10.0.12, 11.0.0)` on `release/10.x`), the way
+  Npgsql caps its own: a line's engine loaded against the next EF Core major can fail at runtime, and with the cap
+  a restore that resolves EF Core `12.0.0` or later reports NU1608. The floor sits on the release candidate only
+  until the line's first stable release (*Releasing*, step 3).
   **It does not cover the next major's prereleases**, and that is known rather than overlooked: NuGet orders
-  `11.0.0-rc.N` below `11.0.0`, so a net11.0 project on the EF Core 11 release candidates resolved
-  `[10.0.12, 11.0.0)` without a word (measured). The bound that would cover them, `11.0.0-0`, is itself a
-  prerelease, and a stable package with one fails `pack` with NU5104; a stable stand-in such as `10.999.999]` was
-  measured to work and turned down as not worth its oddity. So the cap protects from the next major's GA on.
+  `12.0.0-rc.N` below `12.0.0`, so a project on the next major's release candidates resolves this line without a
+  word. Measured on the 10.x line, where a net11.0 project on the EF Core 11 release candidates resolved
+  `[10.0.12, 11.0.0)` silently. The bound that would cover them, `12.0.0-0`, is itself a prerelease, and a
+  stable package with one fails `pack` with NU5104; a stable stand-in such as `11.999.999]` was measured to work
+  (as `10.999.999]`) and turned down as not worth its oddity. So the cap protects from the next major's GA on.
   Dependabot writes a bare version back when it bumps a range, so `api-tracking` fails a PR that drops the cap —
   restore the range in that PR rather than relaxing the check.
 - **The tree is LF, pinned by [.gitattributes](.gitattributes)** (`* text=auto eol=lf`; `.bat`/`.cmd` carved out).
