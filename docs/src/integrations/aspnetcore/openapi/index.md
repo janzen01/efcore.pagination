@@ -7,7 +7,8 @@ drift apart. A field you stop exposing disappears from the document in the same 
 using Janzen.Pagination.AspNetCore.OpenApi;
 
 builder.Services.AddOpenApi(options =>
-    options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
+    options.AddOperationTransformer<PaginatedQueryOperationTransformer>()
+);
 ```
 
 `PaginatedQueryOperationTransformer` is a plain `IOpenApiOperationTransformer`, so your app keeps ownership of

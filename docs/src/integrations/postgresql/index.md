@@ -19,7 +19,8 @@ Which SQL they become is a single **process-wide** strategy.
 ```csharp
 builder.Services.AddPagination(pagination => pagination
     .AddAspNetCore()
-    .UsePostgreSql());
+    .UsePostgreSql()
+);
 ```
 
 Your `PaginateConfig<T>` definitions do not change — they stay provider-agnostic, and only the emitted SQL
@@ -111,7 +112,8 @@ internal sealed class CitextLikeStrategy() : PaginateLikeStrategyBase(ILikeMetho
 
     private static readonly MethodInfo ILikeMethod =
         ((MethodCallExpression)((Expression<Func<string, string, bool>>)
-            ((v, p) => EF.Functions.ILike(v, p, PaginateLikeDefaults.EscapeCharacter))).Body).Method;
+            ((v, p) => EF.Functions.ILike(v, p, PaginateLikeDefaults.EscapeCharacter))
+        ).Body).Method;
 
     // Which operator best represents this strategy in generated docs; null = use the field's first operator.
     public override PaginateFilterOperator? PreferredExampleOperator => PaginateFilterOperator.ILike;
@@ -172,7 +174,8 @@ var invoices = PaginateConfig<Invoice>.Create(b => b
     .WithLimits(25, 100)
     .WithTieBreaker(i => i.Id)
     .WithLikeStrategy(PaginateLikeDefaults.Portable)
-    .Filterable("reference", i => i.Reference));
+    .Filterable("reference", i => i.Reference)
+);
 ```
 
 See [`WithLikeStrategy`](/reference/configuration/#withlikestrategy) for the full rules.

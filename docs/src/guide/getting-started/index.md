@@ -97,9 +97,12 @@ public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Prod
         .Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
         .Filterable("price", p => p.Price,
             PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual,
-            PaginateFilterOperator.LessThanOrEqual, PaginateFilterOperator.Between)
+            PaginateFilterOperator.LessThanOrEqual, PaginateFilterOperator.Between
+        )
         .Filterable("createdAt", p => p.CreatedAt,
-            PaginateFilterOperator.GreaterThan, PaginateFilterOperator.LessThan, PaginateFilterOperator.Between));
+            PaginateFilterOperator.GreaterThan, PaginateFilterOperator.LessThan, PaginateFilterOperator.Between
+        )
+    );
 
     public PaginateConfig<Product> GetConfig() => Config;
 
@@ -117,14 +120,16 @@ interface implementation.
 // Program.cs
 builder.Services.AddPagination(pagination => pagination
     .AddAspNetCore()     // query-string model binder + 400 ProblemDetails filter
-    .UsePostgreSql());   // upgrade LIKE to native ILIKE
+    .UsePostgreSql()   // upgrade LIKE to native ILIKE
+);
 
 builder.Services.AddControllers();
 
 // Optional: document the pagination parameters in the OpenAPI output.
 using Janzen.Pagination.AspNetCore.OpenApi;
 builder.Services.AddOpenApi(options =>
-    options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
+    options.AddOperationTransformer<PaginatedQueryOperationTransformer>()
+);
 ```
 
 ## 5. The endpoint
@@ -136,9 +141,7 @@ public sealed class ProductController(AppDbContext db) : ControllerBase {
 
     [HttpGet]
     [PaginatedQuery<ProductPaginateConfigProvider>]   // documents the query parameters in OpenAPI
-    public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) =>
-        db.Products.PaginateAsync<Product, ProductDto>(
-            request, ProductPaginateConfigProvider.Config, this.Request, ct);
+    public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) => db.Products.PaginateAsync<Product, ProductDto>(request, ProductPaginateConfigProvider.Config, this.Request, ct);
 
 }
 ```

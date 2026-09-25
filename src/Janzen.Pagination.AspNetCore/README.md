@@ -40,16 +40,15 @@ services.AddOpenApi(options => options.AddOperationTransformer<PaginatedQueryOpe
 // HttpContext.RequestAborted for free; pass it so a disconnected client stops the database work.
 [HttpGet]
 [PaginatedQuery<ProductConfigProvider>]
-public Task<PaginatedResponse<ProductDto>> Get([FromQuery] PaginateQuery request, CancellationToken ct) =>
-    _dbContext.Products.PaginateAsync<Product, ProductDto>(request, _config, HttpContext.Request, ct);
+public Task<PaginatedResponse<ProductDto>> Get([FromQuery] PaginateQuery request, CancellationToken ct) => _dbContext.Products.PaginateAsync<Product, ProductDto>(request, _config, HttpContext.Request, ct);
 ```
 
 ### Minimal API
 
 ```csharp
 app.MapGet("/products", async (HttpContext http, AppDbContext db, CancellationToken ct) =>
-        await db.Products.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), config, http.Request, ct))
-   .WithPagination<ProductConfigProvider>();
+        await db.Products.PaginateAsync<Product, ProductDto>(http.Request.ToPaginateQuery(), config, http.Request, ct)
+).WithPagination<ProductConfigProvider>();
 ```
 
 `WithPagination<TConfigProvider>()` attaches the OpenAPI pagination parameters and the documented `400`

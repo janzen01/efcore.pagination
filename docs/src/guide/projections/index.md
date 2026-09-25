@@ -143,8 +143,7 @@ await db.Products.PaginateSelectAsync(request, config, p => new ProductSummary(
     p.DiscontinuedAt.HasValue                                               // Instant? → DateTimeOffset?
         ? p.DiscontinuedAt.Value.ToDateTimeOffset()
         : (DateTimeOffset?)null,
-    p.Reviews.Select(r => new ReviewDto(
-        r.Id, r.Reviewer, r.PostedAt.ToDateTimeOffset())).ToList()          // conversion inside the collection
+    p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.PostedAt.ToDateTimeOffset())).ToList()   // conversion inside the collection
 ), ct: ct);
 ```
 
@@ -164,13 +163,17 @@ Project the flat fields **plus the raw ingredients** in SQL, then finish them:
 ```csharp
 private sealed record Row(Guid Id, string Name, int RatingSum, int RatingCount);
 
-var page = await db.Products.PaginateSelectMapAsync(request, config,
+var page = await db.Products.PaginateSelectMapAsync(
+    request,
+    config,
     selector: p => new Row(p.Id, p.Name, p.Reviews.Sum(r => r.Rating), p.Reviews.Count),
     postMap:  row => new ProductSummary(
         row.Id,
         row.Name,
-        row.RatingCount == 0 ? null : Math.Round(row.RatingSum / (double)row.RatingCount, 1)),
-    ct: ct);
+        row.RatingCount == 0 ? null : Math.Round(row.RatingSum / (double)row.RatingCount, 1)
+    ),
+    ct: ct
+);
 ```
 
 The `SELECT` stays exactly as narrow as the selector, and `postMap` runs only over the current page —
@@ -181,8 +184,7 @@ O(page size), not O(table).
 ## `PaginateMapAsync` — the full entity, mapped in memory
 
 ```csharp
-var page = await db.Products.PaginateMapAsync(request, config,
-    product => ProductDto.FromEntity(product, _pricingService), ct: ct);
+var page = await db.Products.PaginateMapAsync(request, config, product => ProductDto.FromEntity(product, _pricingService), ct: ct);
 ```
 
 This materializes **every column of every page entity** and then maps them. Reach for it only when the mapping

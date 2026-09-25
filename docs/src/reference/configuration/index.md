@@ -20,7 +20,8 @@ and is part of the published contract.
 PaginateConfig<Product> config = PaginateConfig<Product>.Create(builder => builder
     .WithLimits(25, 100)
     .Sortable("name", p => p.Name)
-    .WithTieBreaker(p => p.Id));
+    .WithTieBreaker(p => p.Id)
+);
 ```
 
 `Create` runs your lambda and then builds. Field names are **arbitrary public aliases** — they need not match
@@ -356,7 +357,8 @@ letting callers name individual fields would disclose which columns exist.
     PaginateFilterOperator.Eq,
     PaginateFilterOperator.GreaterThanOrEqual,
     PaginateFilterOperator.LessThanOrEqual,
-    PaginateFilterOperator.Between)
+    PaginateFilterOperator.Between
+)
 .Filterable("categoryName", p => p.Category.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.ILike)
 ```
 
@@ -431,12 +433,12 @@ Filters the entity by a value on **any element** of a child collection, translat
 
 ```csharp
 // ?filter.tag=$eq:dotnet  → articles that have at least one tag named "dotnet"
-.FilterableMany("tag", a => a.Tags, t => t.Name,
-    PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.ILike)
+.FilterableMany("tag", a => a.Tags, t => t.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.ILike)
 
 // ?filter.reviewerId=$in:a,b → orders reviewed by any of these people
 .FilterableMany("reviewerId", o => o.Reviews, r => r.ReviewerId,
-    PaginateFilterOperator.Eq, PaginateFilterOperator.In)
+    PaginateFilterOperator.Eq, PaginateFilterOperator.In
+)
 ```
 
 The first lambda selects the collection, the second selects the value on one element. The operator applies to
@@ -565,7 +567,8 @@ var invoices = PaginateConfig<Invoice>.Create(b => b
     .WithLimits(25, 100)
     .WithTieBreaker(i => i.Id)
     .WithLikeStrategy(PaginateLikeDefaults.Portable)
-    .Filterable("reference", i => i.Reference));
+    .Filterable("reference", i => i.Reference)
+);
 ```
 
 The same strategy also decides the `$op:` example the OpenAPI transformer publishes for that resource's filter
@@ -588,7 +591,8 @@ public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Prod
     public readonly static PaginateConfig<Product> Config = PaginateConfig<Product>.Create(b => b
         .WithLimits(25, 100)
         .Sortable("name", p => p.Name)
-        .WithTieBreaker(p => p.Id));
+        .WithTieBreaker(p => p.Id)
+    );
 
     public PaginateConfig<Product> GetConfig() => Config;
 

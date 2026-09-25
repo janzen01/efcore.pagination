@@ -83,7 +83,8 @@ public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Prod
         .WithTieBreaker(p => p.Id)               // unique key appended last → deterministic paging
         .Searchable("name", p => p.Name)
         .Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
-        .Filterable("price", p => p.Price, PaginateFilterOperator.Between));
+        .Filterable("price", p => p.Price, PaginateFilterOperator.Between)
+    );
 
     public PaginateConfig<Product> GetConfig() => Config;
 
@@ -96,9 +97,7 @@ builder.Services.AddPagination(pagination => pagination.AddAspNetCore());
 //    (omit it and `links` is null — `meta` alone carries the paging state).
 [HttpGet]
 [PaginatedQuery<ProductPaginateConfigProvider>]
-public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) =>
-    db.Products.PaginateAsync<Product, ProductDto>(
-        request, ProductPaginateConfigProvider.Config, this.Request, ct);
+public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) => db.Products.PaginateAsync<Product, ProductDto>(request, ProductPaginateConfigProvider.Config, this.Request, ct);
 ```
 
 ```json

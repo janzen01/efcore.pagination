@@ -64,7 +64,10 @@ Half the value of an allowlist is what it rejects, and rejections are the cheape
 var ex = await Assert.ThrowsAsync<PaginateQueryException>(() =>
     products.PaginateAsync<Product, ProductDto>(
         new PaginateQuery { Filters = new Dictionary<string, IReadOnlyList<string>> {
-            ["price"] = ["$ilike:10"] } }, config));
+            ["price"] = ["$ilike:10"]
+        } }, config
+    )
+);
 
 Assert.Contains("does not support operator", ex.Message);
 ```

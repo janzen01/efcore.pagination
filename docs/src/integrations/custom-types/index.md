@@ -10,7 +10,8 @@ query. It is exactly what the [NodaTime](../nodatime/) package uses — nothing 
 PaginateTypeSupport.RegisterValueParser(typeof(Ulid), raw =>
     Ulid.TryParse(raw, out var ulid)
         ? ulid
-        : throw new PaginateQueryException($"Value '{raw}' is not a valid ULID."));
+        : throw new PaginateQueryException($"Value '{raw}' is not a valid ULID.")
+);
 ```
 
 Throw `PaginateQueryException` for bad input — that is the message the caller sees. `FormatException`,
@@ -70,7 +71,8 @@ says "copy it, do not look inside". Needed for any struct-like value type you pr
 PaginateTypeSupport.RegisterProjectionConversion((source, targetType) =>
     source.Type == typeof(Ulid) && targetType == typeof(string)
         ? Expression.Call(source, nameof(Ulid.ToString), Type.EmptyTypes)
-        : null);                                     // null = this conversion does not apply
+        : null                                     // null = this conversion does not apply
+);
 ```
 
 The delegate receives the source member expression and the target type, and returns either the converted
@@ -102,14 +104,16 @@ public static class UlidPaginationSupport {
         PaginateTypeSupport.RegisterValueParser(typeof(Ulid), raw =>
             Ulid.TryParse(raw, out var ulid)
                 ? ulid
-                : throw new PaginateQueryException($"Value '{raw}' is not a valid ULID."));
+                : throw new PaginateQueryException($"Value '{raw}' is not a valid ULID.")
+        );
 
         PaginateTypeSupport.RegisterSimpleType(typeof(Ulid));
 
         PaginateTypeSupport.RegisterProjectionConversion((source, targetType) =>
             source.Type == typeof(Ulid) && targetType == typeof(string)
                 ? Expression.Call(source, nameof(Ulid.ToString), Type.EmptyTypes)
-                : null);
+                : null
+        );
 
     }
 

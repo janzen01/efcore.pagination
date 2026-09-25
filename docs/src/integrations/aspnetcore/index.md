@@ -55,7 +55,8 @@ public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Prod
     public readonly static PaginateConfig<Product> Config = PaginateConfig<Product>.Create(b => b
         .WithLimits(25, 100)
         .Sortable("name", p => p.Name)
-        .WithTieBreaker(p => p.Id));
+        .WithTieBreaker(p => p.Id)
+    );
 
     public PaginateConfig<Product> GetConfig() => Config;
 }
@@ -79,9 +80,7 @@ public sealed class ProductController(AppDbContext db) : ControllerBase {
 
     [HttpGet]
     [PaginatedQuery<ProductPaginateConfigProvider>]
-    public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) =>
-        db.Products.PaginateAsync<Product, ProductDto>(
-            request, ProductPaginateConfigProvider.Config, this.Request, ct);
+    public Task<PaginatedResponse<ProductDto>> List([FromQuery] PaginateQuery request, CancellationToken ct) => db.Products.PaginateAsync<Product, ProductDto>(request, ProductPaginateConfigProvider.Config, this.Request, ct);
 
 }
 ```
@@ -123,8 +122,12 @@ db.Products.PaginateAsync<Product, ProductDto>(request, config, ct: ct);
 ```csharp
 app.MapGet("/products", async (HttpContext http, AppDbContext db, CancellationToken ct) =>
         await db.Products.PaginateAsync<Product, ProductDto>(
-            http.Request.ToPaginateQuery(), ProductPaginateConfigProvider.Config, http.Request, ct))
-   .WithPagination<ProductPaginateConfigProvider>();
+            http.Request.ToPaginateQuery(),
+            ProductPaginateConfigProvider.Config,
+            http.Request,
+            ct
+        )
+).WithPagination<ProductPaginateConfigProvider>();
 ```
 
 - `Request.ToPaginateQuery()` parses the same six parameters as the model binder.
@@ -231,7 +234,8 @@ When each individual link is `null`, why those nulls are serialized rather than 
 using Janzen.Pagination.AspNetCore.OpenApi;
 
 builder.Services.AddOpenApi(options =>
-    options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
+    options.AddOperationTransformer<PaginatedQueryOperationTransformer>()
+);
 ```
 
 It acts only on operations carrying `[PaginatedQuery<TProvider>]` or `WithPagination<TProvider>()`, and reads

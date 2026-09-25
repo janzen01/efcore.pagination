@@ -35,9 +35,11 @@ public sealed class ArticlePaginateConfigProvider : IPaginateConfigProvider<Arti
         .WithTieBreaker(a => a.Id)
         .Searchable("title", a => a.Title)
         .Filterable("published", a => a.Published,
-            PaginateFilterOperator.LessThanOrEqual, PaginateFilterOperator.GreaterThanOrEqual)
+            PaginateFilterOperator.LessThanOrEqual, PaginateFilterOperator.GreaterThanOrEqual
+        )
         .Filterable("isHidden", a => a.IsHidden, PaginateFilterOperator.Eq)
-            .When(isModerator).ShowBadge("Moderator", "language-moderator"));
+            .When(isModerator).ShowBadge("Moderator", "language-moderator")
+    );
 
     public readonly static PaginateConfig<Article> Public    = Build(isModerator: false);
     public readonly static PaginateConfig<Article> Moderator = Build(isModerator: true);
@@ -77,8 +79,7 @@ Two static fields cover two roles. If the gate is a set of independent flags rat
 ```csharp
 private static readonly ConcurrentDictionary<bool, PaginateConfig<Article>> ByModerator = new();
 
-public static PaginateConfig<Article> For(bool isModerator) =>
-    ByModerator.GetOrAdd(isModerator, Build);
+public static PaginateConfig<Article> For(bool isModerator) => ByModerator.GetOrAdd(isModerator, Build);
 ```
 
 Key it on the **permissions**, never on the user. One config per distinct combination of gates is the whole
@@ -88,8 +89,7 @@ rather than in the config.
 ## Filter by a value on a child collection
 
 ```csharp
-.FilterableMany("tag", a => a.Tags, t => t.Slug,
-    PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.ILike)
+.FilterableMany("tag", a => a.Tags, t => t.Slug, PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.ILike)
 ```
 
 ```http
@@ -157,6 +157,7 @@ filter controls:
 ```csharp
 [HttpGet("meta")]
 public object Meta() {
+
     IPaginateConfig config = ArticlePaginateConfigProvider.Public;
 
     return new {
@@ -170,6 +171,7 @@ public object Meta() {
             operators = f.Operators.Select(op => op.ToString()),
         }),
     };
+
 }
 ```
 

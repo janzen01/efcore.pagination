@@ -33,7 +33,8 @@ public sealed class ProductConfigProvider : IPaginateConfigProvider<Product>
             .DefaultSortBy("name")
             .WithTieBreaker(p => p.Id) // unique key appended as the final ordering → deterministic paging
             .Searchable("name", p => p.Name)
-            .Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+            .Filterable("status", p => p.Status, PaginateFilterOperator.Eq)
+        );
 }
 
 // 2. Build a request (bound from the query string in ASP.NET, or directly for non-web callers)…
@@ -89,8 +90,7 @@ var next = response.Meta.HasNextPage
 
 ```csharp
 // Filter articles by any of their tags: ?filter.tag=$in:dotnet,efcore
-.FilterableMany("tag", a => a.Tags, t => t.Slug,
-    PaginateFilterOperator.Eq, PaginateFilterOperator.In)
+.FilterableMany("tag", a => a.Tags, t => t.Slug, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
 
 // Tighter guards than the defaults (100 / 20 / 5 / 256)
 .WithGuards(maxFilterValues: 25, maxSortFields: 3)   // an omitted guard is left unset, not reset
@@ -163,7 +163,8 @@ PaginateConfig<Article>.Create(b => b
     .WithTieBreaker(a => a.Id)
     .Sortable("title", a => a.Title)
     .Filterable("isDeleted", a => a.IsDeleted, PaginateFilterOperator.Eq)
-        .When(currentUser.IsAdmin).ShowBadge("Admin only", "language-admin"));
+        .When(currentUser.IsAdmin).ShowBadge("Admin only", "language-admin")
+);
 ```
 
 `.When` takes a plain boolean — you evaluate it from your own context (role, claims, tenant, feature flag); the library
@@ -204,8 +205,13 @@ PaginatedResponse<ProductSummary> page = await db.Products.PaginateSelectAsync<P
         p.ReleasedAt.ToDateTimeOffset(),                                     // Instant  → DateTimeOffset
         p.DiscontinuedAt.HasValue ? p.DiscontinuedAt.Value.ToDateTimeOffset() // Instant? → DateTimeOffset?
                                   : (DateTimeOffset?)null,
-        p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer,
-            r.PostedAt.ToDateTimeOffset())).ToList()));                      // conversion INSIDE a sub-collection
+        p.Reviews.Select(r => new ReviewDto(
+            r.Id,
+            r.Reviewer,
+            r.PostedAt.ToDateTimeOffset()                      // conversion INSIDE a sub-collection
+        )).ToList()
+    )
+);
 ```
 
 This executes as a **single** query whose `SELECT` lists only the referenced columns — an unused `jsonb`

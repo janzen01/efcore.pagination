@@ -98,9 +98,12 @@ var config = PaginateConfig<Article>.Create(b => b
     .Filterable("publishedAt", a => a.PublishedAt,
         PaginateFilterOperator.GreaterThanOrEqual,
         PaginateFilterOperator.LessThanOrEqual,
-        PaginateFilterOperator.Between)
+        PaginateFilterOperator.Between
+    )
     .Filterable("embargoUntil", a => a.EmbargoUntil,
-        PaginateFilterOperator.Null, PaginateFilterOperator.LessThanOrEqual));
+        PaginateFilterOperator.Null, PaginateFilterOperator.LessThanOrEqual
+    )
+);
 ```
 
 ```http

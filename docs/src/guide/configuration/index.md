@@ -8,7 +8,8 @@ does not appear here.
 var config = PaginateConfig<Product>.Create(builder => builder
     .WithLimits(25, 100)
     .Sortable("name", p => p.Name)
-    .WithTieBreaker(p => p.Id));
+    .WithTieBreaker(p => p.Id)
+);
 ```
 
 That is a complete, working configuration: products can be paged and sorted by name, and by nothing else.
@@ -121,7 +122,8 @@ combination of them:
 .Sortable("name", p => p.Name)                                        // ?sortBy=name:ASC
 .Searchable("name", p => p.Name)                                      // ?search=widget
 .Filterable("status", p => p.Status,                                  // ?filter.status=$eq:Active
-    PaginateFilterOperator.Eq, PaginateFilterOperator.In)
+    PaginateFilterOperator.Eq, PaginateFilterOperator.In
+)
 ```
 
 Filters carry a second decision the other two do not: **which operators**. The list is per field, and it is
@@ -134,8 +136,7 @@ without you writing the join:
 
 ```csharp
 // ?filter.tag=$eq:dotnet  → products carrying at least one tag named "dotnet"
-.FilterableMany("tag", p => p.Tags, t => t.Name,
-    PaginateFilterOperator.Eq, PaginateFilterOperator.In)
+.FilterableMany("tag", p => p.Tags, t => t.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
 ```
 
 The first lambda picks the collection, the second picks the value on one element, and the engine builds the
@@ -156,7 +157,8 @@ public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Prod
         .Sortable("price", p => p.Price)
         .Searchable("name", p => p.Name)
         .Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
-        .WithTieBreaker(p => p.Id));
+        .WithTieBreaker(p => p.Id)
+    );
 
     public PaginateConfig<Product> GetConfig() => Config;
 

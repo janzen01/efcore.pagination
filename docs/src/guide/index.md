@@ -18,7 +18,8 @@ var config = PaginateConfig<Product>.Create(b => b
     .DefaultSortBy("name")
     .WithTieBreaker(p => p.Id)
     .Searchable("name", p => p.Name)
-    .Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In));
+    .Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
+);
 
 // 2. Execute it against any IQueryable.
 PaginatedResponse<ProductDto> page = await db.Products.PaginateAsync<Product, ProductDto>(request, config);

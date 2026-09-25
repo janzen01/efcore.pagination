@@ -39,12 +39,14 @@ The C# shape is three records, where `T` is the **projection's** result type, no
 sealed record PaginatedResponse<T>(IReadOnlyList<T> Items, PaginatedMeta Meta, PaginatedLinks? Links);
 
 sealed record PaginatedMeta(int TotalItems, int ItemCount, int ItemsPerPage, int TotalPages, int CurrentPage) {
+
     public IReadOnlyList<string> SortBy { get; init; }
     public string? Search { get; init; }
     public IReadOnlyList<string> SearchBy { get; init; }
     public IReadOnlyDictionary<string, IReadOnlyList<string>> Filter { get; init; }
     public bool HasPreviousPage { get; init; }
     public bool HasNextPage { get; init; }
+
 }
 
 sealed record PaginatedLinks(string? First, string? Previous, string? Next, string? Last) {
@@ -185,7 +187,8 @@ var linkContext = new PaginateLinkContext(
     QueryParameters: [
         new("limit", "25"),
         new("filter.status", "$eq:Active")
-    ]);
+    ]
+);
 
 var page = await source.PaginateAsync<Product, ProductDto>(request, config, linkContext, ct);
 // page.Links.Next == "/api/products?limit=25&filter.status=%24eq%3AActive&page=3"
