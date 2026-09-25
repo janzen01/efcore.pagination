@@ -3,7 +3,7 @@
 <!--
   The breaking-change inventory for this package. Generated, never handwritten
   (dotnet pack -p:ApiCompatGenerateSuppressionFile=true), which also drops this comment and writes
-  CRLF, so both are restored afterwards. Two entries, both CP0014 and both attribute-only:
+  CRLF, so both are restored afterward. Two entries, both CP0014 and both attribute-only:
 
   PaginateExceptionFilter.OnException: the method was rewritten so the two pipelines enrich a
   ProblemDetails exactly once each, and its nullable context moved with it. The behavior is the

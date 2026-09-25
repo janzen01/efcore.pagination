@@ -63,7 +63,7 @@ Four conditions worth knowing:
   [`WithMaxOffset`](/reference/configuration/#withmaxoffset), `limit` under
   [`AllowUnlimited`](/reference/configuration/#allowunlimited), and `search` under
   [`WithMinSearchLength`](/reference/configuration/#withminsearchlength) above 1. An unguarded resource says
-  nothing extra, so adding one of those calls shows up as a description diff in a committed artefact.
+  nothing extra, so adding one of those calls shows up as a description diff in a committed artifact.
 
 The `limit` schema only grows a `oneOf` on a resource that called
 [`AllowUnlimited`](/reference/configuration/#allowunlimited), and it is the whole reason it grows one: the

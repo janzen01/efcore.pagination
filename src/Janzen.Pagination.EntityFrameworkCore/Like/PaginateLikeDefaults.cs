@@ -37,7 +37,7 @@ public static class PaginateLikeDefaults {
 	/// </summary>
 	// KEEP THIS DECLARED BELOW Portable. Static initializers run in declaration order, so moving it above
 	// would assign null here -- and silently, because a property initializer writes the backing field and
-	// never calls the setter, so the ThrowIfNull below cannot see it. The obvious defence, defaulting on
+	// never calls the setter, so the ThrowIfNull below cannot see it. The obvious defense, defaulting on
 	// first read through `get => field ??= Portable`, was tried and reverted: a manual getter carries no
 	// CompilerGeneratedAttribute, and package validation reads dropping one off a shipped member as an API
 	// break (CP0014). The ordering requirement is cheaper to honor than that is to suppress.

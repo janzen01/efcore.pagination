@@ -149,7 +149,7 @@ Two pieces of state are global and outlive a test:
 
 - `PaginateLikeDefaults.Strategy` — what `UsePostgreSql()` sets. A test that swaps it changes behavior for
   every test running concurrently, so keep those in a non-parallel collection and restore the previous value
-  afterwards. `PaginateLikeDefaults.Portable` names the library's own default, so a fixture that never
+  afterward. `PaginateLikeDefaults.Portable` names the library's own default, so a fixture that never
   snapshotted the old value can still put it back. A single resource can opt out instead of the whole
   process — see [`WithLikeStrategy`](/reference/configuration/#withlikestrategy).
 - `PaginateTypeSupport` registrations **cannot be undone**, and the three methods do not behave alike on a

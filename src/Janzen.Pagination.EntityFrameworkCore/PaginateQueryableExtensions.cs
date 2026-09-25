@@ -348,7 +348,7 @@ public static class PaginateQueryableExtensions {
 
 		// Kept here as well as on the four entry points: the two composers are synchronous and enter through this
 		// method directly, so this is where their argument validation happens. For the async entry points these
-		// are defence in depth -- the eager copy up there is the one that runs.
+		// are defense in depth -- the eager copy up there is the one that runs.
 		ArgumentNullException.ThrowIfNull(source);
 		ArgumentNullException.ThrowIfNull(request);
 		ArgumentNullException.ThrowIfNull(config);

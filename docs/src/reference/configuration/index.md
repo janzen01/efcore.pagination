@@ -121,7 +121,7 @@ What each one actually counts is where the surprises live:
 |-------|--------:|--------------|------------|
 | `MaxFilterValues` | 100 | **one comma-separated list, per criterion.** `$in`, `$btw` and `$contains`-on-a-collection are the operators that take lists. Two criteria of 80 values each pass. | `400 Filter 'x' accepts at most N values.` |
 | `MaxFilterConditions` | 20 | **every `filter.*` value across every field**, added together — 20 in total, not 20 per field. | `400 Too many filter conditions; at most N are allowed.` |
-| `MaxSortFields` | 5 | **only `sortBy` values sent by the request.** `DefaultSortBy` entries and the tie-breaker are appended afterwards and are never measured against it. | `400 Too many sort fields; at most N are allowed.` |
+| `MaxSortFields` | 5 | **only `sortBy` values sent by the request.** `DefaultSortBy` entries and the tie-breaker are appended afterward and are never measured against it. | `400 Too many sort fields; at most N are allowed.` |
 | `MaxSearchLength` | 256 | characters of `search`, **and** of a `$ilike` / `$sw` / `$contains` pattern on a string field — the two emit the same `LIKE`. Checked before the query is built. | `400 Search term must not exceed N characters.` / `400 Filter 'x' pattern must not exceed N characters.` |
 
 `MaxLimit` belongs to the same family but is set by [`WithLimits`](#withlimits), not here.
@@ -217,7 +217,7 @@ var defaults = new PaginateConfigDefaults { DefaultLimit = 25, MaxLimit = 100, M
 // (a) explicit -- only the configurations naming it are affected
 PaginateConfig<Product>.Create(defaults, b => b.Sortable("id", p => p.Id) /* … */);
 
-// (b) ambient -- assign once at startup, every configuration built afterwards picks it up
+// (b) ambient -- assign once at startup, every configuration built afterward picks it up
 PaginateConfigDefaults.Shared = defaults;
 PaginateConfig<Order>.Create(b => b.Sortable("id", o => o.Id) /* … */);
 ```
@@ -236,7 +236,7 @@ Four things worth knowing:
 - **`Shared` is read at `Build()` time.** Assign it before the first configuration is built; a configuration
   does not observe a later assignment. It is process-wide mutable state, so tests that assign it want the
   same treatment as [`PaginateLikeDefaults`](/recipes/testing/#watch-the-process-wide-statics) — a non-parallel collection, and
-  restore it afterwards.
+  restore it afterward.
 - **`AllowUnlimited` is deliberately absent** from the object. An unbounded read is a claim about one
   resource's size, and a default that turned it on everywhere would be exactly the claim nobody can make.
 - It is a `record`, so `PaginateConfigDefaults.Shared with { MaxLimit = 200 }` is the way to vary one value.

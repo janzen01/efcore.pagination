@@ -3,7 +3,7 @@
 <!--
   The breaking-change inventory for this package. Generated, never handwritten
   (dotnet pack -p:ApiCompatGenerateSuppressionFile=true), which also drops this comment and writes
-  CRLF, so both are restored afterwards. Ten entries:
+  CRLF, so both are restored afterward. Ten entries:
 
   CP0002 x1 PaginateConfigBuilder.WithGuards: its four parameters became int? so that naming one
   guard stops silently resetting the other three to the engine constants. Source-compatible,

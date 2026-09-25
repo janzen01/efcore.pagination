@@ -150,7 +150,7 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	/// <summary>
 	///     The parameter list is copied, not captured. This record compares by value, so a caller who keeps their
-	///     list and adds to it afterwards would otherwise change a constructed context underneath it — two equal
+	///     list and adds to it afterward would otherwise change a constructed context underneath it — two equal
 	///     contexts stop being equal, and one used as a dictionary key can no longer be found.
 	/// </summary>
 	[Fact]

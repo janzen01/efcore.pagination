@@ -41,7 +41,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	// The site's grammar reference calls these modifiers rather than operators, and they are available on every
 	// field regardless of its operator set -- so they are a list of their own rather than three entries appended
 	// to the field's, where the emitted document offered no way to learn where they go. '\n', not
-	// Environment.NewLine: this text lands in a consumer's committed OpenAPI artefact.
+	// Environment.NewLine: this text lands in a consumer's committed OpenAPI artifact.
 	private readonly static string Modifiers = string.Join('\n', new[] { "$not", "$and", "$or" }.Select(token => $"- `{token}`"));
 
 	/// <summary>
@@ -238,7 +238,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 		string maximum = config.MaxLimit.ToString(CultureInfo.InvariantCulture);
 
-		// A flat "minimum 1" contradicted the sentence above on any resource that opted in, and the artefact is
+		// A flat "minimum 1" contradicted the sentence above on any resource that opted in, and the artifact is
 		// read by validators as well as by renderers: a gateway doing OpenAPI request validation refused -1 at the
 		// edge, making AllowUnlimited unreachable over HTTP. Expressing "1..max, or exactly -1" needs a oneOf, and
 		// the objection to one was its rendering quality -- so it is emitted only where the resource opted in, and
@@ -293,7 +293,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 					Type = JsonSchemaType.String,
 					Enum = BuildSortEnum(config)
 				},
-				// Only request-supplied sorts count towards the guard, and the schema describes exactly those --
+				// Only request-supplied sorts count toward the guard, and the schema describes exactly those --
 				// the default below and the configured tie-breaker are not measured against it.
 				MaxItems = config.MaxSortFields,
 				Default = BuildDefaultSort(config)
@@ -412,7 +412,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		// The search guards bound these three as well as `search` itself, and a guard that is enforced but
 		// undocumented is the shape this transformer exists to remove. The floor is named only when it refuses
 		// something: at the default MinSearchLength of 1, "between 1 and 256" is a sentence that rules nothing
-		// out, and these descriptions land in a consumer's committed OpenAPI artefact — so every such repository
+		// out, and these descriptions land in a consumer's committed OpenAPI artifact — so every such repository
 		// would take a diff carrying no information. The ceiling always refuses something and is always stated.
 		string patternGuards = field.Type == typeof(string) && field.Operators.Any(IsLengthGuarded)
 			? "\n\n`$ilike`, `$sw` and `$contains` values are measured as sent — not trimmed — and "

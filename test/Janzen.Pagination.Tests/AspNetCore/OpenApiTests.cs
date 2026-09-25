@@ -450,7 +450,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 	/// <summary>
 	///     At the default floor of one the sentence names the ceiling only. "Between 1 and 256" rules nothing out,
-	///     and these descriptions land in a consumer's committed OpenAPI artefact, so a sentence carrying no
+	///     and these descriptions land in a consumer's committed OpenAPI artifact, so a sentence carrying no
 	///     information is a diff every such repository takes for nothing.
 	/// </summary>
 	[Fact]
@@ -586,7 +586,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	public void No_description_carries_a_platform_line_ending() {
 
 		// These descriptions land in a consumer's committed OpenAPI document, which CI regenerates and diffs. A CR
-		// makes that artefact's bytes depend on the OS that built it, so it rewrites itself on every build and a bot
+		// makes that artifact's bytes depend on the OS that built it, so it rewrites itself on every build and a bot
 		// commits a change nobody made. Two independent paths put one here: Environment.NewLine in the joins that
 		// build the field and operator lists, and a CRLF checkout of the transformer reaching its raw string
 		// literals, which the compiler copies verbatim. Both are caught by looking for the CR itself.

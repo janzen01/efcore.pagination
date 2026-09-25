@@ -117,7 +117,7 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 		ArgumentNullException.ThrowIfNull(queryParameters, nameof(QueryParameters));
 
 		// Copied, not captured. This record hand-writes value equality, and a caller who keeps their list and
-		// adds to it afterwards would change the value of a constructed context underneath it: two contexts
+		// adds to it afterward would change the value of a constructed context underneath it: two contexts
 		// that compared equal stop being equal, and one used as a dictionary key can no longer be found
 		// because its hash moved. Path is a string and cannot do that; this member could.
 		var copy = queryParameters.ToArray();
