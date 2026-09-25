@@ -424,22 +424,22 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		return new OpenApiParameter {
 			Name = $"{PaginateQueryParams.FilterPrefix}{field.Name}",
 			In = ParameterLocation.Query,
-			Description = $$"""
-			                Filter by `{{field.Name}}`.{{RenderBadge(field.Badge)}}
+			Description = $"""
+			                Filter by `{field.Name}`.{RenderBadge(field.Badge)}
 
-			                Value type: `{{value.Name}}`
+			                Value type: `{value.Name}`
 
-			                Format: `{{PaginateQueryParams.FilterPrefix}}{{field.Name}}=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`
+			                Format: `{PaginateQueryParams.FilterPrefix}{field.Name}=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`
 
-			                At most {{config.MaxFilterValues}} comma-separated values in one criterion, and at most {{config.MaxFilterConditions}} filter criteria across the whole request; beyond either the request returns 400.{{patternGuards}}
+			                At most {config.MaxFilterValues} comma-separated values in one criterion, and at most {config.MaxFilterConditions} filter criteria across the whole request; beyond either the request returns 400.{patternGuards}
 
 			                Available operations:
 
-			                {{operators}}
+			                {operators}
 
 			                Modifiers, available on every field:
 
-			                {{Modifiers}}
+			                {Modifiers}
 			                """,
 			Required = false,
 			Style = ParameterStyle.Form,
