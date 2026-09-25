@@ -73,7 +73,7 @@ internal static class PaginateNullSafeRewriter {
 
 			current = Expression.MakeMemberAccess(current, chain[index].Member);
 
-			if (current.Type.IsValueType && Nullable.GetUnderlyingType(current.Type) is null) continue;
+			if (current.Type.IsValueType && current.Type.GetNullableUnderlyingType() is null) continue;
 
 			var notNull = Expression.NotEqual(current, Expression.Constant(null, current.Type));
 
@@ -87,7 +87,7 @@ internal static class PaginateNullSafeRewriter {
 
 		var access = Expression.MakeMemberAccess(current, chain[^1].Member);
 
-		var lifted = access.Type.IsValueType && Nullable.GetUnderlyingType(access.Type) is null
+		var lifted = access.Type.IsValueType && access.Type.GetNullableUnderlyingType() is null
 			? typeof(Nullable<>).MakeGenericType(access.Type)
 			: access.Type;
 

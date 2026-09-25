@@ -91,7 +91,7 @@ internal static class PaginateProjectionBuilder {
 			throw new InvalidOperationException($"Cannot automatically project '{path}' from '{sourceValue.Type.Name}' to '{targetType.Name}'.");
 		}
 
-		var nestedTargetType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+		var nestedTargetType = targetType.GetNullableUnderlyingType() ?? targetType;
 		var nestedValue = BuildObject(sourceValue, nestedTargetType, path, building);
 		var convertedNestedValue = ConvertIfNeeded(nestedValue, targetType);
 
@@ -162,18 +162,18 @@ internal static class PaginateProjectionBuilder {
 	private static bool CanAssign(Type sourceType, Type targetType) {
 		if (targetType.IsAssignableFrom(sourceType)) return true;
 
-		var targetUnderlyingType = Nullable.GetUnderlyingType(targetType);
+		var targetUnderlyingType = targetType.GetNullableUnderlyingType();
 		return targetUnderlyingType is not null && targetUnderlyingType == sourceType;
 	}
 
 	private static Expression ConvertIfNeeded(Expression expression, Type targetType) { return expression.Type == targetType ? expression : Expression.Convert(expression, targetType); }
 
 	// Whether the CLR type can carry a null at all -- the precondition for comparing the value against one.
-	private static bool CanHoldNull(Type type) { return !type.IsValueType || Nullable.GetUnderlyingType(type) is not null; }
+	private static bool CanHoldNull(Type type) { return !type.IsValueType || type.GetNullableUnderlyingType() is not null; }
 
 	private static bool CanBeNull(Type type, MemberInfo member) {
 
-		if (Nullable.GetUnderlyingType(type) is not null) return true;
+		if (type.GetNullableUnderlyingType() is not null) return true;
 		if (type.IsValueType) return false;
 
 		var context = new NullabilityInfoContext();
@@ -187,7 +187,7 @@ internal static class PaginateProjectionBuilder {
 	}
 
 	private static bool CanBeNull(Type type, ParameterInfo parameter) {
-		if (Nullable.GetUnderlyingType(type) is not null) return true;
+		if (type.GetNullableUnderlyingType() is not null) return true;
 		if (type.IsValueType) return false;
 
 		var context = new NullabilityInfoContext();
@@ -196,7 +196,7 @@ internal static class PaginateProjectionBuilder {
 
 	private static bool IsSimpleType(Type type) {
 
-		var effectiveType = Nullable.GetUnderlyingType(type) ?? type;
+		var effectiveType = type.GetNullableUnderlyingType() ?? type;
 
 		return effectiveType.IsPrimitive ||
 		       effectiveType.IsEnum ||

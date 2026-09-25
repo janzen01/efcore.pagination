@@ -53,7 +53,7 @@ internal abstract class PaginateFilterField(
 
 	public string Name { get; } = name;
 
-	public Type Type { get; } = Nullable.GetUnderlyingType(type) ?? type;
+	public Type Type { get; } = type.GetNullableUnderlyingType() ?? type;
 
 	public Type ExpressionType { get; } = type;
 
@@ -104,7 +104,7 @@ internal abstract class PaginateFilterField(
 	/// </summary>
 	internal static bool CanCompare(Type type) {
 
-		var core = Nullable.GetUnderlyingType(type) ?? type;
+		var core = type.GetNullableUnderlyingType() ?? type;
 
 		if (core.IsEnum || core == typeof(string) || core == typeof(Guid)) return true;
 
@@ -176,7 +176,7 @@ internal abstract class PaginateFilterField(
 	///     declared non-nullable therefore reports "no row is null" on both, nested or not.
 	/// </summary>
 	private Expression BuildNullExpression(Expression valueExpression) {
-		if (Nullable.GetUnderlyingType(ExpressionType) is null && ExpressionType.IsValueType) return Expression.Constant(false);
+		if (ExpressionType.GetNullableUnderlyingType() is null && ExpressionType.IsValueType) return Expression.Constant(false);
 
 		return Expression.Equal(valueExpression, Expression.Constant(null, valueExpression.Type));
 	}
@@ -237,7 +237,7 @@ internal abstract class PaginateFilterField(
 
 		// Unwrapping the nullable keeps both stand-ins working on the underlying value; the null guard below restores
 		// the "a NULL row does not match" behavior a lifted operator would have given for free.
-		var operand = Nullable.GetUnderlyingType(valueExpression.Type) is null
+		var operand = valueExpression.Type.GetNullableUnderlyingType() is null
 			? valueExpression
 			: Expression.Property(valueExpression, "Value");
 
@@ -273,7 +273,7 @@ internal abstract class PaginateFilterField(
 		}
 
 		// Mirrors the pattern operators: SQL already yields false for NULL, the in-memory provider would throw.
-		return valueExpression.Type.IsValueType && Nullable.GetUnderlyingType(valueExpression.Type) is null
+		return valueExpression.Type.IsValueType && valueExpression.Type.GetNullableUnderlyingType() is null
 			? compare
 			: Expression.AndAlso(Expression.NotEqual(valueExpression, Expression.Constant(null, valueExpression.Type)), compare);
 
@@ -307,7 +307,7 @@ internal abstract class PaginateFilterField(
 				: Expression.AndAlso(current, containsExpression)
 			);
 
-		if (!valueExpression.Type.IsValueType || Nullable.GetUnderlyingType(valueExpression.Type) is not null) {
+		if (!valueExpression.Type.IsValueType || valueExpression.Type.GetNullableUnderlyingType() is not null) {
 			aggregate = Expression.AndAlso(
 				Expression.NotEqual(valueExpression, Expression.Constant(null, valueExpression.Type)),
 				aggregate!

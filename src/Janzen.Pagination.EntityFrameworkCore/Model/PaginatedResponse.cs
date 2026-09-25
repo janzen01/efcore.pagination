@@ -288,18 +288,15 @@ internal static class PaginateStructuralEquality {
 
 		// The ordinal-key rule is on the summary above, where a maintainer sees it in quick info.
 		// The scan is quadratic in the number of filtered FIELDS, which the config caps in single digits.
-		foreach ((string field, var values) in left) {
-
-			bool matched = false;
+		nextField: foreach ((string field, var values) in left) {
 
 			foreach ((string otherField, var otherValues) in right) {
 				if (!string.Equals(field, otherField, StringComparison.Ordinal)) continue;
-
-				matched = ListEquals(values, otherValues);
-				break;
+				if (!ListEquals(values, otherValues)) return false;
+				continue nextField;
 			}
 
-			if (!matched) return false;
+			return false;
 
 		}
 
