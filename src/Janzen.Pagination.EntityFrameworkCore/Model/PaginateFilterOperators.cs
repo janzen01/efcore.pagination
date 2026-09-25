@@ -80,7 +80,7 @@ public static class PaginateFilterOperators {
 
 		ArgumentNullException.ThrowIfNull(type, paramName);
 
-		var underlying = Nullable.GetUnderlyingType(type);
+		var underlying = type.GetNullableUnderlyingType();
 		var core = underlying ?? type;
 
 		// Reference types are always nullable; value types only through Nullable<T>. NRT erasure means a

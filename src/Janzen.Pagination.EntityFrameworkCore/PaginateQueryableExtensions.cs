@@ -191,7 +191,7 @@ public static class PaginateQueryableExtensions {
 		if (config.IgnoreSearchByInQueryParam || request.SearchBy.Count == 0) return config.GetDefaultSearchFields();
 
 		List<PaginateSearchField<TEntity>> fields = [];
-		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		HashSet<string> seen = [with(StringComparer.OrdinalIgnoreCase)];
 
 		foreach (string fieldName in request.SearchBy) {
 			if (!config.TryGetSearchableField(fieldName, out var field)) throw new PaginateQueryException($"Search for field '{fieldName}' is not configured.") { Code = PaginateQueryError.SearchFieldNotConfigured };
@@ -233,7 +233,7 @@ public static class PaginateQueryableExtensions {
 			// Symmetric with searchBy, whose published reason is "so a client cannot ship a typo that silently
 			// does nothing". A repeated field used to be accepted: the second key ordered nothing, consumed a
 			// MaxSortFields slot and was echoed back in meta.sortBy as if it had.
-			var requested = new HashSet<string>(sorts.Count, StringComparer.OrdinalIgnoreCase);
+			HashSet<string> requested = [with(sorts.Count, StringComparer.OrdinalIgnoreCase)];
 
 			foreach (var sort in sorts) {
 				if (!requested.Add(sort.Field)) {
@@ -362,7 +362,7 @@ public static class PaginateQueryableExtensions {
 		// Asked as "is this a paging error?", not as "is it the one non-paging code we know about". The inverse
 		// reads the same today and silently gives the wrong precedence to the next non-paging code the binder
 		// learns to report, with nothing failing to say so.
-		bool pagingError = request.ValidationErrorCode
+		bool pagingError = request.ValidationError?.Code
 			is PaginateQueryError.PageOutOfRange
 			or PaginateQueryError.LimitOutOfRange
 			or PaginateQueryError.UnlimitedReadRequiresFirstPage

@@ -31,12 +31,13 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	// PascalCase entries are the PaginateQuery property names ASP.NET generates by default; camelCase entries are
 	// the wire names this package advertises instead.
-	private readonly static FrozenSet<string> GeneratedParameterNames = new[] {
+	private readonly static FrozenSet<string> GeneratedParameterNames = [
+		with(StringComparer.Ordinal),
 		nameof(PaginateQuery.Page), nameof(PaginateQuery.Limit), nameof(PaginateQuery.SortBy),
 		nameof(PaginateQuery.Search), nameof(PaginateQuery.SearchBy), nameof(PaginateQuery.Filters),
 		PaginateQueryParams.Page, PaginateQueryParams.Limit, PaginateQueryParams.SortBy,
 		PaginateQueryParams.Search, PaginateQueryParams.SearchBy
-	}.ToFrozenSet(StringComparer.Ordinal);
+	];
 
 	// The site's grammar reference calls these modifiers rather than operators, and they are available on every
 	// field regardless of its operator set -- so they are a list of their own rather than three entries appended
@@ -501,7 +502,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	// same-named type from any other assembly can never match, and there is nothing to cache or preload.
 	private static (string Name, string Example, string? Upper) DescribeValueType(Type type) {
 
-		var t = Nullable.GetUnderlyingType(type) ?? type;
+		var t = type.GetNullableUnderlyingType() ?? type;
 
 		return t switch {
 			_ when t == typeof(string) => ("string", "text", null),

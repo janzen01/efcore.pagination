@@ -144,8 +144,8 @@ public static class PaginateNodaTime {
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	private static Expression? BuildConversion(Expression sourceValue, Type targetType) {
 
-		var sourceUnderlying = Nullable.GetUnderlyingType(sourceValue.Type) ?? sourceValue.Type;
-		var targetUnderlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
+		var sourceUnderlying = sourceValue.Type.GetNullableUnderlyingType() ?? sourceValue.Type;
+		var targetUnderlying = targetType.GetNullableUnderlyingType() ?? targetType;
 
 		string? method = null;
 		foreach (var (source, target, name) in Conversions) {
@@ -156,8 +156,8 @@ public static class PaginateNodaTime {
 
 		if (method is null) return null;
 
-		bool sourceNullable = Nullable.GetUnderlyingType(sourceValue.Type) is not null;
-		bool targetNullable = Nullable.GetUnderlyingType(targetType) is not null;
+		bool sourceNullable = sourceValue.Type.GetNullableUnderlyingType() is not null;
+		bool targetNullable = targetType.GetNullableUnderlyingType() is not null;
 
 		if (!sourceNullable) {
 			var converted = Expression.Call(sourceValue, method, Type.EmptyTypes);

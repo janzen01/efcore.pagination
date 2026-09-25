@@ -59,12 +59,12 @@ internal static class PaginateValueConverter {
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static object? Convert(string value, Type targetType, string field) {
 
-		var type = Nullable.GetUnderlyingType(targetType) ?? targetType;
+		var type = targetType.GetNullableUnderlyingType() ?? targetType;
 
 		if (type == typeof(string)) return value;
 
 		if (string.IsNullOrWhiteSpace(value)) {
-			return Nullable.GetUnderlyingType(targetType) is not null ? null : throw new PaginateQueryException($"Value for '{field}' must not be empty.") { Code = PaginateQueryError.ValueEmpty };
+			return targetType.GetNullableUnderlyingType() is not null ? null : throw new PaginateQueryException($"Value for '{field}' must not be empty.") { Code = PaginateQueryError.ValueEmpty };
 		}
 
 		// Everything below is reachable by consumer code — a registered parser, or an IParsable<TSelf>.TryParse the
@@ -79,7 +79,7 @@ internal static class PaginateValueConverter {
 			if (PaginateTypeSupport.TryParseValue(type, value, out var custom)) {
 				// Func<string, object?> invites it, but a parser signals bad input by throwing and null is not an
 				// answer: against a target that cannot hold one it reached Expression.Constant(null, typeof(T)).
-				return custom is null && targetType.IsValueType && Nullable.GetUnderlyingType(targetType) is null
+				return custom is null && targetType.IsValueType && targetType.GetNullableUnderlyingType() is null
 					? throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid }
 					: custom;
 			}

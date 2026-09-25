@@ -29,7 +29,7 @@ public static class PaginateHttpResponseExtensions {
 
 		if (links is null) return;
 
-		var parts = new List<string>(4);
+		List<string> parts = [with(4)];
 
 		if (links.First is not null) parts.Add($"<{links.First}>; rel=\"first\"");
 		if (links.Previous is not null) parts.Add($"<{links.Previous}>; rel=\"prev\"");
