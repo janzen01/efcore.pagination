@@ -81,6 +81,7 @@ internal abstract class PaginateFilterField(
 	/// </para>
 	/// </summary>
 	internal bool Supports(PaginateFilterOperator filterOperator) {
+
 		return filterOperator switch {
 			PaginateFilterOperator.LessThan or PaginateFilterOperator.LessThanOrEqual
 				or PaginateFilterOperator.GreaterThan or PaginateFilterOperator.GreaterThanOrEqual
@@ -89,6 +90,7 @@ internal abstract class PaginateFilterField(
 			PaginateFilterOperator.Contains => Type == typeof(string) || ElementType is not null,
 			_ => true
 		};
+
 	}
 
 	/// <summary>
@@ -368,13 +370,11 @@ internal abstract class PaginateFilterField(
 	///     an empty string is a value, not an absence.
 	/// </summary>
 	private object? ConvertRawValue(string value, Type targetType) {
-
 		if (targetType != typeof(string) && string.IsNullOrWhiteSpace(value)) {
 			throw new PaginateQueryException($"Filter '{Name}' requires a value; use '$null' to match rows with no value.") { Code = PaginateQueryError.ValueEmpty };
 		}
 
 		return PaginateValueConverter.Convert(value, targetType, Name);
-
 	}
 
 	/// <summary>Wraps an already-converted value as a constant of <paramref name="targetType" />, parameterized as above.</summary>
@@ -388,11 +388,9 @@ internal abstract class PaginateFilterField(
 	///     trimming here made <c>$in:x</c> and <c>$eq:x</c> mean two different things on a string field.
 	/// </summary>
 	private string[] SplitValueList(string value, int maxFilterValues) {
-
 		string[] values = value.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
 		return values.Length > maxFilterValues ? throw new PaginateQueryException($"Filter '{Name}' accepts at most {maxFilterValues} values.") { Code = PaginateQueryError.TooManyFilterValues } : values;
-
 	}
 
 	private static Type? GetEnumerableElementType(Type type) {

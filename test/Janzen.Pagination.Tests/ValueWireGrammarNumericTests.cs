@@ -44,7 +44,9 @@ public sealed class ValueWireGrammarNumericTests {
 
 		return readings.PaginateAsync<Reading, ReadingDto>(
 			new PaginateQuery { Filters = new Dictionary<string, IReadOnlyList<string>> { [field] = [criterion] } },
-			Config, null, TestContext.Current.CancellationToken
+			Config,
+			null,
+			TestContext.Current.CancellationToken
 		);
 
 	}
@@ -73,11 +75,9 @@ public sealed class ValueWireGrammarNumericTests {
 	[InlineData(" 1.50 ", 1)]
 	[InlineData("-1234", 3)]
 	public async Task A_decimal_keeps_the_invariant_forms(string value, int expected) {
-
 		int[] ids = await IdsAsync("amount", $"$eq:{value}");
 
 		Assert.Equal([expected], ids);
-
 	}
 
 	/// <remarks>
@@ -91,11 +91,9 @@ public sealed class ValueWireGrammarNumericTests {
 	[InlineData("$eq:Infinity")]
 	[InlineData("$eq:-Infinity")]
 	public async Task A_double_refuses_a_non_finite_result(string criterion) {
-
 		string value = criterion[(criterion.IndexOf(':', StringComparison.Ordinal) + 1)..];
 
 		Assert.Equal($"Value '{value}' is not valid for 'ratio'.", await RejectsAsync("ratio", criterion));
-
 	}
 
 	/// <remarks><c>1e40</c> is a perfectly ordinary <see cref="double" /> and an infinity once narrowed to a <see cref="float" />.</remarks>

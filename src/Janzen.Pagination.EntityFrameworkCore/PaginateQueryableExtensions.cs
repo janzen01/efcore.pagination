@@ -447,6 +447,7 @@ public static class PaginateQueryableExtensions {
 		// same; only the printed SQL differs from the request. Widen if a provider ever stores that many rows.
 		long skip = (long)(page - 1) * limit;
 		return query.Skip((int)Math.Min(skip, int.MaxValue)).Take(limit);
+
 	}
 
 	[RequiresUnreferencedCode(AotIncompatibleMessage)]
@@ -512,7 +513,8 @@ public static class PaginateQueryableExtensions {
 		/// </summary>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateAsync<TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PaginateAsync<TResult>(
+			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			PaginateLinkContext? linkContext = null,
 			CancellationToken ct = default
@@ -549,7 +551,8 @@ public static class PaginateQueryableExtensions {
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateSelectAsync<TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PaginateSelectAsync<TResult>(
+			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Expression<Func<TEntity, TResult>> selector,
 			PaginateLinkContext? linkContext = null,
@@ -580,7 +583,8 @@ public static class PaginateQueryableExtensions {
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateSelectMapAsync<TProjection, TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PaginateSelectMapAsync<TProjection, TResult>(
+			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Expression<Func<TEntity, TProjection>> selector,
 			Func<TProjection, TResult> postMap,
@@ -594,9 +598,13 @@ public static class PaginateQueryableExtensions {
 			ArgumentNullException.ThrowIfNull(selector);
 			ArgumentNullException.ThrowIfNull(postMap);
 
-			return source.PaginateCoreAsync(request, config,
+			return source.PaginateCoreAsync(
+				request,
+				config,
 				async Task<IReadOnlyList<TResult>> (query, token) => (await MaterializeAsync(query.Select(selector), token).ConfigureAwait(false)).Select(postMap).ToList(),
-				linkContext, ct);
+				linkContext,
+				ct
+			);
 
 		}
 
@@ -617,7 +625,8 @@ public static class PaginateQueryableExtensions {
 		/// </remarks>
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		public Task<PaginatedResponse<TResult>> PaginateMapAsync<TResult>(PaginateQuery request,
+		public Task<PaginatedResponse<TResult>> PaginateMapAsync<TResult>(
+			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Func<TEntity, TResult> projector,
 			PaginateLinkContext? linkContext = null,
@@ -711,7 +720,8 @@ public static class PaginateQueryableExtensions {
 
 		[RequiresUnreferencedCode(AotIncompatibleMessage)]
 		[RequiresDynamicCode(AotIncompatibleMessage)]
-		private async Task<PaginatedResponse<TResult>> PaginateCoreAsync<TResult>(PaginateQuery request,
+		private async Task<PaginatedResponse<TResult>> PaginateCoreAsync<TResult>(
+			PaginateQuery request,
 			PaginateConfig<TEntity> config,
 			Func<IQueryable<TEntity>, CancellationToken, Task<IReadOnlyList<TResult>>> project,
 			PaginateLinkContext? linkContext,

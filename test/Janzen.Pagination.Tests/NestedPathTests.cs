@@ -40,18 +40,14 @@ public sealed class NestedPathTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 	/// <summary>Runs one request on both legs and asserts each returns <paramref name="expected" /> — the same ids in the same order.</summary>
 	private async Task BothLegs(PaginateQuery request, params int[] expected) {
-
 		Assert.Equal(expected, await InMemory(request));
 		Assert.Equal(expected, await Sqlite(request));
-
 	}
 
 	[Fact]
 	public async Task A_filter_across_a_navigation_excludes_the_row_with_no_parent() {
-
 		// 1, 2, and 6 are Electronics; 5 has no category and must not throw on the way past.
 		await BothLegs(Query.Filter("category.name", "$eq:Electronics"), 1, 2, 6);
-
 	}
 
 	[Fact]
@@ -61,23 +57,19 @@ public sealed class NestedPathTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 	[Fact]
 	public async Task A_value_typed_member_across_a_navigation_lifts_rather_than_throwing() {
-
 		// Category.Id is a non-nullable int, so the rewrite has to lift it to int? for the missing row to have
 		// any value at all. $gte then matches the two Food rows and skips product 5 rather than exploding — and
 		// the relational leg reaches the same answer through its LEFT JOIN, without lifting anything.
 		await BothLegs(Query.Filter("category.id", "$gte:3"), 7, 8);
-
 	}
 
 	[Fact]
 	public async Task Null_across_a_navigation_matches_the_row_with_no_parent() {
-
 		// This is the case a predicate-level null guard would have got wrong, and the one the parity claim rests
 		// on: a relational provider LEFT JOINs and reports the joined column as NULL, so `category.name IS NULL`
 		// is true for a product with no category. Asserting it on the database leg is what makes "the in-memory
 		// leg now agrees" a measurement rather than a belief.
 		await BothLegs(Query.Filter("category.name", "$null"), 5);
-
 	}
 
 	[Fact]
@@ -127,22 +119,18 @@ public sealed class NestedPathTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 	[Fact]
 	public void The_dotted_name_is_just_a_name() {
-
 		IPaginateConfig meta = Config;
 
 		Assert.Contains(meta.FilterableFields, field => field.Name == "category.name");
 		Assert.Contains(meta.SortableFields, field => field.Name == "category.name");
-
 	}
 
 	[Fact]
 	public async Task Null_on_a_value_typed_nested_member_matches_nothing_on_either_leg() {
-
 		// The lift to int? exists so the expression has somewhere to put "absent", not so $null changes meaning.
 		// A relational provider decides this from the declared type and matches no row; reading the lifted type
 		// here would have matched product 5 in memory and nothing at all against a database.
 		await BothLegs(Query.Filter("category.id", "$null"));
-
 	}
 
 }

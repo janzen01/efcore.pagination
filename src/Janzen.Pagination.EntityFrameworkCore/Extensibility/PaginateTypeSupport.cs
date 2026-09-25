@@ -68,6 +68,7 @@ public static class PaginateTypeSupport {
 	}
 
 	internal static bool TryParseValue(Type type, string value, out object? result) {
+
 		if (ValueParsers.TryGetValue(type, out var parser)) {
 			result = parser(value);
 			return true;
@@ -75,6 +76,7 @@ public static class PaginateTypeSupport {
 
 		result = null;
 		return false;
+
 	}
 
 	internal static bool IsRegisteredSimpleType(Type type) { return SimpleTypes.ContainsKey(type); }

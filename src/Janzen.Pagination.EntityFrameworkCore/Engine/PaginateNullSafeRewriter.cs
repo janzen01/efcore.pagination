@@ -54,12 +54,10 @@ internal static class PaginateNullSafeRewriter {
 	/// </summary>
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public static LambdaExpression Rewrite(LambdaExpression selector) {
-
 		var parameter = selector.Parameters[0];
 		var body = Rewrite(selector.Body, parameter);
 
 		return ReferenceEquals(body, selector.Body) ? selector : Expression.Lambda(body, parameter);
-
 	}
 
 	/// <summary>Builds the guarded form, or <see langword="null" /> when no intermediate in the chain can be null.</summary>

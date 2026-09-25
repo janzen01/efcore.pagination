@@ -5,13 +5,11 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace Janzen.Pagination.Tests.Support;
 
 public sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options) {
-
 	public DbSet<Product> Products => Set<Product>();
 
 	public DbSet<Category> Categories => Set<Category>();
 
 	public DbSet<Review> Reviews => Set<Review>();
-
 }
 
 /// <summary>

@@ -116,8 +116,10 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 
 		// A connector says how a criterion joins the one before it, so on the first one it has nothing to join
 		// to. It used to be read and then discarded.
-		Assert.Equal($"Filter 'status' must not begin with '{connector}'; a connector joins a criterion to the one before it.",
-			await Rejects(Query.Filter("status", $"{connector}:$eq:Draft")));
+		Assert.Equal(
+			$"Filter 'status' must not begin with '{connector}'; a connector joins a criterion to the one before it.",
+			await Rejects(Query.Filter("status", $"{connector}:$eq:Draft"))
+		);
 
 	}
 
@@ -127,8 +129,10 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 		// The shape a client that always prefixes $or: sends. Every field's leading connector was discarded and
 		// fields are always joined with AND, so two criteria a caller meant as alternatives answered an empty
 		// page -- a wrong result set, with nothing in the response to say why.
-		Assert.Equal("Filter 'status' must not begin with '$or'; a connector joins a criterion to the one before it.",
-			await Rejects(Query.Filters(("status", "$or:$eq:Draft"), ("name", "$or:$eq:Widget"))));
+		Assert.Equal(
+			"Filter 'status' must not begin with '$or'; a connector joins a criterion to the one before it.",
+			await Rejects(Query.Filters(("status", "$or:$eq:Draft"), ("name", "$or:$eq:Widget")))
+		);
 
 	}
 
@@ -137,8 +141,10 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 
 		// Cross-field too: each field's criteria are read from their own first criterion, and the second field's
 		// leading connector was discarded just as silently.
-		Assert.Equal("Filter 'rank' must not begin with '$or'; a connector joins a criterion to the one before it.",
-			await Rejects(Query.Filters(("status", "$eq:Active"), ("rank", "$or:$gt:50"))));
+		Assert.Equal(
+			"Filter 'rank' must not begin with '$or'; a connector joins a criterion to the one before it.",
+			await Rejects(Query.Filters(("status", "$eq:Active"), ("rank", "$or:$gt:50")))
+		);
 
 	}
 
@@ -208,6 +214,7 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 
 	[Fact]
 	public async Task Repeated_modifiers_do_not_make_parsing_cost_quadratic() {
+
 		// A guard, not a benchmark. Re-slicing the value as a string per modifier copied its whole tail each
 		// time, so 1 600 repeated prefixes -- one 8 KB request line -- allocated 12.9 MB, an amplification of
 		// ~1 612x over the bytes the client sent. Slicing a span allocates nothing, and the measured ratio is
@@ -231,6 +238,7 @@ public sealed class FilterGrammarTests(SqliteFixture fixture) : IClassFixture<Sq
 			for (int i = 0; i < 20; i++) products.ApplyPagination(request, TestData.Config);
 			return GC.GetAllocatedBytesForCurrentThread() - before;
 		}
+
 	}
 
 }

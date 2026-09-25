@@ -12,7 +12,8 @@ internal sealed class PortableLikeStrategy() : PaginateLikeStrategyBase(LikeMeth
 
 	private readonly static MethodInfo LikeMethod = typeof(DbFunctionsExtensions).GetMethod(
 		nameof(DbFunctionsExtensions.Like),
-		[typeof(DbFunctions), typeof(string), typeof(string), typeof(string)])!;
+		[typeof(DbFunctions), typeof(string), typeof(string), typeof(string)]
+	)!;
 
 	public override PaginateFilterOperator? PreferredExampleOperator => null;
 

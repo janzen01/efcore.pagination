@@ -28,12 +28,14 @@ internal static class PaginateInputGuard {
 	///     being read, so the message reads like the rest of the catalog.
 	/// </summary>
 	public static void RejectNul(string value, string subject) {
+
 		if (value.Contains('\0', StringComparison.Ordinal)) {
 			// ValueInvalid rather than a code of its own: a dedicated member would be a new public surface,
 			// and the decision that introduced the codes enumerated the causes it wanted. Worth revisiting
 			// if a client ever needs to tell a nul byte apart from any other unusable value.
 			throw new PaginateQueryException($"{subject} must not contain a null character.") { Code = PaginateQueryError.ValueInvalid };
 		}
+
 	}
 
 	/// <summary>

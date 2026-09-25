@@ -7,6 +7,7 @@ namespace Janzen.Pagination.Tests;
 public sealed class ConditionalFieldTests(SqliteFixture fixture) : IClassFixture<SqliteFixture> {
 
 	private static PaginateConfig<Product> Gated(bool allowed) {
+
 		return PaginateConfig<Product>.Create(b => b
 			.WithLimits(50, 50)
 			.Sortable("rank", p => p.Rank)
@@ -19,6 +20,7 @@ public sealed class ConditionalFieldTests(SqliteFixture fixture) : IClassFixture
 			.Filterable("rank", p => p.Rank, PaginateFilterOperator.Eq)
 			.Filterable("isFeatured", p => p.IsFeatured, PaginateFilterOperator.Eq)
 				.When(allowed).ShowBadge("Admin", "language-admin"));
+
 	}
 
 	private async Task<PaginatedResponse<ProductDto>> Page(PaginateQuery request, PaginateConfig<Product> config) {

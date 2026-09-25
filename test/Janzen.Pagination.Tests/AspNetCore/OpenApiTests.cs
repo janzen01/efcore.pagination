@@ -85,12 +85,14 @@ public sealed class PerConfigStrategyProvider : IPaginateConfigProvider<Product>
 public sealed class TightCeilingConfigProvider : IPaginateConfigProvider<Product> {
 
 	public PaginateConfig<Product> GetConfig() {
+
 		return PaginateConfig<Product>.Create(b => b
 			.WithLimits(defaultLimit: 15, maxLimit: 60)
 			.WithTieBreaker(p => p.Id)
 			.WithGuards(maxSearchLength: 2)
 			.Sortable("rank", p => p.Rank)
 			.Filterable("name", p => p.Name, PaginateFilterOperator.ILike));
+
 	}
 
 }
@@ -98,6 +100,7 @@ public sealed class TightCeilingConfigProvider : IPaginateConfigProvider<Product
 public sealed class PatternGuardedConfigProvider : IPaginateConfigProvider<Product> {
 
 	public PaginateConfig<Product> GetConfig() {
+
 		return PaginateConfig<Product>.Create(b => b
 			.WithLimits(defaultLimit: 15, maxLimit: 60)
 			.WithTieBreaker(p => p.Id)
@@ -105,6 +108,7 @@ public sealed class PatternGuardedConfigProvider : IPaginateConfigProvider<Produ
 			.WithGuards(maxSearchLength: 6)
 			.Sortable("rank", p => p.Rank)
 			.Filterable("name", p => p.Name, PaginateFilterOperator.ILike));
+
 	}
 
 }
@@ -112,6 +116,7 @@ public sealed class PatternGuardedConfigProvider : IPaginateConfigProvider<Produ
 public sealed class GuardedConfigProvider : IPaginateConfigProvider<Product> {
 
 	public PaginateConfig<Product> GetConfig() {
+
 		return PaginateConfig<Product>.Create(b => b
 			.WithLimits(defaultLimit: 15, maxLimit: 60)
 			.WithTieBreaker(p => p.Id)
@@ -125,6 +130,7 @@ public sealed class GuardedConfigProvider : IPaginateConfigProvider<Product> {
 			.DefaultSortBy("rank", PaginateSortDirection.Desc)
 			.Searchable("name", p => p.Name)
 			.Filterable("status", p => p.Status, PaginateFilterOperator.Eq));
+
 	}
 
 }
@@ -424,13 +430,11 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	/// </summary>
 	[Fact]
 	public void A_ceiling_below_the_sample_truncates_it_without_any_padding() {
-
 		string sample = Parameters("/tight-ceiling").EnumerateArray()
 			.Single(parameter => parameter.GetProperty("name").GetString() == "filter.name")
 			.GetProperty("schema").GetProperty("items").GetProperty("examples")[0].GetString()!;
 
 		Assert.Equal("$ilike:te", sample);
-
 	}
 
 	/// <summary>
@@ -440,21 +444,17 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	/// </summary>
 	[Fact]
 	public void An_unbound_floor_is_not_advertised_as_a_guard() {
-
 		string description = Description("/per-config-strategy", "filter.name");
 
 		Assert.Contains("must not exceed", description, StringComparison.Ordinal);
 		Assert.DoesNotContain("must be between 1 and", description, StringComparison.Ordinal);
-
 	}
 
 	[Fact]
 	public void The_documented_endpoint_advertises_every_pagination_parameter() {
-
 		string[] names = ParameterNames("/products");
 
 		Assert.Equal(["page", "limit", "sortBy", "search", "searchBy", "filter.isFeatured", "filter.status"], names);
-
 	}
 
 	[Fact]
@@ -471,22 +471,22 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// carries both the framework's guess and the real contract.
 		Assert.Equal(
 			["Page", "Limit", "SortBy", "Search", "SearchBy", "Filters"],
-			ParameterNames("/mvc/products/unmarked"));
+			ParameterNames("/mvc/products/unmarked")
+		);
 
 		Assert.Equal(
 			["page", "limit", "sortBy", "search", "searchBy", "filter.isFeatured", "filter.status"],
-			ParameterNames("/mvc/products"));
+			ParameterNames("/mvc/products")
+		);
 
 	}
 
 	[Fact]
 	public void The_limit_description_carries_the_resources_own_numbers() {
-
 		string description = Description("limit");
 
 		Assert.Contains("between 1 and 60", description);
 		Assert.Contains("Defaults to 15", description);
-
 	}
 
 	[Fact]
@@ -525,7 +525,8 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		Assert.Contains("Modifiers", description, StringComparison.Ordinal);
 		Assert.True(
 			description.IndexOf("Available operations", StringComparison.Ordinal) < description.IndexOf("Modifiers", StringComparison.Ordinal),
-			"the field's own operators come before the always-available modifiers");
+			"the field's own operators come before the always-available modifiers"
+		);
 
 	}
 
@@ -590,60 +591,48 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 	[Fact]
 	public void The_validation_failure_response_is_documented() {
-
 		var responses = fixture.Document.GetProperty("paths").GetProperty("/products").GetProperty("get").GetProperty("responses");
 
 		Assert.Contains("invalid", responses.GetProperty("400").GetProperty("description").GetString()!, StringComparison.OrdinalIgnoreCase);
-
 	}
 
 	private string[] ValidationFailureMembers(string path) {
-
 		return [.. fixture.Document.GetProperty("paths").GetProperty(path).GetProperty("get")
 			.GetProperty("responses").GetProperty("400")
 			.GetProperty("content").GetProperty("application/problem+json")
 			.GetProperty("schema").GetProperty("properties")
 			.EnumerateObject().Select(property => property.Name)];
-
 	}
 
 	[Fact]
 	public void The_validation_failure_schema_documents_what_the_runtime_actually_sends() {
-
 		// This host registers no AddProblemDetails(), so a Minimal API 400 reaches no problem-details writer and
 		// carries no traceId. instance is on neither leg: nothing passes one and the framework synthesizes none,
 		// so a generated model used to carry a property that is always null.
 		Assert.Equal(["type", "title", "status", "detail", "code"], ValidationFailureMembers("/products"));
-
 	}
 
 	[Fact]
 	public void The_controller_leg_documents_the_traceId_its_factory_always_adds() {
-
 		// The controller 400 is built by ProblemDetailsFactory, which the MVC services always bring, so traceId
 		// is unconditional there -- the one place the member is honest without AddProblemDetails().
 		Assert.Equal(["type", "title", "status", "detail", "code", "traceId"], ValidationFailureMembers("/mvc/products"));
-
 	}
 
 	[Fact]
 	public void A_resource_with_nothing_searchable_advertises_neither_search_parameter() {
-
 		// Both used to be emitted unconditionally, which is what pushes such a config into
 		// IgnoreSearchByInQueryParam() purely to stop the generated documentation offering searchBy.
 		Assert.Equal(["page", "limit", "sortBy", "filter.status"], ParameterNames("/searchless"));
-
 	}
 
 	[Fact]
 	public void A_guarded_resource_documents_its_ceilings() {
-
 		// Each of the three is a property of the resource, so an unguarded one says nothing extra -- which is
 		// what the /products assertions above already pin.
 		Assert.Contains("At most 5000 rows may be skipped", Description("/guarded", "page"), StringComparison.Ordinal);
 		Assert.Contains("Send -1 with page=1", Description("/guarded", "limit"), StringComparison.Ordinal);
 		Assert.Contains("at least 3 characters after trimming", Description("/guarded", "search"), StringComparison.Ordinal);
-
 	}
 
 	private JsonElement Schema(string path, string name) {
@@ -714,20 +703,20 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 	[Fact]
 	public void An_unguarded_resource_says_nothing_about_them() {
-
 		Assert.DoesNotContain("rows may be skipped", Description("page"), StringComparison.Ordinal);
 		Assert.DoesNotContain("-1", Description("limit"), StringComparison.Ordinal);
 		Assert.DoesNotContain("at least", Description("search"), StringComparison.Ordinal);
-
 	}
 
 	private (string Name, string Example)[] FilterExamples(string path) {
+
 		return [.. Parameters(path).EnumerateArray()
 			.Where(parameter => parameter.GetProperty("name").GetString()!.StartsWith("filter.", StringComparison.Ordinal))
 			.Select(parameter => (
 				parameter.GetProperty("name").GetString()!,
 				parameter.GetProperty("schema").GetProperty("items").GetProperty("examples").EnumerateArray().First().GetString()!
 			))];
+
 	}
 
 	[Fact]
@@ -774,22 +763,22 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	}
 
 	private static string? Refuses(IQueryable<EveryValueType> source, string parameterName, string example) {
+
 		try {
 			source.ApplyPaginateFilters(Query.Filter(parameterName["filter.".Length..], example), EveryValueTypeConfigProvider.Config);
 			return null;
 		} catch (PaginateQueryException exception) {
 			return exception.Message;
 		}
+
 	}
 
 	[Fact]
 	public void A_provider_the_container_owns_is_the_one_that_is_asked() {
-
 		// ActivatorUtilities constructs outside the container, so a registered provider -- a singleton holding a
 		// prebuilt config, a cache, a handle -- was never reached from the OpenAPI path.
 		Assert.Contains("filter.registered", ParameterNames("/registered"));
 		Assert.DoesNotContain("filter.activated", ParameterNames("/registered"));
-
 	}
 
 	[Fact]
@@ -820,7 +809,8 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		};
 
 		await Assert.ThrowsAsync<OperationCanceledException>(
-			() => new PaginatedQueryOperationTransformer().TransformAsync(new OpenApiOperation(), context, new CancellationToken(true)));
+			() => new PaginatedQueryOperationTransformer().TransformAsync(new OpenApiOperation(), context, new CancellationToken(true))
+		);
 
 	}
 

@@ -25,12 +25,9 @@ public sealed class ValueWireGrammarDateTimeTests {
 	private readonly static PaginateConfig<Event> Config = PaginateConfig<Event>.Create(b => b
 		.WithLimits(10, 10)
 		.WithTieBreaker(e => e.Id)
-		.Filterable("startsAt", e => e.StartsAt,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual)
-		.Filterable("observedAt", e => e.ObservedAt,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual)
-		.Filterable("elapsed", e => e.Elapsed,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.LessThanOrEqual));
+		.Filterable("startsAt", e => e.StartsAt, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual)
+		.Filterable("observedAt", e => e.ObservedAt, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual)
+		.Filterable("elapsed", e => e.Elapsed, PaginateFilterOperator.Eq, PaginateFilterOperator.LessThanOrEqual));
 
 	/// <remarks>
 	///     Row 1 is the instant every accepted spelling below resolves to. Row 2 carries five days, which is what
@@ -56,7 +53,9 @@ public sealed class ValueWireGrammarDateTimeTests {
 
 		return events.PaginateAsync<Event, EventDto>(
 			new PaginateQuery { Filters = new Dictionary<string, IReadOnlyList<string>> { [field] = [criterion] } },
-			Config, null, TestContext.Current.CancellationToken
+			Config,
+			null,
+			TestContext.Current.CancellationToken
 		);
 
 	}
@@ -98,22 +97,18 @@ public sealed class ValueWireGrammarDateTimeTests {
 	[InlineData("2026-01-03T12:00:00+02:00")]
 	[InlineData("2026-01-03T05:00:00-05:00")]
 	public async Task A_timestamp_accepts_the_pinned_iso_forms(string value) {
-
 		int[] local = await IdsAsync("startsAt", $"$eq:{value}");
 		int[] offset = await IdsAsync("observedAt", $"$eq:{value}");
 
 		Assert.Equal([1], local);
 		Assert.Equal([1], offset);
-
 	}
 
 	[Fact]
 	public async Task A_timestamp_accepts_a_bare_iso_date_as_midnight() {
-
 		int[] ids = await IdsAsync("startsAt", "$gte:2026-01-03");
 
 		Assert.Equal([1, 2, 3], ids);
-
 	}
 
 	/// <remarks>
@@ -132,13 +127,11 @@ public sealed class ValueWireGrammarDateTimeTests {
 	/// <remarks>Days keep their spelling in the ISO leg, where <c>P5D</c> says so without overloading the hour slot.</remarks>
 	[Fact]
 	public async Task A_duration_refuses_the_day_carrying_colon_form() {
-
 		string message = await RejectsAsync("elapsed", "$eq:5.00:00:00");
 		int[] ids = await IdsAsync("elapsed", "$eq:P5D");
 
 		Assert.Equal("Value '5.00:00:00' is not valid for 'elapsed'.", message);
 		Assert.Equal([2], ids);
-
 	}
 
 	[Theory]
@@ -152,11 +145,9 @@ public sealed class ValueWireGrammarDateTimeTests {
 	[InlineData("-2:00:00", 3)]
 	[InlineData("-PT2H", 3)]
 	public async Task A_duration_keeps_the_colon_and_iso_forms(string value, int expected) {
-
 		int[] ids = await IdsAsync("elapsed", $"$eq:{value}");
 
 		Assert.Equal([expected], ids);
-
 	}
 
 }

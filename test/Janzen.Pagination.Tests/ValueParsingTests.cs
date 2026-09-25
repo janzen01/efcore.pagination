@@ -20,9 +20,14 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 		.Sortable("opensAt", p => p.OpensAt)
 		.DefaultSortBy("releasedOn")
 		.WithTieBreaker(p => p.Id)
-		.Filterable("releasedOn", p => p.ReleasedOn,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.Between,
-			PaginateFilterOperator.GreaterThan, PaginateFilterOperator.LessThan)
+		.Filterable(
+			"releasedOn",
+			p => p.ReleasedOn,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.Between,
+			PaginateFilterOperator.GreaterThan,
+			PaginateFilterOperator.LessThan
+		)
 		.Filterable("retiredOn", p => p.RetiredOn, PaginateFilterOperator.Eq, PaginateFilterOperator.Null)
 		.Filterable("opensAt", p => p.OpensAt, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan)
 		.Filterable("warranty", p => p.Warranty, PaginateFilterOperator.Eq));
@@ -49,11 +54,9 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 
 	[Fact]
 	public async Task A_date_only_value_sorts() {
-
 		var page = await Page(new PaginateQuery { SortBy = ["releasedOn:DESC"] });
 
 		Assert.Equal([8, 7, 6, 5, 4, 3, 2, 1], page.Items.Select(item => item.Id));
-
 	}
 
 	[Fact]
@@ -68,10 +71,8 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 
 	[Fact]
 	public async Task A_time_span_also_reads_the_iso_8601_form() {
-
 		// Same row as the colon form above: PT2H is what survives a URL without percent-encoding.
 		Assertions.HasIds(await Page(Query.Filter("warranty", "$eq:PT2H")), 2);
-
 	}
 
 	/// <summary>
@@ -81,19 +82,15 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 	/// </summary>
 	[Fact]
 	public async Task Padding_is_trimmed_on_both_duration_spellings() {
-
 		Assertions.HasIds(await Page(Query.Filter("warranty", "$eq: 02:00:00 ")), 2);
 		Assertions.HasIds(await Page(Query.Filter("warranty", "$eq: PT2H ")), 2);
-
 	}
 
 	[Fact]
 	public async Task A_time_span_refuses_a_bare_number() {
-
 		// TimeSpan.TryParse reads "2" as two *days*. Nobody typing 2 into a duration filter means that, so the
 		// colon form is required and a bare number can only be a malformed ISO duration.
 		Assert.Equal("Value '2' is not valid for 'warranty'.", await Rejects(Query.Filter("warranty", "$eq:2")));
-
 	}
 
 	[Theory]
@@ -113,11 +110,11 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 
 	[Fact]
 	public async Task An_empty_value_on_a_nullable_date_only_is_rejected() {
-
 		// It used to answer the rows with no RetiredOn. $null is the operator for that, and this field grants it.
-		Assert.Equal("Filter 'retiredOn' requires a value; use '$null' to match rows with no value.",
-			await Rejects(Query.Filter("retiredOn", "$eq:")));
-
+		Assert.Equal(
+			"Filter 'retiredOn' requires a value; use '$null' to match rows with no value.",
+			await Rejects(Query.Filter("retiredOn", "$eq:"))
+		);
 	}
 
 	[Theory]
@@ -142,13 +139,11 @@ public sealed class ValueParsingTests(SqliteFixture fixture) : IClassFixture<Sql
 
 	[Fact]
 	public async Task A_time_only_rejects_a_date_time() {
-
 		// The mirror image: TimeOnly.Parse reads the same string and throws the date away instead.
 		Assert.Equal(
 			"Value '2026-01-03T10:00:00' is not valid for 'opensAt'.",
 			await Rejects(Query.Filter("opensAt", "$eq:2026-01-03T10:00:00"))
 		);
-
 	}
 
 	[Theory]
@@ -224,7 +219,9 @@ public sealed class ValueParsingNumericTests {
 
 		return readings.PaginateAsync<Reading, ReadingDto>(
 			new PaginateQuery { Filters = new Dictionary<string, IReadOnlyList<string>> { [field] = [criterion] } },
-			Config, null, TestContext.Current.CancellationToken
+			Config,
+			null,
+			TestContext.Current.CancellationToken
 		);
 
 	}
@@ -323,27 +320,25 @@ public sealed class ValueParsingRegistryTests {
 
 		return jobs.PaginateAsync<Job, JobDto>(
 			new PaginateQuery { Filters = new Dictionary<string, IReadOnlyList<string>> { [field] = [criterion] } },
-			Config, null, TestContext.Current.CancellationToken
+			Config,
+			null,
+			TestContext.Current.CancellationToken
 		);
 
 	}
 
 	[Fact]
 	public async Task A_parsable_value_object_filters_with_no_registration_at_all() {
-
 		var page = await PageAsync("ticket", "$eq:T-2");
 
 		Assert.Equal([2], page.Items.Select(item => item.Id));
-
 	}
 
 	[Fact]
 	public async Task A_parsable_value_object_reports_the_field_when_the_text_is_wrong() {
-
 		var exception = await Assert.ThrowsAsync<PaginateQueryException>(() => PageAsync("ticket", "$eq:nope"));
 
 		Assert.Equal("Value 'nope' is not valid for 'ticket'.", exception.Message);
-
 	}
 
 	[Fact]

@@ -27,14 +27,15 @@ public sealed class GuardTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 
 	[Fact]
 	public async Task Too_many_values_in_one_filter_is_rejected() {
-		Assert.Equal("Filter 'id' accepts at most 2 values.",
-			await Rejects(Query.Filter("id", "$in:1,2,3"), WithGuards(maxFilterValues: 2)));
+		Assert.Equal("Filter 'id' accepts at most 2 values.", await Rejects(Query.Filter("id", "$in:1,2,3"), WithGuards(maxFilterValues: 2)));
 	}
 
 	[Fact]
 	public async Task Too_many_filter_conditions_is_rejected() {
-		Assert.Equal("Too many filter conditions; at most 2 are allowed.",
-			await Rejects(Query.Filter("id", "$eq:1", "$or:$eq:2", "$or:$eq:3"), WithGuards(maxFilterConditions: 2)));
+		Assert.Equal(
+			"Too many filter conditions; at most 2 are allowed.",
+			await Rejects(Query.Filter("id", "$eq:1", "$or:$eq:2", "$or:$eq:3"), WithGuards(maxFilterConditions: 2))
+		);
 	}
 
 	[Fact]
@@ -53,14 +54,12 @@ public sealed class GuardTests(SqliteFixture fixture) : IClassFixture<SqliteFixt
 
 	[Fact]
 	public async Task Too_many_sort_fields_is_rejected() {
-		Assert.Equal("Too many sort fields; at most 1 are allowed.",
-			await Rejects(Query.Sort("rank:ASC", "id:DESC"), WithGuards(maxSortFields: 1)));
+		Assert.Equal("Too many sort fields; at most 1 are allowed.", await Rejects(Query.Sort("rank:ASC", "id:DESC"), WithGuards(maxSortFields: 1)));
 	}
 
 	[Fact]
 	public async Task Too_long_a_search_term_is_rejected() {
-		Assert.Equal("Search term must not exceed 3 characters.",
-			await Rejects(Query.Search("abcd"), WithGuards(maxSearchLength: 3)));
+		Assert.Equal("Search term must not exceed 3 characters.", await Rejects(Query.Search("abcd"), WithGuards(maxSearchLength: 3)));
 	}
 
 	[Fact]

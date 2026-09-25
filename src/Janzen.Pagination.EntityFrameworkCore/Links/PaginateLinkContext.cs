@@ -69,11 +69,14 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 
 	/// <summary>Hashes the same members <see cref="Equals(PaginateLinkContext)" /> compares, so equal contexts hash equal.</summary>
 	public override int GetHashCode() {
+
 		// No null branch on Path: ValidatePath refuses one from both the initializer and the init accessor,
 		// which is the same invariant Equals above relies on.
 		return HashCode.Combine(
 			StringComparer.Ordinal.GetHashCode(Path),
-			PaginateStructuralEquality.PairListHash(QueryParameters));
+			PaginateStructuralEquality.PairListHash(QueryParameters)
+		);
+
 	}
 
 	// Validating in the init accessors is what makes `with` run these too, and the initializers above are what
@@ -109,7 +112,8 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 	}
 
 	private static KeyValuePair<string, string>[] ValidateQueryParameters(
-		IReadOnlyList<KeyValuePair<string, string>> queryParameters) {
+		IReadOnlyList<KeyValuePair<string, string>> queryParameters
+	) {
 
 		ArgumentNullException.ThrowIfNull(queryParameters, nameof(QueryParameters));
 

@@ -15,12 +15,10 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 
 	[Fact]
 	public async Task An_omitted_limit_uses_the_configured_default() {
-
 		var page = await Page(new PaginateQuery());
 
 		Assert.Equal(3, page.Meta.ItemsPerPage);
 		Assertions.HasIds(page, 1, 2, 3);
-
 	}
 
 	[Fact]
@@ -28,13 +26,11 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 
 	[Fact]
 	public async Task The_last_page_may_be_partial() {
-
 		var page = await Page(new PaginateQuery { Page = 3 });
 
 		Assertions.HasIds(page, 7, 8);
 		Assert.Equal(2, page.Meta.ItemCount);
 		Assert.Equal(3, page.Meta.ItemsPerPage);
-
 	}
 
 	[Fact]
@@ -52,13 +48,11 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 
 	[Fact]
 	public async Task An_empty_result_set_reports_zero_pages() {
-
 		var page = await Page(Query.Filter("id", "$eq:999"));
 
 		Assert.Empty(page.Items);
 		Assert.Equal(0, page.Meta.TotalItems);
 		Assert.Equal(0, page.Meta.TotalPages);
-
 	}
 
 	[Theory]

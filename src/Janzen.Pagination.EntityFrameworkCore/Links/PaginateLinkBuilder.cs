@@ -36,12 +36,10 @@ internal static class PaginateLinkBuilder {
 	}
 
 	private static string BuildLink(string path, string prefix, int page) {
-
 		string pageParam = $"{PaginateQueryParams.Page}={page.ToString(CultureInfo.InvariantCulture)}";
 		string query = prefix.Length == 0 ? pageParam : $"{prefix}&{pageParam}";
 
 		return $"{path}?{query}";
-
 	}
 
 }

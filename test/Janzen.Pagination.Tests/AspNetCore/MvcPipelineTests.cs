@@ -64,8 +64,9 @@ public sealed class PaginationHostFixture : IAsyncLifetime {
 
 		builder.Services.AddPagination(pagination => pagination.AddAspNetCore());
 		builder.Services.AddControllers().AddApplicationPart(typeof(MvcProductsController).Assembly);
-		builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails =
-			context => context.ProblemDetails.Extensions.Add("nodeId", "fixture"));
+		builder.Services.AddProblemDetails(
+			options => options.CustomizeProblemDetails = context => context.ProblemDetails.Extensions.Add("nodeId", "fixture")
+		);
 
 		_app = builder.Build();
 
@@ -109,11 +110,9 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 	///     empty 500 body, and parsing first would report a JSON error instead of the status that is the point.
 	/// </summary>
 	private async Task<(HttpResponseMessage Response, string Body)> GetAsync(string url) {
-
 		var response = await fixture.Client.GetAsync(new Uri(url, UriKind.Relative), TestContext.Current.CancellationToken);
 
 		return (response, await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
-
 	}
 
 	private static JsonElement Json(string body) { return JsonDocument.Parse(body).RootElement.Clone(); }
@@ -252,12 +251,10 @@ public sealed class MvcPipelineTests(PaginationHostFixture fixture) : IClassFixt
 
 	[Fact]
 	public async Task An_unknown_query_parameter_is_ignored_rather_than_rejected() {
-
 		(var response, string body) = await GetAsync("/mvc/products?offset=40&utm_source=newsletter");
 
 		Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 		Assert.Equal(8, Json(body).GetProperty("meta").GetProperty("totalItems").GetInt32());
-
 	}
 
 }

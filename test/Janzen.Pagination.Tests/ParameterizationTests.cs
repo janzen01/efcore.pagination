@@ -36,12 +36,10 @@ public sealed class ParameterizationTests(SqliteFixture fixture) : IClassFixture
 
 	[Fact]
 	public void An_equality_filter_compares_against_a_parameter_not_a_literal() {
-
 		string sql = StatementFor(Query.Filter("name", "$eq:Widget"));
 
 		Assert.Contains("\"Name\" = @", sql, StringComparison.Ordinal);
 		Assert.DoesNotContain("'Widget'", sql, StringComparison.Ordinal);
-
 	}
 
 	[Fact]

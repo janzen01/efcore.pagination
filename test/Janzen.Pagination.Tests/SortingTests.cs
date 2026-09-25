@@ -101,13 +101,11 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 
 	[Fact]
 	public async Task A_tie_breaker_alone_is_enough_to_page() {
-
 		var config = PaginateConfig<Product>.Create(b => b
 			.WithLimits(50, 50)
 			.WithTieBreaker(p => p.Id, PaginateSortDirection.Desc));
 
 		Assertions.HasIds(await Page(new PaginateQuery { Limit = Query.All }, config), 8, 7, 6, 5, 4, 3, 2, 1);
-
 	}
 
 	/// <summary>
@@ -137,12 +135,9 @@ public sealed class SortingTests(SqliteFixture fixture) : IClassFixture<SqliteFi
 	[InlineData("rank:ASC", "rank:DESC")]
 	[InlineData("rank:ASC", "RANK:ASC")]
 	public async Task A_repeated_sort_field_is_rejected(string first, string second) {
-
 		// Symmetric with searchBy, whose published reason is "so a client cannot ship a typo that silently
 		// does nothing": the second key was dead, consumed a MaxSortFields slot and was echoed in meta.sortBy.
-		Assert.Equal($"Sort field '{second.Split(':')[0]}' is specified more than once.",
-			await Rejects(Query.Sort(first, second)));
-
+		Assert.Equal($"Sort field '{second.Split(':')[0]}' is specified more than once.", await Rejects(Query.Sort(first, second)));
 	}
 
 	[Fact]
@@ -176,12 +171,10 @@ public sealed class OrderingOverloadTests {
 
 	[Fact]
 	public void A_synchronous_custom_provider_keeps_the_plain_OrderBy_overload() {
-
 		var composed = new SynchronousQueryable<Product>(TestData.Products().AsQueryable())
 			.ApplyPagination(new PaginateQuery { SortBy = ["name:ASC"] }, ByName);
 
 		Assert.Equal(2, ArgumentCountOfOutermostOrder(composed.Query.Expression));
-
 	}
 
 	/// <summary>
@@ -195,12 +188,10 @@ public sealed class OrderingOverloadTests {
 	/// </summary>
 	[Fact]
 	public void A_pattern_operator_keeps_one_shape_for_every_provider_that_is_not_ef() {
-
 		var composed = new SynchronousQueryable<Product>(TestData.Products().AsQueryable())
 			.ApplyPaginateFilters(Query.Filter("name", "$contains:wid"), ByNameContains);
 
 		Assert.Contains("OrdinalIgnoreCase", composed.Query.Expression.ToString(), StringComparison.Ordinal);
-
 	}
 
 	private readonly static PaginateConfig<Product> ByNameContains = PaginateConfig<Product>.Create(b => b
@@ -228,13 +219,11 @@ public sealed class OrderingOverloadTests {
 
 	/// <summary>The composed tree is ThenBy(OrderBy(...)), so the first ordering call found going down is the one.</summary>
 	private static int ArgumentCountOfOutermostOrder(Expression expression) {
-
 		for (var node = expression as MethodCallExpression; node is not null; node = node.Arguments[0] as MethodCallExpression) {
 			if (node.Method.Name is "OrderBy" or "OrderByDescending") return node.Arguments.Count;
 		}
 
 		throw new InvalidOperationException("no ordering call in the composed tree");
-
 	}
 
 }
@@ -260,7 +249,8 @@ internal sealed class SynchronousQueryable<T>(IQueryable<T> inner) : IOrderedQue
 		var element = expression.Type.GetGenericArguments().SingleOrDefault() ?? typeof(T);
 		return (IQueryable)Activator.CreateInstance(
 			typeof(SynchronousQueryable<>).MakeGenericType(element),
-			inner.Provider.CreateQuery(expression))!;
+			inner.Provider.CreateQuery(expression)
+		)!;
 	}
 
 	public IQueryable<TElement> CreateQuery<TElement>(Expression expression) {

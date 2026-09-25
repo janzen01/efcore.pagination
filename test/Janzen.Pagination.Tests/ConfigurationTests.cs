@@ -30,11 +30,9 @@ public sealed class ConfigurationTests {
 
 	[Fact]
 	public void Limits_are_mandatory() {
-
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b.Sortable("id", p => p.Id)));
 
 		Assert.Equal("Pagination limits must be configured explicitly via WithLimits(defaultLimit, maxLimit).", exception.Message);
-
 	}
 
 	[Theory]
@@ -52,13 +50,11 @@ public sealed class ConfigurationTests {
 
 	[Fact]
 	public void A_default_sort_must_name_a_sortable_field() {
-
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
 			.WithLimits(10, 10)
 			.DefaultSortBy("nope")));
 
 		Assert.Equal("Default sort field 'nope' is not sortable.", exception.Message);
-
 	}
 
 	[Fact]
@@ -87,7 +83,8 @@ public sealed class ConfigurationTests {
 
 		Assert.Equal(
 			"Filter 'isFeatured' allows operator '$gt', which the engine cannot build for type 'Boolean'. Drop the operator, or declare the field without an explicit list to take the operators its type supports.",
-			exception.Message);
+			exception.Message
+		);
 
 	}
 
@@ -100,19 +97,18 @@ public sealed class ConfigurationTests {
 
 		Assert.Equal(
 			"Filter 'rank' allows operator '$ilike', which the engine cannot build for type 'Int32'. Drop the operator, or declare the field without an explicit list to take the operators its type supports.",
-			exception.Message);
+			exception.Message
+		);
 
 	}
 
 	[Fact]
 	public void Contains_on_a_field_that_is_neither_a_string_nor_a_collection_is_refused_at_build_time() {
-
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
 			.WithLimits(10, 10)
 			.Filterable("rank", p => p.Rank, PaginateFilterOperator.Contains)));
 
 		Assert.StartsWith("Filter 'rank' allows operator '$contains'", exception.Message);
-
 	}
 
 	[Fact]
@@ -150,21 +146,28 @@ public sealed class ConfigurationTests {
 	}
 
 	private static void AcceptsRanges<TValue>(Expression<Func<Product, TValue>> selector) {
+
 		Assert.Single(Build(b => b
 			.WithLimits(10, 10)
-			.Filterable("value", selector, PaginateFilterOperator.GreaterThan, PaginateFilterOperator.GreaterThanOrEqual,
-				PaginateFilterOperator.LessThan, PaginateFilterOperator.LessThanOrEqual, PaginateFilterOperator.Between)).FilterableFields);
+			.Filterable(
+				"value",
+				selector,
+				PaginateFilterOperator.GreaterThan,
+				PaginateFilterOperator.GreaterThanOrEqual,
+				PaginateFilterOperator.LessThan,
+				PaginateFilterOperator.LessThanOrEqual,
+				PaginateFilterOperator.Between
+			)).FilterableFields);
+
 	}
 
 	[Fact]
 	public void A_badge_must_follow_a_field() {
-
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b
 			.WithLimits(10, 10)
 			.ShowBadge("Orphan")));
 
 		Assert.Equal("ShowBadge must be called immediately after a Sortable, Searchable, or Filterable field.", exception.Message);
-
 	}
 
 	[Fact]
@@ -182,22 +185,18 @@ public sealed class ConfigurationTests {
 
 	[Fact]
 	public void A_badge_without_a_class_is_neutral() {
-
 		var config = Build(b => b.WithLimits(10, 10).Sortable("id", p => p.Id).ShowBadge("Beta"));
 
 		var field = Assert.Single(config.SortableFields);
 		Assert.Equal("Beta", field.Badge?.Name);
 		Assert.Null(field.Badge?.CssClass);
-
 	}
 
 	[Fact]
 	public void A_condition_must_follow_a_field() {
-
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(b => b.WithLimits(10, 10).When(true)));
 
 		Assert.Equal("When must be called immediately after a Sortable, Searchable, or Filterable field.", exception.Message);
-
 	}
 
 	[Fact]
@@ -207,8 +206,10 @@ public sealed class ConfigurationTests {
 			.WithLimits(10, 10)
 			.Sortable("id", p => p.Id).When(false)));
 
-		Assert.Equal("A field configured with .When(...) must also declare .ShowBadge(...) so the condition is documented in the OpenAPI output.",
-			exception.Message);
+		Assert.Equal(
+			"A field configured with .When(...) must also declare .ShowBadge(...) so the condition is documented in the OpenAPI output.",
+			exception.Message
+		);
 
 	}
 
@@ -255,11 +256,9 @@ public sealed class ConfigurationTests {
 
 	[Fact]
 	public void A_nullable_filterable_reports_its_underlying_type() {
-
 		var field = Assert.Single(TestData.Config.FilterableFields, f => f.Name == "discontinuedAt");
 
 		Assert.Equal(typeof(DateTimeOffset), field.Type);
-
 	}
 
 }

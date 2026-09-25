@@ -32,13 +32,11 @@ public sealed class ReflectionResolutionTests : IDisposable {
 	public void Dispose() { PaginateLikeDefaults.Strategy = _previous; }
 
 	private static Type NpgsqlStrategyType() {
-
 		// Named through the registration rather than by string: the type is internal to the PostgreSql package,
 		// and this is the same route a consumer's UsePostgreSql() takes.
 		new ServiceCollection().AddPagination(p => p.UsePostgreSql());
 
 		return PaginateLikeDefaults.Strategy.GetType();
-
 	}
 
 	private static void AssertEveryMethodResolved(Type type) {
@@ -58,21 +56,17 @@ public sealed class ReflectionResolutionTests : IDisposable {
 
 	[Fact]
 	public void The_engines_reflectively_resolved_methods_all_resolve() {
-
 		// The closed generic matters for the collection field: the initializer is per constructed type.
 		AssertEveryMethodResolved(typeof(PaginateQueryableExtensions));
 		AssertEveryMethodResolved(typeof(PaginateExpressionUtils));
 		AssertEveryMethodResolved(typeof(PaginateFilterField));
 		AssertEveryMethodResolved(typeof(PaginateCollectionFilterField<Product, Review>));
-
 	}
 
 	[Fact]
 	public void Both_shipped_like_strategies_resolve_their_pattern_match_method() {
-
 		AssertEveryMethodResolved(PaginateLikeDefaults.Portable.GetType());
 		AssertEveryMethodResolved(NpgsqlStrategyType());
-
 	}
 
 }

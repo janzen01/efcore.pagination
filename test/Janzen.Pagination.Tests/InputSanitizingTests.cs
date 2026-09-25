@@ -64,26 +64,22 @@ public sealed class InputSanitizingTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData("\n")]
 	[InlineData("\r")]
 	public async Task Other_control_characters_still_reach_the_provider(string control) {
-
 		await using var context = fixture.CreateContext();
 
 		var page = await SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("name", $"$ilike:wid{control}get"));
 
 		Assert.Empty(page.Items);
-
 	}
 
 	// PAR-13 — the value echoed back into the 400 detail.
 
 	[Fact]
 	public async Task An_oversized_value_does_not_dominate_the_message_it_produces() {
-
 		string message = await RejectsOnSqlite(Query.Filter("rank", $"$eq:{new string('9', 10_000)}"));
 
 		Assert.True(message.Length < 200, $"the 400 detail was {message.Length} characters long");
 		Assert.Contains("999...", message, StringComparison.Ordinal);
 		Assert.DoesNotContain(new string('9', 200), message, StringComparison.Ordinal);
-
 	}
 
 	/// <summary>
@@ -105,11 +101,9 @@ public sealed class InputSanitizingTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public async Task Control_characters_are_stripped_from_the_echoed_value() {
-
 		string message = await RejectsOnSqlite(Query.Filter("rank", "$eq:12\r\n34"));
 
 		Assert.Equal("Value '1234' is not valid for 'rank'.", message);
-
 	}
 
 }

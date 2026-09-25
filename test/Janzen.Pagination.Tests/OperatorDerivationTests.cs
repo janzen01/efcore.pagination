@@ -17,18 +17,31 @@ public sealed class OperatorDerivationTests {
 	public void Strings_get_the_pattern_operators_and_no_ranges() {
 
 		Assert.Equal(
-			Sorted(PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.Null,
-				PaginateFilterOperator.StartsWith, PaginateFilterOperator.Contains, PaginateFilterOperator.ILike),
-			Sorted<string>());
+			Sorted(
+				PaginateFilterOperator.Eq,
+				PaginateFilterOperator.In,
+				PaginateFilterOperator.Null,
+				PaginateFilterOperator.StartsWith,
+				PaginateFilterOperator.Contains,
+				PaginateFilterOperator.ILike
+			),
+			Sorted<string>()
+		);
 
 	}
 
 	[Fact]
 	public void Numbers_and_dates_get_the_range_operators() {
 
-		var expected = Sorted(PaginateFilterOperator.Eq, PaginateFilterOperator.In,
-			PaginateFilterOperator.GreaterThan, PaginateFilterOperator.GreaterThanOrEqual,
-			PaginateFilterOperator.LessThan, PaginateFilterOperator.LessThanOrEqual, PaginateFilterOperator.Between);
+		var expected = Sorted(
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.In,
+			PaginateFilterOperator.GreaterThan,
+			PaginateFilterOperator.GreaterThanOrEqual,
+			PaginateFilterOperator.LessThan,
+			PaginateFilterOperator.LessThanOrEqual,
+			PaginateFilterOperator.Between
+		);
 
 		Assert.Equal(expected, Sorted<int>());
 		Assert.Equal(expected, Sorted<decimal>());
@@ -40,13 +53,11 @@ public sealed class OperatorDerivationTests {
 
 	[Fact]
 	public void Guid_char_and_enums_get_equality_and_membership_only() {
-
 		var expected = Sorted(PaginateFilterOperator.Eq, PaginateFilterOperator.In);
 
 		Assert.Equal(expected, Sorted<Guid>());
 		Assert.Equal(expected, Sorted<char>());
 		Assert.Equal(expected, Sorted<ProductStatus>());
-
 	}
 
 	[Fact]
@@ -87,11 +98,9 @@ public sealed class OperatorDerivationTests {
 
 	[Fact]
 	public void An_underivable_type_throws_rather_than_guessing() {
-
 		var exception = Assert.Throws<ArgumentException>(PaginateFilterOperators.For<Category>);
 
 		Assert.StartsWith("Filter operators cannot be derived for type 'Category'.", exception.Message);
-
 	}
 
 	[Fact]
@@ -109,11 +118,13 @@ public sealed class OperatorDerivationTests {
 
 		Assert.Equal(
 			[.. PaginateFilterOperators.For<int>().Order()],
-			[.. meta.FilterableFields.Single(field => field.Name == "rank").Operators.Order()]);
+			[.. meta.FilterableFields.Single(field => field.Name == "rank").Operators.Order()]
+		);
 
 		Assert.Equal(
 			[.. PaginateFilterOperators.For<string>().Order()],
-			[.. meta.FilterableFields.Single(field => field.Name == "name").Operators.Order()]);
+			[.. meta.FilterableFields.Single(field => field.Name == "name").Operators.Order()]
+		);
 
 	}
 

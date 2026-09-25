@@ -54,13 +54,11 @@ public sealed class CaseParityTests(AccentFixture fixture) : IClassFixture<Accen
 	private const int LowerAccented = 11;
 
 	internal static List<Product> Rows() {
-
 		var rows = TestData.Products();
 		rows.Add(new Product { Id = UpperAccented, Name = "Äpfel", Status = ProductStatus.Active, Rank = 100 });
 		rows.Add(new Product { Id = LowerAccented, Name = "äpfel", Status = ProductStatus.Active, Rank = 110 });
 
 		return rows;
-
 	}
 
 	private static async Task<int[]> Ids(IQueryable<Product> source, PaginateQuery request) {

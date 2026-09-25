@@ -30,6 +30,7 @@ public sealed class PackagedAssemblyTests {
 		var budget = ownDocumentation.Length * 2;
 
 		Assert.True(strings < budget, $"user-string heap is {strings} bytes, budget {budget}");
+
 	}
 
 }

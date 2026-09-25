@@ -63,12 +63,10 @@ public sealed class EnvelopeSerializationTests {
 
 	[Fact]
 	public void The_documented_shape_round_trips() {
-
 		var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
 		string json = JsonSerializer.Serialize(Envelope(), options);
 
 		Assert.Equal(Envelope(), JsonSerializer.Deserialize<PaginatedResponse<ProductDto>>(json, options));
-
 	}
 
 }

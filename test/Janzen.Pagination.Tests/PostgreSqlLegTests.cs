@@ -160,19 +160,15 @@ public sealed class PostgreSqlLegTests(PostgreSqlFixture fixture) : IClassFixtur
 		// The guard sits in the parsing layer, above every provider; this is the leg that proves it has to.
 		UsePostgreSql();
 
-		Assert.Equal("Filter 'name' must not contain a null character.",
-			await Assertions.RejectsAsync(() => Ids(Query.Filter("name", criterion))));
+		Assert.Equal("Filter 'name' must not contain a null character.", await Assertions.RejectsAsync(() => Ids(Query.Filter("name", criterion))));
 
 	}
 
 	[Fact(Skip = Gate, SkipUnless = nameof(IsAvailable))]
 	public async Task A_search_term_carrying_a_nul_byte_never_reaches_the_server() {
-
 		UsePostgreSql();
 
-		Assert.Equal("Search term must not contain a null character.",
-			await Assertions.RejectsAsync(() => Ids(Query.Search("wid\0get"))));
-
+		Assert.Equal("Search term must not contain a null character.", await Assertions.RejectsAsync(() => Ids(Query.Search("wid\0get"))));
 	}
 
 }

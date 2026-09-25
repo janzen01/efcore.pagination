@@ -20,18 +20,23 @@ public sealed class PaginateExceptionEndpointFilter : IEndpointFilter {
 	///     sample for it adds a key to a dictionary, so the second pass threw and the request came back a 500.
 	/// </summary>
 	public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next) {
+
 		ArgumentNullException.ThrowIfNull(context);
 		ArgumentNullException.ThrowIfNull(next);
 
 		try {
 			return await next(context);
 		} catch (PaginateQueryException exception) {
+
 			return Results.Problem(
 				detail: exception.Message,
 				statusCode: StatusCodes.Status400BadRequest,
 				title: PaginateExceptionFilter.Title,
-				extensions: new Dictionary<string, object?> { [PaginateExceptionFilter.CodeExtension] = exception.Code.ToString() });
+				extensions: new Dictionary<string, object?> { [PaginateExceptionFilter.CodeExtension] = exception.Code.ToString() }
+			);
+
 		}
+
 	}
 
 }

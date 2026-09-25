@@ -35,63 +35,51 @@ public sealed class MetaTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	[Fact]
 	public async Task The_first_page_of_several_has_a_next_but_no_previous() {
-
 		var meta = (await Page(new PaginateQuery())).Meta;
 
 		Assert.False(meta.HasPreviousPage);
 		Assert.True(meta.HasNextPage);
-
 	}
 
 	[Fact]
 	public async Task A_middle_page_navigates_both_ways() {
-
 		var meta = (await Page(new PaginateQuery { Page = 2 })).Meta;
 
 		Assert.True(meta.HasPreviousPage);
 		Assert.True(meta.HasNextPage);
-
 	}
 
 	[Fact]
 	public async Task The_last_page_has_a_previous_but_no_next() {
-
 		var meta = (await Page(new PaginateQuery { Page = 3 })).Meta;
 
 		Assert.True(meta.HasPreviousPage);
 		Assert.False(meta.HasNextPage);
-
 	}
 
 	[Fact]
 	public async Task A_page_past_the_end_reports_no_next_either() {
-
 		// currentPage is not clamped, so page 4 of 3 still has a previous — but nothing follows it.
 		var meta = (await Page(new PaginateQuery { Page = 4 })).Meta;
 
 		Assert.True(meta.HasPreviousPage);
 		Assert.False(meta.HasNextPage);
-
 	}
 
 	[Fact]
 	public async Task An_empty_result_set_navigates_nowhere() {
-
 		var meta = (await Page(Query.Filter("id", "$eq:999"))).Meta;
 
 		Assert.False(meta.HasPreviousPage);
 		Assert.False(meta.HasNextPage);
-
 	}
 
 	[Fact]
 	public async Task A_single_page_result_navigates_nowhere() {
-
 		var meta = (await Page(new PaginateQuery { Limit = 50 })).Meta;
 
 		Assert.False(meta.HasPreviousPage);
 		Assert.False(meta.HasNextPage);
-
 	}
 
 	[Fact]
@@ -107,13 +95,11 @@ public sealed class MetaTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	[Fact]
 	public async Task The_tie_breaker_is_not_echoed() {
-
 		// The canonical config appends id as the tie-breaker; it orders the page but was never requested,
 		// so a grid rendering the echo must not draw an arrow on it.
 		var sortBy = (await Page(Query.Sort("rank:DESC"))).Meta.SortBy;
 
 		Assert.Equal(["rank:DESC"], sortBy);
-
 	}
 
 	[Fact]
@@ -129,32 +115,26 @@ public sealed class MetaTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	[Fact]
 	public async Task An_absent_search_is_echoed_as_null_with_no_fields() {
-
 		var meta = (await Page(new PaginateQuery())).Meta;
 
 		Assert.Null(meta.Search);
 		Assert.Empty(meta.SearchBy);
-
 	}
 
 	[Fact]
 	public async Task A_whitespace_only_term_runs_no_search_and_is_echoed_as_absent() {
-
 		var meta = (await Page(Query.Search("   "))).Meta;
 
 		Assert.Null(meta.Search);
 		Assert.Empty(meta.SearchBy);
-
 	}
 
 	[Fact]
 	public async Task An_omitted_searchBy_echoes_every_searchable_field() {
-
 		var meta = (await Page(Query.Search("old"))).Meta;
 
 		Assert.Equal("old", meta.Search);
 		Assert.Equal(["name", "description"], meta.SearchBy);
-
 	}
 
 	[Fact]

@@ -21,7 +21,8 @@ public sealed class FilterOperatorTests(SqliteFixture fixture) : IClassFixture<S
 			Expression.Parameter(typeof(Product), "p"),
 			criterion,
 			new PaginateExpressionContext(true, false, PaginateLikeDefaults.Strategy, 1, 256),
-			20)).Message;
+			20
+		)).Message;
 
 	}
 
@@ -132,12 +133,10 @@ public sealed class FilterOperatorTests(SqliteFixture fixture) : IClassFixture<S
 
 	[Fact]
 	public async Task Contains_on_a_string_is_the_same_as_ilike() {
-
 		var contains = await Page(Query.Filter("name", "$contains:idget"));
 		var ilike = await Page(Query.Filter("name", "$ilike:idget"));
 
 		Assert.Equal(ilike.Items.Select(i => i.Id), contains.Items.Select(i => i.Id));
-
 	}
 
 	[Fact]

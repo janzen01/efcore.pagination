@@ -116,7 +116,8 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 	private IPaginateConfig GetConfig(
 		IServiceProvider services,
-		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type providerType) {
+		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type providerType
+	) {
 
 		var configs = _configsPerDocument.GetValue(services, static _ => []);
 
@@ -190,6 +191,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	}
 
 	private static void RemoveGeneratedPaginateParameters(IList<IOpenApiParameter> parameters) {
+
 		for (int i = parameters.Count - 1; i >= 0; i--) {
 
 			var parameter = parameters[i];
@@ -201,6 +203,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			}
 
 		}
+
 	}
 
 	private static OpenApiParameter CreatePageParameter(IPaginateConfig config) {
@@ -223,6 +226,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				Default = JsonValue.Create(1)
 			}
 		};
+
 	}
 
 	private static OpenApiParameter CreateLimitParameter(IPaginateConfig config) {
@@ -264,9 +268,11 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 			Required = false,
 			Schema = schema
 		};
+
 	}
 
 	private static OpenApiParameter CreateSortByParameter(IPaginateConfig config) {
+
 		return new OpenApiParameter {
 			Name = PaginateQueryParams.SortBy,
 			In = ParameterLocation.Query,
@@ -292,9 +298,11 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				Default = BuildDefaultSort(config)
 			}
 		};
+
 	}
 
 	private static OpenApiParameter CreateSearchParameter(IPaginateConfig config) {
+
 		return new OpenApiParameter {
 			Name = PaginateQueryParams.Search,
 			In = ParameterLocation.Query,
@@ -311,9 +319,11 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				MaxLength = config.MaxSearchLength
 			}
 		};
+
 	}
 
 	private static OpenApiParameter CreateSearchByParameter(IPaginateConfig config) {
+
 		return new OpenApiParameter {
 			Name = PaginateQueryParams.SearchBy,
 			In = ParameterLocation.Query,
@@ -335,6 +345,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				}
 			}
 		};
+
 	}
 
 	// The three operators the search-length guards bound on a string field, alongside `search` itself.
@@ -344,6 +355,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	}
 
 	private static OpenApiParameter CreateFilterParameter(IPaginateConfig config, PaginateFilterFieldMetadata field, IPaginateLikeStrategy likeStrategy) {
+
 		string operators = string.Join('\n', BuildOperatorTokens(field).Select(token => $"- `{token}`"));
 		var value = DescribeValueType(field.Type);
 		var preferred = likeStrategy.PreferredExampleOperator;
@@ -440,6 +452,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 				}
 			}
 		};
+
 	}
 
 	private static JsonNode[] BuildSortEnum(IPaginateConfig config) {
@@ -468,11 +481,9 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	}
 
 	private static IEnumerable<string> BuildOperatorTokens(PaginateFilterFieldMetadata field) {
-
 		// Ordered for the same reason the example is pinned: a set has no order, so an unordered list would
 		// rewrite this bullet list in a consumer's committed document whenever the backing collection changes.
 		foreach (var filterOperator in field.Operators.Order()) yield return PaginateFilterParser.GetOperatorToken(filterOperator);
-
 	}
 
 	// One row per documented value type: what the description calls it, an example value its parser accepts, and
@@ -538,6 +549,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 	// Without a class it's a neutral code chip. Name and class are HTML-encoded so a stray character can't break
 	// the markup.
 	private static string RenderBadge(PaginateBadge? badge) {
+
 		if (badge is null) return string.Empty;
 
 		string name = WebUtility.HtmlEncode(badge.Name);
@@ -545,6 +557,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		return string.IsNullOrEmpty(badge.CssClass)
 			? $" <code>{name}</code>"
 			: $" <code class=\"{WebUtility.HtmlEncode(badge.CssClass)}\">{name}</code>";
+
 	}
 
 }

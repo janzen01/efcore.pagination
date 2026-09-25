@@ -24,6 +24,7 @@ public static class PaginateHttpResponseExtensions {
 	///     <see cref="PaginateLinkContext.QueryParameters" />.
 	/// </remarks>
 	public static void AddPaginationLinkHeader(this HttpResponse response, PaginatedLinks? links) {
+
 		ArgumentNullException.ThrowIfNull(response);
 
 		if (links is null) return;
@@ -38,6 +39,7 @@ public static class PaginateHttpResponseExtensions {
 		// Append, not assign: the IHeaderDictionary.Link setter replaces the whole header, which silently dropped
 		// any relation a consumer or middleware had already written.
 		if (parts.Count > 0) response.Headers.Append("Link", string.Join(", ", parts));
+
 	}
 
 }

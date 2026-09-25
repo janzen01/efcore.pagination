@@ -25,9 +25,7 @@ public abstract class PaginatedQueryAttribute : Attribute {
 	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
 	public Type ConfigProviderType { get; }
 
-	private protected PaginatedQueryAttribute(
-		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configProviderType) =>
-		ConfigProviderType = configProviderType;
+	private protected PaginatedQueryAttribute([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type configProviderType) => ConfigProviderType = configProviderType;
 
 }
 

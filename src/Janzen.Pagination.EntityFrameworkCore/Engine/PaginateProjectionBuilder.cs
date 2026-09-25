@@ -147,26 +147,23 @@ internal static class PaginateProjectionBuilder {
 				.Where(member => string.Equals(member.Name, name, StringComparison.OrdinalIgnoreCase))
 				.Select(member => (member, DeclarationDepth(sourceType, member), kind));
 		}
+
 	}
 
 	private static int DeclarationDepth(Type sourceType, MemberInfo member) {
-
 		int depth = 0;
 		for (var type = sourceType; type is not null && type != member.DeclaringType; type = type.BaseType) depth++;
 
 		return depth;
-
 	}
 
 	private static bool IsCollection(Type type) { return type != typeof(string) && typeof(IEnumerable).IsAssignableFrom(type); }
 
 	private static bool CanAssign(Type sourceType, Type targetType) {
-
 		if (targetType.IsAssignableFrom(sourceType)) return true;
 
 		var targetUnderlyingType = Nullable.GetUnderlyingType(targetType);
 		return targetUnderlyingType is not null && targetUnderlyingType == sourceType;
-
 	}
 
 	private static Expression ConvertIfNeeded(Expression expression, Type targetType) { return expression.Type == targetType ? expression : Expression.Convert(expression, targetType); }
@@ -190,13 +187,11 @@ internal static class PaginateProjectionBuilder {
 	}
 
 	private static bool CanBeNull(Type type, ParameterInfo parameter) {
-
 		if (Nullable.GetUnderlyingType(type) is not null) return true;
 		if (type.IsValueType) return false;
 
 		var context = new NullabilityInfoContext();
 		return context.Create(parameter).ReadState != NullabilityState.NotNull;
-
 	}
 
 	private static bool IsSimpleType(Type type) {

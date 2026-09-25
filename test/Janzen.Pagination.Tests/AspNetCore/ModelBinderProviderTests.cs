@@ -39,13 +39,11 @@ public sealed class ModelBinderProviderTests {
 
 	[Fact]
 	public void An_explicit_model_binder_attribute_wins() {
-
 		// [ModelBinder(typeof(...))] is the framework's per-parameter override. Claiming the parameter anyway
 		// made it inert for this type application-wide, because this provider is consulted first.
 		var binding = new BindingInfo { BinderType = typeof(OtherBinder) };
 
 		Assert.Null(Resolve(typeof(PaginateQuery), binding));
-
 	}
 
 	[Theory]

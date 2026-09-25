@@ -165,7 +165,8 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 		// required at build time now, so that refusal is gone and the two composers agree on what is valid.
 		Assert.Equal(
 			"Sort for field 'nonexistent' is not configured.",
-			Rejects(() => SqliteFixture.Products(context).ApplyPaginateFilters(Query.Sort("nonexistent:ASC"), TestData.Config)));
+			Rejects(() => SqliteFixture.Products(context).ApplyPaginateFilters(Query.Sort("nonexistent:ASC"), TestData.Config))
+		);
 
 	}
 
@@ -243,8 +244,10 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 
 		using var context = fixture.CreateContext();
 
-		Assert.Equal("Sort for field 'nonexistent' is not configured.",
-			Rejects(() => SqliteFixture.Products(context).ApplyPagination(Query.Sort("nonexistent:ASC"), TestData.Config)));
+		Assert.Equal(
+			"Sort for field 'nonexistent' is not configured.",
+			Rejects(() => SqliteFixture.Products(context).ApplyPagination(Query.Sort("nonexistent:ASC"), TestData.Config))
+		);
 
 	}
 
@@ -265,11 +268,15 @@ public sealed class ComposerTests(SqliteFixture fixture) : IClassFixture<SqliteF
 
 		using var context = fixture.CreateContext();
 
-		Assert.Equal("Query parameter 'page' must be a positive integer.",
-			Rejects(() => SqliteFixture.Products(context).ApplyPaginateFilters(new PaginateQuery { Page = 0 }, TestData.Config)));
+		Assert.Equal(
+			"Query parameter 'page' must be a positive integer.",
+			Rejects(() => SqliteFixture.Products(context).ApplyPaginateFilters(new PaginateQuery { Page = 0 }, TestData.Config))
+		);
 
-		Assert.Equal("Query parameter 'limit' must be between 1 and 50.",
-			Rejects(() => SqliteFixture.Products(context).ApplyPagination(new PaginateQuery { Limit = 999 }, TestData.Config)));
+		Assert.Equal(
+			"Query parameter 'limit' must be between 1 and 50.",
+			Rejects(() => SqliteFixture.Products(context).ApplyPagination(new PaginateQuery { Limit = 999 }, TestData.Config))
+		);
 
 	}
 

@@ -41,35 +41,29 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 	[Fact]
 	public async Task Auto_projection_rejects_an_untranslatable_member_pair() {
-
 		await using var context = fixture.CreateContext();
 
 		string message = await RejectionMessage(() => SqliteFixture.Products(context).PageAsync<UnprojectableDto>(new PaginateQuery()));
 
 		Assert.Equal("Cannot automatically project 'Product.Name' from 'String' to 'Int32'.", message);
-
 	}
 
 	[Fact]
 	public async Task Auto_projection_rejects_a_parameter_with_no_matching_member() {
-
 		await using var context = fixture.CreateContext();
 
 		string message = await RejectionMessage(() => SqliteFixture.Products(context).PageAsync<MissingMemberDto>(new PaginateQuery()));
 
 		Assert.Equal("Cannot automatically project 'Product' because source type 'Product' has no public member named 'Nonexistent'.", message);
-
 	}
 
 	[Fact]
 	public async Task Auto_projection_rejects_a_nullable_source_for_a_non_nullable_parameter() {
-
 		await using var context = fixture.CreateContext();
 
 		string message = await RejectionMessage(() => SqliteFixture.Products(context).PageAsync<NonNullableCategoryDto>(new PaginateQuery()));
 
 		Assert.Equal("Cannot automatically project nullable source 'Product.Category' into non-nullable target parameter 'Category'.", message);
-
 	}
 
 	[Fact]
@@ -79,8 +73,8 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		var page = await SqliteFixture.Products(context).PageSelectAsync(
 			Query.Filter("id", "$eq:1"),
-			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count,
-				p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList()));
+			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count, p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList())
+		);
 
 		var summary = Assert.Single(page.Items);
 		Assert.Equal(3, summary.ReviewCount);
@@ -133,8 +127,8 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		await SqliteFixture.Products(context).PageSelectAsync(
 			Query.Filter("id", "$in:1,2"),
-			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count,
-				p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList()));
+			p => new ProductSummary(p.Id, p.Name, p.Reviews.Count, p.Reviews.Select(r => new ReviewDto(r.Id, r.Reviewer, r.Rating)).ToList())
+		);
 
 		// The count, then the page — two commands for two rows, and the same two for two hundred. A regression
 		// to a per-row or split fetch of Reviews leaves every asserted value correct and shows up only here.
@@ -149,7 +143,8 @@ public sealed class ProjectionTests(SqliteFixture fixture) : IClassFixture<Sqlit
 
 		var page = await SqliteFixture.Products(context).PageMapAsync(
 			Query.Filter("id", "$eq:1"),
-			p => new { p.Name, ReviewCount = p.Reviews.Count });
+			p => new { p.Name, ReviewCount = p.Reviews.Count }
+		);
 
 		var row = Assert.Single(page.Items);
 		Assert.Equal("Widget", row.Name);

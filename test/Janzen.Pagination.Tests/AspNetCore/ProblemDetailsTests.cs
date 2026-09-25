@@ -18,13 +18,11 @@ public sealed class ProblemDetailsTests {
 
 	/// <summary>A request context carrying the MVC services, which is where <c>ProblemDetailsFactory</c> comes from.</summary>
 	private static DefaultHttpContext HttpContextWithMvcServices() {
-
 		var services = new ServiceCollection();
 		services.AddLogging();
 		services.AddControllers();
 
 		return new DefaultHttpContext { RequestServices = services.BuildServiceProvider() };
-
 	}
 
 	private static ExceptionContext MvcContext(Exception exception) {
@@ -103,7 +101,8 @@ public sealed class ProblemDetailsTests {
 
 		object? result = await new PaginateExceptionEndpointFilter().InvokeAsync(
 			new DefaultEndpointFilterInvocationContext(HttpContextWithMvcServices()),
-			_ => throw new PaginateQueryException(Message));
+			_ => throw new PaginateQueryException(Message)
+		);
 
 		var actual = Assert.IsType<ProblemHttpResult>(result).ProblemDetails;
 
@@ -119,24 +118,20 @@ public sealed class ProblemDetailsTests {
 
 	[Fact]
 	public async Task The_endpoint_filter_lets_other_exceptions_through() {
-
 		var context = new DefaultEndpointFilterInvocationContext(new DefaultHttpContext());
 
 		await Assert.ThrowsAsync<InvalidOperationException>(() => new PaginateExceptionEndpointFilter()
 			.InvokeAsync(context, _ => throw new InvalidOperationException("something else"))
 			.AsTask());
-
 	}
 
 	[Fact]
 	public async Task The_endpoint_filter_passes_a_successful_result_through() {
-
 		var context = new DefaultEndpointFilterInvocationContext(new DefaultHttpContext());
 
 		object? result = await new PaginateExceptionEndpointFilter().InvokeAsync(context, _ => ValueTask.FromResult<object?>("ok"));
 
 		Assert.Equal("ok", result);
-
 	}
 
 }

@@ -77,16 +77,19 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public async Task An_empty_value_is_rejected_for_a_nullable_target_too() {
+
 		// It used to convert to null and land on the unset rows, which is $null spelled implicitly -- without
 		// the field's allowlist ever being asked about $null. One spelling, and the message names it.
-		Assert.Equal("Filter 'discontinuedAt' requires a value; use '$null' to match rows with no value.",
-			await Rejects(Query.Filter("discontinuedAt", "$eq:")));
+		Assert.Equal(
+			"Filter 'discontinuedAt' requires a value; use '$null' to match rows with no value.",
+			await Rejects(Query.Filter("discontinuedAt", "$eq:"))
+		);
+
 	}
 
 	[Fact]
 	public async Task An_unparseable_target_type_is_reported_as_unsupported() {
-		Assert.Equal("Filtering values for 'tagsEq' is not supported.",
-			await Rejects(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
+		Assert.Equal("Filtering values for 'tagsEq' is not supported.", await Rejects(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
 	}
 
 	/// <summary>
@@ -96,12 +99,11 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	/// </summary>
 	[Fact]
 	public async Task An_unparseable_target_type_carries_its_own_code() {
-
 		var refused = await Assert.ThrowsAsync<PaginateQueryException>(
-			() => TestData.Products().AsQueryable().PageAsync<ProductDto>(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
+			() => TestData.Products().AsQueryable().PageAsync<ProductDto>(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType)
+		);
 
 		Assert.Equal(PaginateQueryError.ValueTypeNotSupported, refused.Code);
-
 	}
 
 	/// <summary>
@@ -114,12 +116,10 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData("2026-01-01T00:00:00")]
 	[InlineData("2026-01-01T02:00:00+02:00")]
 	public void A_date_time_is_parsed_as_the_utc_instant(string value) {
-
 		var parsed = Assert.IsType<DateTime>(PaginateValueConverter.Convert(value, typeof(DateTime), "createdAt"));
 
 		Assert.Equal(DateTimeKind.Utc, parsed.Kind);
 		Assert.Equal(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), parsed);
-
 	}
 
 	[Fact]

@@ -25,11 +25,10 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 
 	[Fact]
 	public async Task An_empty_value_on_a_nullable_field_is_rejected_rather_than_matching_null() {
-
 		Assert.Equal(
 			"Filter 'categoryId' requires a value; use '$null' to match rows with no value.",
-			await Assertions.RejectsAsync(() => InMemory().PageAsync<ProductDto>(Query.Filter("categoryId", "$eq:"), EmptyValueConfig)));
-
+			await Assertions.RejectsAsync(() => InMemory().PageAsync<ProductDto>(Query.Filter("categoryId", "$eq:"), EmptyValueConfig))
+		);
 	}
 
 	[Fact]
@@ -39,7 +38,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 
 		Assert.Equal(
 			"Filter 'categoryId' requires a value; use '$null' to match rows with no value.",
-			await Assertions.RejectsAsync(() => SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("categoryId", "$eq:"), EmptyValueConfig)));
+			await Assertions.RejectsAsync(() => SqliteFixture.Products(context).PageAsync<ProductDto>(Query.Filter("categoryId", "$eq:"), EmptyValueConfig))
+		);
 
 	}
 
@@ -58,7 +58,8 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 
 		Assert.Equal(
 			"Filter 'categoryKey' requires a value; use '$null' to match rows with no value.",
-			await Assertions.RejectsAsync(() => source.PageAsync<ProductDto>(Query.Filter("categoryKey", "$eq:"), EmptyValueConfig)));
+			await Assertions.RejectsAsync(() => source.PageAsync<ProductDto>(Query.Filter("categoryKey", "$eq:"), EmptyValueConfig))
+		);
 
 	}
 
@@ -102,25 +103,21 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 
 	[Fact]
 	public async Task A_string_range_does_not_depend_on_the_host_culture() {
-
 		var page = await UnderSwedishCulture(() => Letters().PageAsync<ProductDto>(Query.Filter("name", "$gt:Z"), OrderingConfig));
 
 		// Swedish puts Ångstrom after Z and would return it too.
 		Assertions.HasIds(page, 1);
-
 	}
 
 	[Theory]
 	[InlineData("name:ASC")]
 	[InlineData("rank:ASC", "name:ASC")]
 	public async Task A_string_sort_does_not_depend_on_the_host_culture(params string[] sortBy) {
-
 		// The second case makes the string key a ThenBy, which is the other half of the ordering branch.
 		var page = await UnderSwedishCulture(() => Letters().PageAsync<ProductDto>(Query.Sort(sortBy), OrderingConfig));
 
 		// Swedish would answer Apple, Zebra, Ångstrom.
 		Assertions.HasIds(page, 2, 3, 1);
-
 	}
 
 	#endregion
@@ -159,7 +156,12 @@ public sealed class FilterComparisonSemanticsTests(SqliteFixture fixture) : ICla
 		Assert.Equal(
 			"Filter 'weight' does not support operator '$eq' for type 'Weight'.",
 			await Assertions.RejectsAsync(() => crates.PaginateAsync<Crate, CrateDto>(
-				Query.Filter("weight", "$eq:10"), CrateConfig, null, TestContext.Current.CancellationToken)));
+				Query.Filter("weight", "$eq:10"),
+				CrateConfig,
+				null,
+				TestContext.Current.CancellationToken
+			))
+		);
 
 	}
 

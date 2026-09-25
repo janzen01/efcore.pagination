@@ -68,7 +68,8 @@ public sealed class DocumentedContractTests {
 			.Filterable("status", p => p.Status));
 
 		string message = await Assertions.RejectsAsync(
-			() => TestData.Products().AsQueryable().PageAsync<ProductDto>(request, config));
+			() => TestData.Products().AsQueryable().PageAsync<ProductDto>(request, config)
+		);
 
 		Assert.Equal("Too many filter conditions; at most 1 are allowed.", message);
 
@@ -103,7 +104,8 @@ public sealed class DocumentedContractTests {
 
 		var page = await TestData.Products().AsQueryable().PageAsync<ProductDto>(
 			new PaginateQuery { Limit = -1, Filters = new Dictionary<string, IReadOnlyList<string>> { ["name"] = ["$eq:nothing matches this"] } },
-			config);
+			config
+		);
 
 		Assert.Empty(page.Items);
 		Assert.Equal(0, page.Meta.ItemsPerPage);

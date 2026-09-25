@@ -252,6 +252,7 @@ public sealed record PaginateFilterFieldMetadata(string Name, Type Type, IReadOn
 	///     what a handwritten equality costs, and the compiler will not remind you.
 	/// </remarks>
 	public bool Equals(PaginateFilterFieldMetadata? other) {
+
 		if (ReferenceEquals(this, other)) return true;
 
 		return other is not null
@@ -259,10 +260,12 @@ public sealed record PaginateFilterFieldMetadata(string Name, Type Type, IReadOn
 			&& Type == other.Type
 			&& Badge == other.Badge
 			&& PaginateStructuralEquality.SetEquals(Operators, other.Operators);
+
 	}
 
 	/// <summary>Hashes the same members <see cref="Equals(PaginateFilterFieldMetadata)" /> compares, so equal descriptions hash equal.</summary>
 	public override int GetHashCode() {
+
 		var hash = new HashCode();
 
 		hash.Add(Name);
@@ -271,6 +274,7 @@ public sealed record PaginateFilterFieldMetadata(string Name, Type Type, IReadOn
 		hash.Add(PaginateStructuralEquality.SetHash(Operators));
 
 		return hash.ToHashCode();
+
 	}
 
 }
@@ -437,12 +441,14 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 	/// <param name="defaults">Limits and guards to fall back to; a builder call always wins over these.</param>
 	/// <param name="configure">Declares the limits, guards, and fields.</param>
 	public static PaginateConfig<TEntity> Create(PaginateConfigDefaults defaults, Action<PaginateConfigBuilder<TEntity>> configure) {
+
 		ArgumentNullException.ThrowIfNull(defaults);
 		ArgumentNullException.ThrowIfNull(configure);
 
 		var builder = new PaginateConfigBuilder<TEntity>();
 		configure(builder);
 		return builder.Build(defaults);
+
 	}
 
 }
@@ -488,6 +494,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 	/// <summary>Sets the default and maximum page size. Required — <c>Build()</c> throws if limits are not configured.</summary>
 	public PaginateConfigBuilder<TEntity> WithLimits(int defaultLimit, int maxLimit) {
+
 		if (defaultLimit <= 0) throw new ArgumentOutOfRangeException(nameof(defaultLimit), "Default limit must be greater than zero.");
 		if (maxLimit <= 0) throw new ArgumentOutOfRangeException(nameof(maxLimit), "Max limit must be greater than zero.");
 		if (defaultLimit > maxLimit) throw new ArgumentException("Default limit must not be greater than max limit.", nameof(defaultLimit));
@@ -495,6 +502,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		_defaultLimit = defaultLimit;
 		_maxLimit = maxLimit;
 		return this;
+
 	}
 
 	/// <summary>
@@ -579,6 +587,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 	/// <summary>Declares <paramref name="name" /> as sortable via <c>sortBy=name:ASC|DESC</c>.</summary>
 	public PaginateConfigBuilder<TEntity> Sortable<TValue>(string name, Expression<Func<TEntity, TValue>> selector) {
+
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		ArgumentNullException.ThrowIfNull(selector);
 
@@ -586,6 +595,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		_sortableFields[name] = field;
 		_lastField = field;
 		return this;
+
 	}
 
 	/// <summary>Adds a default sort applied when the request supplies no <c>sortBy</c>. The field must also be <c>Sortable</c>.</summary>
@@ -642,6 +652,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 	/// <summary>Declares a string field included in free-text <c>search</c> (and addressable via <c>searchBy</c>).</summary>
 	public PaginateConfigBuilder<TEntity> Searchable(string name, Expression<Func<TEntity, string?>> selector) {
+
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		ArgumentNullException.ThrowIfNull(selector);
 
@@ -649,6 +660,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		_searchableFields[name] = field;
 		_lastField = field;
 		return this;
+
 	}
 
 	/// <summary>
@@ -660,12 +672,14 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	[RequiresUnreferencedCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
 	public PaginateConfigBuilder<TEntity> Filterable<TValue>(string name, Expression<Func<TEntity, TValue>> selector) {
+
 		// Guarded here as well as in the target overload: the derivation is an *argument* to that overload, so it
 		// runs first, and Filterable<Category>(null!, …) reported the derivation failure instead of the null name.
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		ArgumentNullException.ThrowIfNull(selector);
 
 		return Filterable(name, selector, PaginateFilterOperators.For<TValue>());
+
 	}
 
 	/// <summary>
@@ -739,6 +753,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	///     <c>language-*</c> on inline code). Omit it for a neutral chip. Throws if called before any field.
 	/// </summary>
 	public PaginateConfigBuilder<TEntity> ShowBadge(string name, string? cssClass = null) {
+
 		ArgumentException.ThrowIfNullOrWhiteSpace(name);
 		if (_lastField is null) {
 			throw new InvalidOperationException("ShowBadge must be called immediately after a Sortable, Searchable, or Filterable field.");
@@ -746,6 +761,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 
 		_lastField.Badge = new PaginateBadge(name, cssClass);
 		return this;
+
 	}
 
 	/// <summary>
@@ -756,12 +772,14 @@ public sealed class PaginateConfigBuilder<TEntity> {
 	///     (e.g., from the current user's role), keeping the library auth-agnostic.
 	/// </summary>
 	public PaginateConfigBuilder<TEntity> When(bool condition) {
+
 		if (_lastField is null) {
 			throw new InvalidOperationException("When must be called immediately after a Sortable, Searchable, or Filterable field.");
 		}
 
 		_lastField.Condition = condition;
 		return this;
+
 	}
 
 	internal PaginateConfig<TEntity> Build(PaginateConfigDefaults? defaults) {
@@ -863,6 +881,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		);
 
 		int? Resolve(int? own, Func<PaginateConfigDefaults, int?> read) { return own ?? (defaults is null ? null : read(defaults)) ?? read(shared); }
+
 	}
 
 	private static void Positive(int value, string name) {

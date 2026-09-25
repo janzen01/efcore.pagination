@@ -202,37 +202,71 @@ public static class TestData {
 		.WithTieBreaker(p => p.Id)
 		.Searchable("name", p => p.Name)
 		.Searchable("description", p => p.Description)
-		.Filterable("id", p => p.Id,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.Between,
-			PaginateFilterOperator.GreaterThan, PaginateFilterOperator.GreaterThanOrEqual,
-			PaginateFilterOperator.LessThan, PaginateFilterOperator.LessThanOrEqual)
-		.Filterable("name", p => p.Name,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.Null,
-			PaginateFilterOperator.StartsWith, PaginateFilterOperator.ILike, PaginateFilterOperator.Contains)
-		.Filterable("description", p => p.Description,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.Null, PaginateFilterOperator.ILike)
+		.Filterable(
+			"id",
+			p => p.Id,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.In,
+			PaginateFilterOperator.Between,
+			PaginateFilterOperator.GreaterThan,
+			PaginateFilterOperator.GreaterThanOrEqual,
+			PaginateFilterOperator.LessThan,
+			PaginateFilterOperator.LessThanOrEqual
+		)
+		.Filterable(
+			"name",
+			p => p.Name,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.In,
+			PaginateFilterOperator.Null,
+			PaginateFilterOperator.StartsWith,
+			PaginateFilterOperator.ILike,
+			PaginateFilterOperator.Contains
+		)
+		.Filterable("description", p => p.Description, PaginateFilterOperator.Eq, PaginateFilterOperator.Null, PaginateFilterOperator.ILike)
 		.Filterable("status", p => p.Status, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
 		// Null is allowed here on purpose: rank is a non-nullable value type, which is the case where
 		// $null can never match and $not:$null always does.
-		.Filterable("rank", p => p.Rank,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.Between,
-			PaginateFilterOperator.GreaterThan, PaginateFilterOperator.GreaterThanOrEqual,
-			PaginateFilterOperator.LessThan, PaginateFilterOperator.LessThanOrEqual,
-			PaginateFilterOperator.Null)
+		.Filterable(
+			"rank",
+			p => p.Rank,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.In,
+			PaginateFilterOperator.Between,
+			PaginateFilterOperator.GreaterThan,
+			PaginateFilterOperator.GreaterThanOrEqual,
+			PaginateFilterOperator.LessThan,
+			PaginateFilterOperator.LessThanOrEqual,
+			PaginateFilterOperator.Null
+		)
 		.Filterable("price", p => p.Price, PaginateFilterOperator.Eq)
 		.Filterable("isFeatured", p => p.IsFeatured, PaginateFilterOperator.Eq)
 		.Filterable("externalId", p => p.ExternalId, PaginateFilterOperator.Eq, PaginateFilterOperator.In)
-		.Filterable("createdAt", p => p.CreatedAt,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.Between,
-			PaginateFilterOperator.GreaterThan, PaginateFilterOperator.LessThan)
-		.Filterable("discontinuedAt", p => p.DiscontinuedAt,
-			PaginateFilterOperator.Null, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThan)
-		.Filterable("categoryName", p => p.Category!.Name,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.ILike)
+		.Filterable(
+			"createdAt",
+			p => p.CreatedAt,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.Between,
+			PaginateFilterOperator.GreaterThan,
+			PaginateFilterOperator.LessThan
+		)
+		.Filterable(
+			"discontinuedAt",
+			p => p.DiscontinuedAt,
+			PaginateFilterOperator.Null,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.GreaterThan
+		)
+		.Filterable("categoryName", p => p.Category!.Name, PaginateFilterOperator.Eq, PaginateFilterOperator.ILike)
 		.Filterable("tags", p => p.Tags, PaginateFilterOperator.Contains)
-		.FilterableMany("reviewer", p => p.Reviews, r => r.Reviewer,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.In, PaginateFilterOperator.ILike)
-		.FilterableMany("rating", p => p.Reviews, r => r.Rating,
-			PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual));
+		.FilterableMany(
+			"reviewer",
+			p => p.Reviews,
+			r => r.Reviewer,
+			PaginateFilterOperator.Eq,
+			PaginateFilterOperator.In,
+			PaginateFilterOperator.ILike
+		)
+		.FilterableMany("rating", p => p.Reviews, r => r.Rating, PaginateFilterOperator.Eq, PaginateFilterOperator.GreaterThanOrEqual));
 
 }

@@ -56,9 +56,14 @@ public sealed class InMemoryTests {
 
 	[Fact]
 	public async Task Date_between_is_inclusive() {
+
 		Assertions.HasIds(
 			await Products().PageAsync<ProductDto>(Query.Filter("createdAt", "$btw:2026-01-03T00:00:00Z,2026-01-05T00:00:00Z")),
-			2, 3, 4);
+			2,
+			3,
+			4
+		);
+
 	}
 
 	[Fact]
@@ -68,18 +73,18 @@ public sealed class InMemoryTests {
 
 	[Fact]
 	public async Task Invalid_input_is_still_rejected_without_a_database() {
-		Assert.Equal("Filter 'rank' does not support operator '$ilike'.",
-			await Assertions.RejectsAsync(() => Products().PageAsync<ProductDto>(Query.Filter("rank", "$ilike:x"))));
+		Assert.Equal(
+			"Filter 'rank' does not support operator '$ilike'.",
+			await Assertions.RejectsAsync(() => Products().PageAsync<ProductDto>(Query.Filter("rank", "$ilike:x")))
+		);
 	}
 
 	[Fact]
 	public async Task Projection_runs_without_a_database() {
-
 		var page = await Products().PageAsync<ProductWithCategoryDto>(Query.Filter("id", "$in:1,5"));
 
 		Assert.Equal("Electronics", page.Items[0].Category?.Name);
 		Assert.Null(page.Items[1].Category);
-
 	}
 
 }

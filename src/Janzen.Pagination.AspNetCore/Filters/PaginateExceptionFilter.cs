@@ -44,7 +44,8 @@ public sealed class PaginateExceptionFilter : IExceptionFilter {
 			context.HttpContext,
 			StatusCodes.Status400BadRequest,
 			Title,
-			detail: exception.Message);
+			detail: exception.Message
+		);
 
 		problemDetails.Extensions[CodeExtension] = exception.Code.ToString();
 

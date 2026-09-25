@@ -155,8 +155,13 @@ internal static class PaginateValueConverter {
 				// puts it back — otherwise pinning the hour would also drop every negative duration.
 				bool negative = duration.StartsWith('-');
 
-				return TimeSpan.TryParseExact(negative ? duration[1..] : duration, DurationFormats, CultureInfo.InvariantCulture,
-					negative ? TimeSpanStyles.AssumeNegative : TimeSpanStyles.None, out var timeSpan)
+				return TimeSpan.TryParseExact(
+					negative ? duration[1..] : duration,
+					DurationFormats,
+					CultureInfo.InvariantCulture,
+					negative ? TimeSpanStyles.AssumeNegative : TimeSpanStyles.None,
+					out var timeSpan
+				)
 					? timeSpan
 					: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not valid for '{field}'.") { Code = PaginateQueryError.ValueInvalid };
 

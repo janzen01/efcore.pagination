@@ -29,13 +29,11 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 	}
 
 	private async Task<PaginatedLinks> LinksFor(int page, PaginateLinkContext context) {
-
 		var result = await PageFor(page, context);
 
 		Assert.NotNull(result.Links);
 
 		return result.Links;
-
 	}
 
 	[Fact]
@@ -58,13 +56,11 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	[Fact]
 	public async Task An_absent_link_is_serialized_as_null_rather_than_dropped() {
-
 		// The last page has no next. That null is the answer the client asked for, so the key has to carry it —
 		// a missing key would make "no next page" indistinguishable from "this API has no next link".
 		string json = JsonSerializer.Serialize(await PageFor(3, Context), WebJson);
 
 		Assert.Contains("\"next\":null", json);
-
 	}
 
 	[Fact]
@@ -74,33 +70,27 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	[Fact]
 	public async Task A_middle_page_links_in_both_directions() {
-
 		var links = await LinksFor(2, Context);
 
 		Assert.EndsWith("page=1", links.Previous);
 		Assert.EndsWith("page=3", links.Next);
 		Assert.EndsWith("page=3", links.Last);
-
 	}
 
 	[Fact]
 	public async Task The_first_page_has_no_previous() {
-
 		var links = await LinksFor(1, Context);
 
 		Assert.Null(links.Previous);
 		Assert.EndsWith("page=2", links.Next);
-
 	}
 
 	[Fact]
 	public async Task The_last_page_has_no_next() {
-
 		var links = await LinksFor(3, Context);
 
 		Assert.EndsWith("page=2", links.Previous);
 		Assert.Null(links.Next);
-
 	}
 
 	[Fact]
@@ -110,13 +100,11 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	[Fact]
 	public void A_path_that_was_never_escaped_is_refused() {
-
 		// "/t/x?y/products?page=1" — the query string becomes "y/products?page=1", so the link addresses a
 		// different resource with no page at all. A space produces an invalid URI-reference instead.
 		Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/t/x?y/products", []));
 		Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/t/a b/products", []));
 		Assert.Throws<ArgumentException>(() => new PaginateLinkContext("/t/a#b/products", []));
-
 	}
 
 	/// <summary>
@@ -202,12 +190,10 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	[Fact]
 	public void An_escaped_path_and_raw_parameters_are_what_the_record_asks_for() {
-
 		// The path is pre-escaped, the parameters are raw: the builder percent-encodes only the latter.
 		var context = new PaginateLinkContext("/t/a%20b/products", [new KeyValuePair<string, string>("filter.status", "$eq:Active")]);
 
 		Assert.Equal("/t/a%20b/products", context.Path);
-
 	}
 
 	[Fact]

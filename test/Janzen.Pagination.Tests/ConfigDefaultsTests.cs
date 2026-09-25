@@ -31,12 +31,10 @@ public sealed class ConfigDefaultsTests : IDisposable {
 
 	[Fact]
 	public void An_explicit_defaults_object_supplies_the_limits() {
-
 		var config = Build(new PaginateConfigDefaults { DefaultLimit = 25, MaxLimit = 100 }, _ => { });
 
 		Assert.Equal(25, config.DefaultLimit);
 		Assert.Equal(100, config.MaxLimit);
-
 	}
 
 	[Fact]
@@ -88,31 +86,25 @@ public sealed class ConfigDefaultsTests : IDisposable {
 
 	[Fact]
 	public void The_new_guards_are_shareable_too() {
-
 		var config = Build(new PaginateConfigDefaults { DefaultLimit = 10, MaxLimit = 10, MinSearchLength = 3, MaxOffset = 5_000 }, _ => { });
 
 		Assert.Equal(3, config.MinSearchLength);
 		Assert.Equal(5_000, config.MaxOffset);
-
 	}
 
 	[Fact]
 	public void Unlimited_is_deliberately_not_shareable() {
-
 		// There is no MaxRows on the defaults object: an unbounded read is a claim about one resource's size.
 		var config = Build(new PaginateConfigDefaults { DefaultLimit = 10, MaxLimit = 10 }, _ => { });
 
 		Assert.Null(config.UnlimitedMaxRows);
-
 	}
 
 	[Fact]
 	public void Limits_from_nowhere_are_still_a_configuration_error() {
-
 		var exception = Assert.Throws<InvalidOperationException>(() => Build(_ => { }));
 
 		Assert.Equal("Pagination limits must be configured explicitly via WithLimits(defaultLimit, maxLimit).", exception.Message);
-
 	}
 
 	[Fact]
@@ -145,14 +137,20 @@ public sealed class ConfigDefaultsTests : IDisposable {
 
 		// The builder methods reject at the call site; init accessors cannot, so the check has to run once the
 		// value has been resolved. Without it, MaxOffset = -1 refuses every request including page 1.
-		Assert.Equal("MaxOffset must not be negative.",
-			Assert.Throws<InvalidOperationException>(() => Build(new PaginateConfigDefaults { DefaultLimit = 5, MaxLimit = 5, MaxOffset = -1 }, _ => { })).Message);
+		Assert.Equal(
+			"MaxOffset must not be negative.",
+			Assert.Throws<InvalidOperationException>(() => Build(new PaginateConfigDefaults { DefaultLimit = 5, MaxLimit = 5, MaxOffset = -1 }, _ => { })).Message
+		);
 
-		Assert.Equal("MaxSearchLength must be greater than zero.",
-			Assert.Throws<InvalidOperationException>(() => Build(new PaginateConfigDefaults { DefaultLimit = 5, MaxLimit = 5, MaxSearchLength = 0 }, _ => { })).Message);
+		Assert.Equal(
+			"MaxSearchLength must be greater than zero.",
+			Assert.Throws<InvalidOperationException>(() => Build(new PaginateConfigDefaults { DefaultLimit = 5, MaxLimit = 5, MaxSearchLength = 0 }, _ => { })).Message
+		);
 
-		Assert.Equal("MaxLimit must be greater than zero.",
-			Assert.Throws<InvalidOperationException>(() => Build(new PaginateConfigDefaults { DefaultLimit = 5, MaxLimit = 0 }, _ => { })).Message);
+		Assert.Equal(
+			"MaxLimit must be greater than zero.",
+			Assert.Throws<InvalidOperationException>(() => Build(new PaginateConfigDefaults { DefaultLimit = 5, MaxLimit = 0 }, _ => { })).Message
+		);
 
 	}
 

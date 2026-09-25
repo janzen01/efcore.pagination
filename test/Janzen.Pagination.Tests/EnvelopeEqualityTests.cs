@@ -40,23 +40,29 @@ public sealed class EnvelopeEqualityTests {
 	}
 
 	private static ReadOnlyDictionary<string, IReadOnlyList<string>> Filter(StringComparer comparer, params (string Field, string[] Values)[] entries) {
-
 		var map = new Dictionary<string, IReadOnlyList<string>>(comparer);
 		foreach ((string field, string[] values) in entries) map[field] = values;
 
 		return new ReadOnlyDictionary<string, IReadOnlyList<string>>(map);
-
 	}
 
 	[Fact]
 	public void Two_metas_describing_the_same_page_are_equal() {
 
 		// Separately allocated collections with the same contents — the case the synthesized equality got wrong.
-		var left = Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["name", "description"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"])));
+		var left = Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["name", "description"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		);
 
-		var right = Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["name", "description"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"])));
+		var right = Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["name", "description"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		);
 
 		Assert.Equal(left, right);
 		Assert.True(left == right);
@@ -67,23 +73,48 @@ public sealed class EnvelopeEqualityTests {
 	[Fact]
 	public void A_difference_in_any_echoed_member_makes_them_unequal() {
 
-		var baseline = Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["name"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"])));
+		var baseline = Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["name"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		);
 
-		Assert.NotEqual(baseline, Meta(sortBy: ["rank:ASC"], search: "wid", searchBy: ["name"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))));
+		Assert.NotEqual(baseline, Meta(
+			sortBy: ["rank:ASC"],
+			search: "wid",
+			searchBy: ["name"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		));
 
-		Assert.NotEqual(baseline, Meta(sortBy: ["rank:DESC"], search: "gadget", searchBy: ["name"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))));
+		Assert.NotEqual(baseline, Meta(
+			sortBy: ["rank:DESC"],
+			search: "gadget",
+			searchBy: ["name"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		));
 
-		Assert.NotEqual(baseline, Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["description"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))));
+		Assert.NotEqual(baseline, Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["description"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))
+		));
 
-		Assert.NotEqual(baseline, Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["name"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Draft"]))));
+		Assert.NotEqual(baseline, Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["name"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Draft"]))
+		));
 
-		Assert.NotEqual(baseline, Meta(sortBy: ["rank:DESC"], search: "wid", searchBy: ["name"],
-			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"])), currentPage: 3));
+		Assert.NotEqual(baseline, Meta(
+			sortBy: ["rank:DESC"],
+			search: "wid",
+			searchBy: ["name"],
+			filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"])),
+			currentPage: 3
+		));
 
 	}
 
@@ -154,18 +185,17 @@ public sealed class EnvelopeEqualityTests {
 	public void Filters_of_the_same_size_but_different_contents_are_unequal() {
 		Assert.NotEqual(
 			Meta(filter: Filter(StringComparer.Ordinal, ("status", ["$eq:Active"]))),
-			Meta(filter: Filter(StringComparer.Ordinal, ("rank", ["$gte:20"]))));
+			Meta(filter: Filter(StringComparer.Ordinal, ("rank", ["$gte:20"])))
+		);
 	}
 
 	[Fact]
 	public void An_empty_meta_equals_another_empty_one() {
-
 		var left = new PaginatedMeta(0, 0, 25, 0, 1);
 		var right = new PaginatedMeta(0, 0, 25, 0, 1);
 
 		Assert.Equal(left, right);
 		Assert.Equal(left.GetHashCode(), right.GetHashCode());
-
 	}
 
 	[Fact]
@@ -173,10 +203,16 @@ public sealed class EnvelopeEqualityTests {
 
 		// PaginatedResponse<T>.Items has compared by reference since 10.0.0; this is the same gate, one level up.
 		var left = new PaginatedResponse<ProductDto>(
-			[new ProductDto(1, "Widget", ProductStatus.Active, 10)], Meta(), new PaginatedLinks("/p?page=1", null, null, "/p?page=1"));
+			[new ProductDto(1, "Widget", ProductStatus.Active, 10)],
+			Meta(),
+			new PaginatedLinks("/p?page=1", null, null, "/p?page=1")
+		);
 
 		var right = new PaginatedResponse<ProductDto>(
-			[new ProductDto(1, "Widget", ProductStatus.Active, 10)], Meta(), new PaginatedLinks("/p?page=1", null, null, "/p?page=1"));
+			[new ProductDto(1, "Widget", ProductStatus.Active, 10)],
+			Meta(),
+			new PaginatedLinks("/p?page=1", null, null, "/p?page=1")
+		);
 
 		Assert.Equal(left, right);
 		Assert.Equal(left.GetHashCode(), right.GetHashCode());
@@ -191,7 +227,10 @@ public sealed class EnvelopeEqualityTests {
 		var baseline = new PaginatedResponse<ProductDto>(items, Meta(), links);
 
 		Assert.NotEqual(baseline, new PaginatedResponse<ProductDto>(
-			[new ProductDto(2, "Gizmo", ProductStatus.Draft, 30)], Meta(), links));
+			[new ProductDto(2, "Gizmo", ProductStatus.Draft, 30)],
+			Meta(),
+			links
+		));
 
 		Assert.NotEqual(baseline, new PaginatedResponse<ProductDto>(items, Meta(currentPage: 3), links));
 
@@ -231,7 +270,8 @@ public sealed class EnvelopeEqualityTests {
 		// A page is an ordered thing — the sort is half of what was asked for.
 		Assert.NotEqual(
 			new PaginatedResponse<ProductDto>([widget, gizmo], Meta(), null),
-			new PaginatedResponse<ProductDto>([gizmo, widget], Meta(), null));
+			new PaginatedResponse<ProductDto>([gizmo, widget], Meta(), null)
+		);
 
 	}
 

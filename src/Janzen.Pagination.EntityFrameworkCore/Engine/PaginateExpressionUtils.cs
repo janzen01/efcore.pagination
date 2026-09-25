@@ -21,10 +21,16 @@ internal static class PaginateExpressionUtils {
 	// Every pattern operator and every searched field parameterizes a string by construction, and closing a
 	// generic method is the expensive half of this call -- so that one instantiation is resolved once here rather
 	// than per criterion.
-	[UnconditionalSuppressMessage("Trimming", "IL2060",
-		Justification = "The type argument is the literal typeof(string) and EF.Parameter<T> places no member requirement on T, so there is nothing for the trimmer to preserve beyond the method itself.")]
-	[UnconditionalSuppressMessage("AOT", "IL3050",
-		Justification = "string is a reference type, so this instantiation shares the canonical code the runtime already has; no new native code is generated.")]
+	[UnconditionalSuppressMessage(
+		"Trimming",
+		"IL2060",
+		Justification = "The type argument is the literal typeof(string) and EF.Parameter<T> places no member requirement on T, so there is nothing for the trimmer to preserve beyond the method itself."
+	)]
+	[UnconditionalSuppressMessage(
+		"AOT",
+		"IL3050",
+		Justification = "string is a reference type, so this instantiation shares the canonical code the runtime already has; no new native code is generated."
+	)]
 	private readonly static MethodInfo StringParameterMethod = ParameterMethod.MakeGenericMethod(typeof(string));
 
 	private readonly static MethodInfo OrderByMethod = GetQueryableOrderMethod(nameof(Queryable.OrderBy));
@@ -64,12 +70,14 @@ internal static class PaginateExpressionUtils {
 	}
 
 	public static Expression BuildInMemoryStringMatchExpression(Expression valueExpression, string value, bool startsWith) {
+
 		return startsWith
 			? Expression.Call(valueExpression, StartsWithMethod, Expression.Constant(value), Expression.Constant(StringComparison.OrdinalIgnoreCase))
 			: Expression.GreaterThanOrEqual(
 				Expression.Call(valueExpression, IndexOfMethod, Expression.Constant(value), Expression.Constant(StringComparison.OrdinalIgnoreCase)),
 				Expression.Constant(0, typeof(int))
 			);
+
 	}
 
 	/// <summary>
@@ -200,8 +208,11 @@ internal static class PaginateExpressionUtils {
 	// The enumeration is metadata only: four overloads are picked out by name and parameter count, and none of
 	// the RequiresUnreferencedCode members Queryable also declares (AsQueryable, chiefly) is ever called from
 	// here. Preserving the overload set is what the lookup needs and all it needs.
-	[UnconditionalSuppressMessage("Trimming", "IL2026",
-		Justification = "Queryable's public methods are enumerated to resolve four ordering overloads by name; the trim-unsafe members the enumeration also preserves are never invoked.")]
+	[UnconditionalSuppressMessage(
+		"Trimming",
+		"IL2026",
+		Justification = "Queryable's public methods are enumerated to resolve four ordering overloads by name; the trim-unsafe members the enumeration also preserves are never invoked."
+	)]
 	private static MethodInfo GetQueryableOrderMethod(string name) { return GetMethodByParameterCount(typeof(Queryable).GetMethods(), name, 2); }
 
 }

@@ -11,6 +11,7 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 	private static IQueryable<Product> Products() { return TestData.Products().AsQueryable(); }
 
 	private static PaginateConfig<Product> Config(Action<PaginateConfigBuilder<Product>> extra) {
+
 		return PaginateConfig<Product>.Create(b => {
 			b.WithLimits(3, Query.All)
 				.Sortable("rank", p => p.Rank)
@@ -21,28 +22,25 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 
 			extra(b);
 		});
+
 	}
 
 	// ---- WithMaxOffset ------------------------------------------------------------------------------
 
 	[Fact]
 	public async Task An_offset_at_the_ceiling_is_allowed() {
-
 		// maxOffset 4 with limit 2: page 3 skips exactly 4.
 		var page = await Products().PageAsync<ProductDto>(new PaginateQuery { Page = 3, Limit = 2 }, Config(b => b.WithMaxOffset(4)));
 
 		Assertions.HasIds(page, 5, 6);
-
 	}
 
 	[Fact]
 	public async Task An_offset_past_the_ceiling_is_rejected() {
-
 		string message = await Assertions.RejectsAsync(() =>
 			Products().PageAsync<ProductDto>(new PaginateQuery { Page = 4, Limit = 2 }, Config(b => b.WithMaxOffset(4))));
 
 		Assert.Equal("Query parameter 'page' exceeds the allowed offset for this resource: at most 4 rows may be skipped.", message);
-
 	}
 
 	[Fact]
@@ -61,23 +59,19 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public async Task The_ceiling_is_on_the_offset_not_the_page() {
-
 		var config = Config(b => b.WithMaxOffset(10));
 
 		// Page 4 at limit 2 skips 6 and passes; page 4 at limit 5 skips 15 and does not. Same page number.
 		Assert.Equal(2, (await Products().PageAsync<ProductDto>(new PaginateQuery { Page = 4, Limit = 2 }, config)).Items.Count);
 		await Assertions.RejectsAsync(() => Products().PageAsync<ProductDto>(new PaginateQuery { Page = 4, Limit = 5 }, config));
-
 	}
 
 	[Fact]
 	public async Task Without_the_guard_a_deep_page_is_an_empty_page_as_before() {
-
 		var page = await Products().PageAsync<ProductDto>(new PaginateQuery { Page = 500, Limit = 10 }, Config(_ => { }));
 
 		Assert.Empty(page.Items);
 		Assert.Equal(8, page.Meta.TotalItems);
-
 	}
 
 	[Fact]
@@ -154,33 +148,27 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public async Task Unlimited_past_the_ceiling_is_rejected() {
-
 		string message = await Assertions.RejectsAsync(() =>
 			Products().PageAsync<ProductDto>(new PaginateQuery { Limit = -1 }, Config(b => b.AllowUnlimited(3))));
 
 		Assert.Equal("The unlimited read is too large: this resource returns at most 3 rows for 'limit=-1'.", message);
-
 	}
 
 	[Fact]
 	public async Task Unlimited_exactly_at_the_ceiling_is_allowed() {
-
 		// Eight rows against a ceiling of eight: the fetch asks for nine and gets eight, which is why the
 		// engine can tell "at the limit" from "over it" at all.
 		var page = await Products().PageAsync<ProductDto>(new PaginateQuery { Limit = -1 }, Config(b => b.AllowUnlimited(8)));
 
 		Assert.Equal(8, page.Items.Count);
-
 	}
 
 	[Fact]
 	public async Task Unlimited_needs_page_one() {
-
 		string message = await Assertions.RejectsAsync(() =>
 			Products().PageAsync<ProductDto>(new PaginateQuery { Page = 2, Limit = -1 }, Config(b => b.AllowUnlimited(100))));
 
 		Assert.Equal("Query parameter 'page' must be 1 when 'limit' is -1.", message);
-
 	}
 
 	[Theory]
@@ -188,22 +176,18 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData(-2)]
 	[InlineData(0)]
 	public async Task A_non_positive_limit_is_rejected_without_the_opt_in(int limit) {
-
 		string message = await Assertions.RejectsAsync(() =>
 			Products().PageAsync<ProductDto>(new PaginateQuery { Limit = limit }, Config(_ => { })));
 
 		Assert.Equal($"Query parameter 'limit' must be between 1 and {Query.All}.", message);
-
 	}
 
 	[Theory]
 	[InlineData(-2)]
 	[InlineData(0)]
 	public async Task Only_minus_one_is_the_unlimited_literal(int limit) {
-
 		await Assertions.RejectsAsync(() =>
 			Products().PageAsync<ProductDto>(new PaginateQuery { Limit = limit }, Config(b => b.AllowUnlimited(100))));
-
 	}
 
 	[Fact]
@@ -223,12 +207,10 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public async Task A_search_term_below_the_minimum_is_rejected() {
-
 		string message = await Assertions.RejectsAsync(() =>
 			Products().PageAsync<ProductDto>(Query.Search("a"), Config(b => b.WithMinSearchLength(3))));
 
 		Assert.Equal("Search term must be at least 3 characters.", message);
-
 	}
 
 	[Fact]
@@ -250,12 +232,10 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public async Task A_padded_term_searches_for_the_trimmed_one() {
-
 		var page = await Products().PageAsync<ProductDto>(Query.Search("  widget  "), Config(_ => { }));
 
 		Assertions.HasIds(page, 1);
 		Assert.Equal("widget", page.Meta.Search);   // the echo reports what ran
-
 	}
 
 	[Fact]
@@ -306,12 +286,10 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public async Task A_pattern_value_above_the_maximum_is_rejected() {
-
 		string message = await Assertions.RejectsAsync(() =>
 			Products().PageAsync<ProductDto>(Query.Filter("name", "$ilike:widget"), PatternConfig(b => b.WithGuards(maxSearchLength: 3))));
 
 		Assert.Equal("Filter 'name' pattern must not exceed 3 characters.", message);
-
 	}
 
 	[Fact]
@@ -323,11 +301,9 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public void A_minimum_above_the_maximum_is_a_configuration_error() {
-
 		var exception = Assert.Throws<InvalidOperationException>(() => Config(b => b.WithMinSearchLength(300)));
 
 		Assert.Equal("Min search length 300 must not be greater than max search length 256.", exception.Message);
-
 	}
 
 	[Fact]
@@ -348,13 +324,11 @@ public sealed class LimitsAndGuardsTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public async Task Without_the_guard_navigation_reaches_every_page() {
-
 		var links = new PaginateLinkContext("/products", []);
 		var page = await Products().PageAsync<ProductDto>(new PaginateQuery { Page = 3, Limit = 2 }, Config(_ => { }), links);
 
 		Assert.True(page.Meta.HasNextPage);
 		Assert.Equal("/products?page=4", page.Links!.Last);
-
 	}
 
 	[Fact]

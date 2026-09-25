@@ -10,12 +10,14 @@ namespace Janzen.Pagination.Tests;
 public sealed class MetadataEqualityTests {
 
 	private static IPaginateConfig Build(params PaginateFilterOperator[] statusOperators) {
+
 		return PaginateConfig<Product>.Create(b => b
 			.WithLimits(10, 50)
 			.Sortable("rank", p => p.Rank)
 			.WithTieBreaker(p => p.Id)
 			.Searchable("name", p => p.Name)
 			.Filterable("status", p => p.Status, statusOperators.Length > 0 ? statusOperators : [PaginateFilterOperator.Eq, PaginateFilterOperator.In]));
+
 	}
 
 	[Fact]
@@ -49,12 +51,10 @@ public sealed class MetadataEqualityTests {
 
 	[Fact]
 	public void A_different_operator_set_is_not_equal() {
-
 		var narrow = Build(PaginateFilterOperator.Eq).FilterableFields[0];
 		var wide = Build(PaginateFilterOperator.Eq, PaginateFilterOperator.In).FilterableFields[0];
 
 		Assert.NotEqual(narrow, wide);
-
 	}
 
 	[Fact]
