@@ -895,15 +895,20 @@ public sealed class OpenApiVersionTests(OpenApiVersionFixture fixture) : IClassF
 
 	/// <summary>
 	///     The transformer writes the same object model whatever version the document is serialized as, and a
-	///     consumer pinned to 3.1 must see exactly the parameters a 3.2 consumer sees.
+	///     consumer pinned to 3.1 must see exactly the parameters and the <c>400</c> a 3.2 consumer sees -- the
+	///     integration guide says both, so both are compared.
 	/// </summary>
 	[Fact]
-	public void The_pagination_parameters_are_identical_under_3_1_and_3_2() {
+	public void The_pagination_parameters_and_400_are_identical_under_3_1_and_3_2() {
 
-		string current = Operation(fixture.Default, "/products").GetProperty("parameters").GetRawText();
-		string pinned = Operation(fixture.Pinned31, "/products").GetProperty("parameters").GetRawText();
+		var current = Operation(fixture.Default, "/products");
+		var pinned = Operation(fixture.Pinned31, "/products");
 
-		Assert.Equal(pinned, current);
+		Assert.Equal(pinned.GetProperty("parameters").GetRawText(), current.GetProperty("parameters").GetRawText());
+		Assert.Equal(
+			pinned.GetProperty("responses").GetProperty("400").GetRawText(),
+			current.GetProperty("responses").GetProperty("400").GetRawText()
+		);
 
 	}
 
