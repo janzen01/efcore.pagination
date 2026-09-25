@@ -238,8 +238,8 @@ It acts only on operations carrying `[PaginatedQuery<TProvider>]` or `WithPagina
 the config through that provider — so the documented parameters are generated from the same declaration the
 engine enforces and cannot drift from it.
 
-What it emits parameter by parameter, how types and examples are derived, how badges render and why the
-`language-` prefix is mandatory: **[OpenAPI](./openapi/)**.
+What it emits parameter by parameter, how types and examples are derived, how badges render and why Scalar
+needs a `language-` prefix on them: **[OpenAPI](./openapi/)**.
 
 ---
 

@@ -494,9 +494,9 @@ actually means in the model.
 Attaches a label to **the field declared immediately before it**, surfaced in the generated OpenAPI metadata.
 It has no effect on what the engine accepts.
 
-The optional CSS class **must start with `language-`**. That is not a style preference — it is the only class
-prefix an API reference UI's markdown sanitizer keeps on an inline `<code>` element inside a parameter
-description. See [OpenAPI → Badges](/integrations/aspnetcore/openapi/#badges) for how it renders and how to
+The optional CSS class is emitted **verbatim** and not validated: which classes an API reference UI keeps is
+that UI's rule, not the library's. With Scalar, only a `language-*` class survives its sanitizer on inline
+`<code>`. See [OpenAPI → Badges](/integrations/aspnetcore/openapi/#badges) for how it renders and how to
 colour it.
 
 **Rejects at configuration time:**
@@ -504,8 +504,6 @@ colour it.
 - a null or whitespace `name`
 - no preceding field → `InvalidOperationException`,
   `ShowBadge must be called immediately after a Sortable, Searchable, or Filterable field.`
-- a `cssClass` not starting with `language-` → `ArgumentException`,
-  `Badge cssClass must start with "language-" — other classes are stripped by the API reference sanitizer.`
 
 ### `When`
 

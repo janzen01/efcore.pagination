@@ -204,11 +204,11 @@ reference UI's own custom CSS:
 .language-admin { background: #8B1A1A; color: #fff; border-radius: 4px; padding: 1px 6px }
 ```
 
-The `language-` prefix is not a convention, it is the constraint. An API reference UI such as Scalar renders
-descriptions as GitHub-flavoured Markdown through a sanitizer that strips inline `style` and every class on a
-`<code>` element except one matching `language-*`. A badge styled any other way arrives as plain text, which
-is why `ShowBadge` rejects the class at configuration time rather than letting you discover it in the
-rendered page. Badge names are HTML-encoded, so a stray `<` cannot break the markup.
+The class is emitted verbatim; the library does not validate it, because which classes survive is the
+renderer's rule. The `language-` prefix above is Scalar's: it renders descriptions as GitHub-flavoured Markdown
+through a sanitizer that strips inline `style` and every class on a `<code>` element except one matching
+`language-*`, so a badge styled any other way arrives there as plain text. Another UI may keep different
+classes, or none. Badge names and classes are HTML-encoded, so a stray `<` cannot break the markup.
 
 Colouring is limited to descriptions. The `sortBy` and `searchBy` **enum values** are plain strings in the
 schema, so a badge cannot reach them — a sortable field's badge shows in the field list above the enum, not
