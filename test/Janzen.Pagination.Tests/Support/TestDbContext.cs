@@ -2,6 +2,8 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
+using System.Data.Common;
+
 namespace Janzen.Pagination.Tests.Support;
 
 public sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options) {
@@ -71,9 +73,52 @@ public sealed class SqliteFixture : IAsyncLifetime {
 
 	}
 
+	/// <summary>
+	///     A context whose every command genuinely suspends before it runs. SQLite's async API completes
+	///     synchronously, so without this no <c>await</c> in the engine ever yields and a test about where its
+	///     continuations resume would pass whatever the engine did.
+	/// </summary>
+	public TestDbContext CreateYieldingContext() {
+
+		var options = new DbContextOptionsBuilder<TestDbContext>()
+			.UseSqlite(_connection)
+			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
+			.AddInterceptors(new YieldingInterceptor())
+			.Options;
+
+		return new TestDbContext(options);
+
+	}
+
 	/// <summary>A fresh, untracked query root — every test starts from the same eight rows.</summary>
 	public static IQueryable<Product> Products(TestDbContext context) { return context.Products.AsNoTracking(); }
 
 	public async ValueTask DisposeAsync() { await _connection.DisposeAsync(); }
+
+	// Task.Delay rather than Task.Yield: a delay is still pending when it is awaited, and ConfigureAwait(false)
+	// keeps the interceptor itself from posting to whatever context the caller installed.
+	private sealed class YieldingInterceptor : DbCommandInterceptor {
+
+		public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+			DbCommand command,
+			CommandEventData eventData,
+			InterceptionResult<DbDataReader> result,
+			CancellationToken cancellationToken = default
+		) {
+			await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+			return result;
+		}
+
+		public override async ValueTask<InterceptionResult<object>> ScalarExecutingAsync(
+			DbCommand command,
+			CommandEventData eventData,
+			InterceptionResult<object> result,
+			CancellationToken cancellationToken = default
+		) {
+			await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+			return result;
+		}
+
+	}
 
 }

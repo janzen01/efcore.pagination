@@ -151,3 +151,105 @@ public sealed class EfInternalCouplingTests : IClassFixture<SqliteFixture> {
 	}
 
 }
+
+/// <summary>
+///     The promise the projections guide makes: a consumer's <c>projector</c> and <c>postMap</c> continue on a
+///     thread-pool thread, never on the caller's <see cref="SynchronizationContext" />. What keeps it is
+///     <c>ConfigureAwait(false)</c> on the engine's awaits, and nothing else pinned it -- dropping one left the
+///     suite green, because SQLite completes its async calls synchronously and no await ever yielded.
+/// </summary>
+public sealed class ContinuationContextTests : IClassFixture<SqliteFixture> {
+
+	private readonly SqliteFixture _fixture;
+
+	public ContinuationContextTests(SqliteFixture fixture) { _fixture = fixture; }
+
+	[Fact]
+	public async Task The_projector_does_not_resume_on_the_callers_context() {
+
+		await using var context = _fixture.CreateYieldingContext();
+		var recording = new RecordingContext();
+		SynchronizationContext? seen = recording;
+
+		await StartUnder(recording, () => SqliteFixture.Products(context).PaginateMapAsync(
+			new PaginateQuery(),
+			TestData.Config,
+			product => {
+				seen = SynchronizationContext.Current;
+				return product.Id;
+			},
+			null,
+			TestContext.Current.CancellationToken
+		));
+
+		Assert.Null(seen);
+		Assert.Equal(0, recording.Posts);
+
+	}
+
+	[Fact]
+	public async Task The_post_map_does_not_resume_on_the_callers_context() {
+
+		await using var context = _fixture.CreateYieldingContext();
+		var recording = new RecordingContext();
+		SynchronizationContext? seen = recording;
+
+		await StartUnder(recording, () => SqliteFixture.Products(context).PaginateSelectMapAsync(
+			new PaginateQuery(),
+			TestData.Config,
+			product => product.Id,
+			id => {
+				seen = SynchronizationContext.Current;
+				return id;
+			},
+			null,
+			TestContext.Current.CancellationToken
+		));
+
+		Assert.Null(seen);
+		Assert.Equal(0, recording.Posts);
+
+	}
+
+	// The context is installed only while the engine's synchronous prefix runs, which is where an await would
+	// capture it. Awaiting the task is left to the caller's own context, so the test's await posts nothing here.
+	private static Task StartUnder(SynchronizationContext context, Func<Task> start) {
+
+		var prior = SynchronizationContext.Current;
+		SynchronizationContext.SetSynchronizationContext(context);
+
+		try {
+			return start();
+		} finally {
+			SynchronizationContext.SetSynchronizationContext(prior);
+		}
+
+	}
+
+	/// <summary>Counts every post and still runs it, as a UI context would, so a capturing await is seen rather than deadlocked.</summary>
+	private sealed class RecordingContext : SynchronizationContext {
+
+		private int _posts;
+
+		public int Posts => Volatile.Read(ref _posts);
+
+		public override void Post(SendOrPostCallback d, object? state) {
+
+			Interlocked.Increment(ref _posts);
+
+			// Restored afterward: a pool thread left carrying this context would hand it to whatever runs there next.
+			ThreadPool.QueueUserWorkItem(_ => {
+				SetSynchronizationContext(this);
+
+				try {
+					d(state);
+				} finally {
+					SetSynchronizationContext(null);
+				}
+			});
+
+		}
+
+	}
+
+}
