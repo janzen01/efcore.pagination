@@ -71,6 +71,11 @@ dotnet add package Janzen.Pagination.EntityFrameworkCore
 dotnet add package Janzen.Pagination.AspNetCore
 ```
 
+Prereleases carry a `-preview.N` or `-rc.N` suffix — add `--prerelease` to install one.
+
+This is the `11.x` line, targeting .NET 11 and EF Core 11. The `10.x` line, for .NET 10, is serviced in
+parallel on `release/10.x`; its documentation is [its own copy](https://janzen01.github.io/efcore.pagination/v10.1.x/).
+
 ```csharp
 // 1. Declare the contract for an entity. This is the whole allowlist.
 public sealed class ProductPaginateConfigProvider : IPaginateConfigProvider<Product> {
@@ -186,9 +191,10 @@ for architecture, versioning, and the decisions behind them (written for humans 
 ## Status
 
 > Versions track the framework: the first component is the **.NET / EF Core major** the package targets, so this
-> is the **10.x** line (pairing with .NET 10 and EF Core 10) rather than 1.x. Older lines are not maintained in
-> parallel. Release notes live on the [Releases](https://github.com/janzen01/efcore.pagination/releases) page —
-> there is no changelog file in the repository.
+> is the **11.x** line (pairing with .NET 11 and EF Core 11) rather than 1.x. The previous line, `10.x`, is
+> serviced in parallel until three months after `11.0.0`. Release notes live on the
+> [Releases](https://github.com/janzen01/efcore.pagination/releases) page — there is no changelog file in the
+> repository.
 
 Security reports go through [private vulnerability
 reporting](https://github.com/janzen01/efcore.pagination/security/advisories/new) — see [SECURITY.md](SECURITY.md).

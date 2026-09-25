@@ -6,8 +6,8 @@ PostgreSQL; if you only want the engine, everything below except step 4 and step
 
 ## Requirements
 
-- **.NET 10** and **EF Core 10**. The packages are `net10.0`-only, and the major version tracks the framework
-  they pair with: a `10.x` package goes with .NET 10.
+- **.NET 11** and **EF Core 11**. The packages are `net11.0`-only, and the major version tracks the framework
+  they pair with: an `11.x` package goes with .NET 11, and the `10.x` line goes with .NET 10.
 - **Not trim-safe or Native-AOT-safe.** The engine builds expression trees and uses reflection, so every public
   entry point that reaches it carries `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`: the
   `Paginate*Async` methods and both composers, `WithPagination<TProvider>()`, `UseNodaTime()` /

@@ -14,6 +14,11 @@ column collation that changes it before 18.6. This package registers a strategy 
 dotnet add package Janzen.Pagination.PostgreSql
 ```
 
+Prereleases carry a `-preview.N` or `-rc.N` suffix — add `--prerelease` to install one.
+
+This is the `11.x` line, targeting .NET 11 and EF Core 11. The `10.x` line, for .NET 10, is serviced in
+parallel; its documentation is [its own copy](https://janzen01.github.io/efcore.pagination/v10.1.x/).
+
 Requires [`Janzen.Pagination.EntityFrameworkCore`](https://www.nuget.org/packages/Janzen.Pagination.EntityFrameworkCore)
 (referenced transitively).
 
@@ -44,9 +49,9 @@ PaginateConfig<Product>.Create(b => b
 ## What it changes
 
 Three things emit a pattern match: free-text `search`, the [`$ilike` and `$sw` filter
-operators](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/query-string/#operator-reference), and
+operators](https://janzen01.github.io/efcore.pagination/v11.0.x/reference/query-string/#operator-reference), and
 `$contains` on a string field. This package makes all of them use [`ILIKE` instead of
-`LIKE`](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/postgresql/#like-vs-ilike). Both forms pass an
+`LIKE`](https://janzen01.github.io/efcore.pagination/v11.0.x/integrations/postgresql/#like-vs-ilike). Both forms pass an
 explicit `ESCAPE '\'`, and the engine escapes `\`, `%`, `_` and `[` in the user's value, so a search for `100%`
 matches that literal text.
 
@@ -55,9 +60,9 @@ as its example operator.
 
 ## Documentation
 
-- [PostgreSQL integration](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/postgresql/)
-- [Query-string contract](https://janzen01.github.io/efcore.pagination/v10.1.x/reference/query-string/)
-- [Full guide](https://janzen01.github.io/efcore.pagination/v10.1.x/)
+- [PostgreSQL integration](https://janzen01.github.io/efcore.pagination/v11.0.x/integrations/postgresql/)
+- [Query-string contract](https://janzen01.github.io/efcore.pagination/v11.0.x/reference/query-string/)
+- [Full guide](https://janzen01.github.io/efcore.pagination/v11.0.x/)
 
 ## Debugging
 

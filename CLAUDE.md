@@ -1,8 +1,9 @@
 # Janzen.Pagination (EF Core + ASP.NET Core pagination library)
 
 Dynamic, configuration-driven **pagination, filtering and sorting** for **Entity Framework Core** and **ASP.NET Core**,
-shipped as four composable NuGet packages (`Janzen.Pagination.*`). **net10.0-only**, C# `latest`, nullable-enabled.
-Published on nuget.org as the **10.x** line; prereleases carry an `-rc.N` suffix (see *Versioning* below).
+shipped as four composable NuGet packages (`Janzen.Pagination.*`). **net11.0-only**, C# `latest`, nullable-enabled.
+This is the **11.x** line; the **10.x** line is serviced on `release/10.x`. Prereleases carry a `-preview.N` or
+`-rc.N` suffix (see *Versioning* below).
 
 > **Machine setup** (prerequisites, restore, build, graphify) lives in **[SETUP.md](SETUP.md)** — not repeated here.
 > **Consumer documentation** — the query-string contract, every builder method, the projection strategies and the
@@ -443,8 +444,9 @@ independent of each other — consumers pick the extensions they need:
   `int` defaults, naming one guard silently reset the other three to the constants, discarding shared values the
   caller never mentioned. Source-compatible and binary-breaking, it shipped in `10.1.0` as the only
   **signature** entry among twelve `CompatibilitySuppressions.xml` entries against the `10.0.3` baseline — the
-  other eleven were `CP0014`s the attribute rule surfaced. Moving the baseline to `10.1.0` retired all twelve, so
-  the repository carries no suppression file; the next deliberate break writes one again.
+  other eleven were `CP0014`s the attribute rule surfaced. Moving the baseline to `10.1.0` retired all twelve. On
+  the 11.x line each package carries exactly one entry, a `PKV006` for the `net10.0` target it no longer ships;
+  anything else there is a new break, recorded the same way.
   Both `Filterable` overloads have an **operator-less sibling** (`.Filterable(name, expr)`) whitelisting
   `PaginateFilterOperators.For<TValue>()` — the public derivation, and the single place a later release widens a
   row (which then widens every shorthand field on rebuild: release-note it). Ranges are deliberately withheld
@@ -533,7 +535,7 @@ independent of each other — consumers pick the extensions they need:
   and is resolved per query, which is what makes one process talking to two providers workable.
 
 ## Conventions
-- **net10.0-only**, `Nullable=enable`, `ImplicitUsings=enable`, C# `latest` ([Directory.Build.props](Directory.Build.props)).
+- **net11.0-only**, `Nullable=enable`, `ImplicitUsings=enable`, C# `latest` ([Directory.Build.props](Directory.Build.props)).
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
   The EF Core family (`Microsoft.EntityFrameworkCore`, `.Relational`, `.Sqlite`) is a **range capped below the next
   major** (`[10.0.12, 11.0.0)`), the way Npgsql caps its own: a line's engine loaded against the next EF Core major
@@ -721,7 +723,9 @@ The package version's **first component tracks the .NET / EF Core major it targe
 - **No four-part versions.** NuGet drops a zero fourth component (`10.1.0.0` *is* `10.1.0`) and treats `1`, `1.0`,
   `1.0.0` and `1.0.0.0` as equal, so the component count would flicker per release. Three components only.
 - Version lives in `<Version>` in [Directory.Build.props](Directory.Build.props) — there is **no MinVer** here.
-- **Prereleases** use an `-rc.N` suffix (`10.0.0-rc.1`), dotted like .NET's own. `dotnet add package` skips
+- **Prereleases** use a `-preview.N` or `-rc.N` suffix (`11.0.0-preview.1`, `10.0.0-rc.1`), dotted like .NET's
+  own: `-preview.N` while the line only retargets or its breaking bundle is still landing, `-rc.N` once it is
+  complete. `dotnet add package` skips
   prereleases, so **while an rc is the newest release** the install snippets in the six reader-facing
   surfaces (root `README.md`, `docs/src/index.md`, the four package READMEs) carry a `--prerelease` note. It is
   worded without a version number, so no release inside the rc series has to touch it — but the stable
@@ -746,6 +750,8 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
 3. **At a stable release only**, move each `PublicAPI.Unshipped.txt` into its `PublicAPI.Shipped.txt`. That is
    what makes a later removal an RS0017 build error. Do **not** do it for an `-rc.N`: an rc-only member promoted
    to *shipped* cannot then be dropped before stable without fighting the analyzer.
+   **At the line's first stable release** (`11.0.0`), also move `global.json` off the preview SDK — `11.0.100`,
+   `allowPrerelease` removed — and the EF Core range's floor off the release candidate.
 4. **`PackageValidationBaselineVersion` is bumped *after* the publish, never in the release PR.** It resolves
    through a `PackageDownload`, so pointing it at a version nuget.org does not serve yet fails **restore** with
    `NU1102: Unable to find package … with version (= x.y.z)` — the release PR's own CI, before any tag exists.
@@ -811,7 +817,10 @@ neither needing Docker:
 > repository and takes the SDK from nowhere else. On a line whose framework is GA the pin names the feature band's
 > floor with `rollForward: latestFeature` (`10.0.100`), which `setup-dotnet` installs as the newest 10.0 SDK; that is
 > also what keeps a machine with a newer major installed — a checkout of the servicing line next to `master` — from
-> building this line with the wrong SDK. A line in preview pins the exact rc build instead.
+> building this line with the wrong SDK. A line in preview pins the exact rc build instead (setup-dotnet installs a
+> prerelease pin verbatim; `rollForward` only lets a local `dotnet` accept a newer 11.0.x), and that pin moves with the
+> framework: **a Dependabot PR bumping `Microsoft.*` to the next rc must bump `global.json` to the matching SDK in the
+> same PR** — packages built against rc.2 are not guaranteed to run on the rc.1 shared framework.
 
 - **SQLite in-memory** — most tests. Real SQL translation, so it is what catches "the expression cannot be translated",
   and it exercises the engine's `UseDatabaseFunctions` path (`EF.Functions.Like`, `EF.Parameter`).
@@ -864,8 +873,9 @@ way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server rea
   of its own, for the reason under *Conventions*.
 
 ## Intentional decisions — do NOT "fix" these
-- **net10.0-only** — net9 is EOL and net8 lacks the EF Core 9+ surface the engine relies on (e.g., `EF.Parameter`).
-  Don't re-introduce multi-targeting.
+- **net11.0-only** — a line targets exactly the framework its major tracks. EF Core is not compatible across
+  majors, so `net10.0` is served by the 10.x line on `release/10.x`, not by a second target here. Don't
+  re-introduce multi-targeting.
 - **Value resolution order is registry → built-ins → `IParsable<TSelf>` → 400**, and the registry going *first* is
   the load-bearing part: consulted last (as it was before 10.0.3) a registration for an already-built-in type was a
   silent no-op, so everyone it affected was someone who tried to override and never found out. Don't move it back
@@ -904,9 +914,11 @@ way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server rea
 - **The assemblies are not strong-named**, and this was decided at `10.0.0` rather than left open. Adding a
   strong name later changes assembly identity, which is a breaking change for every consumer, so it is a
   one-way door that has to be walked through before the first stable release or not at all. Against it:
-  `net10.0`-only means no GAC and no binding redirects, and the .NET runtime does not verify strong-name
-  signatures. The only cost is `CS8002` on consumers who strong-name their own assemblies. Don't add
-  `SignAssembly` to a `10.x` build; a new framework major is the earliest place the question can reopen.
+  a modern-.NET-only package means no GAC and no binding redirects, and the .NET runtime does not verify
+  strong-name signatures. The only cost is `CS8002` on consumers who strong-name their own assemblies.
+  **Reconsidered at `11.0` and kept**: nothing changed on either side, and signing would still mean a key in
+  the repository and a `PublicKey=` on every `InternalsVisibleTo` entry for no runtime effect. Don't add
+  `SignAssembly` to an `11.x` build; the next framework major reopens it only on a concrete consumer request.
 - **The binder carries `limit=-1` through; the *config* decides.** `PaginateQueryParser` parses `limit` with
   `AllowLeadingSign` and accepts `-1` specifically, because it has no configuration and cannot know whether
   this resource opted in. Dropping it there — which is what the original positive-only parser did — makes

@@ -13,6 +13,11 @@ conversions with the engine's extensibility registry (`PaginateTypeSupport`).
 dotnet add package Janzen.Pagination.NodaTime
 ```
 
+Prereleases carry a `-preview.N` or `-rc.N` suffix — add `--prerelease` to install one.
+
+This is the `11.x` line, targeting .NET 11 and EF Core 11. The `10.x` line, for .NET 10, is serviced in
+parallel; its documentation is [its own copy](https://janzen01.github.io/efcore.pagination/v10.1.x/).
+
 Requires [`Janzen.Pagination.EntityFrameworkCore`](https://www.nuget.org/packages/Janzen.Pagination.EntityFrameworkCore)
 (referenced transitively).
 
@@ -79,10 +84,10 @@ projection leaf types, so the automatic projection copies them across instead of
 
 ## Documentation
 
-- [NodaTime integration](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/nodatime/)
-- [Custom types](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/custom-types/)
-- [Projections](https://janzen01.github.io/efcore.pagination/v10.1.x/guide/projections/)
-- [Full guide](https://janzen01.github.io/efcore.pagination/v10.1.x/)
+- [NodaTime integration](https://janzen01.github.io/efcore.pagination/v11.0.x/integrations/nodatime/)
+- [Custom types](https://janzen01.github.io/efcore.pagination/v11.0.x/integrations/custom-types/)
+- [Projections](https://janzen01.github.io/efcore.pagination/v11.0.x/guide/projections/)
+- [Full guide](https://janzen01.github.io/efcore.pagination/v11.0.x/)
 
 ## Debugging
 

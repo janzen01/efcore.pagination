@@ -9,10 +9,29 @@ updates:
     commit-message:
       prefix: "build"
       include: "scope"
+    groups:
+      microsoft:
+        patterns:
+          - "Microsoft.*"
+          - "Npgsql.*"
+
+  # The previous line. This file is read from the default branch only, so the servicing branch's updates
+  # have to be declared here rather than in its own copy. A line is pinned to its EF Core major by
+  # definition -- the package version tracks it in lockstep -- so a framework major is not an update
+  # there but the next line, which already exists. Everything else flows the same way as above.
+  - package-ecosystem: "nuget"
+    directory: "/"
+    target-branch: "release/10.x"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build"
+      include: "scope"
     ignore:
-      # Microsoft.AspNetCore.OpenApi 10.x builds on Microsoft.OpenApi 2.x; the 3.x major is incompatible
-      # with ASP.NET Core 10. Revisit when the framework itself moves to 3.x.
-      - dependency-name: "Microsoft.OpenApi"
+      - dependency-name: "Microsoft.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Npgsql.*"
         update-types: ["version-update:semver-major"]
     groups:
       microsoft:
@@ -42,11 +61,43 @@ updates:
         patterns:
           - "*"
 
+  # The previous line's workflows, declared here for the same reason as its NuGet block. Its publish job
+  # holds the same OIDC-issued push key, so its pins are kept current rather than frozen at the swap.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "release/10.x"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
   # The documentation site. `npm` is the ecosystem name for the whole family, so it reads the pnpm
   # lockfile too. Nothing here ships to a consumer -- a broken docs build stops a deploy, never an
   # install -- so it is grouped into one PR a week rather than triaged package by package.
   - package-ecosystem: "npm"
     directory: "/docs"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "build"
+      include: "scope"
+    groups:
+      docs:
+        patterns:
+          - "*"
+
+  # The previous line's documentation tooling. Every deploy builds the newest release, which is this line's,
+  # so the servicing line's docs tooling only runs in its own CI -- but it runs there on every PR, and a
+  # security update never reaches it: those follow the default branch only.
+  - package-ecosystem: "npm"
+    directory: "/docs"
+    target-branch: "release/10.x"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 3

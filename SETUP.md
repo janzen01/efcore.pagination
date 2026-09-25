@@ -5,7 +5,10 @@ usage docs for *consuming* the packages live in [README.md](README.md) and each 
 
 ## Prerequisites
 
-- **.NET 10 SDK** — any 10.0 feature band; [global.json](global.json) pins the line (the repo is `net10.0`-only)
+- **.NET 11 SDK** — the exact build [global.json](global.json) pins (the repo is `net11.0`-only). The
+  servicing line, `release/10.x`, pins the .NET 10 SDK instead; keep it in a worktree of its own
+  (`git worktree add ../efcore.pagination-10.x release/10.x`) rather than switching branches, so each checkout
+  builds with its own SDK and keeps its own `obj/`.
 - **git**
 - **Node 24 + pnpm** — only if you touch the documentation site under `docs/`. Nothing in `src/` or `test/` needs
   them, so skip this unless you are editing docs.

@@ -2,7 +2,7 @@
 
     <!-- Compilation -->
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFramework>net11.0</TargetFramework>
         <LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
@@ -53,7 +53,7 @@
 
     <!-- Package identity (PackageId and Description are set per project) -->
     <PropertyGroup>
-        <Version>10.1.1</Version>
+        <Version>11.0.0-preview.1</Version>
         <Product>Janzen.Pagination</Product>
         <Authors>Lubos Jansky</Authors>
         <Copyright>Copyright © Lubos Jansky</Copyright>
@@ -77,7 +77,7 @@
              It names this line's own copy, not the site root: the root is the newest release of any line, a
              preview included, and nuget.org shows this link beside the version for good. Repoint it with the
              package READMEs when a new X.Y line opens; verify-frozen-urls.mjs checks it exists. -->
-        <PackageProjectUrl>https://janzen01.github.io/efcore.pagination/v10.1.x/</PackageProjectUrl>
+        <PackageProjectUrl>https://janzen01.github.io/efcore.pagination/v11.0.x/</PackageProjectUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <!-- Shared by all four packages. The value is the path inside the package, not in the repo:

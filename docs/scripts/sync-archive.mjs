@@ -41,7 +41,8 @@ export const WORKING_TREE = null
 // line names its tag *prefix* rather than a tag: the newest release of that line is found at build time (see
 // `newestOf`), so a servicing release reaches its archived copy with the next deploy and nobody edits this list.
 export const versions = [
-	{ segment: 'v10.1.x', ref: WORKING_TREE },
+	{ segment: 'v11.0.x', ref: WORKING_TREE },
+	{ segment: 'v10.1.x', line: 'v10.1.' },
 	{ segment: 'v10.0.x', line: 'v10.0.' }
 ]
 

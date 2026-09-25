@@ -25,7 +25,7 @@
       size - to support a call this library never makes: the generated code only takes effect
       through an interceptor on AddOpenApi(), which appears nowhere in src/, and the target's own
       condition excludes PackageReferences, so a consuming application's generator run never reads
-      it back out of lib/net10.0 either. ExcludeAssets="analyzers" was measured and does not
+      it back out of lib/net11.0 either. ExcludeAssets="analyzers" was measured and does not
       suppress the generator, and it exposes no build_property opt-out, so the input is withheld
       instead. Scoped to this project: the test project hosts a real app and does call AddOpenApi().
     -->
