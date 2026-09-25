@@ -831,3 +831,101 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	}
 
 }
+
+/// <summary>
+///     One host serving the same endpoints as two documents: the framework default, which ASP.NET Core 11 moved
+///     to OpenAPI 3.2, and one pinned to 3.1. Kept apart from <see cref="OpenApiDocumentFixture" />, whose
+///     construction counts are pinned to exactly two documents fetched.
+/// </summary>
+public sealed class OpenApiVersionFixture : IAsyncLifetime {
+
+	public JsonElement Default { get; private set; }
+
+	public JsonElement Pinned31 { get; private set; }
+
+	public async ValueTask InitializeAsync() {
+
+		var builder = WebApplication.CreateBuilder();
+		builder.WebHost.UseUrls("http://127.0.0.1:0");
+		builder.Logging.ClearProviders();
+		builder.Services.AddPagination(pagination => pagination.AddAspNetCore());
+		builder.Services.AddOpenApi(options => options.AddOperationTransformer<PaginatedQueryOperationTransformer>());
+		builder.Services.AddOpenApi("v31", options => {
+			options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_1;
+			options.AddOperationTransformer<PaginatedQueryOperationTransformer>();
+		});
+
+		await using var app = builder.Build();
+
+		app.MapOpenApi();
+		app.MapGet("/products", () => Results.Ok()).WithPagination<DocumentedConfigProvider>();
+		app.MapGet("/own-problem", () => Results.Ok())
+			.ProducesProblem(StatusCodes.Status400BadRequest, "application/problem+json")
+			.WithPagination<DocumentedConfigProvider>();
+
+		await app.StartAsync();
+
+		using var client = new HttpClient { BaseAddress = new Uri(app.Urls.First()) };
+		Default = JsonDocument.Parse(await client.GetStringAsync("/openapi/v1.json")).RootElement.Clone();
+		Pinned31 = JsonDocument.Parse(await client.GetStringAsync("/openapi/v31.json")).RootElement.Clone();
+
+		await app.StopAsync();
+
+	}
+
+	public ValueTask DisposeAsync() { return ValueTask.CompletedTask; }
+
+}
+
+public sealed class OpenApiVersionTests(OpenApiVersionFixture fixture) : IClassFixture<OpenApiVersionFixture> {
+
+	private static JsonElement Operation(JsonElement document, string path) {
+		return document.GetProperty("paths").GetProperty(path).GetProperty("get");
+	}
+
+	/// <summary>
+	///     The default moved under consumers without a line of theirs changing, so a committed document's header
+	///     rewrites itself on the upgrade. The integration guide says so; this is what keeps that sentence true.
+	/// </summary>
+	[Fact]
+	public void The_framework_default_is_openapi_3_2() {
+		Assert.StartsWith("3.2", fixture.Default.GetProperty("openapi").GetString(), StringComparison.Ordinal);
+		Assert.StartsWith("3.1", fixture.Pinned31.GetProperty("openapi").GetString(), StringComparison.Ordinal);
+	}
+
+	/// <summary>
+	///     The transformer writes the same object model whatever version the document is serialized as, and a
+	///     consumer pinned to 3.1 must see exactly the parameters a 3.2 consumer sees.
+	/// </summary>
+	[Fact]
+	public void The_pagination_parameters_are_identical_under_3_1_and_3_2() {
+
+		string current = Operation(fixture.Default, "/products").GetProperty("parameters").GetRawText();
+		string pinned = Operation(fixture.Pinned31, "/products").GetProperty("parameters").GetRawText();
+
+		Assert.Equal(pinned, current);
+
+	}
+
+	/// <summary>
+	///     An endpoint that declares its own <c>400</c> keeps it: the transformer adds the pagination one only
+	///     where none exists. ASP.NET Core 11 now emits every <c>ProducesResponseType</c> for a status, which made
+	///     it worth pinning that the two never both land on one operation.
+	/// </summary>
+	[Fact]
+	public void An_endpoints_own_400_is_kept_and_not_duplicated() {
+
+		foreach (var document in new[] { fixture.Default, fixture.Pinned31 }) {
+
+			var responses = Operation(document, "/own-problem").GetProperty("responses");
+			var badRequest = responses.GetProperty("400");
+
+			Assert.Single(responses.EnumerateObject(), response => response.Name == "400");
+			Assert.NotEqual("The pagination query parameters were invalid.", badRequest.GetProperty("description").GetString());
+			Assert.Single(badRequest.GetProperty("content").EnumerateObject());
+
+		}
+
+	}
+
+}
