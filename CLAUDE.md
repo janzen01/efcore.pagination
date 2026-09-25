@@ -334,7 +334,7 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
 - **`withMermaid()` reads two separate keys and they are not interchangeable.** `mermaid` is the runtime
   config handed to `mermaid.initialize()`; `mermaidPlugin` is the markdown rule's own options. Setting
   `class` under the first does nothing at all -- the rule only ever reads `mermaidPlugin.class`.
-- **The diagrams are `mermaid-diagram`, not `mermaid`, and that rename is a second line of defence rather
+- **The diagrams are `mermaid-diagram`, not `mermaid`, and that rename is a second line of defense rather
   than the fix it was first taken for.** The symptom was that **every page carrying a diagram rendered the
   diagram and then "Syntax error in text" underneath it**. The sources were never wrong -- all six parse
   cleanly, and the correct rendering beside the error proves it: mermaid's own sweep had found a stray,
@@ -519,12 +519,49 @@ independent of each other — consumers pick the extensions they need:
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
 - **The tree is LF, pinned by [.gitattributes](.gitattributes)** (`* text=auto eol=lf`; `.bat`/`.cmd` carved out).
   Not cosmetic here: the parameter descriptions this library generates land in a *consumer's* committed OpenAPI
-  artefact, and the transformer builds them from raw string literals, which the compiler copies **verbatim** —
-  a CRLF checkout ships a package whose documentation is CRLF, and the consumer's artefact then rewrites itself
+  artifact, and the transformer builds them from raw string literals, which the compiler copies **verbatim** —
+  a CRLF checkout ships a package whose documentation is CRLF, and the consumer's artifact then rewrites itself
   on every build. The joins in `PaginatedQueryOperationTransformer` are pinned to `'\n'` for the same reason:
   **don't put `Environment.NewLine` back.** `OpenApiTests.No_description_carries_a_platform_line_ending` guards
   both paths at once, and needs the documented config to keep **two** sortable fields and **two** operators on
   `filter.status` — a one-element `string.Join` emits no separator and the test would pass without testing.
+- **Prose is American English** — code comments, XML docs, the docs site, the READMEs, commit messages:
+  `-ize`/`-ization`, `-or`, `allowlist`, `handwritten`, `catalog`, `canceled`, `artifact`, `defense`, `toward`;
+  the Oxford comma in a list of three or more; a comma after `e.g.`. **Literals keep their spelling** — GitHub
+  Actions' `cancelled` status and `cancelled()` function, a runtime exception message, an identifier (an
+  issue-form field `id` included). When a grammar fix to a comma would change what a sentence says, rephrase the
+  sentence rather than keeping or dropping the comma.
+- **One layout for the C#**, whitespace and line breaks only:
+  - A block or method body of up to five lines sits directly between its braces; a longer one gets a blank line
+    after `{` and before `}`. An object initializer is not a body, even after `=> new() {`.
+  - A single-statement `if`/`for`/`foreach`/`while` goes on one line without braces, unless the line gets long
+    (~150 columns) or the statement is itself a control statement, so nothing nests brace-less.
+  - There is **no line-length limit for code** — the ~139 columns below are for a one-line `<summary>` only.
+    Content that fits on one line stays on one line however long: a single-argument call, an expression-bodied
+    member, a declaration.
+  - Anything opened at the end of a line — `(`, `[`, `{`, a raw string — whose content spans lines **closes on a
+    line of its own, at the indentation of the line that opened it**. A split argument list puts one argument per
+    line. A raw string's content moves with its closing `"""`, because that delimiter decides how much
+    indentation the compiler strips: move only the delimiter and the rest lands inside the string. A chain that
+    continues after such a closer stays on it (`).WithPagination<T>();`); the next step of a fluent chain keeps
+    its own line.
+  - A trailing comment stays with the code it describes, not with a closer moved below it.
+  - The `csharp` samples in `docs/src` and the READMEs follow the same rules at four-space indentation, with one
+    exception for the reader: **no line is joined past 100 columns**, because a sample is read in a fixed-width
+    column. A call that would pass it stays split, one argument per line.
+- **IDE inspections are taken one by one, not wholesale** — the analyzer's own settings contradict each other in
+  places (it flags the same `this.` as both redundant and missing). Taken: redundant `this.` (private fields are
+  `_camelCase`, so nothing is left to disambiguate), a guard that throws before a single return as a conditional
+  with a throw arm, inverted `if` to reduce nesting, local functions below the code that calls them, `_ =` for a
+  discarded probe result, and unused usings, redundant `!`, trailing commas and redundant type specifications.
+  **Left, and not to be "fixed":** loop-to-LINQ on a per-request path (`PaginateHttpRequestExtensions` says why
+  its loop is indexed); a collection expression whose result reaches a consumer as `IReadOnlyList<T>`, which
+  swaps the `List<T>` or array the caller gets today for a compiler-synthesized type; "redundant" parentheses
+  that group mixed operators; `ParseParsable`'s `parsed is not null`, which the nullability annotations call
+  redundant and its comment explains; `this.` inside `WithPage`'s initializer, where dropping it reads as
+  `Limit = Limit`; a "redundant" cast that decides a boxed type; namespace-vs-folder and naming findings on the
+  public API; the property named as `paramName` in `PaginateLinkContext`; and the analyzer's AOT "errors", where
+  the build under `-warnaserror` is the authority.
 - **XML docs on every public member** — enforced by the build (`CS1591` is *not* suppressed for the packable
   projects). `GenerateDocumentationFile=true`, so the generated `.xml` ships inside the package and drives consumer
   IntelliSense: a wrong summary is worse than a missing one, because it cannot be recalled for that version.
@@ -666,11 +703,11 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    public one like this the policy is active immediately.
 7. `publish.yml` runs as two jobs. `build` holds no credential and does everything that executes project code —
    the tag-vs-version guard, restore, build, test, the README pin and pack — and hands the packages on as an
-   artefact. `publish` declares `environment: nuget`, so the run **stops for a manual approval** (required
+   artifact. `publish` declares `environment: nuget`, so the run **stops for a manual approval** (required
    reviewer, and only a `v*` tag may deploy) before it reaches the OIDC exchange; by then the suite is already
    green, which is what the approval is confirming. Approve it under *Review deployments* in the run. Nothing
    reaches nuget.org until then, which is also why a mismatched policy fails at `NuGet login` rather than
-   half-way through a push. **The artefact hand-off cannot be dry-run** — `release: published` is the only
+   half-way through a push. **The artifact hand-off cannot be dry-run** — `release: published` is the only
    trigger — so the first release after any change to it is its own test; cut that one as an `-rc.N`.
 8. The `publish` job records a **build provenance attestation** for every packed file, and that is where it ends:
    **nothing is attached to the GitHub release.** Releases here are *immutable*, so a `gh release upload` step
