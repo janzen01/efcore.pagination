@@ -535,6 +535,11 @@ independent of each other — consumers pick the extensions they need:
 ## Conventions
 - **net10.0-only**, `Nullable=enable`, `ImplicitUsings=enable`, C# `latest` ([Directory.Build.props](Directory.Build.props)).
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
+  The EF Core family (`Microsoft.EntityFrameworkCore`, `.Relational`, `.Sqlite`) is a **range capped below the next
+  major** (`[10.0.12, 11.0.0)`), the way Npgsql caps its own: a line's engine loaded against the next EF Core major
+  can fail at runtime, and without the cap a project on the next framework installing this line resolves it silently.
+  Dependabot writes a bare version back when it bumps a range, so `api-tracking` fails a PR that drops the cap —
+  restore the range in that PR rather than relaxing the check.
 - **The tree is LF, pinned by [.gitattributes](.gitattributes)** (`* text=auto eol=lf`; `.bat`/`.cmd` carved out).
   Not cosmetic here: the parameter descriptions this library generates land in a *consumer's* committed OpenAPI
   artifact, and the transformer builds them from raw string literals, which the compiler copies **verbatim** —

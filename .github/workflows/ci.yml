@@ -118,6 +118,23 @@ jobs:
           done
           exit $status
 
+      # Dependabot does not understand a NuGet version range: bumping one, it writes a bare version back, and the
+      # cap below the next EF Core major is gone without a word. The cap is what stops a project on the next
+      # framework from resolving this line against an EF Core it was never built for, so a PR that drops it
+      # fails here -- restore the range in that PR.
+      - name: Check EF Core stays capped below the next major
+        run: |
+          set -u
+          status=0
+          for pkg in Microsoft.EntityFrameworkCore Microsoft.EntityFrameworkCore.Relational Microsoft.EntityFrameworkCore.Sqlite; do
+            v=$(grep -oP "Include=\"$pkg\" Version=\"\K[^\"]+" Directory.Packages.props || true)
+            case "$v" in
+              \[*,*.0.0\)) echo "$pkg $v" ;;
+              *) echo "::error file=Directory.Packages.props::$pkg is '$v', not a range capped below the next major"; status=1 ;;
+            esac
+          done
+          exit $status
+
   # Four things about this library are invisible to the SQLite leg, and two of them shipped because of it:
   # SQLite has no ILIKE at all (the native form does not translate, so no test can assert it), its LIKE is
   # case-insensitive for ASCII (which makes both strategies look alike where PostgreSQL separates them), its
