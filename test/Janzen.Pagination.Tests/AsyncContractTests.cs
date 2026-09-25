@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore.Query;
 
 using System.Collections;
 using System.Linq.Expressions;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Janzen.Pagination.Tests;
 
@@ -34,6 +36,46 @@ public sealed class AsyncContractTests {
 		Assert.Throws<ArgumentNullException>(() => { _ = source.PaginateSelectAsync(request, null!, (Product product) => product.Id, null, ct); });
 		Assert.Throws<ArgumentNullException>(() => { _ = source.PaginateSelectMapAsync(request, null!, (Product product) => product.Id, id => id, null, ct); });
 		Assert.Throws<ArgumentNullException>(() => { _ = source.PaginateMapAsync(request, null!, (Product product) => product.Id, null, ct); });
+
+	}
+
+	/// <summary>
+	///     The packages are compiled with runtime async (<c>Directory.Build.targets</c>), which leaves no
+	///     compiler-generated state machine behind: a method still carrying <see cref="AsyncStateMachineAttribute" />
+	///     means a project fell off the flag. The engine's shared body is checked for the runtime's own marker as
+	///     well, so the scan cannot pass merely because it found no async code, and the four entry points for the
+	///     absence of it -- only an <c>async</c> method is rewritten, which is what keeps their argument guards eager.
+	/// </summary>
+	[Fact]
+	public void The_packages_are_runtime_async_and_the_entry_points_stay_plain() {
+
+		Assembly[] packages = [
+			typeof(PaginateQueryableExtensions).Assembly,
+			typeof(Janzen.Pagination.AspNetCore.Filters.PaginateExceptionEndpointFilter).Assembly,
+			typeof(Janzen.Pagination.EntityFrameworkCore.DependencyInjection.PaginationBuilderPostgreSqlExtensions).Assembly,
+			typeof(Janzen.Pagination.NodaTime.PaginateNodaTime).Assembly
+		];
+
+		const BindingFlags everything = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+
+		var stateMachines = packages
+			.SelectMany(assembly => assembly.GetTypes())
+			.SelectMany(type => type.GetMethods(everything))
+			.Where(method => method.IsDefined(typeof(AsyncStateMachineAttribute), inherit: false))
+			.Select(method => $"{method.DeclaringType}.{method.Name}")
+			.ToList();
+
+		Assert.Empty(stateMachines);
+
+		var methods = typeof(PaginateQueryableExtensions).GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+
+		Assert.True(methods.Single(method => method.Name == "PaginateCoreAsync").GetMethodImplementationFlags().HasFlag(MethodImplAttributes.Async));
+
+		string[] entryPoints = ["PaginateAsync", "PaginateSelectAsync", "PaginateSelectMapAsync", "PaginateMapAsync"];
+
+		foreach (var entryPoint in methods.Where(method => entryPoints.Contains(method.Name))) {
+			Assert.False(entryPoint.GetMethodImplementationFlags().HasFlag(MethodImplAttributes.Async), entryPoint.Name);
+		}
 
 	}
 

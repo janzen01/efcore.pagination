@@ -639,7 +639,10 @@ independent of each other — consumers pick the extensions they need:
 - **Every `await` in the engine carries `ConfigureAwait(false)`**, with the one deliberate exception of
   `PaginateExceptionEndpointFilter.cs`, which is application-level code inside the host's own pipeline. Keep
   the split: a library await never captures a context, so a consumer's `postMap` and `projector` continue on
-  a thread-pool thread — which the projections guide now promises.
+  a thread-pool thread — which the projections guide now promises. `ContinuationContextTests` pins it, through
+  `SqliteFixture.CreateYieldingContext()`: SQLite completes its async calls synchronously, so without an
+  interceptor that genuinely suspends no await ever yields and a missing `ConfigureAwait(false)` goes unseen.
+  Verified by deleting the one on the count await: both tests fail.
 - Build must stay clean under `-warnaserror` before any commit.
 - **Commits:** small and incremental (one logical change each).
 - **The line branches take no direct pushes.** One ruleset covers `master` and `release/*` (see *Versioning*):
@@ -751,7 +754,11 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    what makes a later removal an RS0017 build error. Do **not** do it for an `-rc.N`: an rc-only member promoted
    to *shipped* cannot then be dropped before stable without fighting the analyzer.
    **At the line's first stable release** (`11.0.0`), also move `global.json` off the preview SDK — `11.0.100`,
-   `allowPrerelease` removed — and the EF Core range's floor off the release candidate.
+   `allowPrerelease` removed — and the EF Core range's floor off the release candidate. **Re-decide runtime
+   async** (see *Intentional decisions*) in the same pass: RC 1 still labels it a preview feature and Mono does
+   not support it, so check that the label is gone and what a runtime-async `net11.0` library does on Mono
+   before `11.0.0` ships with it. Turning it off is deleting `Directory.Build.targets`' one property group plus
+   the positive half of the reflection test.
 4. **`PackageValidationBaselineVersion` is bumped *after* the publish, never in the release PR.** It resolves
    through a `PackageDownload`, so pointing it at a version nuget.org does not serve yet fails **restore** with
    `NU1102: Unable to find package … with version (= x.y.z)` — the release PR's own CI, before any tag exists.
@@ -876,6 +883,19 @@ way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server rea
 - **net11.0-only** — a line targets exactly the framework its major tracks. EF Core is not compatible across
   majors, so `net10.0` is served by the 10.x line on `release/10.x`, not by a second target here. Don't
   re-introduce multi-targeting.
+- **The four packages compile with runtime async** (`<Features>runtime-async=on</Features>`), set in
+  `Directory.Build.targets` and not in the props, because it is conditioned on `IsPackable`, which the test
+  project sets in its own body — the props are evaluated before that and cannot see it (the props file already
+  says the same about `CS1591`). The test project stays on compiler state machines on purpose, so the suite
+  calls the library the way ordinary consumer code does. The compiler rewrites only methods carrying `async`,
+  so the four `Paginate*Async` wrappers stay plain `Task`-returning methods and the argument-errors-eager split
+  under *Conventions* is untouched. `AsyncContractTests.The_packages_are_runtime_async_and_the_entry_points_stay_plain`
+  guards all of it: no method in the four assemblies carries `AsyncStateMachineAttribute`, `PaginateCoreAsync`
+  carries `MethodImplAttributes.Async` (so the scan cannot pass by finding no async code at all), and the
+  wrappers do not. **Rebuild with `--no-incremental` after touching the flag**: adding the targets file left
+  the previous binaries in place under a green incremental build, and the test then reported state machines
+  that a clean build does not have. It is still a preview feature in RC 1; the re-check owed before `11.0.0`
+  is under *Releasing*.
 - **Value resolution order is registry → built-ins → `IParsable<TSelf>` → 400**, and the registry going *first* is
   the load-bearing part: consulted last (as it was before 10.0.3) a registration for an already-built-in type was a
   silent no-op, so everyone it affected was someone who tried to override and never found out. Don't move it back

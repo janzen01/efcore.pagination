@@ -1,0 +1,16 @@
+<Project>
+
+    <!-- Runtime async (.NET 11) for the four packages. It lives here rather than in Directory.Build.props because
+         it is conditioned on IsPackable, which the test project sets in its own body, after the props are
+         evaluated and before these targets are. The test project stays on compiler-generated state machines on
+         purpose: it calls the library the way a consumer's ordinary code does.
+         Only methods carrying the async modifier are compiled this way, so the four Paginate*Async wrappers stay
+         plain Task-returning methods and keep throwing argument errors at the call. AsyncContractTests pins both
+         that and the flag itself, and ContinuationContextTests pins that no continuation captures the caller's
+         context. It is opt-in and still labeled a preview feature in RC 1; CLAUDE.md's Releasing section has the
+         re-check owed before 11.0.0. -->
+    <PropertyGroup Condition="'$(IsPackable)' != 'false'">
+        <Features>$(Features);runtime-async=on</Features>
+    </PropertyGroup>
+
+</Project>
