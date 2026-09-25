@@ -149,10 +149,9 @@ public static class PaginateNodaTime {
 
 		string? method = null;
 		foreach (var (source, target, name) in Conversions) {
-			if (sourceUnderlying == source && targetUnderlying == target) {
-				method = name;
-				break;
-			}
+			if (sourceUnderlying != source || targetUnderlying != target) continue;
+			method = name;
+			break;
 		}
 
 		if (method is null) return null;

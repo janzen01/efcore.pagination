@@ -92,11 +92,10 @@ internal static class PaginateQueryParser {
 
 		// First problem wins, and its code travels with it: the message and the code must describe the same
 		// parameter, so neither is assigned without the other.
-		if (error is null) {
-			error = $"Query parameter '{name}' must be a positive integer.";
-			errorCode = code;
-		}
+		if (error is not null) return fallback;
 
+		error = $"Query parameter '{name}' must be a positive integer.";
+		errorCode = code;
 		return fallback;
 
 	}
