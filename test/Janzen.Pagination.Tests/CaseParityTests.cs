@@ -20,7 +20,7 @@ public sealed class AccentFixture : IAsyncLifetime {
 			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
 			.Options;
 
-		await using var context = this.CreateContext();
+		await using var context = CreateContext();
 		await context.Database.EnsureCreatedAsync();
 		context.Products.AddRange(CaseParityTests.Rows());
 		await context.SaveChangesAsync();
@@ -81,8 +81,8 @@ public sealed class CaseParityTests(AccentFixture fixture) : IClassFixture<Accen
 	public async Task On_ascii_both_legs_match_regardless_of_case(string criterion) {
 
 		// APPLE and "apple pie" differ only in case, so a case-sensitive leg would answer with one of them.
-		int[] inMemory = await this.InMemory(Query.Filter("name", criterion));
-		int[] sqlite = await this.Sqlite(Query.Filter("name", criterion));
+		int[] inMemory = await InMemory(Query.Filter("name", criterion));
+		int[] sqlite = await Sqlite(Query.Filter("name", criterion));
 
 		Assert.Equal([7, 8], inMemory);
 		Assert.Equal([7, 8], sqlite);
@@ -95,8 +95,8 @@ public sealed class CaseParityTests(AccentFixture fixture) : IClassFixture<Accen
 		// OrdinalIgnoreCase folds the whole of Unicode; SQLite's built-in LIKE folds ASCII only, which is a
 		// documented limit of the provider rather than anything the engine chose. A consumer developing against
 		// the in-memory leg therefore sees a match the database will not produce.
-		int[] inMemory = await this.InMemory(Query.Filter("name", "$ilike:äpfel"));
-		int[] sqlite = await this.Sqlite(Query.Filter("name", "$ilike:äpfel"));
+		int[] inMemory = await InMemory(Query.Filter("name", "$ilike:äpfel"));
+		int[] sqlite = await Sqlite(Query.Filter("name", "$ilike:äpfel"));
 
 		Assert.Equal([UpperAccented, LowerAccented], inMemory);
 		Assert.Equal([LowerAccented], sqlite);
@@ -108,8 +108,8 @@ public sealed class CaseParityTests(AccentFixture fixture) : IClassFixture<Accen
 
 		// search routes through the same two branches, so it inherits the same divergence -- worth pinning
 		// separately because the two paths reach BuildLike from different call sites.
-		int[] inMemory = await this.InMemory(Query.Search("äpfel", "name"));
-		int[] sqlite = await this.Sqlite(Query.Search("äpfel", "name"));
+		int[] inMemory = await InMemory(Query.Search("äpfel", "name"));
+		int[] sqlite = await Sqlite(Query.Search("äpfel", "name"));
 
 		Assert.Equal([UpperAccented, LowerAccented], inMemory);
 		Assert.Equal([LowerAccented], sqlite);

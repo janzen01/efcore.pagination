@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 using Microsoft.OpenApi;
@@ -369,7 +368,7 @@ public sealed class OpenApiDocumentFixture : IAsyncLifetime {
 
 		await app.StopAsync();
 
-		this.Document = JsonDocument.Parse(json).RootElement.Clone();
+		Document = JsonDocument.Parse(json).RootElement.Clone();
 
 	}
 
@@ -384,13 +383,13 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	}
 
 	private string[] ParameterNames(string path) {
-		return [.. this.Parameters(path).EnumerateArray().Select(p => p.GetProperty("name").GetString()!)];
+		return [.. Parameters(path).EnumerateArray().Select(p => p.GetProperty("name").GetString()!)];
 	}
 
-	private string Description(string name) { return this.Description("/products", name); }
+	private string Description(string name) { return Description("/products", name); }
 
 	private string Description(string path, string name) {
-		return this.Parameters(path).EnumerateArray()
+		return Parameters(path).EnumerateArray()
 			.Single(p => p.GetProperty("name").GetString() == name)
 			.GetProperty("description").GetString()!;
 	}
@@ -403,14 +402,14 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	[Fact]
 	public void A_pattern_operator_is_documented_within_the_guards_it_is_bound_by() {
 
-		string description = this.Description("/pattern-guarded", "filter.name");
+		string description = Description("/pattern-guarded", "filter.name");
 
 		Assert.Contains("must be between 5 and 6 characters", description, StringComparison.Ordinal);
 
 		// The sample is "text": four characters, below the floor of five. Padding repeats it, and the ceiling of
 		// six then truncates -- without that, the document advertises `$ilike:texttext`, which is a 400. The
 		// example lives on the item schema, not in the prose.
-		string sample = this.Parameters("/pattern-guarded").EnumerateArray()
+		string sample = Parameters("/pattern-guarded").EnumerateArray()
 			.Single(parameter => parameter.GetProperty("name").GetString() == "filter.name")
 			.GetProperty("schema").GetProperty("items").GetProperty("examples")[0].GetString()!;
 
@@ -426,7 +425,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	[Fact]
 	public void A_ceiling_below_the_sample_truncates_it_without_any_padding() {
 
-		string sample = this.Parameters("/tight-ceiling").EnumerateArray()
+		string sample = Parameters("/tight-ceiling").EnumerateArray()
 			.Single(parameter => parameter.GetProperty("name").GetString() == "filter.name")
 			.GetProperty("schema").GetProperty("items").GetProperty("examples")[0].GetString()!;
 
@@ -442,7 +441,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	[Fact]
 	public void An_unbound_floor_is_not_advertised_as_a_guard() {
 
-		string description = this.Description("/per-config-strategy", "filter.name");
+		string description = Description("/per-config-strategy", "filter.name");
 
 		Assert.Contains("must not exceed", description, StringComparison.Ordinal);
 		Assert.DoesNotContain("must be between 1 and", description, StringComparison.Ordinal);
@@ -452,7 +451,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	[Fact]
 	public void The_documented_endpoint_advertises_every_pagination_parameter() {
 
-		string[] names = this.ParameterNames("/products");
+		string[] names = ParameterNames("/products");
 
 		Assert.Equal(["page", "limit", "sortBy", "search", "searchBy", "filter.isFeatured", "filter.status"], names);
 
@@ -472,18 +471,18 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// carries both the framework's guess and the real contract.
 		Assert.Equal(
 			["Page", "Limit", "SortBy", "Search", "SearchBy", "Filters"],
-			this.ParameterNames("/mvc/products/unmarked"));
+			ParameterNames("/mvc/products/unmarked"));
 
 		Assert.Equal(
 			["page", "limit", "sortBy", "search", "searchBy", "filter.isFeatured", "filter.status"],
-			this.ParameterNames("/mvc/products"));
+			ParameterNames("/mvc/products"));
 
 	}
 
 	[Fact]
 	public void The_limit_description_carries_the_resources_own_numbers() {
 
-		string description = this.Description("limit");
+		string description = Description("limit");
 
 		Assert.Contains("between 1 and 60", description);
 		Assert.Contains("Defaults to 15", description);
@@ -491,15 +490,15 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	}
 
 	[Fact]
-	public void The_sort_description_lists_the_sortable_fields() { Assert.Contains("rank", this.Description("sortBy")); }
+	public void The_sort_description_lists_the_sortable_fields() { Assert.Contains("rank", Description("sortBy")); }
 
 	[Fact]
-	public void The_search_description_lists_the_searchable_fields() { Assert.Contains("name", this.Description("searchBy")); }
+	public void The_search_description_lists_the_searchable_fields() { Assert.Contains("name", Description("searchBy")); }
 
 	[Fact]
 	public void A_filter_description_lists_the_operators_that_field_allows() {
 
-		string description = this.Description("filter.status");
+		string description = Description("filter.status");
 
 		Assert.Contains("$eq", description);
 		Assert.Contains("$in", description);
@@ -517,7 +516,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// The emitted line read "{$not:}OPERATION:VALUE": braces conventionally mark a *required* placeholder, the
 		// two connectives were advertised under "Available operations" with no position in the grammar at all, and
 		// a value was made mandatory although $null takes none and $in takes a list.
-		string description = this.Description("filter.status");
+		string description = Description("filter.status");
 
 		Assert.Contains("Format: `filter.status=[$not:][$and:|$or:]$OPERATION[:VALUE[,VALUE...]]`", description, StringComparison.Ordinal);
 		Assert.DoesNotContain("{$not:}", description, StringComparison.Ordinal);
@@ -532,13 +531,13 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 	[Fact]
 	public void A_badge_renders_as_a_code_chip_carrying_its_class() {
-		Assert.Contains("<code class=\"language-admin\">Admin only</code>", this.Description("filter.isFeatured"));
+		Assert.Contains("<code class=\"language-admin\">Admin only</code>", Description("filter.isFeatured"));
 	}
 
 	[Fact]
 	public void A_filter_parameter_carries_a_typed_example() {
 
-		var parameter = this.Parameters("/products").EnumerateArray()
+		var parameter = Parameters("/products").EnumerateArray()
 			.Single(p => p.GetProperty("name").GetString() == "filter.status");
 
 		string example = parameter.GetProperty("schema").GetProperty("items")
@@ -556,7 +555,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 		// The process-wide default is never touched by this host, so before the config could carry a strategy the
 		// example fell back to the field's first operator -- documenting $eq for a resource that serves ILIKE.
-		var parameter = this.Parameters("/per-config-strategy").EnumerateArray()
+		var parameter = Parameters("/per-config-strategy").EnumerateArray()
 			.Single(p => p.GetProperty("name").GetString() == "filter.name");
 
 		string example = parameter.GetProperty("schema").GetProperty("items")
@@ -568,7 +567,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 	[Fact]
 	public void A_filter_parameter_documents_the_value_type() {
-		Assert.Contains("Value type", this.Description("filter.status"));
+		Assert.Contains("Value type", Description("filter.status"));
 	}
 
 	[Fact]
@@ -581,7 +580,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// literals, which the compiler copies verbatim. Both are caught by looking for the CR itself.
 		// sortBy lists two fields and filter.status two operators, so neither join is skipped for want of a second
 		// element -- keep it that way, or this test passes without exercising them.
-		string[] offenders = [.. this.Parameters("/products").EnumerateArray()
+		string[] offenders = [.. Parameters("/products").EnumerateArray()
 			.Where(p => p.TryGetProperty("description", out var description) && description.GetString()?.Contains('\r') == true)
 			.Select(p => p.GetProperty("name").GetString()!)];
 
@@ -614,7 +613,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// This host registers no AddProblemDetails(), so a Minimal API 400 reaches no problem-details writer and
 		// carries no traceId. instance is on neither leg: nothing passes one and the framework synthesizes none,
 		// so a generated model used to carry a property that is always null.
-		Assert.Equal(["type", "title", "status", "detail", "code"], this.ValidationFailureMembers("/products"));
+		Assert.Equal(["type", "title", "status", "detail", "code"], ValidationFailureMembers("/products"));
 
 	}
 
@@ -623,7 +622,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 		// The controller 400 is built by ProblemDetailsFactory, which the MVC services always bring, so traceId
 		// is unconditional there -- the one place the member is honest without AddProblemDetails().
-		Assert.Equal(["type", "title", "status", "detail", "code", "traceId"], this.ValidationFailureMembers("/mvc/products"));
+		Assert.Equal(["type", "title", "status", "detail", "code", "traceId"], ValidationFailureMembers("/mvc/products"));
 
 	}
 
@@ -632,7 +631,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 		// Both used to be emitted unconditionally, which is what pushes such a config into
 		// IgnoreSearchByInQueryParam() purely to stop the generated documentation offering searchBy.
-		Assert.Equal(["page", "limit", "sortBy", "filter.status"], this.ParameterNames("/searchless"));
+		Assert.Equal(["page", "limit", "sortBy", "filter.status"], ParameterNames("/searchless"));
 
 	}
 
@@ -641,14 +640,14 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 		// Each of the three is a property of the resource, so an unguarded one says nothing extra -- which is
 		// what the /products assertions above already pin.
-		Assert.Contains("At most 5000 rows may be skipped", this.Description("/guarded", "page"), StringComparison.Ordinal);
-		Assert.Contains("Send -1 with page=1", this.Description("/guarded", "limit"), StringComparison.Ordinal);
-		Assert.Contains("at least 3 characters after trimming", this.Description("/guarded", "search"), StringComparison.Ordinal);
+		Assert.Contains("At most 5000 rows may be skipped", Description("/guarded", "page"), StringComparison.Ordinal);
+		Assert.Contains("Send -1 with page=1", Description("/guarded", "limit"), StringComparison.Ordinal);
+		Assert.Contains("at least 3 characters after trimming", Description("/guarded", "search"), StringComparison.Ordinal);
 
 	}
 
 	private JsonElement Schema(string path, string name) {
-		return this.Parameters(path).EnumerateArray()
+		return Parameters(path).EnumerateArray()
 			.Single(parameter => parameter.GetProperty("name").GetString() == name)
 			.GetProperty("schema");
 	}
@@ -660,8 +659,8 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// happily sent six sortBy values or a 300-character search term and met the ceiling only as a 400 the
 		// document had never mentioned -- while the transformer's own summary says the published parameters
 		// cannot drift from what the engine enforces.
-		Assert.Equal(3, this.Schema("/guarded", "sortBy").GetProperty("maxItems").GetInt32());
-		Assert.Equal(120, this.Schema("/guarded", "search").GetProperty("maxLength").GetInt32());
+		Assert.Equal(3, Schema("/guarded", "sortBy").GetProperty("maxItems").GetInt32());
+		Assert.Equal(120, Schema("/guarded", "search").GetProperty("maxLength").GetInt32());
 
 	}
 
@@ -671,7 +670,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// The description said "Send -1 with page=1" while the schema beside it said minimum 1, so a gateway doing
 		// request validation against the published document (APIM, Kong, a generated client's range check) refused
 		// -1 at the edge and made AllowUnlimited unreachable over HTTP for that deployment.
-		var guarded = this.Schema("/guarded", "limit");
+		var guarded = Schema("/guarded", "limit");
 		var branches = guarded.GetProperty("oneOf").EnumerateArray().ToArray();
 
 		Assert.Equal(2, branches.Length);
@@ -680,7 +679,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		Assert.False(guarded.TryGetProperty("minimum", out _));
 
 		// A resource that never opted in keeps the single honest range: -1 is a 400 there, so the schema says so.
-		var plain = this.Schema("/products", "limit");
+		var plain = Schema("/products", "limit");
 
 		Assert.False(plain.TryGetProperty("oneOf", out _));
 		Assert.True(plain.TryGetProperty("minimum", out _));
@@ -692,12 +691,12 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 		// What a caller gets when sortBy is omitted, and the only part of the config the schema states as a
 		// value rather than a bound -- so it is also the one place the emitted array is built element by element.
-		string?[] applied = [.. this.Schema("/guarded", "sortBy").GetProperty("default").EnumerateArray().Select(entry => entry.GetString())];
+		string?[] applied = [.. Schema("/guarded", "sortBy").GetProperty("default").EnumerateArray().Select(entry => entry.GetString())];
 
 		Assert.Equal(["rank:DESC"], applied);
 
 		// A resource with no default says nothing rather than saying "none".
-		Assert.False(this.Schema("/products", "sortBy").TryGetProperty("default", out _));
+		Assert.False(Schema("/products", "sortBy").TryGetProperty("default", out _));
 
 	}
 
@@ -706,7 +705,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 		// Neither has a JSON Schema keyword that fits -- one bounds the elements inside a single string value,
 		// the other spans parameters -- so they follow the pattern WithMaxOffset already set and go in the prose.
-		string description = this.Description("/guarded", "filter.status");
+		string description = Description("/guarded", "filter.status");
 
 		Assert.Contains("25", description, StringComparison.Ordinal);
 		Assert.Contains("8 filter criteria", description, StringComparison.Ordinal);
@@ -716,14 +715,14 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 	[Fact]
 	public void An_unguarded_resource_says_nothing_about_them() {
 
-		Assert.DoesNotContain("rows may be skipped", this.Description("page"), StringComparison.Ordinal);
-		Assert.DoesNotContain("-1", this.Description("limit"), StringComparison.Ordinal);
-		Assert.DoesNotContain("at least", this.Description("search"), StringComparison.Ordinal);
+		Assert.DoesNotContain("rows may be skipped", Description("page"), StringComparison.Ordinal);
+		Assert.DoesNotContain("-1", Description("limit"), StringComparison.Ordinal);
+		Assert.DoesNotContain("at least", Description("search"), StringComparison.Ordinal);
 
 	}
 
 	private (string Name, string Example)[] FilterExamples(string path) {
-		return [.. this.Parameters(path).EnumerateArray()
+		return [.. Parameters(path).EnumerateArray()
 			.Where(parameter => parameter.GetProperty("name").GetString()!.StartsWith("filter.", StringComparison.Ordinal))
 			.Select(parameter => (
 				parameter.GetProperty("name").GetString()!,
@@ -737,7 +736,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// The documented type name and the example beside it were produced by two switches enumerating the same
 		// domain, and they had drifted by fourteen rows: the description named `date`, `duration`, `character` or
 		// a NodaTime type precisely, and the example beside it was the literal "value".
-		string[] placeholders = [.. this.FilterExamples("/every-type")
+		string[] placeholders = [.. FilterExamples("/every-type")
 			.Where(entry => entry.Example.EndsWith(":value", StringComparison.Ordinal))
 			.Select(entry => entry.Name)];
 
@@ -750,7 +749,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 		// "$op:one scalar" is not the shape of every operator, and writing it that way documented requests the
 		// engine answers 400: $null takes no value at all and $btw takes exactly two.
-		var examples = this.FilterExamples("/every-type").ToDictionary(entry => entry.Name, entry => entry.Example, StringComparer.Ordinal);
+		var examples = FilterExamples("/every-type").ToDictionary(entry => entry.Name, entry => entry.Example, StringComparer.Ordinal);
 
 		Assert.Equal("$null", examples["filter.nullOnly"]);
 		Assert.Equal("$btw:42,99", examples["filter.betweenOnly"]);
@@ -765,7 +764,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 		// value grammar drifting apart again -- neither can move without this going red.
 		var source = new List<EveryValueType>().AsQueryable();
 
-		string[] refused = [.. this.FilterExamples("/every-type")
+		string[] refused = [.. FilterExamples("/every-type")
 			.Select(entry => (entry.Name, entry.Example, Error: Refuses(source, entry.Name, entry.Example)))
 			.Where(entry => entry.Error is not null)
 			.Select(entry => $"{entry.Name}={entry.Example} -> {entry.Error}")];
@@ -788,8 +787,8 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 
 		// ActivatorUtilities constructs outside the container, so a registered provider -- a singleton holding a
 		// prebuilt config, a cache, a handle -- was never reached from the OpenAPI path.
-		Assert.Contains("filter.registered", this.ParameterNames("/registered"));
-		Assert.DoesNotContain("filter.activated", this.ParameterNames("/registered"));
+		Assert.Contains("filter.registered", ParameterNames("/registered"));
+		Assert.DoesNotContain("filter.activated", ParameterNames("/registered"));
 
 	}
 

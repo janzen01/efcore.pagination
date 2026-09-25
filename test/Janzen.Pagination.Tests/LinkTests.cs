@@ -30,7 +30,7 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	private async Task<PaginatedLinks> LinksFor(int page, PaginateLinkContext context) {
 
-		var result = await this.PageFor(page, context);
+		var result = await PageFor(page, context);
 
 		Assert.NotNull(result.Links);
 
@@ -41,7 +41,7 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 	[Fact]
 	public async Task Without_a_context_there_are_no_links() {
 
-		var page = await this.PageFor(1, null);
+		var page = await PageFor(1, null);
 
 		Assert.Null(page.Links);
 
@@ -53,7 +53,7 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	[Fact]
 	public async Task Without_a_context_links_is_serialized_as_null() {
-		Assert.Contains("\"links\":null", JsonSerializer.Serialize(await this.PageFor(1, null), WebJson));
+		Assert.Contains("\"links\":null", JsonSerializer.Serialize(await PageFor(1, null), WebJson));
 	}
 
 	[Fact]
@@ -61,7 +61,7 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 		// The last page has no next. That null is the answer the client asked for, so the key has to carry it —
 		// a missing key would make "no next page" indistinguishable from "this API has no next link".
-		string json = JsonSerializer.Serialize(await this.PageFor(3, Context), WebJson);
+		string json = JsonSerializer.Serialize(await PageFor(3, Context), WebJson);
 
 		Assert.Contains("\"next\":null", json);
 
@@ -69,13 +69,13 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	[Fact]
 	public async Task Other_query_parameters_are_carried_over_and_escaped_while_page_is_replaced() {
-		Assert.Equal("/products?limit=3&filter.status=%24eq%3AActive&utm_source=news&page=1", (await this.LinksFor(2, Context)).First);
+		Assert.Equal("/products?limit=3&filter.status=%24eq%3AActive&utm_source=news&page=1", (await LinksFor(2, Context)).First);
 	}
 
 	[Fact]
 	public async Task A_middle_page_links_in_both_directions() {
 
-		var links = await this.LinksFor(2, Context);
+		var links = await LinksFor(2, Context);
 
 		Assert.EndsWith("page=1", links.Previous);
 		Assert.EndsWith("page=3", links.Next);
@@ -86,7 +86,7 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 	[Fact]
 	public async Task The_first_page_has_no_previous() {
 
-		var links = await this.LinksFor(1, Context);
+		var links = await LinksFor(1, Context);
 
 		Assert.Null(links.Previous);
 		Assert.EndsWith("page=2", links.Next);
@@ -96,7 +96,7 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 	[Fact]
 	public async Task The_last_page_has_no_next() {
 
-		var links = await this.LinksFor(3, Context);
+		var links = await LinksFor(3, Context);
 
 		Assert.EndsWith("page=2", links.Previous);
 		Assert.Null(links.Next);
@@ -105,7 +105,7 @@ public sealed class LinkTests(SqliteFixture fixture) : IClassFixture<SqliteFixtu
 
 	[Fact]
 	public async Task Links_are_relative_to_the_path_with_no_scheme_or_host() {
-		Assert.StartsWith("/products?", (await this.LinksFor(1, Context)).First);
+		Assert.StartsWith("/products?", (await LinksFor(1, Context)).First);
 	}
 
 	[Fact]

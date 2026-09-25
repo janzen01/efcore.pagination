@@ -109,10 +109,10 @@ internal abstract class PaginateFilterField(
 		var operand = Expression.Default(core);
 
 		try {
-			Expression.GreaterThan(operand, operand);
-			Expression.GreaterThanOrEqual(operand, operand);
-			Expression.LessThan(operand, operand);
-			Expression.LessThanOrEqual(operand, operand);
+			_ = Expression.GreaterThan(operand, operand);
+			_ = Expression.GreaterThanOrEqual(operand, operand);
+			_ = Expression.LessThan(operand, operand);
+			_ = Expression.LessThanOrEqual(operand, operand);
 		} catch (InvalidOperationException) {
 			return false;
 		}
@@ -130,7 +130,7 @@ internal abstract class PaginateFilterField(
 		var expression = criterion.Operator switch {
 			PaginateFilterOperator.Eq => BuildEqualityExpression(valueExpression, criterion.Value, context),
 			PaginateFilterOperator.In => BuildInExpression(valueExpression, criterion.Value, context, maxFilterValues),
-			PaginateFilterOperator.Null => this.BuildNullExpression(valueExpression),
+			PaginateFilterOperator.Null => BuildNullExpression(valueExpression),
 			PaginateFilterOperator.ILike => BuildStringPatternExpression(valueExpression, criterion.Value, false, context),
 			PaginateFilterOperator.StartsWith => BuildStringPatternExpression(valueExpression, criterion.Value, true, context),
 			PaginateFilterOperator.Contains => BuildContainsExpression(valueExpression, criterion.Value, context, maxFilterValues),
@@ -174,7 +174,7 @@ internal abstract class PaginateFilterField(
 	///     declared non-nullable therefore reports "no row is null" on both, nested or not.
 	/// </summary>
 	private Expression BuildNullExpression(Expression valueExpression) {
-		if (Nullable.GetUnderlyingType(this.ExpressionType) is null && this.ExpressionType.IsValueType) {
+		if (Nullable.GetUnderlyingType(ExpressionType) is null && ExpressionType.IsValueType) {
 			return Expression.Constant(false);
 		}
 
@@ -190,7 +190,7 @@ internal abstract class PaginateFilterField(
 		var converted = Array.CreateInstance(valueType, values.Length);
 
 		for (int i = 0; i < values.Length; i++) {
-			converted.SetValue(this.ConvertRawValue(values[i], valueType), i);
+			converted.SetValue(ConvertRawValue(values[i], valueType), i);
 		}
 
 		Expression valuesExpression = Expression.Constant(converted, converted.GetType());
@@ -247,7 +247,7 @@ internal abstract class PaginateFilterField(
 			// Compare on the underlying integral type, which is also what the column stores unless the model maps the
 			// enum to text — in which case this filter does not translate, which is exactly how it behaved before.
 			var underlying = Enum.GetUnderlyingType(Type);
-			object? ordinal = Convert.ChangeType(this.ConvertRawValue(value, Type), underlying, CultureInfo.InvariantCulture);
+			object? ordinal = Convert.ChangeType(ConvertRawValue(value, Type), underlying, CultureInfo.InvariantCulture);
 
 			compare = comparison(Expression.Convert(operand, underlying), ToConstant(ordinal, underlying, context));
 		} else {
@@ -354,7 +354,7 @@ internal abstract class PaginateFilterField(
 	///     Converts a raw string value to a constant of the target type, optionally wrapped in
 	///     <see cref="EF.Parameter{T}" /> for plan reuse.
 	/// </summary>
-	private Expression ConvertValue(string value, Type targetType, PaginateExpressionContext context) { return ToConstant(this.ConvertRawValue(value, targetType), targetType, context); }
+	private Expression ConvertValue(string value, Type targetType, PaginateExpressionContext context) { return ToConstant(ConvertRawValue(value, targetType), targetType, context); }
 
 	/// <summary>
 	///     Parses one criterion value, refusing a blank one first. A blank used to convert to <c>null</c> wherever

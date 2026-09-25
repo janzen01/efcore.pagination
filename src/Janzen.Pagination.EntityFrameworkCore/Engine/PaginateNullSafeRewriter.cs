@@ -64,7 +64,7 @@ internal static class PaginateNullSafeRewriter {
 
 	/// <summary>Builds the guarded form, or <see langword="null" /> when no intermediate in the chain can be null.</summary>
 	[RequiresDynamicCode(PaginateQueryableExtensions.AotIncompatibleMessage)]
-	private static Expression? Build(List<MemberExpression> chain, ParameterExpression root) {
+	private static ConditionalExpression? Build(List<MemberExpression> chain, ParameterExpression root) {
 
 		// Every step but the last is an intermediate, and only a reference-typed one can be null — a chain
 		// through structs needs neither a guard nor lifting.

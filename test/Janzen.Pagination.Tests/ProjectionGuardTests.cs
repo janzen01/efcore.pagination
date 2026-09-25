@@ -42,13 +42,13 @@ public sealed record EmptyProjectionDto();
 public sealed class TwoCtorDto {
 
 	public TwoCtorDto(int id, string name) {
-		this.Id = id;
-		this.Name = name;
+		Id = id;
+		Name = name;
 	}
 
 	public TwoCtorDto(int rank, decimal price) {
-		this.Rank = rank;
-		this.Price = price;
+		Rank = rank;
+		Price = price;
 	}
 
 	public int Id { get; }
@@ -106,9 +106,9 @@ public sealed record OrderDto(int Id, CustomerDto? Customer);
 
 public sealed class OrphanDbContext(DbContextOptions<OrphanDbContext> options) : DbContext(options) {
 
-	public DbSet<Order> Orders => this.Set<Order>();
+	public DbSet<Order> Orders => Set<Order>();
 
-	public DbSet<Customer> Customers => this.Set<Customer>();
+	public DbSet<Customer> Customers => Set<Customer>();
 
 }
 
@@ -125,7 +125,7 @@ public sealed class OrphanFixture : IAsyncLifetime {
 
 		_options = new DbContextOptionsBuilder<OrphanDbContext>().UseSqlite(_connection).Options;
 
-		await using var context = this.CreateContext();
+		await using var context = CreateContext();
 		await context.Database.EnsureCreatedAsync();
 		context.Orders.AddRange(Rows());
 		await context.SaveChangesAsync();
@@ -286,7 +286,7 @@ public sealed class ProjectionGuardTests(OrphanFixture fixture) : IClassFixture<
 		public int Count { get; private set; }
 
 		protected override Expression VisitConditional(ConditionalExpression node) {
-			this.Count++;
+			Count++;
 			return base.VisitConditional(node);
 		}
 

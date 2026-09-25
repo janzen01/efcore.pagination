@@ -97,11 +97,9 @@ internal static class PaginateFilterParser {
 			// used to behave as a bare `$null` — the opposite of what the caller wrote. Reaching here at all means
 			// a colon followed the token, so a bare `$null:` is refused on the same condition: tolerating it while
 			// refusing `$null:false` was an inconsistency the library invented for itself.
-			if (filterOperator == PaginateFilterOperator.Null) {
-				throw new PaginateQueryException($"Filter '{field}' does not take a value for '$null'.") { Code = PaginateQueryError.FilterCriterionMalformed };
-			}
-
-			return new PaginateFilterCriterion(filterOperator, afterToken.ToString(), not, connector);
+			return filterOperator == PaginateFilterOperator.Null
+				? throw new PaginateQueryException($"Filter '{field}' does not take a value for '$null'.") { Code = PaginateQueryError.FilterCriterionMalformed }
+				: new PaginateFilterCriterion(filterOperator, afterToken.ToString(), not, connector);
 
 		}
 
@@ -128,8 +126,8 @@ internal static class PaginateFilterParser {
 		int separator = value.IndexOf(':');
 
 		if (separator <= 0) {
-			token = default;
-			remaining = default;
+			token = default(ReadOnlySpan<char>);
+			remaining = default(ReadOnlySpan<char>);
 			return false;
 		}
 

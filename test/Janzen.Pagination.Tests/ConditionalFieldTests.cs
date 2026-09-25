@@ -34,8 +34,8 @@ public sealed class ConditionalFieldTests(SqliteFixture fixture) : IClassFixture
 	[Fact]
 	public async Task A_gated_filter_is_rejected_exactly_like_an_unknown_one() {
 
-		string gated = await this.Rejects(Query.Filter("isFeatured", "$eq:true"), Gated(allowed: false));
-		string unknown = await this.Rejects(Query.Filter("noSuchField", "$eq:true"), Gated(allowed: false));
+		string gated = await Rejects(Query.Filter("isFeatured", "$eq:true"), Gated(allowed: false));
+		string unknown = await Rejects(Query.Filter("noSuchField", "$eq:true"), Gated(allowed: false));
 
 		// Same shape, different name -- so the error cannot be used to probe whether the field exists.
 		Assert.Equal("Filter for field 'isFeatured' is not configured.", gated);
@@ -45,18 +45,18 @@ public sealed class ConditionalFieldTests(SqliteFixture fixture) : IClassFixture
 
 	[Fact]
 	public async Task A_gated_filter_works_when_the_condition_holds() {
-		Assertions.HasIds(await this.Page(Query.Filter("isFeatured", "$eq:true"), Gated(allowed: true)), 1, 7);
+		Assertions.HasIds(await Page(Query.Filter("isFeatured", "$eq:true"), Gated(allowed: true)), 1, 7);
 	}
 
 	[Fact]
 	public async Task A_gated_sort_is_rejected_when_the_condition_fails() {
-		Assert.Equal("Sort for field 'status' is not configured.", await this.Rejects(Query.Sort("status:ASC"), Gated(allowed: false)));
+		Assert.Equal("Sort for field 'status' is not configured.", await Rejects(Query.Sort("status:ASC"), Gated(allowed: false)));
 	}
 
 	[Fact]
 	public async Task A_gated_default_sort_is_skipped_rather_than_fatal() {
 		// status is a default sort and gated off; the resource must still page, falling through to rank.
-		Assertions.HasIds(await this.Page(new PaginateQuery { Limit = 50 }, Gated(allowed: false)), 1, 2, 3, 4, 5, 6, 7, 8);
+		Assertions.HasIds(await Page(new PaginateQuery { Limit = 50 }, Gated(allowed: false)), 1, 2, 3, 4, 5, 6, 7, 8);
 	}
 
 	[Fact]

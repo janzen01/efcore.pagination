@@ -166,9 +166,9 @@ public sealed class PerConfigLikeStrategyTests(SqliteFixture fixture) : IClassFi
 		// host has no way out at all, because BuildLike is handed no provider to dispatch on.
 		new ServiceCollection().AddPagination(p => p.UsePostgreSql());
 
-		Assert.Throws<InvalidOperationException>(() => this.Sql(ConfigWith(null)));
+		Assert.Throws<InvalidOperationException>(() => Sql(ConfigWith(null)));
 
-		string sql = this.Sql(ConfigWith(new NoEscapeLikeStrategy()));
+		string sql = Sql(ConfigWith(new NoEscapeLikeStrategy()));
 
 		Assert.Contains("LIKE", sql, StringComparison.Ordinal);
 		Assert.DoesNotContain("ILIKE", sql, StringComparison.Ordinal);
@@ -180,7 +180,7 @@ public sealed class PerConfigLikeStrategyTests(SqliteFixture fixture) : IClassFi
 
 		// The unchanged path, asserted on the emitted SQL rather than in prose: resolving per query must not
 		// alter what a configuration that sets no strategy produces.
-		string sql = this.Sql(ConfigWith(null));
+		string sql = Sql(ConfigWith(null));
 
 		Assert.Contains(@"LIKE @p ESCAPE '\'", sql, StringComparison.Ordinal);
 
@@ -191,7 +191,7 @@ public sealed class PerConfigLikeStrategyTests(SqliteFixture fixture) : IClassFi
 
 		var strategy = new NoEscapeLikeStrategy();
 
-		this.Sql(ConfigWith(strategy));
+		Sql(ConfigWith(strategy));
 
 		Assert.NotSame(strategy, PaginateLikeDefaults.Strategy);
 

@@ -1,7 +1,5 @@
 using Janzen.Pagination.AspNetCore.OpenApi;
-using Janzen.Pagination.EntityFrameworkCore;
 using Janzen.Pagination.EntityFrameworkCore.DependencyInjection;
-using Janzen.Pagination.EntityFrameworkCore.Model;
 using Janzen.Pagination.NodaTime;
 
 using Microsoft.AspNetCore.Builder;
@@ -82,7 +80,7 @@ public sealed class TrimAnnotationTests {
 
 		Assert.True(annotation is not null, $"{target} carries no [DynamicallyAccessedMembers]");
 		Assert.True(
-			annotation!.MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicConstructors),
+			annotation.MemberTypes.HasFlag(DynamicallyAccessedMemberTypes.PublicConstructors),
 			$"{target} does not require PublicConstructors");
 
 	}

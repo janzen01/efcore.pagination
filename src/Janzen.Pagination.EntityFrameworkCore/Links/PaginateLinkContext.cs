@@ -63,8 +63,8 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 		if (ReferenceEquals(this, other)) return true;
 
 		return other is not null
-			&& string.Equals(this.Path, other.Path, StringComparison.Ordinal)
-			&& PaginateStructuralEquality.PairListEquals(this.QueryParameters, other.QueryParameters);
+			&& string.Equals(Path, other.Path, StringComparison.Ordinal)
+			&& PaginateStructuralEquality.PairListEquals(QueryParameters, other.QueryParameters);
 	}
 
 	/// <summary>Hashes the same members <see cref="Equals(PaginateLinkContext)" /> compares, so equal contexts hash equal.</summary>
@@ -72,8 +72,8 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 		// No null branch on Path: ValidatePath refuses one from both the initializer and the init accessor,
 		// which is the same invariant Equals above relies on.
 		return HashCode.Combine(
-			StringComparer.Ordinal.GetHashCode(this.Path),
-			PaginateStructuralEquality.PairListHash(this.QueryParameters));
+			StringComparer.Ordinal.GetHashCode(Path),
+			PaginateStructuralEquality.PairListHash(QueryParameters));
 	}
 
 	// Validating in the init accessors is what makes `with` run these too, and the initializers above are what
@@ -106,7 +106,7 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 
 	}
 
-	private static IReadOnlyList<KeyValuePair<string, string>> ValidateQueryParameters(
+	private static KeyValuePair<string, string>[] ValidateQueryParameters(
 		IReadOnlyList<KeyValuePair<string, string>> queryParameters) {
 
 		ArgumentNullException.ThrowIfNull(queryParameters, nameof(QueryParameters));

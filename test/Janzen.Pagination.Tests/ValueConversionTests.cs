@@ -26,7 +26,7 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData("draft")]
 	[InlineData("DRAFT")]
 	public async Task Enums_are_matched_by_name_ignoring_case(string value) {
-		Assertions.HasIds(await this.Page(Query.Filter("status", $"$eq:{value}")), 3, 5);
+		Assertions.HasIds(await Page(Query.Filter("status", $"$eq:{value}")), 3, 5);
 	}
 
 	[Theory]
@@ -34,12 +34,12 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData("-1")]
 	[InlineData("+1")]
 	public async Task Enums_reject_numeric_values(string value) {
-		Assert.Equal($"Value '{value}' is not valid for 'status'.", await this.Rejects(Query.Filter("status", $"$eq:{value}")));
+		Assert.Equal($"Value '{value}' is not valid for 'status'.", await Rejects(Query.Filter("status", $"$eq:{value}")));
 	}
 
 	[Fact]
 	public async Task Enums_reject_an_undefined_name() {
-		Assert.Equal("Value 'Nope' is not valid for 'status'.", await this.Rejects(Query.Filter("status", "$eq:Nope")));
+		Assert.Equal("Value 'Nope' is not valid for 'status'.", await Rejects(Query.Filter("status", "$eq:Nope")));
 	}
 
 	[Theory]
@@ -47,32 +47,32 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData("TRUE", new[] { 1, 7 })]
 	[InlineData("false", new[] { 2, 3, 4, 5, 6, 8 })]
 	public async Task Bools_accept_only_true_and_false(string value, int[] expected) {
-		Assertions.HasIds(await this.Page(Query.Filter("isFeatured", $"$eq:{value}")), expected);
+		Assertions.HasIds(await Page(Query.Filter("isFeatured", $"$eq:{value}")), expected);
 	}
 
 	[Fact]
 	public async Task Bools_reject_one_and_zero() {
-		Assert.Equal("Value '1' is not a valid boolean.", await this.Rejects(Query.Filter("isFeatured", "$eq:1")));
+		Assert.Equal("Value '1' is not a valid boolean.", await Rejects(Query.Filter("isFeatured", "$eq:1")));
 	}
 
 	[Fact]
 	public async Task Guids_report_their_own_message() {
-		Assert.Equal("Value 'nope' is not a valid GUID.", await this.Rejects(Query.Filter("externalId", "$eq:nope")));
+		Assert.Equal("Value 'nope' is not a valid GUID.", await Rejects(Query.Filter("externalId", "$eq:nope")));
 	}
 
 	[Fact]
 	public async Task Integers_report_the_field() {
-		Assert.Equal("Value 'abc' is not valid for 'id'.", await this.Rejects(Query.Filter("id", "$eq:abc")));
+		Assert.Equal("Value 'abc' is not valid for 'id'.", await Rejects(Query.Filter("id", "$eq:abc")));
 	}
 
 	[Fact]
 	public async Task Decimals_report_the_field() {
-		Assert.Equal("Value 'abc' is not valid for 'price'.", await this.Rejects(Query.Filter("price", "$eq:abc")));
+		Assert.Equal("Value 'abc' is not valid for 'price'.", await Rejects(Query.Filter("price", "$eq:abc")));
 	}
 
 	[Fact]
 	public async Task An_empty_value_is_rejected_for_a_non_nullable_target() {
-		Assert.Equal("Filter 'rank' requires a value; use '$null' to match rows with no value.", await this.Rejects(Query.Filter("rank", "$eq:")));
+		Assert.Equal("Filter 'rank' requires a value; use '$null' to match rows with no value.", await Rejects(Query.Filter("rank", "$eq:")));
 	}
 
 	[Fact]
@@ -80,13 +80,13 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 		// It used to convert to null and land on the unset rows, which is $null spelled implicitly -- without
 		// the field's allowlist ever being asked about $null. One spelling, and the message names it.
 		Assert.Equal("Filter 'discontinuedAt' requires a value; use '$null' to match rows with no value.",
-			await this.Rejects(Query.Filter("discontinuedAt", "$eq:")));
+			await Rejects(Query.Filter("discontinuedAt", "$eq:")));
 	}
 
 	[Fact]
 	public async Task An_unparseable_target_type_is_reported_as_unsupported() {
 		Assert.Equal("Filtering values for 'tagsEq' is not supported.",
-			await this.Rejects(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
+			await Rejects(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
 	}
 
 	/// <summary>

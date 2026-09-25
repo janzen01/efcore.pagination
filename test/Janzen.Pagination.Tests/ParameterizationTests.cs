@@ -37,7 +37,7 @@ public sealed class ParameterizationTests(SqliteFixture fixture) : IClassFixture
 	[Fact]
 	public void An_equality_filter_compares_against_a_parameter_not_a_literal() {
 
-		string sql = this.StatementFor(Query.Filter("name", "$eq:Widget"));
+		string sql = StatementFor(Query.Filter("name", "$eq:Widget"));
 
 		Assert.Contains("\"Name\" = @", sql, StringComparison.Ordinal);
 		Assert.DoesNotContain("'Widget'", sql, StringComparison.Ordinal);
@@ -49,7 +49,7 @@ public sealed class ParameterizationTests(SqliteFixture fixture) : IClassFixture
 
 		// The whole point of the wrapper for $in: without it the list is inlined as IN (1, 2, 3), so every
 		// distinct combination of values compiles its own plan.
-		string sql = this.StatementFor(Query.Filter("id", "$in:1,2,3"));
+		string sql = StatementFor(Query.Filter("id", "$in:1,2,3"));
 
 		Assert.Contains("json_each(@", sql, StringComparison.Ordinal);
 		Assert.DoesNotContain("IN (1, 2, 3)", sql, StringComparison.Ordinal);
@@ -63,7 +63,7 @@ public sealed class ParameterizationTests(SqliteFixture fixture) : IClassFixture
 
 		// The ESCAPE clause is deliberately not asserted here: it is a structural constant emitted identically
 		// with and without the wrapper, so it does not discriminate. LikeStrategyTests already pins it.
-		string sql = this.StatementFor(path == "filter" ? Query.Filter("name", "$ilike:wid") : Query.Search("wid"));
+		string sql = StatementFor(path == "filter" ? Query.Filter("name", "$ilike:wid") : Query.Search("wid"));
 
 		Assert.Contains("LIKE @", sql, StringComparison.Ordinal);
 		Assert.DoesNotContain("'%wid%'", sql, StringComparison.Ordinal);

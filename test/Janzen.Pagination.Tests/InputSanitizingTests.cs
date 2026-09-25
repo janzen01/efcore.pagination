@@ -27,7 +27,7 @@ public sealed class InputSanitizingTests(SqliteFixture fixture) : IClassFixture<
 	[InlineData("$contains:a\0b")]
 	[InlineData("$in:ok,a\0b")]
 	public async Task A_filter_value_carrying_a_nul_byte_is_refused_on_sqlite(string criterion) {
-		Assert.Equal("Filter 'name' must not contain a null character.", await this.RejectsOnSqlite(Query.Filter("name", criterion)));
+		Assert.Equal("Filter 'name' must not contain a null character.", await RejectsOnSqlite(Query.Filter("name", criterion)));
 	}
 
 	[Theory]
@@ -42,12 +42,12 @@ public sealed class InputSanitizingTests(SqliteFixture fixture) : IClassFixture<
 
 	[Fact]
 	public async Task A_nul_byte_is_refused_on_a_non_string_field_too() {
-		Assert.Equal("Filter 'rank' must not contain a null character.", await this.RejectsOnSqlite(Query.Filter("rank", "$eq:1\0")));
+		Assert.Equal("Filter 'rank' must not contain a null character.", await RejectsOnSqlite(Query.Filter("rank", "$eq:1\0")));
 	}
 
 	[Fact]
 	public async Task A_search_term_carrying_a_nul_byte_is_refused_on_sqlite() {
-		Assert.Equal("Search term must not contain a null character.", await this.RejectsOnSqlite(Query.Search("wid\0get")));
+		Assert.Equal("Search term must not contain a null character.", await RejectsOnSqlite(Query.Search("wid\0get")));
 	}
 
 	[Fact]
@@ -78,7 +78,7 @@ public sealed class InputSanitizingTests(SqliteFixture fixture) : IClassFixture<
 	[Fact]
 	public async Task An_oversized_value_does_not_dominate_the_message_it_produces() {
 
-		string message = await this.RejectsOnSqlite(Query.Filter("rank", $"$eq:{new string('9', 10_000)}"));
+		string message = await RejectsOnSqlite(Query.Filter("rank", $"$eq:{new string('9', 10_000)}"));
 
 		Assert.True(message.Length < 200, $"the 400 detail was {message.Length} characters long");
 		Assert.Contains("999...", message, StringComparison.Ordinal);
@@ -97,7 +97,7 @@ public sealed class InputSanitizingTests(SqliteFixture fixture) : IClassFixture<
 		// 119 characters, then an emoji whose high surrogate sits exactly on the 120-character budget.
 		string value = new string('a', 119) + "😀" + new string('b', 50);
 
-		string message = await this.RejectsOnSqlite(Query.Filter("rank", $"$eq:{value}"));
+		string message = await RejectsOnSqlite(Query.Filter("rank", $"$eq:{value}"));
 
 		Assert.Equal($"Value '{new string('a', 119)}...' is not valid for 'rank'.", message);
 
@@ -106,7 +106,7 @@ public sealed class InputSanitizingTests(SqliteFixture fixture) : IClassFixture<
 	[Fact]
 	public async Task Control_characters_are_stripped_from_the_echoed_value() {
 
-		string message = await this.RejectsOnSqlite(Query.Filter("rank", "$eq:12\r\n34"));
+		string message = await RejectsOnSqlite(Query.Filter("rank", "$eq:12\r\n34"));
 
 		Assert.Equal("Value '1234' is not valid for 'rank'.", message);
 

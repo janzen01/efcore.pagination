@@ -131,9 +131,9 @@ public sealed class AsyncContractTests {
 /// </summary>
 public sealed class EfInternalCouplingTests : IClassFixture<SqliteFixture> {
 
-	private readonly SqliteFixture fixture;
+	private readonly SqliteFixture _fixture;
 
-	public EfInternalCouplingTests(SqliteFixture fixture) { this.fixture = fixture; }
+	public EfInternalCouplingTests(SqliteFixture fixture) { _fixture = fixture; }
 
 	[Fact]
 	public async Task The_ef_provider_type_the_engine_probes_for_still_exists_and_still_matches() {
@@ -145,9 +145,9 @@ public sealed class EfInternalCouplingTests : IClassFixture<SqliteFixture> {
 			"EntityQueryProvider has moved or been renamed; PaginateQueryableExtensions.UseDatabaseFunctions no longer "
 			+ "recognizes EF Core and every query would take the in-memory leg.");
 
-		await using var context = this.fixture.CreateContext();
+		await using var context = _fixture.CreateContext();
 
-		Assert.True(probed!.IsInstanceOfType(SqliteFixture.Products(context).Provider),
+		Assert.True(probed.IsInstanceOfType(SqliteFixture.Products(context).Provider),
 			"an EF Core queryable's provider is no longer an EntityQueryProvider.");
 
 	}

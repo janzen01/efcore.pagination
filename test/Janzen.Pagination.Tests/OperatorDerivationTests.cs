@@ -158,7 +158,7 @@ public sealed class OperatorDerivationTests {
 	/// <summary>Comparable but with no relational operators -- exactly what the engine cannot build a range for.</summary>
 	public readonly struct Score(int value) : IComparable<Score> {
 		public int Value { get; } = value;
-		public int CompareTo(Score other) { return this.Value.CompareTo(other.Value); }
+		public int CompareTo(Score other) { return Value.CompareTo(other.Value); }
 	}
 
 	[Fact]

@@ -16,7 +16,7 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 	[Fact]
 	public async Task An_omitted_limit_uses_the_configured_default() {
 
-		var page = await this.Page(new PaginateQuery());
+		var page = await Page(new PaginateQuery());
 
 		Assert.Equal(3, page.Meta.ItemsPerPage);
 		Assertions.HasIds(page, 1, 2, 3);
@@ -24,12 +24,12 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 	}
 
 	[Fact]
-	public async Task A_middle_page_returns_its_slice() { Assertions.HasIds(await this.Page(new PaginateQuery { Page = 2 }), 4, 5, 6); }
+	public async Task A_middle_page_returns_its_slice() { Assertions.HasIds(await Page(new PaginateQuery { Page = 2 }), 4, 5, 6); }
 
 	[Fact]
 	public async Task The_last_page_may_be_partial() {
 
-		var page = await this.Page(new PaginateQuery { Page = 3 });
+		var page = await Page(new PaginateQuery { Page = 3 });
 
 		Assertions.HasIds(page, 7, 8);
 		Assert.Equal(2, page.Meta.ItemCount);
@@ -40,7 +40,7 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 	[Fact]
 	public async Task A_page_past_the_end_is_empty_but_the_metadata_stays_truthful() {
 
-		var page = await this.Page(new PaginateQuery { Page = 4 });
+		var page = await Page(new PaginateQuery { Page = 4 });
 
 		Assert.Empty(page.Items);
 		Assert.Equal(0, page.Meta.ItemCount);
@@ -53,7 +53,7 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 	[Fact]
 	public async Task An_empty_result_set_reports_zero_pages() {
 
-		var page = await this.Page(Query.Filter("id", "$eq:999"));
+		var page = await Page(Query.Filter("id", "$eq:999"));
 
 		Assert.Empty(page.Items);
 		Assert.Equal(0, page.Meta.TotalItems);
@@ -65,7 +65,7 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 	[InlineData(0)]
 	[InlineData(-1)]
 	public async Task A_non_positive_page_is_rejected(int page) {
-		Assert.Equal("Query parameter 'page' must be a positive integer.", await this.Rejects(new PaginateQuery { Page = page }));
+		Assert.Equal("Query parameter 'page' must be a positive integer.", await Rejects(new PaginateQuery { Page = page }));
 	}
 
 	[Theory]
@@ -74,12 +74,12 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 	[InlineData(51)]
 	public async Task A_limit_outside_the_configured_range_is_rejected(int limit) {
 		// Rejected, not clamped: silently returning fewer rows than asked for is the harder bug to notice.
-		Assert.Equal("Query parameter 'limit' must be between 1 and 50.", await this.Rejects(new PaginateQuery { Limit = limit }));
+		Assert.Equal("Query parameter 'limit' must be between 1 and 50.", await Rejects(new PaginateQuery { Limit = limit }));
 	}
 
 	[Fact]
 	public async Task The_maximum_limit_is_allowed() {
-		Assert.Equal(8, (await this.Page(new PaginateQuery { Limit = 50 })).Meta.ItemCount);
+		Assert.Equal(8, (await Page(new PaginateQuery { Limit = 50 })).Meta.ItemCount);
 	}
 
 	[Fact]
@@ -116,7 +116,7 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 			Filters = new Dictionary<string, IReadOnlyList<string>> { ["status"] = ["$eq:Active"] }
 		};
 
-		var first = await this.Page(request);
+		var first = await Page(request);
 
 		Assert.Null(first.Links);
 		Assertions.HasIds(first, 8, 7);
@@ -124,7 +124,7 @@ public sealed class PagingTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 
 		// Every carried-over value is load-bearing here: dropping the filter, the sort or the limit each
 		// produces a different second page.
-		Assertions.HasIds(await this.Page(request.WithPage(first.Meta.CurrentPage + 1)), 4, 2);
+		Assertions.HasIds(await Page(request.WithPage(first.Meta.CurrentPage + 1)), 4, 2);
 
 	}
 

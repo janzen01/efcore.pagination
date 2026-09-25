@@ -80,7 +80,7 @@ public sealed class PaginateQuery {
 		SearchBy            = this.SearchBy,
 		Filters             = this.Filters,
 		ValidationError     = this.ValidationError,
-		ValidationErrorCode = this.ValidationErrorCode,
+		ValidationErrorCode = this.ValidationErrorCode
 	};
 
 	/// <summary>Parse-time validation error captured during model binding; surfaced as a 400 on execution.</summary>

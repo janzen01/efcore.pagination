@@ -65,7 +65,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 
 		if (attribute is null) return Task.CompletedTask;
 
-		var config = this.GetConfig(context.ApplicationServices, attribute.ConfigProviderType);
+		var config = GetConfig(context.ApplicationServices, attribute.ConfigProviderType);
 
 		operation.Parameters ??= [];
 		RemoveGeneratedPaginateParameters(operation.Parameters);
@@ -120,7 +120,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		IServiceProvider services,
 		[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type providerType) {
 
-		var configs = this._configsPerDocument.GetValue(services, static _ => []);
+		var configs = _configsPerDocument.GetValue(services, static _ => []);
 
 		if (configs.TryGetValue(providerType, out var cached)) return cached;
 
@@ -180,7 +180,7 @@ public sealed class PaginatedQueryOperationTransformer : IOpenApiOperationTransf
 		operation.Responses["400"] = new OpenApiResponse {
 			Description = "The pagination query parameters were invalid.",
 			Content = new Dictionary<string, OpenApiMediaType> {
-				[PaginateExceptionFilter.ProblemJson] = new OpenApiMediaType {
+				[PaginateExceptionFilter.ProblemJson] = new() {
 					Schema = new OpenApiSchema {
 						Type = JsonSchemaType.Object,
 						Properties = properties

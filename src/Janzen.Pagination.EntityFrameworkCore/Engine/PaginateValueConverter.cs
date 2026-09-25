@@ -225,11 +225,9 @@ internal static class PaginateValueConverter {
 			i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IParsable<>) && i.GenericTypeArguments[0] == type
 		);
 
-		if (!parsable) return null;
-
 		// Through the constrained generic rather than a reflected TryParse: an explicit interface implementation has
 		// no public static TryParse to find, and this dispatches to it correctly either way.
-		return ParsableTemplate.MakeGenericMethod(type).CreateDelegate<Func<string, string, object?>>();
+		return parsable ? ParsableTemplate.MakeGenericMethod(type).CreateDelegate<Func<string, string, object?>>() : null;
 
 	}
 
@@ -253,11 +251,9 @@ internal static class PaginateValueConverter {
 		int time = value.IndexOf('T', StringComparison.Ordinal);
 		var datePart = time < 0 ? value.AsSpan() : value.AsSpan(0, time);
 
-		if (datePart.ContainsAny('Y', 'M')) {
-			throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' {invalidClause}: a duration in years or months has no fixed length.") { Code = PaginateQueryError.ValueInvalid };
-		}
-
-		return XmlConvert.ToTimeSpan(value);
+		return datePart.ContainsAny('Y', 'M')
+			? throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' {invalidClause}: a duration in years or months has no fixed length.") { Code = PaginateQueryError.ValueInvalid }
+			: XmlConvert.ToTimeSpan(value);
 
 	}
 

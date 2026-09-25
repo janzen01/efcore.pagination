@@ -6,11 +6,11 @@ namespace Janzen.Pagination.Tests.Support;
 
 public sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options) {
 
-	public DbSet<Product> Products => this.Set<Product>();
+	public DbSet<Product> Products => Set<Product>();
 
-	public DbSet<Category> Categories => this.Set<Category>();
+	public DbSet<Category> Categories => Set<Category>();
 
-	public DbSet<Review> Reviews => this.Set<Review>();
+	public DbSet<Review> Reviews => Set<Review>();
 
 }
 
@@ -47,7 +47,7 @@ public sealed class SqliteFixture : IAsyncLifetime {
 			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
 			.Options;
 
-		await using var context = this.CreateContext();
+		await using var context = CreateContext();
 		await context.Database.EnsureCreatedAsync();
 		context.Products.AddRange(TestData.Products());
 		await context.SaveChangesAsync();

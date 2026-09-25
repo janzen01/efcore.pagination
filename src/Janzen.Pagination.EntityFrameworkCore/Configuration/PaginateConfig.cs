@@ -348,7 +348,7 @@ public sealed class PaginateConfig<TEntity> : IPaginateConfig {
 		// _sortableFields, which IsSortEnabled reads -- rather than once per request that omits sortBy, which is
 		// every request from a client that trusts the server's ordering. DefaultSortBy keeps reporting every
 		// declared default, disabled ones included; only the resolution result is precomputed.
-		_enabledDefaultSorts = defaultSortBy.Count == 0 ? [] : defaultSortBy.Where(sort => this.IsSortEnabled(sort.Field)).ToArray();
+		_enabledDefaultSorts = defaultSortBy.Count == 0 ? [] : defaultSortBy.Where(sort => IsSortEnabled(sort.Field)).ToArray();
 
 	}
 
@@ -772,7 +772,6 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		// the caller's configure callback can resolve one limit from each of two objects and produce a config
 		// neither describes. A config still does not observe an assignment made after its build.
 		var shared = PaginateConfigDefaults.Shared;
-		int? Resolve(int? own, Func<PaginateConfigDefaults, int?> read) { return own ?? (defaults is null ? null : read(defaults)) ?? read(shared); }
 
 		if (Resolve(_defaultLimit, d => d.DefaultLimit) is not { } defaultLimit
 			|| Resolve(_maxLimit, d => d.MaxLimit) is not { } maxLimit) {
@@ -865,6 +864,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 			_likeStrategy
 		);
 
+		int? Resolve(int? own, Func<PaginateConfigDefaults, int?> read) { return own ?? (defaults is null ? null : read(defaults)) ?? read(shared); }
 	}
 
 	private static void Positive(int value, string name) {

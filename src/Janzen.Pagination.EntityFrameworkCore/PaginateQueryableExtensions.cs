@@ -227,7 +227,7 @@ public static class PaginateQueryableExtensions {
 				throw new PaginateQueryException($"Too many sort fields; at most {config.MaxSortFields} are allowed.") { Code = PaginateQueryError.TooManySortFields };
 			}
 
-			sorts = request.SortBy.Select(PaginateExpressionUtils.ParseSort).ToArray();
+			sorts = [.. request.SortBy.Select(PaginateExpressionUtils.ParseSort)];
 
 			// Symmetric with searchBy, whose published reason is "so a client cannot ship a typo that silently
 			// does nothing". A repeated field used to be accepted: the second key ordered nothing, consumed a
@@ -775,7 +775,7 @@ public static class PaginateQueryableExtensions {
 				SearchBy        = searchBy,
 				Filter          = request.Filters,
 				HasPreviousPage = page > PaginateQuery.DefaultPage,
-				HasNextPage     = page < navigablePages,
+				HasNextPage     = page < navigablePages
 			};
 
 			var links = PaginateLinkBuilder.Build(linkContext, page, totalPages, navigablePages);

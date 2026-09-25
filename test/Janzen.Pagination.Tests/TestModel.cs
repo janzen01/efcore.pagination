@@ -1,5 +1,3 @@
-using Janzen.Pagination.EntityFrameworkCore.Configuration;
-using Janzen.Pagination.EntityFrameworkCore.Model;
 
 namespace Janzen.Pagination.Tests;
 
@@ -120,7 +118,7 @@ public static class TestData {
 		var food = new Category { Id = 3, Name = "Food" };
 
 		List<Product> products = [
-			new Product {
+			new() {
 				Id = 1, Name = "Widget", Description = "a basic widget", Status = ProductStatus.Active,
 				Rank = 10, Price = 9.99m, CreatedAt = Epoch.AddDays(1), Tags = ["red", "small"],
 				CategoryId = 1, Category = electronics,
@@ -130,27 +128,27 @@ public static class TestData {
 					new Review { Id = 3, ProductId = 1, Reviewer = "cid", Rating = 4 }
 				]
 			},
-			new Product {
+			new() {
 				Id = 2, Name = "Wid-gadget", Description = null, Status = ProductStatus.Active,
 				Rank = 20, Price = 19.99m, CreatedAt = Epoch.AddDays(2), Tags = ["red", "large"],
 				CategoryId = 1, Category = electronics,
 				Reviews = [new Review { Id = 4, ProductId = 2, Reviewer = "ann", Rating = 2 }]
 			},
-			new Product {
+			new() {
 				Id = 3, Name = "Gizmo", Description = "shiny gizmo", Status = ProductStatus.Draft,
 				Rank = 30, Price = 29.99m, CreatedAt = Epoch.AddDays(3), Tags = ["blue"],
 				CategoryId = 2, Category = toys
 			},
-			new Product {
+			new() {
 				Id = 4, Name = "50% off bundle", Description = "discounted", Status = ProductStatus.Active,
 				Rank = 40, Price = 5.00m, CreatedAt = Epoch.AddDays(4), Tags = [],
 				CategoryId = 2, Category = toys
 			},
-			new Product {
+			new() {
 				Id = 5, Name = "a_b_c", Description = null, Status = ProductStatus.Draft,
 				Rank = 50, Price = 1.00m, CreatedAt = Epoch.AddDays(5), Tags = ["blue", "small"]
 			},
-			new Product {
+			new() {
 				// The colon in the name is load-bearing: it proves the filter parser stops at the operator
 				// token and takes the rest of the criterion verbatim.
 				Id = 6, Name = "Doohickey: legacy", Description = "old stock", Status = ProductStatus.Discontinued,
@@ -158,12 +156,12 @@ public static class TestData {
 				DiscontinuedAt = Epoch.AddDays(200),
 				CategoryId = 1, Category = electronics
 			},
-			new Product {
+			new() {
 				Id = 7, Name = "APPLE", Description = "uppercase", Status = ProductStatus.Active,
 				Rank = 70, Price = 3.00m, CreatedAt = Epoch.AddDays(7), Tags = ["green"],
 				CategoryId = 3, Category = food
 			},
-			new Product {
+			new() {
 				Id = 8, Name = "apple pie", Description = "lowercase", Status = ProductStatus.Active,
 				Rank = 80, Price = 4.00m, CreatedAt = Epoch.AddDays(8), Tags = ["green"],
 				CategoryId = 3, Category = food

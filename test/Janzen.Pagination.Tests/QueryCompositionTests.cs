@@ -112,9 +112,9 @@ public sealed class QueryCompositionTests(SqliteFixture fixture) : IClassFixture
 	public void Contains_over_a_collection_across_a_navigation_still_matches_in_memory() {
 
 		List<Holder> holders = [
-			new Holder { Id = 1, Bag = new Bag { Tags = ["red", "small"] } },
-			new Holder { Id = 2, Bag = new Bag { Tags = ["blue"] } },
-			new Holder { Id = 3, Bag = null }
+			new() { Id = 1, Bag = new Bag { Tags = ["red", "small"] } },
+			new() { Id = 2, Bag = new Bag { Tags = ["blue"] } },
+			new() { Id = 3, Bag = null }
 		];
 
 		var config = PaginateConfig<Holder>.Create(b => b
@@ -160,7 +160,7 @@ public sealed class QueryCompositionTests(SqliteFixture fixture) : IClassFixture
 
 		public IEnumerator<T> GetEnumerator() { return inner.GetEnumerator(); }
 
-		IEnumerator IEnumerable.GetEnumerator() { return this.GetEnumerator(); }
+		IEnumerator IEnumerable.GetEnumerator() { return GetEnumerator(); }
 
 		public IQueryable CreateQuery(Expression expression) { throw new NotSupportedException("This provider composes nothing."); }
 

@@ -27,48 +27,48 @@ public sealed class SearchTests(SqliteFixture fixture) : IClassFixture<SqliteFix
 	[Fact]
 	public async Task Search_spans_every_searchable_field() {
 		// "old" appears only in a description, so a hit proves the OR reached past the name field.
-		Assertions.HasIds(await this.Page(Query.Search("old")), 6);
+		Assertions.HasIds(await Page(Query.Search("old")), 6);
 	}
 
 	[Fact]
 	public async Task SearchBy_narrows_the_search_to_the_named_fields() {
-		Assert.Empty((await this.Page(Query.Search("old", "name"))).Items);
+		Assert.Empty((await Page(Query.Search("old", "name"))).Items);
 	}
 
 	[Fact]
 	public async Task An_unsearchable_field_is_rejected() {
-		Assert.Equal("Search for field 'nope' is not configured.", await this.Rejects(Query.Search("x", "nope")));
+		Assert.Equal("Search for field 'nope' is not configured.", await Rejects(Query.Search("x", "nope")));
 	}
 
 	[Fact]
 	public async Task A_repeated_searchBy_field_is_rejected() {
-		Assert.Equal("Search field 'name' is specified more than once.", await this.Rejects(Query.Search("x", "name", "name")));
+		Assert.Equal("Search field 'name' is specified more than once.", await Rejects(Query.Search("x", "name", "name")));
 	}
 
 	[Fact]
 	public async Task SearchBy_is_validated_even_when_no_term_is_supplied() {
 		// Otherwise a typo would silently do nothing, which is the hard version of this bug to find.
-		Assert.Equal("Search for field 'nope' is not configured.", await this.Rejects(Query.Search(null, "nope")));
+		Assert.Equal("Search for field 'nope' is not configured.", await Rejects(Query.Search(null, "nope")));
 	}
 
 	[Fact]
 	public async Task Searching_a_resource_with_no_searchable_fields_is_rejected() {
-		Assert.Equal("Search is not configured for this resource.", await this.Rejects(Query.Search("x"), NoSearchableFields));
+		Assert.Equal("Search is not configured for this resource.", await Rejects(Query.Search("x"), NoSearchableFields));
 	}
 
 	[Fact]
 	public async Task SearchBy_is_ignored_when_the_config_says_so() {
-		Assertions.HasIds(await this.Page(Query.Search("old", "name"), SearchByIgnored), 6);
+		Assertions.HasIds(await Page(Query.Search("old", "name"), SearchByIgnored), 6);
 	}
 
 	[Fact]
 	public async Task Wildcards_in_the_term_are_escaped() {
-		Assert.Empty((await this.Page(Query.Search("a%c"))).Items);
+		Assert.Empty((await Page(Query.Search("a%c"))).Items);
 	}
 
 	[Fact]
 	public async Task A_blank_term_searches_nothing_and_returns_everything() {
-		Assert.Equal(8, (await this.Page(Query.Search("   "))).Meta.TotalItems);
+		Assert.Equal(8, (await Page(Query.Search("   "))).Meta.TotalItems);
 	}
 
 }

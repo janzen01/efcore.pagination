@@ -95,9 +95,9 @@ public static class PaginateNodaTime {
 		if (utc.Success) return utc.Value;
 
 		var offset = OffsetDateTimePattern.ExtendedIso.Parse(value);
-		if (offset.Success) return offset.Value.ToInstant();
-
-		throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not a valid instant.") { Code = PaginateQueryError.ValueInvalid };
+		return offset.Success
+			? offset.Value.ToInstant()
+			: throw new PaginateQueryException($"Value '{PaginateInputGuard.Echo(value)}' is not a valid instant.") { Code = PaginateQueryError.ValueInvalid };
 
 	}
 

@@ -71,11 +71,9 @@ internal static class PaginateProjectionBuilder {
 
 		// Type.GetConstructors promises no order, so taking the first would make the columns the API returns a
 		// function of the order the constructors happen to be declared in.
-		if (widest.Length > 1) {
-			throw new InvalidOperationException($"Type '{targetType.Name}' exposes {widest.Length} public constructors with {arity} parameters; automatic projection needs exactly one.");
-		}
-
-		return widest[0];
+		return widest.Length > 1
+			? throw new InvalidOperationException($"Type '{targetType.Name}' exposes {widest.Length} public constructors with {arity} parameters; automatic projection needs exactly one.")
+			: widest[0];
 
 	}
 
@@ -111,23 +109,13 @@ internal static class PaginateProjectionBuilder {
 			);
 		}
 
-		if (!CanBeNull(sourceValue.Type, sourceMember)) return convertedNestedValue;
-
-		throw new InvalidOperationException($"Cannot automatically project nullable source '{path}' into non-nullable target parameter '{parameter.Name}'.");
+		return !CanBeNull(sourceValue.Type, sourceMember)
+			? convertedNestedValue
+			: throw new InvalidOperationException($"Cannot automatically project nullable source '{path}' into non-nullable target parameter '{parameter.Name}'.");
 
 	}
 
 	private static MemberInfo FindSourceMember(Type sourceType, string name, string path) {
-
-		// Properties and fields are searched alike, so the tuple they produce is named once, here, and both
-		// sides of the Concat get their element type from this signature. Naming it once is also what keeps
-		// the concatenation legal at all: ValueTuple is a struct, so IEnumerable<T> covariance cannot bridge
-		// two sequences that differ only in the member type.
-		IEnumerable<(MemberInfo Member, int Depth, int Kind)> Matching(IEnumerable<MemberInfo> members, int kind) {
-			return members
-				.Where(member => string.Equals(member.Name, name, StringComparison.OrdinalIgnoreCase))
-				.Select(member => (member, DeclarationDepth(sourceType, member), kind));
-		}
 
 		var candidates = Matching(sourceType.GetProperties(BindingFlags.Instance | BindingFlags.Public), kind: 0)
 			.Concat(Matching(sourceType.GetFields(BindingFlags.Instance | BindingFlags.Public), kind: 1))
@@ -150,6 +138,15 @@ internal static class PaginateProjectionBuilder {
 
 		return best.Member;
 
+		// Properties and fields are searched alike, so the tuple they produce is named once, here, and both
+		// sides of the Concat get their element type from this signature. Naming it once is also what keeps
+		// the concatenation legal at all: ValueTuple is a struct, so IEnumerable<T> covariance cannot bridge
+		// two sequences that differ only in the member type.
+		IEnumerable<(MemberInfo Member, int Depth, int Kind)> Matching(IEnumerable<MemberInfo> members, int kind) {
+			return members
+				.Where(member => string.Equals(member.Name, name, StringComparison.OrdinalIgnoreCase))
+				.Select(member => (member, DeclarationDepth(sourceType, member), kind));
+		}
 	}
 
 	private static int DeclarationDepth(Type sourceType, MemberInfo member) {
