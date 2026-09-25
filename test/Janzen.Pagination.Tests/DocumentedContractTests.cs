@@ -68,9 +68,7 @@ public sealed class DocumentedContractTests {
 			.Filterable("status", p => p.Status)
 		);
 
-		string message = await Assertions.RejectsAsync(
-			() => TestData.Products().AsQueryable().PageAsync<ProductDto>(request, config)
-		);
+		string message = await Assertions.RejectsAsync(() => TestData.Products().AsQueryable().PageAsync<ProductDto>(request, config));
 
 		Assert.Equal("Too many filter conditions; at most 1 are allowed.", message);
 

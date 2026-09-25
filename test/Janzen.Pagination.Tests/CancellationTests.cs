@@ -25,9 +25,7 @@ public sealed class CancellationTests(SqliteFixture fixture) : IClassFixture<Sql
 		using var cts = new CancellationTokenSource();
 		await cts.CancelAsync();
 
-		await Assert.ThrowsAnyAsync<OperationCanceledException>(
-			() => SqliteFixture.Products(context).PaginateAsync<Product, ProductDto>(new PaginateQuery(), TestData.Config, null, cts.Token)
-		);
+		await Assert.ThrowsAnyAsync<OperationCanceledException>(() => SqliteFixture.Products(context).PaginateAsync<Product, ProductDto>(new PaginateQuery(), TestData.Config, null, cts.Token));
 
 	}
 
@@ -39,9 +37,7 @@ public sealed class CancellationTests(SqliteFixture fixture) : IClassFixture<Sql
 
 		// This leg has no async provider to honor the token, so the engine checks it itself before each
 		// synchronous terminal operator. Deleting either check leaves this the only test that notices.
-		await Assert.ThrowsAnyAsync<OperationCanceledException>(
-			() => TestData.Products().AsQueryable().PaginateAsync<Product, ProductDto>(new PaginateQuery(), TestData.Config, null, cts.Token)
-		);
+		await Assert.ThrowsAnyAsync<OperationCanceledException>(() => TestData.Products().AsQueryable().PaginateAsync<Product, ProductDto>(new PaginateQuery(), TestData.Config, null, cts.Token));
 
 	}
 
@@ -53,9 +49,7 @@ public sealed class CancellationTests(SqliteFixture fixture) : IClassFixture<Sql
 
 		// page=0 is refused by the composer, which runs as the method's first statement -- so a caller who had
 		// already gone away used to be answered with a client error for a request nobody was waiting for.
-		await Assert.ThrowsAnyAsync<OperationCanceledException>(
-			() => TestData.Products().AsQueryable().PaginateAsync<Product, ProductDto>(new PaginateQuery { Page = 0 }, TestData.Config, null, cts.Token)
-		);
+		await Assert.ThrowsAnyAsync<OperationCanceledException>(() => TestData.Products().AsQueryable().PaginateAsync<Product, ProductDto>(new PaginateQuery { Page = 0 }, TestData.Config, null, cts.Token));
 
 	}
 
@@ -75,9 +69,7 @@ public sealed class CancellationTests(SqliteFixture fixture) : IClassFixture<Sql
 			return new ProductDto(product.Id, product.Name, product.Status, product.Rank);
 		};
 
-		await Assert.ThrowsAnyAsync<OperationCanceledException>(
-			() => TestData.Products().AsQueryable().PaginateSelectMapAsync(new PaginateQuery(), TestData.Config, selector, postMap, null, cts.Token)
-		);
+		await Assert.ThrowsAnyAsync<OperationCanceledException>(() => TestData.Products().AsQueryable().PaginateSelectMapAsync(new PaginateQuery(), TestData.Config, selector, postMap, null, cts.Token));
 
 		Assert.Equal(0, postMapCalls);
 

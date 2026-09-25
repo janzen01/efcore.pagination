@@ -826,9 +826,7 @@ public sealed class OpenApiTests(OpenApiDocumentFixture fixture) : IClassFixture
 			ApplicationServices = services
 		};
 
-		await Assert.ThrowsAsync<OperationCanceledException>(
-			() => new PaginatedQueryOperationTransformer().TransformAsync(new OpenApiOperation(), context, new CancellationToken(true))
-		);
+		await Assert.ThrowsAsync<OperationCanceledException>(() => new PaginatedQueryOperationTransformer().TransformAsync(new OpenApiOperation(), context, new CancellationToken(true)));
 
 	}
 

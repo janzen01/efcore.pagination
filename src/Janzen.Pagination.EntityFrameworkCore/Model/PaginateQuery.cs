@@ -27,9 +27,7 @@ public sealed class PaginateQuery {
 	public readonly static int UnlimitedLimit = -1;
 
 	internal readonly static IReadOnlyDictionary<string, IReadOnlyList<string>> EmptyFilters =
-		new ReadOnlyDictionary<string, IReadOnlyList<string>>(
-			new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
-		);
+		new ReadOnlyDictionary<string, IReadOnlyList<string>>(new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal));
 
 	/// <summary>1-based page number; defaults to <see cref="DefaultPage" />. Non-positive values are rejected on execution.</summary>
 	public int Page { get; init; } = DefaultPage;

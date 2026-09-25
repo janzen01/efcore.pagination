@@ -26,9 +26,7 @@ public sealed class LikeStrategyTests : IDisposable {
 
 	// IsAssignableFrom, not IsType: Expression.Call hands back an internal arity-specific subclass.
 	private static MethodCallExpression BuildLike() {
-		return Assert.IsAssignableFrom<MethodCallExpression>(
-			PaginateLikeDefaults.Strategy.BuildLike(Expression.Constant("column"), Expression.Constant("%value%"))
-		);
+		return Assert.IsAssignableFrom<MethodCallExpression>(PaginateLikeDefaults.Strategy.BuildLike(Expression.Constant("column"), Expression.Constant("%value%")));
 	}
 
 	[Fact]
@@ -251,9 +249,7 @@ public sealed class LikeStrategyExtensibilityTests {
 	}
 
 	private static MethodCallExpression BuildLike(IPaginateLikeStrategy strategy) {
-		return Assert.IsAssignableFrom<MethodCallExpression>(
-			strategy.BuildLike(Expression.Constant("column"), Expression.Constant("%value%"))
-		);
+		return Assert.IsAssignableFrom<MethodCallExpression>(strategy.BuildLike(Expression.Constant("column"), Expression.Constant("%value%")));
 	}
 
 	[Fact]

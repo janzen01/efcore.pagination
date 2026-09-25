@@ -845,9 +845,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		// caller would pass the build check and still have nothing to order by at request time. One rule that is
 		// always true costs one line on a config that already has to call WithLimits.
 		if (_tieBreakerSelector is null) {
-			throw new InvalidOperationException(
-				"A pagination configuration requires WithTieBreaker(...): offset paging over a non-unique order can return the same row on two pages and skip another. Pass the entity's primary key, e.g. WithTieBreaker(x => x.Id)."
-			);
+			throw new InvalidOperationException("A pagination configuration requires WithTieBreaker(...): offset paging over a non-unique order can return the same row on two pages and skip another. Pass the entity's primary key, e.g. WithTieBreaker(x => x.Id).");
 		}
 
 		var allFields = _sortableFields.Values.Cast<IPaginateFieldTarget>().Concat(_searchableFields.Values).Concat(_filterableFields.Values);
@@ -861,9 +859,7 @@ public sealed class PaginateConfigBuilder<TEntity> {
 		// operator and may even demonstrate it. A configuration defect belongs here, not in the response.
 		foreach (var field in _filterableFields.Values) {
 			foreach (var filterOperator in field.Operators.Where(filterOperator => !field.Supports(filterOperator))) {
-				throw new InvalidOperationException(
-					$"Filter '{field.Name}' allows operator '{PaginateFilterParser.GetOperatorToken(filterOperator)}', which the engine cannot build for type '{field.Type.Name}'. Drop the operator, or declare the field without an explicit list to take the operators its type supports."
-				);
+				throw new InvalidOperationException($"Filter '{field.Name}' allows operator '{PaginateFilterParser.GetOperatorToken(filterOperator)}', which the engine cannot build for type '{field.Type.Name}'. Drop the operator, or declare the field without an explicit list to take the operators its type supports.");
 			}
 		}
 

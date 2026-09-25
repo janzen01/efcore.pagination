@@ -123,21 +123,13 @@ public sealed class LinkContextTests {
 		// Every overload also has a parameter called `request` — the PaginateQuery — so reporting that name for a
 		// null HttpRequest sent the reader to inspect the wrong argument. The throw is synchronous: these are
 		// Task-returning wrappers, not async methods, so an argument error never reaches the returned task.
-		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
-			() => { _ = source.PaginateAsync<Product, ProductDto>(request, TestData.Config, httpRequest, ct); }
-		).ParamName);
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(() => { _ = source.PaginateAsync<Product, ProductDto>(request, TestData.Config, httpRequest, ct); }).ParamName);
 
-		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
-			() => { _ = source.PaginateSelectAsync(request, TestData.Config, p => p.Name, httpRequest, ct); }
-		).ParamName);
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(() => { _ = source.PaginateSelectAsync(request, TestData.Config, p => p.Name, httpRequest, ct); }).ParamName);
 
-		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
-			() => { _ = source.PaginateSelectMapAsync(request, TestData.Config, p => p.Name, name => name.Length, httpRequest, ct); }
-		).ParamName);
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(() => { _ = source.PaginateSelectMapAsync(request, TestData.Config, p => p.Name, name => name.Length, httpRequest, ct); }).ParamName);
 
-		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(
-			() => { _ = source.PaginateMapAsync(request, TestData.Config, p => p.Name, httpRequest, ct); }
-		).ParamName);
+		Assert.Equal("httpRequest", Assert.Throws<ArgumentNullException>(() => { _ = source.PaginateMapAsync(request, TestData.Config, p => p.Name, httpRequest, ct); }).ParamName);
 
 	}
 

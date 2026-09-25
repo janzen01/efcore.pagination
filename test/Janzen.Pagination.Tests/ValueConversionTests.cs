@@ -100,9 +100,7 @@ public sealed class ValueConversionTests(SqliteFixture fixture) : IClassFixture<
 	/// </summary>
 	[Fact]
 	public async Task An_unparseable_target_type_carries_its_own_code() {
-		var refused = await Assert.ThrowsAsync<PaginateQueryException>(
-			() => TestData.Products().AsQueryable().PageAsync<ProductDto>(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType)
-		);
+		var refused = await Assert.ThrowsAsync<PaginateQueryException>(() => TestData.Products().AsQueryable().PageAsync<ProductDto>(Query.Filter("tagsEq", "$eq:red"), UnsupportedValueType));
 
 		Assert.Equal(PaginateQueryError.ValueTypeNotSupported, refused.Code);
 	}

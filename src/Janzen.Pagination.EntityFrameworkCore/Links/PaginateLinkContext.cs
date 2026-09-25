@@ -112,9 +112,7 @@ public sealed record PaginateLinkContext(string Path, IReadOnlyList<KeyValuePair
 
 	}
 
-	private static KeyValuePair<string, string>[] ValidateQueryParameters(
-		IReadOnlyList<KeyValuePair<string, string>> queryParameters
-	) {
+	private static KeyValuePair<string, string>[] ValidateQueryParameters(IReadOnlyList<KeyValuePair<string, string>> queryParameters) {
 
 		ArgumentNullException.ThrowIfNull(queryParameters, nameof(QueryParameters));
 

@@ -41,9 +41,7 @@ public sealed class AsyncContractTests {
 	public async Task A_request_error_is_still_delivered_through_the_task() {
 		// The mirror of the test above: moving the argument guards must not drag the request validation with
 		// them. An invalid page stays a faulted task, which is what the ASP.NET Core filters translate.
-		await Assert.ThrowsAsync<PaginateQueryException>(
-			() => Source().PaginateAsync<Product, ProductDto>(new PaginateQuery { Page = 0 }, TestData.Config, null, TestContext.Current.CancellationToken)
-		);
+		await Assert.ThrowsAsync<PaginateQueryException>(() => Source().PaginateAsync<Product, ProductDto>(new PaginateQuery { Page = 0 }, TestData.Config, null, TestContext.Current.CancellationToken));
 	}
 
 	/// <summary>
@@ -57,13 +55,9 @@ public sealed class AsyncContractTests {
 
 		var source = new NonEfAsyncQueryable<Product>(Source());
 
-		var bare = await Assert.ThrowsAsync<NotSupportedException>(
-			() => source.PaginateAsync<Product, ProductDto>(new PaginateQuery(), TestData.Config, null, TestContext.Current.CancellationToken)
-		);
+		var bare = await Assert.ThrowsAsync<NotSupportedException>(() => source.PaginateAsync<Product, ProductDto>(new PaginateQuery(), TestData.Config, null, TestContext.Current.CancellationToken));
 
-		var filtered = await Assert.ThrowsAsync<NotSupportedException>(
-			() => source.PaginateAsync<Product, ProductDto>(Query.Filter("rank", "$eq:30"), TestData.Config, null, TestContext.Current.CancellationToken)
-		);
+		var filtered = await Assert.ThrowsAsync<NotSupportedException>(() => source.PaginateAsync<Product, ProductDto>(Query.Filter("rank", "$eq:30"), TestData.Config, null, TestContext.Current.CancellationToken));
 
 		foreach (var message in new[] { bare.Message, filtered.Message }) {
 			Assert.Contains("Entity Framework Core", message, StringComparison.Ordinal);

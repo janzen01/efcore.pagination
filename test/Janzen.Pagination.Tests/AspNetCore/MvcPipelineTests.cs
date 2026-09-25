@@ -64,9 +64,7 @@ public sealed class PaginationHostFixture : IAsyncLifetime {
 
 		builder.Services.AddPagination(pagination => pagination.AddAspNetCore());
 		builder.Services.AddControllers().AddApplicationPart(typeof(MvcProductsController).Assembly);
-		builder.Services.AddProblemDetails(
-			options => options.CustomizeProblemDetails = context => context.ProblemDetails.Extensions.Add("nodeId", "fixture")
-		);
+		builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context => context.ProblemDetails.Extensions.Add("nodeId", "fixture"));
 
 		_app = builder.Build();
 

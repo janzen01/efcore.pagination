@@ -13,9 +13,7 @@ namespace Janzen.Pagination.Tests;
 public sealed class ErrorCodeTests {
 
 	private static async Task<PaginateQueryException> Rejects(PaginateQuery request, PaginateConfig<Product>? config = null) {
-		return await Assert.ThrowsAsync<PaginateQueryException>(
-			() => TestData.Products().AsQueryable().PageAsync<ProductDto>(request, config)
-		);
+		return await Assert.ThrowsAsync<PaginateQueryException>(() => TestData.Products().AsQueryable().PageAsync<ProductDto>(request, config));
 	}
 
 	[Fact]
