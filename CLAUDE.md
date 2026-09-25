@@ -116,7 +116,8 @@ Sources live in `docs/src`, the build lands in `docs/.dist`, config is
   are per package, the cookbook is task-shaped. A corollary that is easy to violate: **every fact has exactly
   one home** and the other pages link to it. A per-method enumeration inside the guide, or a second copy of
   the guards table, is the thing this rule exists to prevent.
-- **Navigation lives in `config.mts`**, not in front matter. **Content** pages carry no front matter at all;
+- **Navigation lives in `docs/src/navigation.json`**, not in front matter and no longer in `config.mts` — see
+  *Navigation is versioned with the pages* below. **Content** pages carry no front matter at all;
   VitePress takes the title from the first `#` heading. The exceptions are structural and each has to be one:
   `docs/src/index.md` is `layout: home` and is front matter almost end to end, and the four redirect stubs
   carry the `head` refresh plus `search: false` / `robots: noindex` described above. A new page has to be added
@@ -253,11 +254,20 @@ replaces `defineConfig`, serves `docs/src` at the root, and serves every subfold
   locales configured the plugin leaves those entries unlabeled and VitePress renders nothing. `nav`, `sidebar`
   and `outline` therefore live in the **top-level** `themeConfig`, which is exactly the shape the plugin expects
   when there are no locales; `lang` is top-level too. Verified in the built DOM, in both directions.
-- **Navigation is versioned automatically**, so one `nav` and one `sidebar` serve every version: the plugin
-  prefixes internal links with the version being viewed and leaves `http…` links and anything flagged
-  `skipVersioning` alone. Sidebar prefixing works by setting `base` on a group, which VitePress concatenates
-  onto each child link — with root-absolute links that is the shape to watch, but it emits clean paths here.
-  Check `.dist` for `//` in an href after touching a sidebar.
+- **Navigation is versioned with the pages.** `docs/src/navigation.json` holds `nav` and `sidebar`, and
+  `sync-archive.mjs` copies it into each archived line **verbatim**, like every non-markdown file, so each
+  version is rendered with the navigation it was written against — a page the newest line adds, renames or
+  drops no longer appears in, or vanishes from, every older copy. `scripts/navigation.mjs` keys the copies the
+  way the plugin reads them, and three details in it are load-bearing. The links stay **as authored**: the
+  plugin prefixes internal links with the version itself (a `base` on each sidebar group, which VitePress
+  concatenates onto each child link; a joined path on each nav link) and leaves `http…` links and anything
+  flagged `skipVersioning` alone, so a rewrite would publish `/v10.1.x/v10.1.x/…`. A nav is keyed by the
+  **bare** segment (`'v10.1.x'`) — `'/v10.1.x/'` silently falls back to the root nav. And every nav carries
+  its own `VersionSwitcher`, because the plugin only injects the version list into a component it finds in
+  that locale's nav. A tag without the file (`v10.1.1` and older) gets the root navigation, which is what it
+  was built with. Verified by editing one archived copy's label and building: only that version showed it.
+  The root file is imported by `config.mts`, so editing it restarts the dev server. Check `.dist` for `//`
+  in an href after touching it.
 - **Every version indexes itself, and `search` carries no options at all.** The plugin gives each archived
   version its own locale and VitePress builds one index per locale, so a search on `/v10.0.x/` only ever sees
   `/v10.0.x/` and the root index holds no archived page — the duplicate-hits-across-versions problem cannot

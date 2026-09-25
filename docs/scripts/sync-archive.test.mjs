@@ -17,6 +17,7 @@ import {
 	archiveWriter, blobsAt, isSkipped, leaked, parseBatchStream, siteAbsolute, strays, versioned
 } from './sync-archive.mjs'
 import { expandDirectoryPatterns, readSrcExcludePatterns, srcExcludeMatcher } from './src-exclude.mjs'
+import { NAVIGATION, navigationIn, versionedNavigation } from './navigation.mjs'
 
 const SEGMENT = 'v10.1.x'
 
@@ -251,3 +252,29 @@ test('a ref that carries no docs/src yields nothing rather than failing', () => 
 	// version, with the run printing its success line and exiting 0.
 	assert.deepEqual(blobsAt('v10.0.0'), [])
 })
+
+test('each archived version keeps its own navigation, keyed the way the plugin reads it', () => {
+	const switcher = { component: 'VersionSwitcher' }
+	const root = { nav: [{ text: 'Guide', link: '/guide/' }], sidebar: { '/guide/': [{ text: 'Guide', items: [] }] } }
+	const own = { nav: [{ text: 'Old guide', link: '/guide/' }], sidebar: { '/reference/': [{ text: 'Old', items: [] }] } }
+
+	const { nav, sidebar } = versionedNavigation(root, [[SEGMENT, own]], switcher)
+
+	// The bare segment: '/v10.1.x/' is not a nav key the plugin matches, and it falls back to the root nav
+	// without a word. Every nav needs its own switcher, or that version's pages lose the version menu.
+	assert.deepEqual(Object.keys(nav), ['root', SEGMENT])
+	assert.deepEqual(nav[SEGMENT], [...own.nav, switcher])
+	assert.deepEqual(nav.root, [...root.nav, switcher])
+
+	// The segment goes in front of the sidebar key only. The links stay as authored because the plugin
+	// prefixes them itself -- rewritten here they would publish /v10.1.x/v10.1.x/.
+	assert.deepEqual(Object.keys(sidebar), ['/guide/', `/${SEGMENT}/reference/`])
+	assert.equal(nav[SEGMENT][0].link, '/guide/')
+})
+
+test('a version without a navigation file has none, so the plugin falls back to the root one', () => scratch((root) => {
+	assert.equal(navigationIn(root), undefined)
+
+	writeFileSync(join(root, NAVIGATION), JSON.stringify({ nav: [], sidebar: {} }))
+	assert.deepEqual(navigationIn(root), { nav: [], sidebar: {} })
+}))
