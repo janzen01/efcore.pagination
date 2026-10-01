@@ -18,10 +18,25 @@ body:
         - label: Janzen.Pagination.PostgreSql
         - label: Janzen.Pagination.NodaTime
 
+  - type: dropdown
+    id: dotnet
+    attributes:
+      label: .NET version
+      description: >-
+        The package's first version component matches it (`10.x` targets .NET 10). Deprecated versions are not
+        fixed, so please reproduce on the newest release first. See
+        [supported versions](https://github.com/janzen01/efcore.pagination/blob/master/SECURITY.md#supported-versions).
+      options:
+        - .NET 11
+        - .NET 10
+    validations:
+      required: true
+
   - type: input
     id: version
     attributes:
-      label: Package version
+      label: Exact package version
+      description: "`dotnet list package` shows it."
       placeholder: 10.1.1
     validations:
       required: true
