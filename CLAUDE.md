@@ -692,6 +692,9 @@ The package version's **first component tracks the .NET / EF Core major it targe
   assembly loaded against EF Core 11 can fail at runtime. Dependabot opens the `Microsoft.EntityFrameworkCore` major
   PR against `master`, which is the reminder; CI then says whether it is a plain retarget or a real port. The
   servicing line never sees that PR — its Dependabot block ignores framework majors on purpose.
+  The new major also goes into the `.NET version` dropdown in `.github/ISSUE_TEMPLATE/bug_report.yml`, and a
+  major whose line is no longer serviced comes out of it. Issue forms are static and read from the default
+  branch only, so nothing fills that list from tags.
 - **Two lines live in the repository at once, and the branch names say which is which.** `master` is always the
   newest line; the previous one lives on `release/<X>.x` (`release/10.x`). The one ruleset targets
   `~DEFAULT_BRANCH` **and** `refs/heads/release/*`, so both take PRs only, squash-merged, with `ci-ok` green,
@@ -816,6 +819,14 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
 12. **After the newer line's stable release, publish every older-line release with `--latest=false`.** The API
     defaults `make_latest` to `true` for a new release, which would hand *Latest* on the Releases page back to
     the servicing line. Before that point the older line is the newest stable one and *Latest* is right.
+13. **Deprecate what the release supersedes, on nuget.org first.** Only the newest release of each line stays
+    undeprecated; the rest is marked `Legacy` under *Manage packages → Deprecation*, all four packages — that
+    is the signal a consumer actually sees (an IDE warning, `dotnet list package --deprecated`), and it has no
+    API, so it is done by hand. The Releases page then mirrors it: a GitHub release has no deprecated state,
+    but an immutable one still lets its title and notes change, so the title gets a `[Deprecated] ` prefix and
+    the notes a leading `> [!WARNING]` naming the successor (`gh release edit --title … --notes-file …`, after
+    saving the existing body). Read the deprecation state off the gallery page, not the registration API,
+    which lags it.
 
 ## Testing
 `test/Janzen.Pagination.Tests` (xunit v3) — `dotnet test Janzen.Pagination.slnx -c Release`. Two legs, both in-process,
