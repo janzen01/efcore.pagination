@@ -14,6 +14,11 @@ builder.Services.AddOpenApi(options =>
 `PaginatedQueryOperationTransformer` is a plain `IOpenApiOperationTransformer`, so your app keeps ownership of
 the document name and the rest of the pipeline.
 
+**Reference `Microsoft.AspNetCore.OpenApi` from the app itself**, even though this package already depends on
+it. `AddOpenApi()` comes with a source generator that emits interceptors, and the property that allows them,
+`InterceptorsNamespaces`, is set by that package's build targets, which only a direct reference imports. With the
+package arriving only through `Janzen.Pagination.AspNetCore`, the app fails to build with CS9137.
+
 ## Which operations it touches
 
 Only the ones carrying `[PaginatedQuery<TProvider>]` (controllers) or `WithPagination<TProvider>()` (Minimal
