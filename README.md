@@ -153,6 +153,7 @@ Every `400` it can produce, in the order the engine validates:
 | [Getting started](https://janzen01.github.io/efcore.pagination/guide/getting-started/) | Install → register → a working paginated endpoint. |
 | [Configuration](https://janzen01.github.io/efcore.pagination/guide/configuration/) | What an allowlist buys you, and the three decisions a config has to make. |
 | [Projections](https://janzen01.github.io/efcore.pagination/guide/projections/) | The four entry points and how to pick between them. |
+| [Upgrading from 10.x](https://janzen01.github.io/efcore.pagination/guide/upgrading/) | What a move from the `10.x` line changes, and what it leaves alone. |
 
 **Reference** — looked up mid-task:
 
