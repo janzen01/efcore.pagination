@@ -7,7 +7,8 @@
         { "text": "Overview", "link": "/guide/" },
         { "text": "Getting started", "link": "/guide/getting-started/" },
         { "text": "Configuration", "link": "/guide/configuration/" },
-        { "text": "Projections", "link": "/guide/projections/" }
+        { "text": "Projections", "link": "/guide/projections/" },
+        { "text": "Upgrading from 10.x", "link": "/guide/upgrading/" }
       ]
     },
     {
@@ -56,7 +57,8 @@
           { "text": "Overview", "link": "/guide/" },
           { "text": "Getting started", "link": "/guide/getting-started/" },
           { "text": "Configuration", "link": "/guide/configuration/" },
-          { "text": "Projections", "link": "/guide/projections/" }
+          { "text": "Projections", "link": "/guide/projections/" },
+          { "text": "Upgrading from 10.x", "link": "/guide/upgrading/" }
         ]
       }
     ],

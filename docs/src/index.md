@@ -125,7 +125,8 @@ Prereleases carry a `-preview.N` or `-rc.N` suffix — add `--prerelease` to ins
 ## Where to go next
 
 The guide is meant to be read in order, but each page stands on its own.
-**[Getting started](/guide/getting-started/)** takes it from install to a paginated endpoint returning JSON.
+**[Getting started](/guide/getting-started/)** takes it from install to a paginated endpoint returning JSON, and
+**[Upgrading](/guide/upgrading/)** is the short list for a project coming from the `10.x` line.
 
 Once it runs, the site splits by what you are doing:
 
