@@ -815,14 +815,25 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
 12. **After the newer line's stable release, publish every older-line release with `--latest=false`.** The API
     defaults `make_latest` to `true` for a new release, which would hand *Latest* on the Releases page back to
     the servicing line. Before that point the older line is the newest stable one and *Latest* is right.
-13. **Deprecate what the release supersedes, on nuget.org first.** Only the newest release of each line stays
-    undeprecated; the rest is marked `Legacy` under *Manage packages → Deprecation*, all four packages — that
-    is the signal a consumer actually sees (an IDE warning, `dotnet list package --deprecated`), and it has no
-    API, so it is done by hand. The Releases page then mirrors it: a GitHub release has no deprecated state,
-    but an immutable one still lets its title and notes change, so the title gets a `[Deprecated] ` prefix and
-    the notes a leading `> [!WARNING]` naming the successor (`gh release edit --title … --notes-file …`, after
-    saving the existing body). Read the deprecation state off the gallery page, not the registration API,
-    which lags it.
+13. **Deprecate superseded prereleases on nuget.org, and a stable release only for a defect.** A `-preview.N` or
+    `-rc.N` is marked `Legacy` once a later release is live on the gallery: every prerelease of the line except
+    the newest, and when the line's stable ships, its last `-rc.N` too. Wait for the successor to appear first —
+    the *Alternate package* dropdown lists only versions the gallery already serves, and a line must never be
+    left with nothing undeprecated. A **stable** release is *not* deprecated for being superseded: within a line
+    the third component only adds, so an older patch is not wrong, and a banner on every old patch would stop
+    meaning anything. Deprecate one only for a defect a consumer should avoid (reason *critical bugs*, or
+    *Other* with the explanation), never as `Legacy`. The signal a consumer sees is an IDE warning and
+    `dotnet list package --deprecated`. It is set by hand under *Manage packages → Deprecation*, all four
+    packages, with the same package at the successor's version as the alternate: as of October 2026 nuget.org
+    has no API for it and the `dotnet nuget` CLI has no command for it. That manual cost is why a stable
+    release is not deprecated by default.
+    The Releases page then **mirrors nuget.org, in both directions**. A GitHub release has no deprecated state,
+    but an immutable one still lets its title and notes change: a deprecated version gets a `[Deprecated] `
+    title prefix and a leading `> [!WARNING]` naming the same successor nuget.org names; a version that is not
+    deprecated carries neither, so lifting a deprecation takes both back off. Save the existing body first
+    (`gh release edit --title … --notes-file …`) and check afterwards that only that block changed. A tag
+    without a release has nothing to mirror. Read the deprecation state off the gallery page, not the
+    registration API, which lags it.
 
 ## Testing
 `test/Janzen.Pagination.Tests` (xunit v3) — `dotnet test Janzen.Pagination.slnx -c Release`. Two legs, both in-process,
