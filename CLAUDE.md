@@ -1,7 +1,7 @@
 # Janzen.Pagination (EF Core + ASP.NET Core pagination library)
 
 Dynamic, configuration-driven **pagination, filtering and sorting** for **Entity Framework Core** and **ASP.NET Core**,
-shipped as four composable NuGet packages (`Janzen.Pagination.*`). **net11.0-only**, C# `latest`, nullable-enabled.
+shipped as four composable NuGet packages (`Janzen.Pagination.*`). **net11.0-only**, C# 15, nullable-enabled.
 This is the **11.x** line; the **10.x** line is serviced on `release/10.x`. Prereleases carry a `-preview.N` or
 `-rc.N` suffix (see *Versioning* below).
 
@@ -535,7 +535,8 @@ independent of each other — consumers pick the extensions they need:
   and is resolved per query, which is what makes one process talking to two providers workable.
 
 ## Conventions
-- **net11.0-only**, `Nullable=enable`, `ImplicitUsings=enable`, C# `latest` ([Directory.Build.props](Directory.Build.props)).
+- **net11.0-only**, `Nullable=enable`, `ImplicitUsings=enable` ([Directory.Build.props](Directory.Build.props)),
+  **C# 15 pinned in each project file**: under the RC SDK the IDE reads `latest` as C# 14.
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
   The EF Core family (`Microsoft.EntityFrameworkCore`, `.Relational`, `.Sqlite`) is a **range capped below the next
   major** (`[11.0.0-rc.1.26425.128, 12.0.0)` on this line, `[10.0.12, 11.0.0)` on `release/10.x`), the way
@@ -586,7 +587,8 @@ independent of each other — consumers pick the extensions they need:
   places (it flags the same `this.` as both redundant and missing). Taken: redundant `this.` (private fields are
   `_camelCase`, so nothing is left to disambiguate), a guard that throws before a single return as a conditional
   with a throw arm, inverted `if` to reduce nesting, local functions below the code that calls them, `_ =` for a
-  discarded probe result, and unused usings, redundant `!`, trailing commas and redundant type specifications.
+  discarded probe result, unused usings, redundant `!`, trailing commas, redundant type specifications, and an
+  argument-only `[with(...)]` as a constructor call.
   **Left, and not to be "fixed":** loop-to-LINQ on a per-request path (`PaginateHttpRequestExtensions` says why
   its loop is indexed); a collection expression whose result reaches a consumer as `IReadOnlyList<T>`, which
   swaps the `List<T>` or array the caller gets today for a compiler-synthesized type; "redundant" parentheses
@@ -760,7 +762,8 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    what makes a later removal an RS0017 build error. Do **not** do it for an `-rc.N`: an rc-only member promoted
    to *shipped* cannot then be dropped before stable without fighting the analyzer.
    **At the line's first stable release** (`11.0.0`), also move `global.json` off the preview SDK — `11.0.100`,
-   `allowPrerelease` removed — and the EF Core range's floor off the release candidate. **Re-decide runtime
+   `allowPrerelease` removed, the workflows back to `global-json-file` — and the EF Core range's floor off the
+   release candidate. **Re-decide runtime
    async** (see *Intentional decisions*) in the same pass: RC 1 still labels it a preview feature and Mono does
    not support it, so check that the label is gone and what a runtime-async `net11.0` library does on Mono
    before `11.0.0` ships with it. Turning it off is deleting the `Features` property group in
@@ -835,15 +838,15 @@ neither needing Docker:
 > **[global.json](global.json) is load-bearing**: it selects the **Microsoft.Testing.Platform** runner for `dotnet test`.
 > MTP v2 dropped the VSTest bridge on the .NET 10 SDK, so without that file *every* `dotnet test` here — yours, `ci.yml`
 > and the guard inside `publish.yml` — fails with `Testing with VSTest target is no longer supported`. **It also pins
-> the SDK**, and that pin is the single source of the .NET version for every workflow: each `setup-dotnet` reads
-> `global-json-file: global.json`, and so does GitHub's *automatic dependency submission*, which has no file in this
-> repository and takes the SDK from nowhere else. On a line whose framework is GA the pin names the feature band's
-> floor with `rollForward: latestFeature` (`10.0.100`), which `setup-dotnet` installs as the newest 10.0 SDK; that is
-> also what keeps a machine with a newer major installed — a checkout of the servicing line next to `master` — from
-> building this line with the wrong SDK. A line in preview pins the exact rc build instead (setup-dotnet installs a
-> prerelease pin verbatim; `rollForward` only lets a local `dotnet` accept a newer 11.0.x), and that pin moves with the
-> framework: **a Dependabot PR bumping `Microsoft.*` to the next rc must bump `global.json` to the matching SDK in the
-> same PR** — packages built against rc.2 are not guaranteed to run on the rc.1 shared framework.
+> the SDK**, and that pin is the single source of the .NET version for every workflow and for GitHub's *automatic
+> dependency submission*, which has no file in this repository and takes the SDK from nowhere else. On a line whose
+> framework is GA the pin names the feature band's floor with `rollForward: latestFeature` (`10.0.100`), which
+> `setup-dotnet` installs from `global-json-file` as the newest 10.0 SDK; that is also what keeps a machine with a
+> newer major installed — a checkout of the servicing line next to `master` — from building this line with the wrong
+> SDK. A line in preview pins the exact rc build instead, and `global-json-file` is not exact there (it installed
+> the band's newest SDK), so its workflows install the pinned version themselves and assert `dotnet --version`. That
+> pin moves with the framework: **a Dependabot PR bumping `Microsoft.*` to the next rc must bump `global.json` to the
+> matching SDK in the same PR** — packages built against rc.2 are not guaranteed to run on the rc.1 shared framework.
 
 - **SQLite in-memory** — most tests. Real SQL translation, so it is what catches "the expression cannot be translated",
   and it exercises the engine's `UseDatabaseFunctions` path (`EF.Functions.Like`, `EF.Parameter`).
