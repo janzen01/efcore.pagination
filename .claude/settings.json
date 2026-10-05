@@ -1,7 +1,5 @@
 {
   "enabledPlugins": {
-    "42crunch-api-security-testing@claude-plugins-official": true,
-    "azure@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
     "code-review@claude-plugins-official": true,
@@ -17,6 +15,8 @@
     "dotnet-data@dotnet-agent-skills": true,
     "dotnet-diag@dotnet-agent-skills": true,
     "dotnet-nuget@dotnet-agent-skills": true,
+    "dotnet-upgrade@dotnet-agent-skills": true,
+    "dotnet11@dotnet-agent-skills": true,
     "ponytail@ponytail": true
   },
   "permissions": {
