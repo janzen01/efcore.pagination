@@ -84,8 +84,8 @@ public sealed class SqliteFixture : IAsyncLifetime {
 
 	public async ValueTask DisposeAsync() { await _connection.DisposeAsync(); }
 
-	// Task.Delay rather than Task.Yield: a delay is still pending when it is awaited, and ConfigureAwait(false)
-	// keeps the interceptor itself from posting to whatever context the caller installed.
+	// ForceYielding suspends whatever the timing: a short Task.Delay could finish before it was awaited on a busy
+	// runner and leave the whole query synchronous. Without ContinueOnCapturedContext it posts nothing to the caller.
 	private sealed class YieldingInterceptor : DbCommandInterceptor {
 
 		public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
@@ -94,7 +94,7 @@ public sealed class SqliteFixture : IAsyncLifetime {
 			InterceptionResult<DbDataReader> result,
 			CancellationToken cancellationToken = default
 		) {
-			await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+			await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
 			return result;
 		}
 
@@ -104,7 +104,7 @@ public sealed class SqliteFixture : IAsyncLifetime {
 			InterceptionResult<object> result,
 			CancellationToken cancellationToken = default
 		) {
-			await Task.Delay(1, cancellationToken).ConfigureAwait(false);
+			await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
 			return result;
 		}
 

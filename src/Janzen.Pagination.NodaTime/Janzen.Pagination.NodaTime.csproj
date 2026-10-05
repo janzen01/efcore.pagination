@@ -3,7 +3,6 @@
     <PropertyGroup>
         <Description>NodaTime support for Janzen.Pagination — filtering, sorting, and projecting Instant and LocalDate values (including Instant to DateTimeOffset projection).</Description>
         <PackageTags>$(PackageTags);nodatime;instant;localdate</PackageTags>
-        <LangVersion>15</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>

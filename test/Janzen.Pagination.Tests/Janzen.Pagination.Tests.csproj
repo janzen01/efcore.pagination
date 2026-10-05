@@ -22,7 +22,6 @@
         <!-- AddOpenApi's XML-comment source generator emits interceptors, which the compiler refuses to
              accept until their namespace is opted in. Only this project hosts an app, so only it needs it. -->
         <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.AspNetCore.OpenApi.Generated</InterceptorsNamespaces>
-        <LangVersion>15</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>

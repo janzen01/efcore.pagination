@@ -3,7 +3,6 @@
     <PropertyGroup>
         <Description>PostgreSQL provider for Janzen.Pagination — case-insensitive search via native ILIKE.</Description>
         <PackageTags>$(PackageTags);postgresql;postgres;npgsql;ilike</PackageTags>
-        <LangVersion>15</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>
