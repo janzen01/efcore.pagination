@@ -22,7 +22,8 @@ dotnet add package Janzen.Pagination.AspNetCore
 ```
 
 Requires [`Janzen.Pagination.EntityFrameworkCore`](https://www.nuget.org/packages/Janzen.Pagination.EntityFrameworkCore)
-(referenced transitively).
+(referenced transitively). Calling `AddOpenApi()` also needs a direct reference to `Microsoft.AspNetCore.OpenApi`,
+see [OpenAPI](https://janzen01.github.io/efcore.pagination/v10.1.x/integrations/aspnetcore/openapi/).
 
 ## Usage
 
