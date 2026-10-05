@@ -3,7 +3,6 @@
     <PropertyGroup>
         <Description>Provider-agnostic, configuration-driven pagination, filtering, and sorting engine for Entity Framework Core, with a fluent per-entity configuration API and an opinionated query-string contract.</Description>
         <PackageTags>$(PackageTags);paginate;searching;dynamic-query;data-access</PackageTags>
-        <LangVersion>15</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>

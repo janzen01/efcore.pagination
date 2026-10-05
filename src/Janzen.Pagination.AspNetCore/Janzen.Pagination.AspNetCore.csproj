@@ -3,7 +3,6 @@
     <PropertyGroup>
         <Description>ASP.NET Core integration for Janzen.Pagination — query-string model binding, ProblemDetails error handling, pagination links and OpenAPI metadata.</Description>
         <PackageTags>$(PackageTags);aspnetcore;webapi;openapi;model-binding;problem-details</PackageTags>
-        <LangVersion>15</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>

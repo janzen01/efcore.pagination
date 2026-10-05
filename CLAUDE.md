@@ -536,7 +536,7 @@ independent of each other — consumers pick the extensions they need:
 
 ## Conventions
 - **net11.0-only**, `Nullable=enable`, `ImplicitUsings=enable` ([Directory.Build.props](Directory.Build.props)),
-  **C# 15 pinned in each project file**: under the RC SDK the IDE reads `latest` as C# 14.
+  **C# `15.0` pinned there**, never `latest`: under the RC SDK the IDE reads `latest` as C# 14.
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
   The EF Core family (`Microsoft.EntityFrameworkCore`, `.Relational`, `.Sqlite`) is a **range capped below the next
   major** (`[11.0.0-rc.1.26425.128, 12.0.0)` on this line, `[10.0.12, 11.0.0)` on `release/10.x`), the way
@@ -718,19 +718,13 @@ The package version's **first component tracks the .NET / EF Core major it targe
   straight after — left in place, it would make every rule here optional for the maintainer. A rename
   triggers no `push`, so dispatch CodeQL (`workflow_dispatch`) on both branches afterwards; the weekly
   schedule only ever runs on the default branch.
-- **A feature is delivered to both lines while the previous one is in its parallel window** — until three
-  months after the newer line's stable release (`11.0.0` GA + 3 months); after that the previous line takes
-  fixes on request only. The mechanics are fixed by the ruleset: linear history plus squash-only rule out a
-  merge-forward, so a feature is **one PR into the older line first** — opened with `--base release/10.x`,
-  because a new PR defaults to `master` — **then a forward-port**: `git cherry-pick -x <squash sha>` onto a
-  branch off the newer line, a second PR with the same title and `Forward-port of #<PR>` in its body. Oldest
-  first because the newer line accumulates the renames and breaks of its major, so the forward-port is where
-  the conflicts belong. Each line carries its own `<Version>`, its own `PublicAPI.Unshipped.txt` and its own
-  `docs/src`, so a feature edits all three on each branch. A forward-port that adds a link to a new page into
-  a package README cannot pass `verify-frozen-urls.mjs` on `master` before the older line has released that
-  page, because `master` archives the older line from its tag — hold the README half of the forward-port
-  until then. A change that exists only for the newer line (its breaking-change bundle) is an ordinary PR
-  with no counterpart.
+- **A feature is delivered to `master` first** — the newest line. It reaches the previous line only as a
+  **backport**, where that line wants it: `git cherry-pick -x <squash sha>` onto a branch off `release/10.x`, a
+  PR opened with `--base release/10.x` (a new PR defaults to `master`), the same title and `Backport of #<PR>`
+  in its body. Linear history plus squash-only rule out a merge in either direction. Each line carries its own
+  `<Version>`, `PublicAPI.Unshipped.txt` and `docs/src`, so a backport edits all three again on its branch, and
+  its README links name that line's own copy (`/v10.1.x/`). After `11.0.0` GA + 3 months the previous line
+  takes fixes on request only.
 - **No four-part versions.** NuGet drops a zero fourth component (`10.1.0.0` *is* `10.1.0`) and treats `1`, `1.0`,
   `1.0.0` and `1.0.0.0` as equal, so the component count would flicker per release. Three components only.
 - Version lives in `<Version>` in [Directory.Build.props](Directory.Build.props) — there is **no MinVer** here.
@@ -780,9 +774,8 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
    hand-editing). Skip that follow-up and the guard keeps validating against an ever-older surface, and the
    stale suppressions hide the next accidental break behind the same target. An `-rc.N` is not a baseline.
    **While two lines are live, a release of the older line owes the same follow-up on `master` too**: raise the
-   newer line's baseline to the older line's release. That is what enforces the forward-port — a member the
-   older line shipped and the newer line never received then fails package validation on `master`, instead of
-   vanishing silently from the next major. Land the forward-ports first, or that PR cannot go green.
+   newer line's baseline to the older line's release. A member the older line shipped and `master` lacks then
+   fails package validation on `master`, instead of vanishing silently from the next major.
 5. Release notes go **on the GitHub release** — there is no changelog file, and `PackageReleaseNotes` points at
    the Releases page.
 6. Publishing authenticates by **Trusted Publishing (OIDC)**, so there is no API key anywhere. The policy lives

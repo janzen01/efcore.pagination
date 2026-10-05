@@ -3,7 +3,7 @@
     <!-- Compilation -->
     <PropertyGroup>
         <TargetFramework>net11.0</TargetFramework>
-        <LangVersion>latest</LangVersion>
+        <LangVersion>15.0</LangVersion>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
     </PropertyGroup>
