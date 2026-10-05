@@ -27,7 +27,7 @@
          the split has to be closed by naming it. It is promoted to a visible dependency of the
          PostgreSql package as a result; that is the cost of holding the family together. -->
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="[11.0.0-rc.1.26425.128, 12.0.0)" />
-    <PackageVersion Include="NodaTime" Version="3.3.4" />
+    <PackageVersion Include="NodaTime" Version="3.3.5" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.0.0-rc.1.1" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="11.0.0-rc.1.26425.128" />
     <PackageVersion Include="Microsoft.OpenApi" Version="3.10.2" />
@@ -36,13 +36,6 @@
   <!-- Test-only. Sqlite tracks the same EF Core version as the engine. -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="[11.0.0-rc.1.26425.128, 12.0.0)" />
-    <!-- Transitive pin: a floor at 2.1.12, the first release outside GHSA-2m69-gcr7-jv3q's affected
-         range (<= 2.1.11, a high-severity advisory in the bundled SQLite). EF Core's Sqlite provider
-         resolves 2.1.12 on its own at the version pinned above, so the pin is belt-and-braces today
-         and blocks a downgrade should a future provider relax its own floor. Do not raise it: 2.1.12
-         is exactly EF Core's floor, and diverging means testing a native build it does not ship
-         against. -->
-    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageVersion Include="xunit.v3" Version="4.0.1" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
