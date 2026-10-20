@@ -539,7 +539,7 @@ independent of each other — consumers pick the extensions they need:
   **C# `15.0` pinned there**, never `latest`: under the RC SDK the IDE reads `latest` as C# 14.
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
   The EF Core family (`Microsoft.EntityFrameworkCore`, `.Relational`, `.Sqlite`) is a **range capped below the next
-  major** (`[11.0.0-rc.1.26425.128, 12.0.0)` on this line, `[10.0.12, 11.0.0)` on `release/10.x`), the way
+  major** (`[11.0.0-rc.2.26504.105, 12.0.0)` on this line, `[10.0.12, 11.0.0)` on `release/10.x`), the way
   Npgsql caps its own: a line's engine loaded against the next EF Core major can fail at runtime, and with the cap
   a restore that resolves EF Core `12.0.0` or later reports NU1608. The floor sits on the release candidate only
   until the line's first stable release (*Releasing*, step 3).
