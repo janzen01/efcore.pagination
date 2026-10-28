@@ -59,11 +59,11 @@ public sealed class SqliteFixture : IAsyncLifetime {
 	public TestDbContext CreateLoggingContext(ICollection<string> executedSql) { return new TestDbContext(Options(builder => builder.LogTo(line => executedSql.Add(line), [RelationalEventId.CommandExecuted]))); }
 
 	/// <summary>
-	///     A context whose every command genuinely suspends before it runs. SQLite's async API completes
+	///     A context whose commands wait for <paramref name="release" /> before they run. SQLite's async API completes
 	///     synchronously, so without this no <c>await</c> in the engine ever yields and a test about where its
 	///     continuations resume would pass whatever the engine did.
 	/// </summary>
-	public TestDbContext CreateYieldingContext() { return new TestDbContext(Options(builder => builder.AddInterceptors(new YieldingInterceptor()))); }
+	public TestDbContext CreateYieldingContext(Task release) { return new TestDbContext(Options(builder => builder.AddInterceptors(new YieldingInterceptor(release)))); }
 
 	// Every context of this fixture shares one connection and one warning policy; the variants only add to it.
 	private DbContextOptions<TestDbContext> Options(Action<DbContextOptionsBuilder<TestDbContext>>? extend = null) {
@@ -84,9 +84,14 @@ public sealed class SqliteFixture : IAsyncLifetime {
 
 	public async ValueTask DisposeAsync() { await _connection.DisposeAsync(); }
 
-	// ForceYielding suspends whatever the timing: a short Task.Delay could finish before it was awaited on a busy
-	// runner and leave the whole query synchronous. Without ContinueOnCapturedContext it posts nothing to the caller.
+	// Yielding is not enough: ForceYielding suspended the command, but the pool could run the query to completion
+	// before the caller's thread reached the engine's await, which then found a finished task and carried on in
+	// the caller's context. A gate the test opens only after the engine has returned to it cannot be won that way.
 	private sealed class YieldingInterceptor : DbCommandInterceptor {
+
+		private readonly Task _release;
+
+		public YieldingInterceptor(Task release) { _release = release; }
 
 		public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
 			DbCommand command,
@@ -94,7 +99,7 @@ public sealed class SqliteFixture : IAsyncLifetime {
 			InterceptionResult<DbDataReader> result,
 			CancellationToken cancellationToken = default
 		) {
-			await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
+			await _release.ConfigureAwait(false);
 			return result;
 		}
 
@@ -104,7 +109,7 @@ public sealed class SqliteFixture : IAsyncLifetime {
 			InterceptionResult<object> result,
 			CancellationToken cancellationToken = default
 		) {
-			await Task.CompletedTask.ConfigureAwait(ConfigureAwaitOptions.ForceYielding);
+			await _release.ConfigureAwait(false);
 			return result;
 		}
 

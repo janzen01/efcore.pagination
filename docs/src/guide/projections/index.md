@@ -255,9 +255,13 @@ this is the contract, not an implementation detail:
   client has gone away. Pass the token: in MVC and in Minimal APIs a `CancellationToken` parameter binds to
   `HttpContext.RequestAborted` for free, and the engine has no other way to learn the request was abandoned.
 - **Which thread `postMap` and `projector` run on follows the leg.** On the Entity Framework Core leg the
-  engine awaits with `ConfigureAwait(false)`, so they continue on a thread-pool thread with no synchronization
-  context — do not touch UI-affine state in them. On the in-memory leg there is no await at all, because
-  `ToArray()` is synchronous, so they run inline on the calling thread with whatever context it carries.
+  engine awaits with `ConfigureAwait(false)`, so they are never posted back to the caller's synchronization
+  context: when the database call is still in flight as the engine awaits it, they continue on a thread-pool
+  thread with no context. A call that has already completed by then leaves them inline on the calling thread,
+  context included, because an await of a finished task does not move — every call on SQLite, whose async API
+  completes synchronously, and now and then a fast one elsewhere. Either way, do not touch UI-affine state in
+  them. On the in-memory leg there is no await at all, because `ToList()` is synchronous, so they run inline on
+  the calling thread with whatever context it carries.
   `AsyncLocal` values reach them on both legs: `ConfigureAwait(false)` suppresses the synchronization context,
   not the execution context that `AsyncLocal` flows on. Do not block in them either way.
 - **A source that is not an EF Core queryable executes synchronously.** The engine has two legs: Entity
