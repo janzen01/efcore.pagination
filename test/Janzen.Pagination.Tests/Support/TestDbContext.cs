@@ -2,6 +2,8 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
+using System.Data.Common;
+
 namespace Janzen.Pagination.Tests.Support;
 
 public sealed class TestDbContext(DbContextOptions<TestDbContext> options) : DbContext(options) {
@@ -71,9 +73,57 @@ public sealed class SqliteFixture : IAsyncLifetime {
 
 	}
 
+	/// <summary>
+	///     A context whose commands wait for <paramref name="release" /> before they run. SQLite's async API completes
+	///     synchronously, so without this no <c>await</c> in the engine ever yields and a test about where its
+	///     continuations resume would pass whatever the engine did.
+	/// </summary>
+	public TestDbContext CreateYieldingContext(Task release) {
+
+		var options = new DbContextOptionsBuilder<TestDbContext>()
+			.UseSqlite(_connection)
+			.ConfigureWarnings(w => w.Ignore(SqliteEventId.CompositeKeyWithValueGeneration))
+			.AddInterceptors(new YieldingInterceptor(release))
+			.Options;
+
+		return new TestDbContext(options);
+
+	}
+
 	/// <summary>A fresh, untracked query root — every test starts from the same eight rows.</summary>
 	public static IQueryable<Product> Products(TestDbContext context) { return context.Products.AsNoTracking(); }
 
 	public async ValueTask DisposeAsync() { await _connection.DisposeAsync(); }
+
+	// Yielding is not enough: ForceYielding suspended the command, but the pool could run the query to completion
+	// before the caller's thread reached the engine's await, which then found a finished task and carried on in
+	// the caller's context. A gate the test opens only after the engine has returned to it cannot be won that way.
+	private sealed class YieldingInterceptor : DbCommandInterceptor {
+
+		private readonly Task _release;
+
+		public YieldingInterceptor(Task release) { _release = release; }
+
+		public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+			DbCommand command,
+			CommandEventData eventData,
+			InterceptionResult<DbDataReader> result,
+			CancellationToken cancellationToken = default
+		) {
+			await _release.ConfigureAwait(false);
+			return result;
+		}
+
+		public override async ValueTask<InterceptionResult<object>> ScalarExecutingAsync(
+			DbCommand command,
+			CommandEventData eventData,
+			InterceptionResult<object> result,
+			CancellationToken cancellationToken = default
+		) {
+			await _release.ConfigureAwait(false);
+			return result;
+		}
+
+	}
 
 }
