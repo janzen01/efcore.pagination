@@ -636,8 +636,17 @@ independent of each other — consumers pick the extensions they need:
   before awaiting them.
 - **Every `await` in the engine carries `ConfigureAwait(false)`**, with the one deliberate exception of
   `PaginateExceptionEndpointFilter.cs`, which is application-level code inside the host's own pipeline. Keep
-  the split: a library await never captures a context, so a consumer's `postMap` and `projector` continue on
-  a thread-pool thread — which the projections guide now promises.
+  the split: a library await never captures a context, so a consumer's `postMap` and `projector` are never
+  posted back to the caller's — which the projections guide promises, together with its limit: an await that
+  finds its task already finished does not move at all, so they run inline under the caller's context then.
+  `ContinuationContextTests` pins it, through `SqliteFixture.CreateYieldingContext(release)`: SQLite completes
+  its async calls synchronously, so without an interceptor that genuinely suspends no await ever yields and a
+  missing `ConfigureAwait(false)` goes unseen. **The interceptor waits on a gate the test opens only after the
+  engine's synchronous prefix has returned**, and that is the fix for a flake rather than a style choice: with
+  `ConfigureAwaitOptions.ForceYielding` instead, a pool thread could finish the whole query before the caller's
+  thread reached the engine's await, which then continued inline and the projector saw the caller's context —
+  about 2% of runs under 24-way parallel load, and three red `ci-ok`s on macOS and the postgres job. Verified by
+  deleting the one on the count await: both tests fail.
 - Build must stay clean under `-warnaserror` before any commit.
 - **Commits:** small and incremental (one logical change each).
 - **The line branches take no direct pushes.** One ruleset covers `master` and `release/*` (see *Versioning*):
