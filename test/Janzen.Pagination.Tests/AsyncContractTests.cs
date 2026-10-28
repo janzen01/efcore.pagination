@@ -206,10 +206,11 @@ public sealed class EfInternalCouplingTests : IClassFixture<SqliteFixture> {
 }
 
 /// <summary>
-///     The promise the projections guide makes: a consumer's <c>projector</c> and <c>postMap</c> continue on a
-///     thread-pool thread, never on the caller's <see cref="SynchronizationContext" />. What keeps it is
-///     <c>ConfigureAwait(false)</c> on the engine's awaits, and nothing else pinned it -- dropping one left the
-///     suite green, because SQLite completes its async calls synchronously and no await ever yielded.
+///     The promise the projections guide makes: when the database call is still in flight as the engine awaits
+///     it, a consumer's <c>projector</c> and <c>postMap</c> continue on a thread-pool thread, never on the caller's
+///     <see cref="SynchronizationContext" />. What keeps it is <c>ConfigureAwait(false)</c> on the engine's awaits,
+///     and nothing else pinned it -- dropping one left the suite green, because SQLite completes its async calls
+///     synchronously and no await ever yielded.
 /// </summary>
 public sealed class ContinuationContextTests : IClassFixture<SqliteFixture> {
 
@@ -220,47 +221,51 @@ public sealed class ContinuationContextTests : IClassFixture<SqliteFixture> {
 	[Fact]
 	public async Task The_projector_does_not_resume_on_the_callers_context() {
 
-		await using var context = _fixture.CreateYieldingContext();
+		var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		await using var context = _fixture.CreateYieldingContext(release.Task);
 		var recording = new RecordingContext();
-		SynchronizationContext? seen = recording;
+		var seen = new List<SynchronizationContext?>();
 
-		await StartUnder(recording, () => SqliteFixture.Products(context).PaginateMapAsync(
+		await StartUnder(recording, release, () => SqliteFixture.Products(context).PaginateMapAsync(
 			new PaginateQuery(),
 			TestData.Config,
 			product => {
-				seen = SynchronizationContext.Current;
+				seen.Add(SynchronizationContext.Current);
 				return product.Id;
 			},
 			null,
 			TestContext.Current.CancellationToken
 		));
 
-		Assert.Null(seen);
 		Assert.Equal(0, recording.Posts);
+		Assert.NotEmpty(seen);
+		Assert.All(seen, current => Assert.Null(current));
 
 	}
 
 	[Fact]
 	public async Task The_post_map_does_not_resume_on_the_callers_context() {
 
-		await using var context = _fixture.CreateYieldingContext();
+		var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		await using var context = _fixture.CreateYieldingContext(release.Task);
 		var recording = new RecordingContext();
-		SynchronizationContext? seen = recording;
+		var seen = new List<SynchronizationContext?>();
 
-		await StartUnder(recording, () => SqliteFixture.Products(context).PaginateSelectMapAsync(
+		await StartUnder(recording, release, () => SqliteFixture.Products(context).PaginateSelectMapAsync(
 			new PaginateQuery(),
 			TestData.Config,
 			product => product.Id,
 			id => {
-				seen = SynchronizationContext.Current;
+				seen.Add(SynchronizationContext.Current);
 				return id;
 			},
 			null,
 			TestContext.Current.CancellationToken
 		));
 
-		Assert.Null(seen);
 		Assert.Equal(0, recording.Posts);
+		Assert.NotEmpty(seen);
+		Assert.All(seen, current => Assert.Null(current));
 
 	}
 
@@ -274,38 +279,46 @@ public sealed class ContinuationContextTests : IClassFixture<SqliteFixture> {
 
 		var config = PaginateConfig<Product>.Create(b => b.WithLimits(10, 50).WithTieBreaker(p => p.Id).AllowUnlimited(100));
 
-		await using var context = _fixture.CreateYieldingContext();
+		var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		await using var context = _fixture.CreateYieldingContext(release.Task);
 		var recording = new RecordingContext();
-		SynchronizationContext? seen = recording;
+		var seen = new List<SynchronizationContext?>();
 
-		await StartUnder(recording, () => SqliteFixture.Products(context).PaginateMapAsync(
+		await StartUnder(recording, release, () => SqliteFixture.Products(context).PaginateMapAsync(
 			new PaginateQuery { Limit = PaginateQuery.UnlimitedLimit },
 			config,
 			product => {
-				seen = SynchronizationContext.Current;
+				seen.Add(SynchronizationContext.Current);
 				return product.Id;
 			},
 			null,
 			TestContext.Current.CancellationToken
 		));
 
-		Assert.Null(seen);
 		Assert.Equal(0, recording.Posts);
+		Assert.NotEmpty(seen);
+		Assert.All(seen, current => Assert.Null(current));
 
 	}
 
 	// The context is installed only while the engine's synchronous prefix runs, which is where an await would
 	// capture it. Awaiting the task is left to the caller's own context, so the test's await posts nothing here.
-	private static Task StartUnder(SynchronizationContext context, Func<Task> start) {
+	// The database is released only once that prefix has returned, so the engine's first await always finds the
+	// command in flight: answered earlier, it carries on inline under the caller's context, ConfigureAwait or not.
+	private static Task StartUnder(SynchronizationContext context, TaskCompletionSource release, Func<Task> start) {
 
 		var prior = SynchronizationContext.Current;
 		SynchronizationContext.SetSynchronizationContext(context);
+		Task started;
 
 		try {
-			return start();
+			started = start();
 		} finally {
 			SynchronizationContext.SetSynchronizationContext(prior);
 		}
+
+		release.SetResult();
+		return started;
 
 	}
 
