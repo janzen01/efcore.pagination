@@ -536,7 +536,7 @@ independent of each other — consumers pick the extensions they need:
 - **net10.0-only**, `Nullable=enable`, `ImplicitUsings=enable`, C# `latest` ([Directory.Build.props](Directory.Build.props)).
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
   The EF Core family (`Microsoft.EntityFrameworkCore`, `.Relational`, `.Sqlite`) is a **range capped below the next
-  major** (`[10.0.12, 11.0.0)`), the way Npgsql caps its own: a line's engine loaded against the next EF Core major
+  major** (`[10.0.14, 11.0.0)`), the way Npgsql caps its own: a line's engine loaded against the next EF Core major
   can fail at runtime, and with the cap a restore that resolves EF Core `11.0.0` or later reports NU1608.
   **It does not cover the next major's prereleases**, and that is known rather than overlooked: NuGet orders
   `11.0.0-rc.N` below `11.0.0`, so a net11.0 project on the EF Core 11 release candidates resolved
