@@ -17,11 +17,11 @@
   "devDependencies": {
     "@nolebase/vitepress-plugin-enhanced-readabilities": "^2.21.1",
     "@viteplus/versions": "^2.3.0",
-    "mermaid": "^12.2.0",
+    "mermaid": "^12.3.0",
     "picomatch": "^4.0.7",
     "vitepress": "^2.0.0-alpha.21",
     "vitepress-plugin-mermaid": "^2.0.17",
-    "vue": "^3.5.44"
+    "vue": "^3.5.45"
   },
   "pnpm": {
     "overrides": {
