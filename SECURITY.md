@@ -6,7 +6,7 @@ A version's first component tracks the .NET / EF Core major it targets, and two 
 
 | Line   | Targets              | Status                                                         |
 |--------|----------------------|----------------------------------------------------------------|
-| `11.x` | .NET 11 / EF Core 11 | newest line — in preview until `11.0.0`, then the stable line  |
+| `11.x` | .NET 11 / EF Core 11 | newest line, stable since `11.0.0`                             |
 | `10.x` | .NET 10 / EF Core 10 | stable, serviced in parallel until three months after `11.0.0` |
 
 Security fixes go to **both lines** while `10.x` is in that window, and to the newest line only after it,

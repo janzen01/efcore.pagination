@@ -30,6 +30,9 @@ this site, one pick away in the version picker.
      framework's change, not this package's, and its migration notes are the place to read it.
    - Keep the direct reference to `Microsoft.AspNetCore.OpenApi` in your app, or `AddOpenApi()` fails to build
      with CS9137. [OpenAPI](/integrations/aspnetcore/openapi/) says why.
+5. **Leave Mono behind.** The `11.x` packages are compiled with .NET 11's runtime async, which the Mono runtime
+   cannot execute, so Blazor WebAssembly is not supported where the `10.x` line ran. Servers, desktop apps, and
+   .NET MAUI are unaffected; [Requirements](../getting-started/#requirements) has the detail.
 
 ## What the framework changed under you
 

@@ -539,10 +539,10 @@ independent of each other — consumers pick the extensions they need:
   **C# `15.0` pinned there**, never `latest`: under the RC SDK the IDE reads `latest` as C# 14.
 - **CPM** — every package version lives in [Directory.Packages.props](Directory.Packages.props); don't pin versions in a `.csproj`.
   The EF Core family (`Microsoft.EntityFrameworkCore`, `.Relational`, `.Sqlite`) is a **range capped below the next
-  major** (`[11.0.0-rc.3.26522.148, 12.0.0)` on this line, `[10.0.12, 11.0.0)` on `release/10.x`), the way
+  major** (`[11.0.0, 12.0.0)` on this line, `[10.0.14, 11.0.0)` on `release/10.x`), the way
   Npgsql caps its own: a line's engine loaded against the next EF Core major can fail at runtime, and with the cap
-  a restore that resolves EF Core `12.0.0` or later reports NU1608. The floor sits on the release candidate only
-  until the line's first stable release (*Releasing*, step 3).
+  a restore that resolves EF Core `12.0.0` or later reports NU1608. While a line is in preview its floor sits on
+  the release candidate, until the line's first stable release (*Releasing*, step 3).
   **It does not cover the next major's prereleases**, and that is known rather than overlooked: NuGet orders
   `12.0.0-rc.N` below `12.0.0`, so a project on the next major's release candidates resolves this line without a
   word. Measured on the 10.x line, where a net11.0 project on the EF Core 11 release candidates resolved
@@ -761,15 +761,9 @@ needs, in order — most of them are guarded, and the guard fires *after* the ta
 3. **At a stable release only**, move each `PublicAPI.Unshipped.txt` into its `PublicAPI.Shipped.txt`. That is
    what makes a later removal an RS0017 build error. Do **not** do it for an `-rc.N`: an rc-only member promoted
    to *shipped* cannot then be dropped before stable without fighting the analyzer.
-   **At the line's first stable release** (`11.0.0`), also move `global.json` off the preview SDK — `11.0.100`,
-   `allowPrerelease` removed, the workflows back to `global-json-file` — and the EF Core range's floor off the
-   release candidate. **Re-decide runtime
-   async** (see *Intentional decisions*) in the same pass: RC 1 still labels it a preview feature and Mono does
-   not support it, so check that the label is gone and what a runtime-async `net11.0` library does on Mono
-   before `11.0.0` ships with it. Turning it off is deleting the `Features` property group in
-   `Directory.Build.targets` and, in the reflection test, both flag-dependent assertions — the empty
-   `AsyncStateMachineAttribute` scan and the `MethodImplAttributes.Async` check on `PaginateCoreAsync` — while the
-   check that the four wrappers are not async stays, since it holds either way.
+   **At a line's first stable release** (done for `11.0.0`), also move `global.json` off the preview SDK — the
+   band's floor (`11.0.100`), `allowPrerelease` removed, the workflows back to `global-json-file` — and the EF Core
+   range's floor off the release candidate.
 4. **`PackageValidationBaselineVersion` is bumped *after* the publish, never in the release PR.** It resolves
    through a `PackageDownload`, so pointing it at a version nuget.org does not serve yet fails **restore** with
    `NU1102: Unable to find package … with version (= x.y.z)` — the release PR's own CI, before any tag exists.
@@ -925,8 +919,13 @@ way), and `PaginateExpressionUtils.EscapeLikePattern`'s `[` (only SQL Server rea
   `Features` value alone does not invalidate `CoreCompile`: adding the file first left the previous binaries in
   place under a green incremental build, and the test then reported state machines a clean build does not have.
   An edit to the file now recompiles (measured); **deleting it is the one change that cannot**, since a
-  missing input is not a newer one, so rebuild with `--no-incremental` after that. It is still a preview
-  feature in RC 1; the re-check owed before `11.0.0` is under *Releasing*.
+  missing input is not a newer one, so rebuild with `--no-incremental` after that. **Re-decided at `11.0.0` and
+  kept**: the preview label is gone in .NET 11 GA, and the one cost is that Mono cannot execute it, which leaves
+  Blazor WebAssembly (still Mono in .NET 11) unsupported — documented under *Requirements* in the getting-started
+  guide. The setting is per assembly, so a consumer's own `Features` cannot undo it. Turning it off is deleting
+  the `Features` property group in `Directory.Build.targets` and, in the reflection test, both flag-dependent
+  assertions — the empty `AsyncStateMachineAttribute` scan and the `MethodImplAttributes.Async` check on
+  `PaginateCoreAsync` — while the check that the four wrappers are not async stays, since it holds either way.
 - **Value resolution order is registry → built-ins → `IParsable<TSelf>` → 400**, and the registry going *first* is
   the load-bearing part: consulted last (as it was before 10.0.3) a registration for an already-built-in type was a
   silent no-op, so everyone it affected was someone who tried to override and never found out. Don't move it back

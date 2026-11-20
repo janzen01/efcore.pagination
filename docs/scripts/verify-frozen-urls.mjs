@@ -76,7 +76,24 @@ const frozen = [
 	['v10.1.x/reference/configuration/index.html', '10.1.0'],
 	['v10.1.x/reference/errors/index.html', '10.1.0'],
 	['v10.1.x/reference/query-string/index.html', '10.1.0'],
-	['v10.1.x/reference/response/index.html', '10.1.0']
+	['v10.1.x/reference/response/index.html', '10.1.0'],
+
+	// 11.0.0 -- the first stable release of the 11.x line; its READMEs name its own copy, /v11.0.x/.
+	['v11.0.x/index.html', '11.0.0'],
+	['v11.0.x/guide/configuration/index.html', '11.0.0'],
+	['v11.0.x/guide/getting-started/index.html', '11.0.0'],
+	['v11.0.x/guide/projections/index.html', '11.0.0'],
+	['v11.0.x/integrations/aspnetcore/index.html', '11.0.0'],
+	['v11.0.x/integrations/aspnetcore/openapi/index.html', '11.0.0'],
+	['v11.0.x/integrations/custom-types/index.html', '11.0.0'],
+	['v11.0.x/integrations/nodatime/index.html', '11.0.0'],
+	['v11.0.x/integrations/postgresql/index.html', '11.0.0'],
+	['v11.0.x/recipes/index.html', '11.0.0'],
+	['v11.0.x/reference/composers/index.html', '11.0.0'],
+	['v11.0.x/reference/configuration/index.html', '11.0.0'],
+	['v11.0.x/reference/errors/index.html', '11.0.0'],
+	['v11.0.x/reference/query-string/index.html', '11.0.0'],
+	['v11.0.x/reference/response/index.html', '11.0.0']
 ]
 
 // The deep links a package README names, frozen for the same reason and just as permanently: reword the heading and
@@ -97,7 +114,16 @@ const frozenFragments = [
 	['v10.1.x/reference/query-string/index.html', 'operator-reference', '10.1.0'],
 	['v10.1.x/reference/query-string/index.html', 'value-formats', '10.1.0'],
 	['v10.1.x/reference/response/index.html', 'link-response-header-rfc-8288', '10.1.0'],
-	['v10.1.x/reference/response/index.html', 'the-request-echo', '10.1.0']
+	['v10.1.x/reference/response/index.html', 'the-request-echo', '10.1.0'],
+	['v11.0.x/integrations/aspnetcore/index.html', 'errors-as-problemdetails', '11.0.0'],
+	['v11.0.x/integrations/postgresql/index.html', 'like-vs-ilike', '11.0.0'],
+	['v11.0.x/reference/configuration/index.html', 'nested-attributes', '11.0.0'],
+	['v11.0.x/reference/configuration/index.html', 'shared-defaults', '11.0.0'],
+	['v11.0.x/reference/errors/index.html', 'filter-operators', '11.0.0'],
+	['v11.0.x/reference/query-string/index.html', 'operator-reference', '11.0.0'],
+	['v11.0.x/reference/query-string/index.html', 'value-formats', '11.0.0'],
+	['v11.0.x/reference/response/index.html', 'link-response-header-rfc-8288', '11.0.0'],
+	['v11.0.x/reference/response/index.html', 'the-request-echo', '11.0.0']
 ]
 
 // The list above is history: what 10.0.0 already published. This second half is the future: whatever the
