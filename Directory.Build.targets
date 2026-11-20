@@ -7,8 +7,8 @@
          Only methods carrying the async modifier are compiled this way, so the four Paginate*Async wrappers stay
          plain Task-returning methods and keep throwing argument errors at the call. AsyncContractTests pins both
          that and the flag itself, and ContinuationContextTests pins that no continuation captures the caller's
-         context. It is opt-in and still labeled a preview feature in RC 1; CLAUDE.md's Releasing section has the
-         re-check owed before 11.0.0. -->
+         context. It is opt-in and no longer a preview feature in .NET 11 GA. Mono cannot execute it, which leaves
+         Blazor WebAssembly unsupported; that was weighed at 11.0.0 and accepted (CLAUDE.md, Intentional decisions). -->
     <PropertyGroup Condition="'$(IsPackable)' != 'false'">
         <Features>$(Features);runtime-async=on</Features>
     </PropertyGroup>

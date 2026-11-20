@@ -14,8 +14,6 @@ column collation that changes it before 18.6. This package registers a strategy 
 dotnet add package Janzen.Pagination.PostgreSql
 ```
 
-Prereleases carry a `-preview.N` or `-rc.N` suffix — add `--prerelease` to install one.
-
 This is the `11.x` line, targeting .NET 11 and EF Core 11. The `10.x` line, for .NET 10, is serviced in
 parallel; its documentation is [its own copy](https://janzen01.github.io/efcore.pagination/v10.1.x/).
 

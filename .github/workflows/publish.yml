@@ -35,28 +35,10 @@ jobs:
           [ "v$V" = "$TAG" ] || { echo "refusing to publish: tag '$TAG' != version $V"; exit 1; }
           echo "tag $TAG matches version $V"
 
-      # Not global-json-file: with rollForward latestFeature it installs the band's newest SDK, not the pin.
-      - name: Read the pinned SDK
-        id: sdk
-        shell: bash
-        run: |
-          v=$(jq -er .sdk.version global.json)
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        env:
-          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
-          dotnet-version: ${{ steps.sdk.outputs.version }}
-
-      - name: Assert the pinned SDK
-        shell: bash
-        env:
-          PINNED: ${{ steps.sdk.outputs.version }}
-        run: |
-          v=$(dotnet --version)
-          [ "$v" = "$PINNED" ] || { echo "::error::SDK $v is not the $PINNED global.json pins"; exit 1; }
+          global-json-file: global.json
 
       - name: Restore
         run: dotnet restore Janzen.Pagination.slnx
@@ -117,27 +99,10 @@ jobs:
           sparse-checkout: global.json
           sparse-checkout-cone-mode: false
 
-      - name: Read the pinned SDK
-        id: sdk
-        shell: bash
-        run: |
-          v=$(jq -er .sdk.version global.json)
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        env:
-          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
-          dotnet-version: ${{ steps.sdk.outputs.version }}
-
-      - name: Assert the pinned SDK
-        shell: bash
-        env:
-          PINNED: ${{ steps.sdk.outputs.version }}
-        run: |
-          v=$(dotnet --version)
-          [ "$v" = "$PINNED" ] || { echo "::error::SDK $v is not the $PINNED global.json pins"; exit 1; }
+          global-json-file: global.json
 
       - name: Download the packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2

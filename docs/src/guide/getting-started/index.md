@@ -9,6 +9,10 @@ PostgreSQL; if you only want the engine, everything below except step 4 and step
 - **.NET 11** and **EF Core 11**. The packages are `net11.0`-only, and the major version tracks the framework
   they pair with: an `11.x` package goes with .NET 11, and the `10.x` line goes with .NET 10. Coming from `10.x`?
   See [Upgrading](../upgrading/).
+- **CoreCLR, not Mono.** The packages are compiled with .NET 11's runtime async, which the Mono runtime cannot
+  execute. That rules out Blazor WebAssembly, which still runs on Mono in .NET 11; servers, desktop apps, and
+  .NET MAUI (CoreCLR-only since .NET 11) are unaffected. Your own project's runtime-async setting does not
+  change this: it is decided per assembly, when each one is compiled.
 - **Not trim-safe or Native-AOT-safe.** The engine builds expression trees and uses reflection, so every public
   entry point that reaches it carries `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]`: the
   `Paginate*Async` methods and both composers, `WithPagination<TProvider>()`, `UseNodaTime()` /
